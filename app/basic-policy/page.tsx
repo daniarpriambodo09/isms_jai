@@ -9,8 +9,17 @@ export default function PolicyPage() {
   const { isLoggedIn } = useAuth()
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [fileName, setFileName] = useState('')
+  const [isImageOpen, setIsImageOpen] = useState(false)
 
   useEffect(() => () => { if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl) }, [imageUrl])
+
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsImageOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [])
 
   function handleImage(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -32,9 +41,9 @@ export default function PolicyPage() {
         <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Foundation</div>
         <div className="relative mt-5 aspect-[2.65] min-h-40 w-full overflow-hidden rounded-xl border border-border bg-muted/35 shadow-inner sm:min-h-52">
           {imageUrl ? <>
-            <Image src={imageUrl} alt={`Policy visual ${fileName}`} fill unoptimized className="object-contain" />
-            {isLoggedIn && <button type="button" onClick={removeImage} aria-label="Hapus gambar policy" className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-foreground/85 text-background shadow-sm transition hover:bg-foreground"><X className="size-4" /></button>}
-          </> : <div className="flex h-full flex-col items-center justify-center gap-2 px-5 text-center"><ImagePlus className="size-7 text-muted-foreground" /><span className="text-sm font-medium text-muted-foreground">Policy visual belum tersedia</span><span className="text-xs text-muted-foreground">Admin dapat menambahkan gambar dari panel di sebelah kanan.</span></div>}
+            <button type="button" onClick={() => setIsImageOpen(true)} className="absolute inset-0 cursor-zoom-in" aria-label="Perbesar gambar policy"><Image src={imageUrl} alt={`Policy visual ${fileName}`} fill unoptimized className="object-contain transition duration-300 hover:scale-[1.02]" /></button>
+            {isLoggedIn && <button type="button" onClick={removeImage} aria-label="Hapus gambar policy" className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-foreground/85 text-background shadow-sm transition hover:bg-foreground"><X className="size-4" /></button>}
+          </> : null}
         </div>
         <div className="my-8 h-px bg-border" />
         <h3 className="mb-2 text-base font-semibold text-foreground">Our commitment</h3>
@@ -56,6 +65,13 @@ export default function PolicyPage() {
           {fileName && <p className="truncate text-center text-[11px] text-muted-foreground">File aktif: {fileName}</p>}
         </div>
       </aside>
+
+      {isImageOpen && imageUrl && <div role="dialog" aria-modal="true" aria-label="Preview gambar policy" className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/80 p-4 backdrop-blur-sm" onClick={() => setIsImageOpen(false)}>
+        <div className="relative max-h-[92vh] w-full max-w-6xl" onClick={(event) => event.stopPropagation()}>
+          <Image src={imageUrl} alt={`Policy visual ${fileName}`} width={1600} height={1000} unoptimized className="max-h-[88vh] w-full rounded-xl object-contain shadow-2xl" />
+          <button type="button" onClick={() => setIsImageOpen(false)} aria-label="Tutup preview gambar" className="absolute right-2 top-2 grid size-10 place-items-center rounded-full bg-background/90 text-foreground shadow-lg transition hover:bg-background"><X className="size-5" /></button>
+        </div>
+      </div>}
     </section>
   )
 }

@@ -30,8 +30,12 @@ export default function PolicyPage() {
     <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
       <article className="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-9 lg:p-11">
         <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Foundation</div>
-        <h2 className="max-w-3xl text-pretty text-3xl tracking-tight text-foreground sm:text-4xl">Basic Policy on Information Security</h2>
-        <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">We recognize information as one of our most important assets and are committed to protecting it through a systematic, risk-based approach.</p>
+        <div className="relative mt-5 aspect-[2.65] min-h-40 w-full overflow-hidden rounded-xl border border-border bg-muted/35 shadow-inner sm:min-h-52">
+          {imageUrl ? <>
+            <Image src={imageUrl} alt={`Policy visual ${fileName}`} fill unoptimized className="object-contain" />
+            {isLoggedIn && <button type="button" onClick={removeImage} aria-label="Hapus gambar policy" className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-foreground/85 text-background shadow-sm transition hover:bg-foreground"><X className="size-4" /></button>}
+          </> : <div className="flex h-full flex-col items-center justify-center gap-2 px-5 text-center"><ImagePlus className="size-7 text-muted-foreground" /><span className="text-sm font-medium text-muted-foreground">Policy visual belum tersedia</span><span className="text-xs text-muted-foreground">Admin dapat menambahkan gambar dari panel di sebelah kanan.</span></div>}
+        </div>
         <div className="my-8 h-px bg-border" />
         <h3 className="mb-2 text-base font-semibold text-foreground">Our commitment</h3>
         <p className="text-sm leading-7 text-muted-foreground">All employees, contractors, and business partners share responsibility for maintaining the confidentiality, integrity, and availability of information entrusted to our organization.</p>
@@ -47,12 +51,9 @@ export default function PolicyPage() {
 
         <div className="mt-2 border-t border-border pt-4">
           <div className="mb-3 flex items-center justify-between"><div><strong className="block text-sm text-foreground">Policy visual</strong><span className="text-xs text-muted-foreground">Upload gambar untuk ditampilkan</span></div><ImagePlus className="size-5 text-muted-foreground" /></div>
-          <div className="relative flex aspect-[1.65] items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40">
-            {imageUrl ? <><Image src={imageUrl} alt={`Policy visual ${fileName}`} fill unoptimized className="object-contain" /><button type="button" onClick={removeImage} aria-label="Hapus gambar" className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-foreground/80 text-background hover:bg-foreground"><X className="size-4" /></button></> : <div className="flex flex-col items-center gap-2 px-4 text-center"><Upload className="size-6 text-muted-foreground" /><span className="text-xs text-muted-foreground">Belum ada gambar</span></div>}
-          </div>
-          {isLoggedIn && <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"><Upload className="size-4" /> {imageUrl ? 'Ganti gambar' : 'Upload gambar'}<input type="file" accept="image/*" onChange={handleImage} className="sr-only" /></label>}
-          {!isLoggedIn && <p className="mt-3 text-center text-xs text-muted-foreground">Login admin untuk mengubah gambar.</p>}
-          {fileName && <p className="mt-2 truncate text-center text-[11px] text-muted-foreground">{fileName}</p>}
+          {isLoggedIn && <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"><Upload className="size-4" /> {imageUrl ? 'Ganti gambar' : 'Upload gambar'}<input type="file" accept="image/*" onChange={handleImage} className="sr-only" /></label>}
+          {!isLoggedIn && <p className="text-center text-xs text-muted-foreground">Login admin untuk mengubah gambar.</p>}
+          {fileName && <p className="truncate text-center text-[11px] text-muted-foreground">File aktif: {fileName}</p>}
         </div>
       </aside>
     </section>

@@ -1,62 +1,59 @@
-// app/basic-policy/page.tsx
-import { Download, ShieldCheck } from 'lucide-react'
+'use client'
+
+import Image from 'next/image'
+import { useEffect, useState } from 'react'
+import { Download, ImagePlus, ShieldCheck, Upload, X } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 export default function PolicyPage() {
+  const { isLoggedIn } = useAuth()
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [fileName, setFileName] = useState('')
+
+  useEffect(() => () => { if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl) }, [imageUrl])
+
+  function handleImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl)
+    setImageUrl(URL.createObjectURL(file))
+    setFileName(file.name)
+  }
+
+  function removeImage() {
+    if (imageUrl?.startsWith('blob:')) URL.revokeObjectURL(imageUrl)
+    setImageUrl(null)
+    setFileName('')
+  }
+
   return (
-    <section className="grid grid-cols-[minmax(0,1fr)_280px] gap-5 max-[900px]:grid-cols-1">
-      <article className="max-w-[840px] rounded-[9px] border border-[#e4edf2] bg-white p-[36px_42px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[680px]:p-[25px_20px]">
-        <div className="mb-[9px] text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
-          FOUNDATION
-        </div>
-        <h2 className="max-w-[570px] text-[28px] text-[#20354a] tracking-[-0.025em] max-[680px]:text-[23px]">
-          Basic Policy on Information Security
-        </h2>
-        <p className="my-5 max-w-[650px] text-[16px] leading-[1.7] text-[#5e7588]">
-          We recognize information as one of our most important assets and are committed to
-          protecting it through a systematic, risk-based approach.
-        </p>
-
-        <div className="my-[29px] h-px bg-[#dfebef]" />
-
-        <h3 className="mt-[25px] mb-2 text-[15px] text-[#2d485e]">Our commitment</h3>
-        <p className="text-[13px] leading-[1.75] text-[#697e90]">
-          All employees, contractors, and business partners share responsibility for maintaining
-          the confidentiality, integrity, and availability of information entrusted to our
-          organization.
-        </p>
-        <p className="text-[13px] leading-[1.75] text-[#697e90]">
-          Our Information Security Management System provides a framework for identifying risks,
-          applying appropriate controls, and continuously improving how we protect information
-          across every department.
-        </p>
-
-        <h3 className="mt-[25px] mb-2 text-[15px] text-[#2d485e]">Policy principles</h3>
-        <ul className="list-disc space-y-1 pl-5 text-[13px] leading-[1.75] text-[#697e90]">
-          <li>Comply with applicable laws, regulations, and contractual requirements.</li>
-          <li>Manage information security risks proportionately and transparently.</li>
-          <li>Promote awareness and accountability at every level.</li>
-          <li>Review this policy regularly to ensure it remains fit for purpose.</li>
-        </ul>
+    <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <article className="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-9 lg:p-11">
+        <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Foundation</div>
+        <h2 className="max-w-3xl text-pretty text-3xl tracking-tight text-foreground sm:text-4xl">Basic Policy on Information Security</h2>
+        <p className="mt-5 max-w-3xl text-base leading-7 text-muted-foreground sm:text-lg">We recognize information as one of our most important assets and are committed to protecting it through a systematic, risk-based approach.</p>
+        <div className="my-8 h-px bg-border" />
+        <h3 className="mb-2 text-base font-semibold text-foreground">Our commitment</h3>
+        <p className="text-sm leading-7 text-muted-foreground">All employees, contractors, and business partners share responsibility for maintaining the confidentiality, integrity, and availability of information entrusted to our organization.</p>
+        <p className="mt-1 text-sm leading-7 text-muted-foreground">Our Information Security Management System provides a framework for identifying risks, applying appropriate controls, and continuously improving how we protect information across every department.</p>
+        <h3 className="mb-2 mt-7 text-base font-semibold text-foreground">Policy principles</h3>
+        <ul className="list-disc space-y-1 pl-5 text-sm leading-7 text-muted-foreground"><li>Comply with applicable laws, regulations, and contractual requirements.</li><li>Manage information security risks proportionately and transparently.</li><li>Promote awareness and accountability at every level.</li><li>Review this policy regularly to ensure it remains fit for purpose.</li></ul>
       </article>
 
-      <aside className="flex h-fit flex-col gap-2 rounded-[9px] border border-[#e4edf2] bg-white p-[23px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[900px]:max-w-none">
-        <div className="mb-2 grid h-[39px] w-[39px] place-items-center rounded-[8px] bg-[#e1f4f0] text-[#27847f] [&>svg]:w-5">
-          <ShieldCheck />
-        </div>
-        <strong className="text-[12px] text-[#375268]">Policy owner</strong>
-        <span className="text-[11px] text-[#8295a5]">Information Security Committee</span>
+      <aside className="flex h-fit flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-lg bg-accent/15 text-accent-foreground"><ShieldCheck className="size-5" /></div><div><strong className="block text-sm text-foreground">Policy owner</strong><span className="text-xs text-muted-foreground">Information Security Committee</span></div></div>
+        <div className="flex flex-col gap-1 border-t border-border pt-4"><span className="text-xs text-muted-foreground">Last reviewed</span><strong className="text-sm text-foreground">12 February 2025</strong></div>
+        <button type="button" className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground transition hover:bg-muted"><Download className="size-4" /> Download PDF</button>
 
-        <div className="mt-4 flex flex-col gap-[5px] border-t border-[#e7eef1] pt-[15px]">
-          <span className="text-[10px] text-[#8b9da9]">Last reviewed</span>
-          <strong className="text-[11px]">12 February 2025</strong>
+        <div className="mt-2 border-t border-border pt-4">
+          <div className="mb-3 flex items-center justify-between"><div><strong className="block text-sm text-foreground">Policy visual</strong><span className="text-xs text-muted-foreground">Upload gambar untuk ditampilkan</span></div><ImagePlus className="size-5 text-muted-foreground" /></div>
+          <div className="relative flex aspect-[1.65] items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/40">
+            {imageUrl ? <><Image src={imageUrl} alt={`Policy visual ${fileName}`} fill unoptimized className="object-contain" /><button type="button" onClick={removeImage} aria-label="Hapus gambar" className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-foreground/80 text-background hover:bg-foreground"><X className="size-4" /></button></> : <div className="flex flex-col items-center gap-2 px-4 text-center"><Upload className="size-6 text-muted-foreground" /><span className="text-xs text-muted-foreground">Belum ada gambar</span></div>}
+          </div>
+          {isLoggedIn && <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"><Upload className="size-4" /> {imageUrl ? 'Ganti gambar' : 'Upload gambar'}<input type="file" accept="image/*" onChange={handleImage} className="sr-only" /></label>}
+          {!isLoggedIn && <p className="mt-3 text-center text-xs text-muted-foreground">Login admin untuk mengubah gambar.</p>}
+          {fileName && <p className="mt-2 truncate text-center text-[11px] text-muted-foreground">{fileName}</p>}
         </div>
-
-        <button
-          type="button"
-          className="mt-[10px] inline-flex w-full items-center justify-center gap-2 rounded-[7px] border border-[#dbe6ec] bg-white px-4 py-[10px] text-[13px] font-medium text-[#3c5369] hover:bg-[#f7fafc] [&>svg]:w-4"
-        >
-          <Download /> Download PDF
-        </button>
       </aside>
     </section>
   )

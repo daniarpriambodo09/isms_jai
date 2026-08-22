@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { ChevronDown, LogOut, Menu, Settings, ShieldCheck, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { useAuth } from '@/context/AuthContext'
@@ -50,7 +51,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-30 border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-lg shadow-primary/10">
       <div className="mx-auto flex min-h-16 max-w-[1480px] items-center gap-6 px-10 max-[900px]:px-6 max-[680px]:min-h-14 max-[680px]:px-4">
         <Link href="/" className="flex flex-none items-center gap-3" aria-label="ISMS Portal home">
-          <span className="grid size-9 place-items-center rounded-lg bg-accent text-accent-foreground shadow-sm"><ShieldCheck className="size-5" /></span>
+          <span className="flex h-10 w-[132px] items-center overflow-hidden rounded-md bg-primary-foreground px-2 shadow-sm"><Image src="/images/yazaki-logo.jpg" alt="Yazaki PT. Jatim Autocomp Indonesia" width={132} height={40} className="h-auto w-full object-contain" priority /></span>
           <span className="max-[680px]:hidden"><strong className="block text-[15px] tracking-tight">ISMS Portal</strong><small className="block text-[9px] uppercase tracking-[0.18em] text-primary-foreground/55">Secure knowledge base</small></span>
         </Link>
         <div className="hidden flex-1 items-center gap-1 md:flex">

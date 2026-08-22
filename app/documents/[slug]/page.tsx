@@ -1,11 +1,10 @@
 // app/documents/[slug]/page.tsx
-
 'use client'
 
 import { notFound } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp, Download, FileSpreadsheet, FileText, Search, SlidersHorizontal } from 'lucide-react'
-import { departments, documents, titleFor } from '@/lib/portal-data'
+import { documents, titleFor } from '@/lib/portal-data'
 
 export default function DocumentsPage({ params }: { params: Promise<{ slug: string }> }) {
   const [query, setQuery] = useState('')
@@ -14,23 +13,18 @@ export default function DocumentsPage({ params }: { params: Promise<{ slug: stri
 
   params.then(({ slug: nextSlug }) => setSlug(nextSlug))
 
-  const allowed = [
-    'standards',
-    'forms',
-    'departments',
-    ...departments.map((item) => item.toLowerCase().replaceAll(' ', '-')),
-  ]
+  const allowed = ['standards', 'forms', 'working-standard']
 
   if (slug && !allowed.includes(slug)) notFound()
   if (!slug) return null
 
   const title =
     slug === 'standards'
-      ? 'ISMS Standard'
+      ? 'Prosedur ISMS'
       : slug === 'forms'
-        ? 'ISMS Form & CS'
-        : slug === 'departments'
-          ? 'Departemen/Seksi'
+        ? 'ISMS Form Aplikasi & Kontrol CS'
+        : slug === 'working-standard'
+          ? 'Working Standard & Standard Requirements TMMIN'
           : titleFor(slug)
 
   const rows = useMemo(

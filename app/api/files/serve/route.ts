@@ -1,0 +1,33 @@
+// app/api/files/serve/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { readFile } from 'fs/promises'
+import path from 'path'
+import { STORAGE_ROOT } from '@/lib/storage'
+
+export async function GET(request: NextRequest) {
+  const relativePath = request.nextUrl.searchParams.get('path')
+  if (!relativePath) {
+    return NextResponse.json({ message: 'Parameter path wajib diisi.' }, { status: 400 })
+  }
+
+  // Resolve and make sure the result stays inside STORAGE_ROOT — blocks
+  // path traversal via "..", absolute paths, etc.
+  const fullPath = path.join(STORAGE_ROOT, relativePath)
+  if (!fullPath.startsWith(STORAGE_ROOT)) {
+    return NextResponse.json({ message: 'Path tidak valid.' }, { status: 400 })
+  }
+
+  try {
+    const fileBuffer = await readFile(fullPath)
+    return new NextResponse(fileBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline',
+        'Cache-Control': 'private, max-age=0, must-revalidate',
+      },
+    })
+  } catch {
+    return NextResponse.json({ message: 'File tidak ditemukan.' }, { status: 404 })
+  }
+}

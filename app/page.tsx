@@ -38,7 +38,7 @@ export default function Page() {
         </div>
         <Link
           href="/audits"
-          className="inline-flex items-center gap-2 rounded-[7px] bg-[#20354a] px-4 py-[10px] text-[13px] font-medium text-white hover:bg-[#284360] max-[680px]:w-full max-[680px]:justify-center [&>svg]:w-4"
+          className="inline-flex items-center gap-2 rounded-[8px] bg-[#1c2e46] px-4 py-[10px] text-[13px] font-medium text-white shadow-[0_2px_8px_rgba(28,46,70,0.25)] hover:bg-[#26395a] max-[680px]:w-full max-[680px]:justify-center [&>svg]:w-4"
         >
           <CalendarDays /> View audit schedule
         </Link>
@@ -48,7 +48,7 @@ export default function Page() {
         {stats.map(([label, value, detail, icon, tone]) => (
           <article
             key={label}
-            className="flex items-start gap-[15px] rounded-[9px] border border-[#e5edf2] bg-white p-[19px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[680px]:gap-[10px] max-[680px]:p-[14px]"
+            className="flex items-start gap-[15px] rounded-2xl border border-[#e6ecf3] bg-white p-[19px] shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] max-[680px]:gap-[10px] max-[680px]:p-[14px]"
           >
             <div className={`grid h-[35px] w-[35px] flex-none place-items-center rounded-[8px] ${tone} [&>svg]:w-[18px]`}>
               {icon}
@@ -65,7 +65,7 @@ export default function Page() {
       </div>
 
       <div className="grid grid-cols-[1.5fr_1fr] gap-5 max-[900px]:grid-cols-1 max-[680px]:gap-[13px]">
-        <section className="rounded-[9px] border border-[#e4edf2] bg-white p-[23px_24px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[680px]:p-[18px_15px]">
+        <section className="rounded-[12px] border border-[#e6ecf3] bg-white p-[23px_24px] shadow-[0_4px_14px_rgba(30,49,71,0.05)] max-[680px]:p-[18px_15px]">
           <div className="flex items-center justify-between gap-5 mb-[15px]">
             <div>
               <div className="mb-[9px] text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
@@ -100,7 +100,7 @@ export default function Page() {
           ))}
         </section>
 
-        <section className="rounded-[9px] border border-[#e4edf2] bg-white p-[23px_24px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[680px]:p-[18px_15px]">
+        <section className="rounded-[12px] border border-[#e6ecf3] bg-white p-[23px_24px] shadow-[0_4px_14px_rgba(30,49,71,0.05)] max-[680px]:p-[18px_15px]">
           <div className="flex items-center justify-between gap-5 mb-[15px]">
             <div>
               <div className="mb-[9px] text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
@@ -110,7 +110,7 @@ export default function Page() {
             </div>
           </div>
 
-          <div className="mb-4 flex items-center gap-[13px] rounded-[7px] border border-[#e2eff0] bg-[#f5fafb] p-[15px]">
+          <div className="mb-4 flex items-center gap-[13px] rounded-[10px] border border-[#dcf0ec] bg-[#f2faf8] p-[15px]">
             <div className="flex h-[50px] w-12 flex-col items-center justify-center rounded-[6px] bg-[#dff1ef] text-[#23847d]">
               <span className="text-[9px] font-bold">MAR</span>
               <strong className="text-[23px] leading-none">03</strong>

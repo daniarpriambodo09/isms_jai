@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { API_BASE_PATH } from '@/lib/config'
 
 export type AdminUser = {
   id: number
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me', { cache: 'no-store' })
+      const res = await fetch(`${API_BASE_PATH}/api/auth/me`, { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json()
         setAdminUser(data.admin)
@@ -56,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, password: string): Promise<LoginResult> => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${API_BASE_PATH}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    await fetch(`${API_BASE_PATH}/api/auth/logout`, { method: 'POST' })
     setAdminUser(null)
   }, [])
 

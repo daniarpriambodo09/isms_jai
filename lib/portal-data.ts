@@ -1,20 +1,16 @@
 // lib/portal-data.ts
-export const departments = [
-  'PPIC-WHS-EXIM',
-  'PROD-TRN',
-  'QA',
-  'ENG-DE',
-  'MTC',
-  'PP',
-  'NYS',
-  'HR-IR',
-  'FIN-ACC-TAX',
-  'GA-GS',
-  'IT',
-  'Output Kontrol',
-  'Education',
-  'SSA Kontrol',
-]
+
+// Top-level navbar items (excludes "Departemen / Section", which is
+// rendered separately in Navbar since its content comes from the
+// /api/departments endpoint, and "Kelola Departemen", which is only
+// shown to logged-in admins).
+export const mainNav = [
+  { label: 'Home', href: '/' },
+  { label: 'Kebijakan Dasar ISMS', href: '/basic-policy' },
+  { label: 'Prosedur ISMS', href: '/documents/standards' },
+  { label: 'Working Standard & Standard Requirements TMMIN', href: '/documents/working-standard' },
+  { label: 'ISMS Form Aplikasi & Kontrol CS', href: '/documents/forms' },
+] as const
 
 export const documents = [
   ['P14-001', 'Prosedur Pengendalian Dokumen', '04', '12 Feb 2025', 'Active', 'pdf'],
@@ -30,23 +26,6 @@ export const audits = [
   ['19 May 2025', '23 May 2025', 'Q2 / 2025', 'Information Security Review', 'IT & HR-IR', 'D. Kusuma'],
   ['04 Aug 2025', '08 Aug 2025', 'Q3 / 2025', 'Internal ISMS Audit', 'PPIC-WHS-EXIM', 'R. Pratama'],
 ] as const
-
-export const navGroups = {
-  'ISMS Standard': ['Prosedur ISMS', 'Standard ISMS-P14', 'Working Std'],
-  'ISMS Form & CS': ['Form Aplikasi', 'Kontrol CS'],
-  'Departemen/Seksi': departments,
-}
-
-export const routeFor = (label: string) => {
-  if (label === 'Home') return '/'
-  if (label === 'Informasi Baru') return '/news'
-  if (label === 'Basic Policy') return '/basic-policy'
-  if (label === 'Jadwal Audit') return '/audits'
-  if (label === 'ISMS Standard') return '/documents/standards'
-  if (label === 'ISMS Form & CS') return '/documents/forms'
-  if (label === 'Departemen/Seksi') return '/documents/departments'
-  return `/documents/${encodeURIComponent(label.toLowerCase().replaceAll(' ', '-'))}`
-}
 
 export const titleFor = (segment: string) =>
   decodeURIComponent(segment)

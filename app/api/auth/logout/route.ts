@@ -1,15 +1,16 @@
 // app/api/auth/logout/route.ts
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { isHttpsRequest } from '@/lib/auth'
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const response = NextResponse.json({ message: 'Logged out.' })
 
   // Expire the cookie immediately.
   response.cookies.set(COOKIE_NAME, '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isHttpsRequest(request),
     sameSite: 'lax',
     path: '/',
     maxAge: 0,

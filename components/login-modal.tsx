@@ -34,7 +34,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-      <div className="w-full max-w-[380px] rounded-[12px] bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
+      <div className="w-full max-w-[380px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
         <div className="mb-5 flex items-start justify-between">
           <div>
             <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">

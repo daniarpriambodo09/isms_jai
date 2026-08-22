@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import jwt, { type SignOptions } from 'jsonwebtoken'
 import { query } from '@/lib/db'
+import { isHttpsRequest } from '@/lib/auth'
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET as string
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttpsRequest(request),
       sameSite: 'lax',
       path: '/',
       maxAge: COOKIE_MAX_AGE_SECONDS,

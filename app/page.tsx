@@ -1,4 +1,3 @@
-// app/page.tsx
 'use client'
 
 import Link from 'next/link'
@@ -7,125 +6,23 @@ import { announcements } from '@/lib/portal-data'
 import { useAuth } from '@/context/AuthContext'
 
 const stats = [
-  ['Total documents', '248', '+12 this quarter', <FileText />, 'text-[#3178a4] bg-[#e6f1f8]'],
-  ['Active policies', '96', '92% of document library', <ShieldCheck />, 'text-[#228b83] bg-[#e1f3f0]'],
-  ['Upcoming audits', '03', 'Next audit in 8 days', <CalendarDays />, 'text-[#b17625] bg-[#fbf0dc]'],
-  ['New announcements', '07', '2 unread updates', <Megaphone />, 'text-[#596f89] bg-[#ebeff4]'],
+  ['Total documents', '248', '+12 this quarter', <FileText />, 'bg-accent/15 text-accent-foreground'],
+  ['Active policies', '96', '92% of document library', <ShieldCheck />, 'bg-accent/15 text-accent-foreground'],
+  ['Upcoming audits', '03', 'Next audit in 8 days', <CalendarDays />, 'bg-amber-500/15 text-amber-700'],
+  ['New announcements', '07', '2 unread updates', <Megaphone />, 'bg-secondary text-primary'],
 ] as const
-
-const iconTone = ['bg-[#e6f2f8] text-[#347ca5]', 'bg-[#e1f4f0] text-[#278e84]', 'bg-[#fbf1de] text-[#a6752f]']
 
 export default function Page() {
   const { isLoggedIn } = useAuth()
-
-  return (
-    <>
-      <div className="flex flex-wrap items-end justify-between gap-5 mb-7 max-[680px]:flex-col max-[680px]:items-start">
-        <div>
-          <div className="mb-[9px] flex flex-wrap items-center gap-[10px]">
-            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
-              MONDAY, 24 FEBRUARY 2025
-            </span>
-            {isLoggedIn && (
-              <span className="inline-flex items-center gap-[6px] rounded-full bg-[#e1f4f0] px-[10px] py-[4px] text-[10px] font-bold uppercase tracking-[0.08em] text-[#278e84]">
-                <ShieldCheck className="w-[12px]" /> Admin Mode
-              </span>
-            )}
-          </div>
-          <p className="mt-[7px] text-[13px] leading-[1.5] text-[#75889c]">
-            Here is the latest overview of your information security workspace.
-          </p>
-        </div>
-        <Link
-          href="/audits"
-          className="inline-flex items-center gap-2 rounded-[8px] bg-[#1c2e46] px-4 py-[10px] text-[13px] font-medium text-white shadow-[0_2px_8px_rgba(28,46,70,0.25)] hover:bg-[#26395a] max-[680px]:w-full max-[680px]:justify-center [&>svg]:w-4"
-        >
-          <CalendarDays /> View audit schedule
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4 mb-[26px] max-[900px]:grid-cols-2">
-        {stats.map(([label, value, detail, icon, tone]) => (
-          <article
-            key={label}
-            className="flex items-start gap-[15px] rounded-2xl border border-[#e6ecf3] bg-white p-[19px] shadow-[0_1px_3px_rgba(15,23,42,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] max-[680px]:gap-[10px] max-[680px]:p-[14px]"
-          >
-            <div className={`grid h-[35px] w-[35px] flex-none place-items-center rounded-[8px] ${tone} [&>svg]:w-[18px]`}>
-              {icon}
-            </div>
-            <div>
-              <div className="mb-[5px] text-[11px] text-[#71859a] max-[680px]:text-[10px]">{label}</div>
-              <div className="text-[25px] font-bold leading-none text-[#243c53] max-[680px]:text-[21px]">
-                {value}
-              </div>
-              <div className="mt-[7px] text-[10px] text-[#7a95a6] max-[680px]:text-[9px]">{detail}</div>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-[1.5fr_1fr] gap-5 max-[900px]:grid-cols-1 max-[680px]:gap-[13px]">
-        <section className="rounded-[12px] border border-[#e6ecf3] bg-white p-[23px_24px] shadow-[0_4px_14px_rgba(30,49,71,0.05)] max-[680px]:p-[18px_15px]">
-          <div className="flex items-center justify-between gap-5 mb-[15px]">
-            <div>
-              <div className="mb-[9px] text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
-                KEEP INFORMED
-              </div>
-              <h2 className="text-[17px] text-[#20354a] tracking-[-0.025em]">Latest announcements</h2>
-            </div>
-            <Link
-              className="flex items-center gap-1 text-[12px] text-[#2c858b] [&>svg]:w-[14px]"
-              href="/news"
-            >
-              View all <ChevronRight />
-            </Link>
-          </div>
-
-          {announcements.map((item, index) => (
-            <Link
-              className="grid w-full grid-cols-[32px_1fr_auto_15px] items-center gap-3 border-t border-[#edf1f4] py-[14px] text-left hover:[&_strong]:text-[#197a83] max-[680px]:grid-cols-[30px_1fr_14px] max-[680px]:gap-[9px]"
-              href="/news"
-              key={item[0]}
-            >
-              <div className={`grid h-8 w-8 place-items-center rounded-[7px] ${iconTone[index]} [&>svg]:w-[15px]`}>
-                <Megaphone />
-              </div>
-              <div>
-                <strong className="block text-[12px] font-semibold text-[#31485e]">{item[0]}</strong>
-                <span className="mt-1 block text-[11px] text-[#8798a8]">{item[1]}</span>
-              </div>
-              <time className="whitespace-nowrap text-[10px] text-[#92a1ae] max-[680px]:hidden">{item[2]}</time>
-              <ChevronRight className="w-[14px] text-[#a4b3c0]" />
-            </Link>
-          ))}
-        </section>
-
-        <section className="rounded-[12px] border border-[#e6ecf3] bg-white p-[23px_24px] shadow-[0_4px_14px_rgba(30,49,71,0.05)] max-[680px]:p-[18px_15px]">
-          <div className="flex items-center justify-between gap-5 mb-[15px]">
-            <div>
-              <div className="mb-[9px] text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
-                PLANNING
-              </div>
-              <h2 className="text-[17px] text-[#20354a] tracking-[-0.025em]">Next audit</h2>
-            </div>
-          </div>
-
-          <div className="mb-4 flex items-center gap-[13px] rounded-[10px] border border-[#dcf0ec] bg-[#f2faf8] p-[15px]">
-            <div className="flex h-[50px] w-12 flex-col items-center justify-center rounded-[6px] bg-[#dff1ef] text-[#23847d]">
-              <span className="text-[9px] font-bold">MAR</span>
-              <strong className="text-[23px] leading-none">03</strong>
-            </div>
-            <div>
-              <strong className="block text-[13px] text-[#30465b]">Internal ISMS Audit</strong>
-              <span className="mt-[5px] block text-[11px] text-[#7c91a1]">Production &amp; QA</span>
-            </div>
-          </div>
-
-          <Link className="flex items-center gap-1 text-[12px] text-[#2c858b] [&>svg]:w-[14px]" href="/audits">
-            View full schedule <ChevronRight />
-          </Link>
-        </section>
-      </div>
-    </>
-  )
+  return <>
+    <section className="mb-8 flex items-end justify-between gap-6 rounded-2xl border border-border bg-primary p-7 text-primary-foreground portal-surface max-[680px]:flex-col max-[680px]:items-start max-[680px]:p-5">
+      <div><div className="mb-3 flex flex-wrap items-center gap-3"><span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary-foreground/60">MONDAY, 24 FEBRUARY 2025</span>{isLoggedIn && <span className="rounded-full bg-accent/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary-foreground"><ShieldCheck className="mr-1 inline size-3" />Admin Mode</span>}</div><h2 className="max-w-xl text-3xl font-bold tracking-tight text-balance max-[680px]:text-2xl">A clear view of your security workspace.</h2><p className="mt-3 max-w-lg text-sm leading-6 text-primary-foreground/65">Find the latest policies, operational guidance, and audit activity maintained by the Information Security team.</p></div>
+      <Link href="/audits" className="inline-flex flex-none items-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent/85"><CalendarDays className="size-4" />View audit schedule</Link>
+    </section>
+    <div className="mb-7 grid grid-cols-4 gap-4 max-[900px]:grid-cols-2 max-[680px]:gap-3">{stats.map(([label, value, detail, icon, tone]) => <article key={label} className="portal-surface rounded-xl border border-border bg-card p-4 transition-transform hover:-translate-y-0.5"><div className={`mb-5 grid size-9 place-items-center rounded-lg ${tone}`}>{icon}</div><div className="text-xs text-muted-foreground">{label}</div><div className="mt-1 text-3xl font-bold tracking-tight text-primary max-[680px]:text-2xl">{value}</div><div className="mt-2 text-[10px] text-muted-foreground">{detail}</div></article>)}</div>
+    <div className="grid grid-cols-[1.45fr_1fr] gap-5 max-[900px]:grid-cols-1">
+      <section className="portal-surface rounded-xl border border-border bg-card p-6 max-[680px]:p-4"><div className="mb-4 flex items-start justify-between gap-4"><div><p className="portal-eyebrow mb-2">Keep informed</p><h2 className="text-xl font-bold tracking-tight text-primary">Latest announcements</h2></div><Link className="flex items-center gap-1 text-xs font-semibold text-accent-foreground hover:underline" href="/news">View all <ChevronRight className="size-4" /></Link></div>{announcements.map((item, index) => <Link className="grid grid-cols-[34px_1fr_auto_16px] items-center gap-3 border-t border-border py-4 text-left hover:bg-secondary/40 max-[680px]:grid-cols-[30px_1fr_16px]" href="/news" key={item[0]}><div className="grid size-8 place-items-center rounded-md bg-secondary text-xs font-bold text-primary">0{index + 1}</div><div><strong className="block text-sm font-semibold text-foreground">{item[0]}</strong><span className="mt-1 block text-xs text-muted-foreground">{item[1]}</span></div><time className="text-[10px] text-muted-foreground max-[680px]:hidden">{item[2]}</time><ChevronRight className="size-4 text-muted-foreground" /></Link>)}</section>
+      <section className="portal-surface rounded-xl border border-border bg-card p-6 max-[680px]:p-4"><p className="portal-eyebrow mb-2">Planning</p><h2 className="mb-5 text-xl font-bold tracking-tight text-primary">Next audit</h2><div className="mb-5 flex items-center gap-4 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4"><div className="flex size-14 flex-col items-center justify-center rounded-md bg-amber-500/15 text-amber-700"><span className="text-[9px] font-bold">MAR</span><strong className="text-2xl leading-none">03</strong></div><div><strong className="block text-sm text-foreground">Internal ISMS Audit</strong><span className="mt-1 block text-xs text-muted-foreground">Production &amp; QA</span></div></div><Link className="flex items-center gap-1 text-xs font-semibold text-accent-foreground hover:underline" href="/audits">View full schedule <ChevronRight className="size-4" /></Link></section>
+    </div>
+  </>
 }

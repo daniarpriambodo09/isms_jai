@@ -1,4 +1,3 @@
-// components/navbar.tsx
 'use client'
 
 import Link from 'next/link'
@@ -17,7 +16,6 @@ type Department = { id: number; name: string; slug: string; sections: Section[] 
 export function Navbar() {
   const pathname = usePathname()
   const { isLoggedIn, adminUser, isLoading, logout } = useAuth()
-
   const [mobileOpen, setMobileOpen] = useState(false)
   const [deptMenuOpen, setDeptMenuOpen] = useState(false)
   const [expandedDept, setExpandedDept] = useState<string | null>(null)
@@ -31,269 +29,44 @@ export function Navbar() {
       .catch(() => setDepartments([]))
   }, [])
 
-  // Close menus on route change.
-  useEffect(() => {
-    setMobileOpen(false)
-    setDeptMenuOpen(false)
-    setExpandedDept(null)
-  }, [pathname])
-
+  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setExpandedDept(null) }, [pathname])
   const departmentHref = (dept: Department) => `/documents/department/${dept.slug}`
-  const sectionHref = (dept: Department, section: Section) =>
-    `/documents/department/${dept.slug}/${section.slug}`
+  const sectionHref = (dept: Department, section: Section) => `/documents/department/${dept.slug}/${section.slug}`
+  const navLink = 'rounded-md px-3 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
+  const navLinkActive = 'bg-primary-foreground/15 text-primary-foreground'
 
-  const navLink =
-    'rounded-[6px] px-3 py-[8px] text-[13px] font-medium text-[#aebdd1] transition-colors hover:bg-white/[0.08] hover:text-white'
-  const navLinkActive = 'bg-white/[0.12] text-white'
+  const departmentItems = departments.map((dept) => dept.sections.length === 0 ? (
+    <Link key={dept.id} href={departmentHref(dept)} className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-secondary">{dept.name}</Link>
+  ) : (
+    <div key={dept.id}>
+      <button type="button" onClick={() => setExpandedDept((value) => value === dept.slug ? null : dept.slug)} className="flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm text-foreground hover:bg-secondary">
+        {dept.name}<ChevronDown className={cn('size-4 transition-transform', expandedDept === dept.slug && 'rotate-180')} />
+      </button>
+      {expandedDept === dept.slug && <div className="ml-3 border-l border-border pl-2">{dept.sections.map((section) => <Link key={section.id} href={sectionHref(dept, section)} className="block rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground">{section.name}</Link>)}</div>}
+    </div>
+  ))
 
-  return (
-    <>
-      <nav className="sticky top-0 z-30 border-b border-[#132234] bg-gradient-to-r from-[#1a2b42] to-[#20344f]">
-        <div className="mx-auto flex h-[64px] max-w-[1480px] items-center gap-6 px-[42px] max-[900px]:px-6 max-[680px]:h-14 max-[680px]:px-4">
-          <Link href="/" className="flex flex-none items-center gap-[10px]">
-            <div className="grid h-8 w-8 place-items-center rounded-[8px] bg-[#2f8f86] text-[#e4faf5]">
-              <ShieldCheck className="h-[18px] w-[18px]" />
-            </div>
-            <span className="text-[15px] font-bold tracking-[-0.02em] text-white max-[680px]:hidden">
-              ISMS Portal
-            </span>
-          </Link>
-
-          {/* Desktop menu */}
-          <div className="hidden flex-1 items-center gap-1 md:flex">
-            {mainNav.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={cn(navLink, pathname === item.href && navLinkActive)}
-              >
-                {item.label}
-              </Link>
-            ))}
-
-            {/* Departemen / Section dropdown */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setDeptMenuOpen((value) => !value)}
-                className={cn(
-                  'flex items-center gap-1',
-                  navLink,
-                  pathname.startsWith('/documents/department') && navLinkActive
-                )}
-              >
-                Departemen / Section
-                <ChevronDown className={cn('h-[14px] w-[14px] transition-transform', deptMenuOpen && 'rotate-180')} />
-              </button>
-
-              {deptMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setDeptMenuOpen(false)} />
-                  <div className="absolute left-0 top-[calc(100%+8px)] z-20 w-[260px] rounded-[10px] border border-[#e4edf2] bg-white p-2 shadow-[0_16px_36px_rgba(14,34,53,0.22)]">
-                    {departments.map((dept) =>
-                      dept.sections.length === 0 ? (
-                        <Link
-                          key={dept.id}
-                          href={departmentHref(dept)}
-                          className="block rounded-[6px] px-3 py-[9px] text-[13px] text-[#3c5369] hover:bg-[#eef3f7]"
-                        >
-                          {dept.name}
-                        </Link>
-                      ) : (
-                        <div key={dept.id}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpandedDept((value) => (value === dept.slug ? null : dept.slug))
-                            }
-                            className="flex w-full items-center justify-between rounded-[6px] px-3 py-[9px] text-left text-[13px] text-[#3c5369] hover:bg-[#eef3f7]"
-                          >
-                            {dept.name}
-                            <ChevronDown
-                              className={cn(
-                                'h-[13px] w-[13px] transition-transform',
-                                expandedDept === dept.slug && 'rotate-180'
-                              )}
-                            />
-                          </button>
-                          {expandedDept === dept.slug && (
-                            <div className="ml-3 border-l border-[#dce8f0] pl-2">
-                              {dept.sections.map((section) => (
-                                <Link
-                                  key={section.id}
-                                  href={sectionHref(dept, section)}
-                                  className="block rounded-[6px] px-3 py-[7px] text-[12px] text-[#62768a] hover:bg-[#eef3f7]"
-                                >
-                                  {section.name}
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {isLoggedIn && (
-              <Link
-                href="/kelola-departemen"
-                className={cn(
-                  'flex items-center gap-[6px]',
-                  navLink,
-                  pathname === '/kelola-departemen' && navLinkActive
-                )}
-              >
-                <Settings className="h-[14px] w-[14px]" /> Kelola Departemen
-              </Link>
-            )}
-          </div>
-
-          {/* Right side: auth + mobile toggle */}
-          <div className="ml-auto flex items-center gap-2">
-            {!isLoading &&
-              (isLoggedIn ? (
-                <div className="hidden items-center gap-2 sm:flex">
-                  <span className="flex items-center gap-[6px] rounded-full bg-[#48beb1]/[0.18] px-3 py-[6px] text-[11px] font-semibold text-[#8fe3d3]">
-                    <ShieldCheck className="w-[13px]" />
-                    {adminUser?.username}
-                  </span>
-                  <button
-                    onClick={() => logout()}
-                    className="flex items-center gap-[6px] rounded-[7px] border border-white/[0.16] px-3 py-[8px] text-[12px] font-medium text-[#dbe6f0] hover:bg-white/[0.08] [&>svg]:w-[14px]"
-                  >
-                    <LogOut /> Logout
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setLoginOpen(true)}
-                  className="hidden rounded-[7px] bg-[#2f8f86] px-4 py-[9px] text-[12px] font-medium text-white hover:bg-[#267c74] sm:block"
-                >
-                  Login Admin
-                </button>
-              ))}
-
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              aria-label="Buka menu"
-              className="grid h-9 w-9 place-items-center rounded-[6px] text-[#c7d3e0] hover:bg-white/[0.08] md:hidden"
-            >
-              <Menu className="w-5" />
-            </button>
-          </div>
+  return <>
+    <nav className="sticky top-0 z-30 border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-lg shadow-primary/10">
+      <div className="mx-auto flex min-h-16 max-w-[1480px] items-center gap-6 px-10 max-[900px]:px-6 max-[680px]:min-h-14 max-[680px]:px-4">
+        <Link href="/" className="flex flex-none items-center gap-3" aria-label="ISMS Portal home">
+          <span className="grid size-9 place-items-center rounded-lg bg-accent text-accent-foreground shadow-sm"><ShieldCheck className="size-5" /></span>
+          <span className="max-[680px]:hidden"><strong className="block text-[15px] tracking-tight">ISMS Portal</strong><small className="block text-[9px] uppercase tracking-[0.18em] text-primary-foreground/55">Secure knowledge base</small></span>
+        </Link>
+        <div className="hidden flex-1 items-center gap-1 md:flex">
+          {mainNav.map((item) => <Link key={item.label} href={item.href} className={cn(navLink, pathname === item.href && navLinkActive)}>{item.label}</Link>)}
+          <div className="relative"><button type="button" onClick={() => setDeptMenuOpen((value) => !value)} className={cn('flex items-center gap-1', navLink, pathname.startsWith('/documents/department') && navLinkActive)}>Departemen / Section<ChevronDown className={cn('size-4 transition-transform', deptMenuOpen && 'rotate-180')} /></button>{deptMenuOpen && <><div className="fixed inset-0 z-10" onClick={() => setDeptMenuOpen(false)} /><div className="absolute left-0 top-[calc(100%+10px)] z-20 w-72 rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-xl"><div className="border-b border-border px-3 pb-2 pt-1"><p className="portal-eyebrow">Document library</p><p className="mt-1 text-xs text-muted-foreground">Browse by department</p></div>{departmentItems}</div></>}</div>
+          {isLoggedIn && <Link href="/kelola-departemen" className={cn('flex items-center gap-1.5', navLink, pathname === '/kelola-departemen' && navLinkActive)}><Settings className="size-4" />Kelola Departemen</Link>}
         </div>
-      </nav>
-
-      {/* Mobile slide-in menu */}
-      <div
-        className={cn('fixed inset-0 z-40 bg-[rgba(14,34,53,0.45)] md:hidden', mobileOpen ? 'block' : 'hidden')}
-        onClick={() => setMobileOpen(false)}
-      />
-      <aside
-        className={cn(
-          'fixed right-0 top-0 z-50 flex h-screen w-[300px] max-w-[85vw] flex-col bg-[#f7f9fb] shadow-[-8px_0_30px_rgba(14,34,53,0.2)] transition-transform duration-200 md:hidden',
-          mobileOpen ? 'translate-x-0' : 'translate-x-full'
-        )}
-      >
-        <div className="flex items-center justify-between border-b border-[#e2e9f0] bg-[#1c2e46] px-4 py-4">
-          <span className="text-[14px] font-bold text-white">Menu</span>
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Tutup menu"
-            className="grid h-8 w-8 place-items-center rounded-full text-[#c7d3e0] hover:bg-white/[0.1]"
-          >
-            <X className="w-[18px]" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 py-3">
-          {mainNav.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="block rounded-[6px] px-3 py-[10px] text-[13px] font-medium text-[#3c5369] hover:bg-white"
-            >
-              {item.label}
-            </Link>
-          ))}
-
-          <div className="mt-2 px-3 py-[9px] text-[10px] font-bold uppercase tracking-[0.12em] text-[#7590ac]">
-            Departemen / Section
-          </div>
-          {departments.map((dept) =>
-            dept.sections.length === 0 ? (
-              <Link
-                key={dept.id}
-                href={departmentHref(dept)}
-                className="block rounded-[6px] px-3 py-[9px] pl-6 text-[13px] text-[#3c5369] hover:bg-white"
-              >
-                {dept.name}
-              </Link>
-            ) : (
-              <div key={dept.id}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedDept((value) => (value === dept.slug ? null : dept.slug))}
-                  className="flex w-full items-center justify-between rounded-[6px] px-3 py-[9px] pl-6 text-left text-[13px] text-[#3c5369] hover:bg-white"
-                >
-                  {dept.name}
-                  <ChevronDown
-                    className={cn('h-[13px] w-[13px] transition-transform', expandedDept === dept.slug && 'rotate-180')}
-                  />
-                </button>
-                {expandedDept === dept.slug && (
-                  <div className="ml-6 border-l border-[#dce8f0] pl-2">
-                    {dept.sections.map((section) => (
-                      <Link
-                        key={section.id}
-                        href={sectionHref(dept, section)}
-                        className="block rounded-[6px] px-3 py-[7px] text-[12px] text-[#62768a] hover:bg-white"
-                      >
-                        {section.name}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          )}
-
-          {isLoggedIn && (
-            <Link
-              href="/kelola-departemen"
-              className="mt-2 flex items-center gap-[6px] rounded-[6px] px-3 py-[10px] text-[13px] font-medium text-[#3c5369] hover:bg-white"
-            >
-              <Settings className="h-[14px] w-[14px]" /> Kelola Departemen
-            </Link>
-          )}
-        </div>
-
-        <div className="border-t border-[#e2e9f0] p-4">
-          {!isLoading &&
-            (isLoggedIn ? (
-              <button
-                onClick={() => logout()}
-                className="flex w-full items-center justify-center gap-[6px] rounded-[7px] border border-[#dce6ed] bg-white px-3 py-[9px] text-[12px] font-medium text-[#3c5369] hover:bg-[#eef3f7] [&>svg]:w-[14px]"
-              >
-                <LogOut /> Logout ({adminUser?.username})
-              </button>
-            ) : (
-              <button
-                onClick={() => setLoginOpen(true)}
-                className="w-full rounded-[7px] bg-[#1c2e46] px-4 py-[10px] text-[13px] font-medium text-white hover:bg-[#26395a]"
-              >
-                Login Admin
-              </button>
-            ))}
-        </div>
-      </aside>
-
-      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-    </>
-  )
+        <div className="ml-auto flex items-center gap-2">{!isLoading && (isLoggedIn ? <div className="hidden items-center gap-2 sm:flex"><span className="rounded-full border border-accent/30 bg-accent/15 px-3 py-1.5 text-[11px] font-semibold text-primary-foreground"><ShieldCheck className="mr-1 inline size-3.5" />{adminUser?.username}</span><button onClick={() => logout()} className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs hover:bg-primary-foreground/10"><LogOut className="size-4" />Logout</button></div> : <button onClick={() => setLoginOpen(true)} className="hidden rounded-md bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground hover:bg-accent/85 sm:block">Login Admin</button>)}<button type="button" onClick={() => setMobileOpen(true)} aria-label="Buka menu" className="grid size-10 place-items-center rounded-md text-primary-foreground/80 hover:bg-primary-foreground/10 md:hidden"><Menu className="size-5" /></button></div>
+      </div>
+    </nav>
+    <div className={cn('fixed inset-0 z-40 bg-primary/50 md:hidden', mobileOpen ? 'block' : 'hidden')} onClick={() => setMobileOpen(false)} />
+    <aside className={cn('fixed right-0 top-0 z-50 flex h-screen w-80 max-w-[85vw] flex-col bg-background shadow-2xl transition-transform duration-200 md:hidden', mobileOpen ? 'translate-x-0' : 'translate-x-full')}>
+      <div className="flex items-center justify-between bg-primary px-4 py-4 text-primary-foreground"><span className="font-semibold">Portal navigation</span><button type="button" onClick={() => setMobileOpen(false)} aria-label="Tutup menu" className="grid size-9 place-items-center rounded-md hover:bg-primary-foreground/10"><X className="size-5" /></button></div>
+      <div className="flex-1 overflow-y-auto p-3">{mainNav.map((item) => <Link key={item.label} href={item.href} className="block rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary">{item.label}</Link>)}<div className="portal-eyebrow px-3 pb-2 pt-5">Departments</div>{departmentItems}{isLoggedIn && <Link href="/kelola-departemen" className="mt-2 flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary"><Settings className="size-4" />Kelola Departemen</Link>}</div>
+      <div className="border-t border-border p-4">{!isLoading && (isLoggedIn ? <button onClick={() => logout()} className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 text-sm"><LogOut className="size-4" />Logout ({adminUser?.username})</button> : <button onClick={() => setLoginOpen(true)} className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Login Admin</button>)}</div>
+    </aside>
+    <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+  </>
 }

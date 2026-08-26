@@ -1,63 +1,37 @@
-// app/basic-policy/page.tsx
-import { Download, ShieldCheck } from 'lucide-react'
+'use client'
+
+import Image from 'next/image'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Download, ImagePlus, ShieldCheck, Upload, X } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { API_BASE_PATH } from '@/lib/config'
+
+type PolicyImage = { id: number; url: string; file_name: string; file_path?: string }
 
 export default function PolicyPage() {
-  return (
-    <section className="grid grid-cols-[minmax(0,1fr)_280px] gap-5 max-[900px]:grid-cols-1">
-      <article className="max-w-[840px] rounded-[9px] border border-[#e4edf2] bg-white p-[36px_42px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[680px]:p-[25px_20px]">
-        <div className="mb-[9px] text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
-          FOUNDATION
-        </div>
-        <h2 className="max-w-[570px] text-[28px] text-[#20354a] tracking-[-0.025em] max-[680px]:text-[23px]">
-          Basic Policy on Information Security
-        </h2>
-        <p className="my-5 max-w-[650px] text-[16px] leading-[1.7] text-[#5e7588]">
-          We recognize information as one of our most important assets and are committed to
-          protecting it through a systematic, risk-based approach.
-        </p>
+  const { isLoggedIn } = useAuth()
+  const [images, setImages] = useState<PolicyImage[]>([])
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [isImageOpen, setIsImageOpen] = useState(false)
+  const pointerStart = useRef<number | null>(null)
+  const activeImage = images[activeIndex]
 
-        <div className="my-[29px] h-px bg-[#dfebef]" />
+  useEffect(() => { fetch(`${API_BASE_PATH}/api/policy-images`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : Promise.reject()).then((data) => setImages(data.images ?? [])).catch(() => setImages([])) }, [])
+  useEffect(() => { if (images.length < 2) return; const timer = window.setInterval(() => setActiveIndex((current) => (current + 1) % images.length), 5000); return () => window.clearInterval(timer) }, [images.length])
+  useEffect(() => { const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setIsImageOpen(false) }; window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close) }, [])
 
-        <h3 className="mt-[25px] mb-2 text-[15px] text-[#2d485e]">Our commitment</h3>
-        <p className="text-[13px] leading-[1.75] text-[#697e90]">
-          All employees, contractors, and business partners share responsibility for maintaining
-          the confidentiality, integrity, and availability of information entrusted to our
-          organization.
-        </p>
-        <p className="text-[13px] leading-[1.75] text-[#697e90]">
-          Our Information Security Management System provides a framework for identifying risks,
-          applying appropriate controls, and continuously improving how we protect information
-          across every department.
-        </p>
+  function moveImage(direction: 1 | -1) { if (images.length > 1) setActiveIndex((current) => (current + direction + images.length) % images.length) }
+  async function handleImages(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith('image/'))
+    if (!files.length) return
+    const form = new FormData(); files.forEach((file) => form.append('files', file))
+    const response = await fetch(`${API_BASE_PATH}/api/policy-images`, { method: 'POST', body: form })
+    if (response.ok) { const data = await response.json(); setImages((current) => [...current, ...(data.images ?? []).map((image: PolicyImage) => ({ ...image, url: `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(image.file_path ?? '')}` }))]) }
+    event.target.value = ''
+  }
+  async function removeImage() { if (!activeImage) return; const response = await fetch(`${API_BASE_PATH}/api/policy-images`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: activeImage.id }) }); if (response.ok) { setImages((current) => current.filter((image) => image.id !== activeImage.id)); setActiveIndex((current) => Math.max(0, Math.min(current, images.length - 2))) } }
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) { pointerStart.current = event.clientX; event.currentTarget.setPointerCapture(event.pointerId) }
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) { if (pointerStart.current === null) return; const distance = event.clientX - pointerStart.current; if (Math.abs(distance) > 40) moveImage(distance < 0 ? 1 : -1); pointerStart.current = null }
 
-        <h3 className="mt-[25px] mb-2 text-[15px] text-[#2d485e]">Policy principles</h3>
-        <ul className="list-disc space-y-1 pl-5 text-[13px] leading-[1.75] text-[#697e90]">
-          <li>Comply with applicable laws, regulations, and contractual requirements.</li>
-          <li>Manage information security risks proportionately and transparently.</li>
-          <li>Promote awareness and accountability at every level.</li>
-          <li>Review this policy regularly to ensure it remains fit for purpose.</li>
-        </ul>
-      </article>
-
-      <aside className="flex h-fit flex-col gap-2 rounded-[9px] border border-[#e4edf2] bg-white p-[23px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[900px]:max-w-none">
-        <div className="mb-2 grid h-[39px] w-[39px] place-items-center rounded-[8px] bg-[#e1f4f0] text-[#27847f] [&>svg]:w-5">
-          <ShieldCheck />
-        </div>
-        <strong className="text-[12px] text-[#375268]">Policy owner</strong>
-        <span className="text-[11px] text-[#8295a5]">Information Security Committee</span>
-
-        <div className="mt-4 flex flex-col gap-[5px] border-t border-[#e7eef1] pt-[15px]">
-          <span className="text-[10px] text-[#8b9da9]">Last reviewed</span>
-          <strong className="text-[11px]">12 February 2025</strong>
-        </div>
-
-        <button
-          type="button"
-          className="mt-[10px] inline-flex w-full items-center justify-center gap-2 rounded-[7px] border border-[#dbe6ec] bg-white px-4 py-[10px] text-[13px] font-medium text-[#3c5369] hover:bg-[#f7fafc] [&>svg]:w-4"
-        >
-          <Download /> Download PDF
-        </button>
-      </aside>
-    </section>
-  )
+  return <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]"><article className="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-9 lg:p-11"><div className="relative aspect-[2.65] min-h-40 w-full overflow-hidden rounded-xl border border-border bg-muted/35 shadow-inner" onPointerDown={handlePointerDown} onPointerUp={handlePointerUp}>{activeImage && <button type="button" onClick={() => setIsImageOpen(true)} className="absolute inset-0 cursor-zoom-in" aria-label="Perbesar gambar policy"><Image src={activeImage.url} alt="Policy visual" fill unoptimized className="object-contain" /></button>}{images.length > 1 && <><button type="button" onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); moveImage(-1) }} aria-label="Gambar sebelumnya" className="absolute left-3 top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-background active:scale-95"><ChevronLeft className="size-5" /></button><button type="button" onPointerDown={(event) => event.stopPropagation()} onPointerUp={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); moveImage(1) }} aria-label="Gambar berikutnya" className="absolute right-3 top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-background active:scale-95"><ChevronRight className="size-5" /></button></>}{isLoggedIn && activeImage && <button type="button" onClick={(event) => { event.stopPropagation(); removeImage() }} aria-label="Hapus gambar policy" className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-foreground/85 text-background"><X className="size-4" /></button>}</div></article><aside className="flex h-fit flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm"><div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-lg bg-accent/15 text-accent-foreground"><ShieldCheck className="size-5" /></div><div><strong className="block text-sm text-foreground">Policy owner</strong><span className="text-xs text-muted-foreground">Information Security Committee</span></div></div><div className="flex flex-col gap-1 border-t border-border pt-4"><span className="text-xs text-muted-foreground">Last reviewed</span><strong className="text-sm text-foreground">12 February 2025</strong></div><button type="button" className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground"><Download className="size-4" /> Download PDF</button><div className="mt-2 border-t border-border pt-4"><div className="mb-3 flex items-center justify-between"><div><strong className="block text-sm text-foreground">Policy visual</strong><span className="text-xs text-muted-foreground">{images.length} gambar</span></div><ImagePlus className="size-5 text-muted-foreground" /></div>{isLoggedIn && <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"><Upload className="size-4" /> Tambah gambar<input type="file" accept="image/*" multiple onChange={handleImages} className="sr-only" /></label>}</div></aside>{isImageOpen && activeImage && <div role="dialog" aria-modal="true" aria-label="Preview gambar policy" className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/80 p-4" onClick={() => setIsImageOpen(false)}><div className="relative max-h-[92vh] w-full max-w-6xl" onClick={(event) => event.stopPropagation()}><Image src={activeImage.url} alt="Policy visual" width={1600} height={1000} unoptimized className="max-h-[88vh] w-full rounded-xl object-contain shadow-2xl" /><button type="button" onClick={() => setIsImageOpen(false)} aria-label="Tutup preview gambar" className="absolute right-2 top-2 grid size-10 place-items-center rounded-full bg-background/90 text-foreground"><X className="size-5" /></button></div></div>}</section>
 }

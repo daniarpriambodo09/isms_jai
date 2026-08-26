@@ -1,4 +1,6 @@
 // app/api/files/serve/route.ts
+
+// app/api/files/serve/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import path from 'path'
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
     return new NextResponse(fileBuffer, {
       status: 200,
       headers: {
-        'Content-Type': 'application/pdf',
+        'Content-Type': relativePath.startsWith('policy-images/') ? (fileBuffer.length ? ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', avif: 'image/avif', bmp: 'image/bmp' }[path.extname(relativePath).slice(1).toLowerCase()] ?? 'application/octet-stream') : 'application/octet-stream') : 'application/pdf',
         'Content-Disposition': 'inline',
         'Cache-Control': 'private, max-age=0, must-revalidate',
       },

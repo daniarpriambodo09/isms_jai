@@ -11,7 +11,7 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
 
   return <div className="min-h-screen bg-background text-foreground">
     <Navbar />
-    <header className="border-b border-border bg-card/80 px-10 py-7 backdrop-blur-sm max-[900px]:px-6 max-[680px]:px-4 max-[680px]:py-5">
+    <header className="border-b border-border bg-card/90 px-10 py-7 backdrop-blur-sm max-[900px]:px-6 max-[680px]:px-4 max-[680px]:py-5">
       <div className="mx-auto max-w-[1480px]">
         <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground"><span>ISMS Portal</span><ChevronRight className="size-3.5" /><strong className="font-medium text-foreground">{pageTitle}</strong></div>
         <div className="flex items-end justify-between gap-6 max-[680px]:items-start"><div><p className="portal-eyebrow mb-2">Information security management system</p><h1 className="text-3xl font-bold tracking-tight text-primary max-[680px]:text-2xl">{pageTitle}</h1></div><div className="hidden items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:flex"><LockKeyhole className="size-3.5 text-accent-foreground" />Internal knowledge base</div></div>

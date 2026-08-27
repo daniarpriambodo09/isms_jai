@@ -50,7 +50,7 @@ export function Navbar() {
   ))
 
   return <>
-    <nav className="sticky top-0 z-30 border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-lg shadow-primary/10">
+    <nav className="sticky top-0 z-30 border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-lg shadow-primary/15">
       <div className="mx-auto flex min-h-16 max-w-[1480px] items-center gap-6 px-10 max-[900px]:px-6 max-[680px]:min-h-14 max-[680px]:px-4">
         <Link href="/" className="flex flex-none items-center gap-3" aria-label="ISMS Portal home">
           <span className="flex h-10 w-[132px] items-center overflow-hidden rounded-md bg-primary-foreground px-2 shadow-sm">

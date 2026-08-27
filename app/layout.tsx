@@ -41,7 +41,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="bg-background">
+    <html lang="id" className="bg-background">
       <body className="antialiased">
         <AuthProvider>
           <PortalFrame>{children}</PortalFrame>

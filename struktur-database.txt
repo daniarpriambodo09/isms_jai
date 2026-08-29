@@ -1,0 +1,96 @@
+isms_jai=# \dt
+             List of relations
+ Schema |     Name      | Type  |  Owner
+--------+---------------+-------+----------
+ public | admins        | table | postgres
+ public | departments   | table | postgres
+ public | documents     | table | postgres
+ public | policy_images | table | postgres
+ public | sections      | table | postgres
+(5 rows)
+
+
+isms_jai=# \d admins
+                                        Table "public.admins"
+    Column     |           Type           | Collation | Nullable |              Default
+---------------+--------------------------+-----------+----------+------------------------------------
+ id            | integer                  |           | not null | nextval('admins_id_seq'::regclass)
+ username      | character varying(50)    |           | not null |
+ email         | character varying(100)   |           |          |
+ password_hash | text                     |           | not null |
+ created_at    | timestamp with time zone |           | not null | now()
+Indexes:
+    "admins_pkey" PRIMARY KEY, btree (id)
+    "admins_email_key" UNIQUE CONSTRAINT, btree (email)
+    "admins_username_key" UNIQUE CONSTRAINT, btree (username)
+
+
+isms_jai=# \d departments
+                                       Table "public.departments"
+   Column   |           Type           | Collation | Nullable |                 Default
+------------+--------------------------+-----------+----------+-----------------------------------------
+ id         | integer                  |           | not null | nextval('departments_id_seq'::regclass)
+ name       | character varying(100)   |           | not null |
+ slug       | character varying(100)   |           | not null |
+ created_at | timestamp with time zone |           | not null | now()
+Indexes:
+    "departments_pkey" PRIMARY KEY, btree (id)
+    "departments_slug_key" UNIQUE CONSTRAINT, btree (slug)
+Referenced by:
+    TABLE "documents" CONSTRAINT "documents_department_id_fkey" FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+    TABLE "sections" CONSTRAINT "sections_department_id_fkey" FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+
+
+isms_jai=# \d documents
+                                        Table "public.documents"
+    Column     |           Type           | Collation | Nullable |                Default
+---------------+--------------------------+-----------+----------+---------------------------------------
+ id            | integer                  |           | not null | nextval('documents_id_seq'::regclass)
+ department_id | integer                  |           | not null |
+ section_id    | integer                  |           |          |
+ title         | character varying(255)   |           | not null |
+ revision      | integer                  |           | not null | 1
+ file_path     | text                     |           | not null |
+ uploaded_at   | timestamp with time zone |           | not null | now()
+Indexes:
+    "documents_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "documents_department_id_fkey" FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+    "documents_section_id_fkey" FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE
+
+
+isms_jai=# \d policy_images
+                                        Table "public.policy_images"
+    Column     |           Type           | Collation | Nullable |                  Default
+---------------+--------------------------+-----------+----------+-------------------------------------------
+ id            | integer                  |           | not null | nextval('policy_images_id_seq'::regclass)
+ file_name     | character varying(255)   |           | not null |
+ mime_type     | character varying(100)   |           | not null |
+ file_path     | text                     |           | not null |
+ display_order | integer                  |           | not null | 0
+ created_at    | timestamp with time zone |           | not null | now()
+Indexes:
+    "policy_images_pkey" PRIMARY KEY, btree (id)
+    "policy_images_file_path_key" UNIQUE CONSTRAINT, btree (file_path)
+    "policy_images_order_idx" btree (display_order, id)
+
+
+isms_jai=# \d sections
+                                        Table "public.sections"
+    Column     |           Type           | Collation | Nullable |               Default
+---------------+--------------------------+-----------+----------+--------------------------------------
+ id            | integer                  |           | not null | nextval('sections_id_seq'::regclass)
+ department_id | integer                  |           | not null |
+ name          | character varying(100)   |           | not null |
+ slug          | character varying(100)   |           | not null |
+ created_at    | timestamp with time zone |           | not null | now()
+Indexes:
+    "sections_pkey" PRIMARY KEY, btree (id)
+    "sections_department_id_slug_key" UNIQUE CONSTRAINT, btree (department_id, slug)
+Foreign-key constraints:
+    "sections_department_id_fkey" FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "documents" CONSTRAINT "documents_section_id_fkey" FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE
+
+
+isms_jai=#

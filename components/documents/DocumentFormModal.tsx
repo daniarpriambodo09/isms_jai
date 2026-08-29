@@ -52,10 +52,14 @@ export function DocumentFormModal({
       let res: Response
 
       if (isEdit && document) {
+        const formData = new FormData()
+        formData.set('title', title)
+        if (uploadedAt) formData.set('uploadedAt', uploadedAt)
+        if (file) formData.set('file', file)
+
         res = await fetch(`${API_BASE_PATH}/api/documents/${document.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, uploadedAt: uploadedAt || null }),
+          body: formData,
         })
       } else {
         const formData = new FormData()
@@ -127,7 +131,7 @@ export function DocumentFormModal({
                 type="date"
                 value={uploadedAt}
                 onChange={(event) => setUploadedAt(event.target.value)}
-                className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]"
+                className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84] [&::-webkit-calendar-picker-indicator]:ml-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-[5px] [&::-webkit-calendar-picker-indicator]:bg-[#20354a] [&::-webkit-calendar-picker-indicator]:p-[3px] [&::-webkit-calendar-picker-indicator]:[filter:invert(1)]"
               />
             </label>
           )}
@@ -139,18 +143,22 @@ export function DocumentFormModal({
             </p>
           )}
 
-          {!isEdit && (
-            <label className="flex flex-col gap-[6px]">
-              <span className="text-[12px] font-medium text-[#3c5369]">File PDF</span>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                required
-                className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#20354a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white"
-              />
-            </label>
-          )}
+          <label className="flex flex-col gap-[6px]">
+            <span className="text-[12px] font-medium text-[#3c5369]">
+              {isEdit ? 'Ganti File PDF (opsional)' : 'File PDF'}
+            </span>
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              required={!isEdit}
+              className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#20354a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white"
+            />
+            {isEdit && (
+              <span className="text-[11px] text-[#8798a8]">Kosongkan jika tidak ingin mengganti file.</span>
+            )}
+          </label>
+
 
           {error && (
             <p className="rounded-[6px] bg-[#fdecec] px-3 py-2 text-[12px] text-[#b3413a]">{error}</p>

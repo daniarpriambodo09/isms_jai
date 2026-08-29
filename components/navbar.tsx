@@ -21,6 +21,7 @@ export function Navbar() {
   const { isLoggedIn, adminUser, isLoading, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [deptMenuOpen, setDeptMenuOpen] = useState(false)
+  const [formCsMenuOpen, setFormCsMenuOpen] = useState(false)
   const [expandedDept, setExpandedDept] = useState<string | null>(null)
   const [departments, setDepartments] = useState<Department[]>([])
   const [loginOpen, setLoginOpen] = useState(false)
@@ -32,11 +33,12 @@ export function Navbar() {
       .catch(() => setDepartments([]))
   }, [])
 
-  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setExpandedDept(null) }, [pathname])
+  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setFormCsMenuOpen(false); setExpandedDept(null) }, [pathname])
   const departmentHref = (dept: Department) => `/documents/department/${dept.slug}`
   const sectionHref = (dept: Department, section: Section) => `/documents/department/${dept.slug}/${section.slug}`
-  const navLink = 'rounded-md px-3 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
+  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
   const navLinkActive = 'bg-primary-foreground/15 text-primary-foreground'
+  const formCsItems = <><Link href="/form-aplikasi" className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-secondary">Form Aplikasi</Link><Link href="/kontrol-cs" className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-secondary">Kontrol CS</Link></>
 
   const departmentItems = departments.map((dept) => dept.sections.length === 0 ? (
     <Link key={dept.id} href={departmentHref(dept)} className="block rounded-md px-3 py-2.5 text-sm text-foreground hover:bg-secondary">{dept.name}</Link>
@@ -50,7 +52,7 @@ export function Navbar() {
   ))
 
   return <>
-    <nav className="sticky top-0 z-30 border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-lg shadow-primary/10">
+    <nav className="sticky top-0 z-30 border-b border-primary-foreground/10 bg-primary text-primary-foreground shadow-lg shadow-primary/15">
       <div className="mx-auto flex min-h-16 max-w-[1480px] items-center gap-6 px-10 max-[900px]:px-6 max-[680px]:min-h-14 max-[680px]:px-4">
         <Link href="/" className="flex flex-none items-center gap-3" aria-label="ISMS Portal home">
           <span className="flex h-10 w-[132px] items-center overflow-hidden rounded-md bg-primary-foreground px-2 shadow-sm">
@@ -65,7 +67,8 @@ export function Navbar() {
           {/* <span className="max-[680px]:hidden"><strong className="block text-[15px] tracking-tight">ISMS Portal</strong><small className="block text-[9px] uppercase tracking-[0.18em] text-primary-foreground/55">Secure knowledge base</small></span> */}
         </Link>
         <div className="hidden flex-1 items-center gap-1 md:flex">
-          {mainNav.map((item) => <Link key={item.label} href={item.href} className={cn(navLink, pathname === item.href && navLinkActive)}>{item.label}</Link>)}
+          {mainNav.filter((item) => item.label !== 'ISMS Form Aplikasi & Kontrol CS').map((item) => <Link key={item.label} href={item.href} className={cn(navLink, pathname === item.href && navLinkActive)}>{item.label}</Link>)}
+          <div className="relative"><button type="button" onClick={() => setFormCsMenuOpen((value) => !value)} className={cn('flex items-center gap-1', navLink, (pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && navLinkActive)}>ISMS Form Aplikasi &amp; Kontrol CS<ChevronDown className={cn('size-4 transition-transform', formCsMenuOpen && 'rotate-180')} /></button>{formCsMenuOpen && <><div className="fixed inset-0 z-10" onClick={() => setFormCsMenuOpen(false)} /><div className="absolute left-0 top-[calc(100%+10px)] z-20 w-72 rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-xl"><div className="border-b border-border px-3 pb-2 pt-1"><p className="portal-eyebrow">Document library</p><p className="mt-1 text-xs text-muted-foreground">Choose document category</p></div>{formCsItems}</div></>}</div>
           <div className="relative"><button type="button" onClick={() => setDeptMenuOpen((value) => !value)} className={cn('flex items-center gap-1', navLink, pathname.startsWith('/documents/department') && navLinkActive)}>Departemen / Section<ChevronDown className={cn('size-4 transition-transform', deptMenuOpen && 'rotate-180')} /></button>{deptMenuOpen && <><div className="fixed inset-0 z-10" onClick={() => setDeptMenuOpen(false)} /><div className="absolute left-0 top-[calc(100%+10px)] z-20 w-72 rounded-xl border border-border bg-popover p-2 text-popover-foreground shadow-xl"><div className="border-b border-border px-3 pb-2 pt-1"><p className="portal-eyebrow">Document library</p><p className="mt-1 text-xs text-muted-foreground">Browse by department</p></div>{departmentItems}</div></>}</div>
           {isLoggedIn && <Link href="/kelola-departemen" className={cn('flex items-center gap-1.5', navLink, pathname === '/kelola-departemen' && navLinkActive)}><Settings className="size-4" />Kelola Departemen</Link>}
         </div>
@@ -75,7 +78,7 @@ export function Navbar() {
     <div className={cn('fixed inset-0 z-40 bg-primary/50 md:hidden', mobileOpen ? 'block' : 'hidden')} onClick={() => setMobileOpen(false)} />
     <aside className={cn('fixed right-0 top-0 z-50 flex h-screen w-80 max-w-[85vw] flex-col bg-background shadow-2xl transition-transform duration-200 md:hidden', mobileOpen ? 'translate-x-0' : 'translate-x-full')}>
       <div className="flex items-center justify-between bg-primary px-4 py-4 text-primary-foreground"><span className="font-semibold">Portal navigation</span><button type="button" onClick={() => setMobileOpen(false)} aria-label="Tutup menu" className="grid size-9 place-items-center rounded-md hover:bg-primary-foreground/10"><X className="size-5" /></button></div>
-      <div className="flex-1 overflow-y-auto p-3">{mainNav.map((item) => <Link key={item.label} href={item.href} className="block rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary">{item.label}</Link>)}<div className="portal-eyebrow px-3 pb-2 pt-5">Departments</div>{departmentItems}{isLoggedIn && <Link href="/kelola-departemen" className="mt-2 flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary"><Settings className="size-4" />Kelola Departemen</Link>}</div>
+      <div className="flex-1 overflow-y-auto p-3">{mainNav.filter((item) => item.label !== 'ISMS Form Aplikasi & Kontrol CS').map((item) => <Link key={item.label} href={item.href} className="block rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary">{item.label}</Link>)}<div className="portal-eyebrow px-3 pb-2 pt-5">ISMS Form Aplikasi &amp; Kontrol CS</div>{formCsItems}<div className="portal-eyebrow px-3 pb-2 pt-5">Departments</div>{departmentItems}{isLoggedIn && <Link href="/kelola-departemen" className="mt-2 flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary"><Settings className="size-4" />Kelola Departemen</Link>}</div>
       <div className="border-t border-border p-4">{!isLoading && (isLoggedIn ? <button onClick={() => logout()} className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 text-sm"><LogOut className="size-4" />Logout ({adminUser?.username})</button> : <button onClick={() => setLoginOpen(true)} className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">Login Admin</button>)}</div>
     </aside>
     <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />

@@ -1,3 +1,5 @@
+/* app/globals.css */
+
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -31,25 +33,25 @@
 
 :root {
   color-scheme: light;
-  --background: oklch(0.97 0.012 220);
-  --foreground: oklch(0.24 0.035 240);
-  --card: oklch(0.995 0.003 220);
-  --card-foreground: oklch(0.24 0.035 240);
-  --popover: oklch(0.995 0.003 220);
-  --popover-foreground: oklch(0.24 0.035 240);
-  --primary: oklch(0.29 0.075 235);
-  --primary-foreground: oklch(0.985 0.004 220);
-  --secondary: oklch(0.93 0.02 220);
-  --secondary-foreground: oklch(0.29 0.075 235);
-  --muted: oklch(0.94 0.014 220);
-  --muted-foreground: oklch(0.52 0.035 235);
-  --accent: oklch(0.79 0.11 178);
-  --accent-foreground: oklch(0.22 0.06 210);
+  --background: oklch(0.96 0.025 92);
+  --foreground: oklch(0.24 0.035 210);
+  --card: oklch(0.985 0.018 88);
+  --card-foreground: oklch(0.24 0.035 210);
+  --popover: oklch(0.985 0.018 88);
+  --popover-foreground: oklch(0.24 0.035 210);
+  --primary: oklch(0.39 0.09 205);
+  --primary-foreground: oklch(0.98 0.018 88);
+  --secondary: oklch(0.88 0.08 92);
+  --secondary-foreground: oklch(0.3 0.055 205);
+  --muted: oklch(0.92 0.035 92);
+  --muted-foreground: oklch(0.5 0.04 205);
+  --accent: oklch(0.7 0.15 55);
+  --accent-foreground: oklch(0.25 0.05 55);
   --destructive: oklch(0.57 0.19 28);
-  --border: oklch(0.88 0.022 220);
-  --input: oklch(0.88 0.022 220);
-  --ring: oklch(0.63 0.12 180);
-  --radius: 0.7rem;
+  --border: oklch(0.82 0.045 92);
+  --input: oklch(0.82 0.045 92);
+  --ring: oklch(0.58 0.12 180);
+  --radius: 0.65rem;
 }
 
 .dark {
@@ -87,6 +89,8 @@
 
 .portal-surface { box-shadow: 0 12px 30px color-mix(in oklch, var(--primary) 7%, transparent); }
 .portal-eyebrow { letter-spacing: 0.16em; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--muted-foreground); }
+.nav-wipe::before { content: ''; position: absolute; inset: 0; z-index: -1; transform: translateY(101%); background: var(--accent); transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+.nav-wipe:hover::before, .nav-wipe:focus-visible::before { transform: translateY(0); }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) { color-scheme: dark; }

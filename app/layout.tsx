@@ -1,5 +1,6 @@
 // app/layout.tsx
-import { Analytics } from '@vercel/analytics/next'
+
+// app/layout.tsx
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { PortalFrame } from '@/components/portal-frame'
@@ -41,12 +42,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="bg-background">
+    <html lang="id" className="bg-background">
       <body className="antialiased">
         <AuthProvider>
           <PortalFrame>{children}</PortalFrame>
         </AuthProvider>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )

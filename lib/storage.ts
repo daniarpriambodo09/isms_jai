@@ -41,6 +41,16 @@ export async function saveHomeCanvasFile(file: File): Promise<string> {
   return relativePath
 }
 
+export async function saveHeroSlideFile(file: File): Promise<string> {
+  const bytes = Buffer.from(await file.arrayBuffer())
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+  const relativePath = `hero-slides/${randomUUID()}-${safeName}`
+  const fullPath = path.join(STORAGE_ROOT, relativePath)
+  await mkdir(path.dirname(fullPath), { recursive: true })
+  await writeFile(fullPath, bytes)
+  return relativePath
+}
+
 export async function deleteDocumentFile(relativePath: string): Promise<void> {
   try {
     await unlink(path.join(STORAGE_ROOT, relativePath))

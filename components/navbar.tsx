@@ -262,6 +262,18 @@ export function Navbar() {
                         >
                           Photo/Video Requests
                         </Link>
+                        <Link
+                          href="/kelola-hero-slides"
+                          className="block rounded-md px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-secondary"
+                        >
+                          Manage Hero Slides
+                        </Link>
+                        <Link
+                          href="/kelola-jadwal"
+                          className="block rounded-md px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-secondary"
+                        >
+                          Manage Schedules
+                        </Link>
                       </>
                     )}
                   </>
@@ -359,6 +371,12 @@ export function Navbar() {
               </Link>
               <Link href="/kelola-permintaan-foto-video" className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary">
                 <Settings className="size-4" />Photo/Video Requests
+              </Link>
+              <Link href="/kelola-hero-slides" className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary">
+                <Settings className="size-4" />Manage Hero Slides
+              </Link>
+              <Link href="/kelola-jadwal" className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary">
+                <Settings className="size-4" />Manage Schedules
               </Link>
             </>
           )}

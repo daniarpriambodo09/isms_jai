@@ -22,12 +22,6 @@ export const documents = [
   ['P14-018', 'Checklist Review Kepatuhan Departemen', '02', '14 Jul 2024', 'Active', 'xls'],
 ] as const
 
-export const audits = [
-  ['03 Mar 2025', '07 Mar 2025', 'Q1 / 2025', 'Internal ISMS Audit', 'Production & QA', 'R. Pratama'],
-  ['19 May 2025', '23 May 2025', 'Q2 / 2025', 'Information Security Review', 'IT & HR-IR', 'D. Kusuma'],
-  ['04 Aug 2025', '08 Aug 2025', 'Q3 / 2025', 'Internal ISMS Audit', 'PPIC-WHS-EXIM', 'R. Pratama'],
-] as const
-
 export const titleFor = (segment: string) =>
   decodeURIComponent(segment)
     .replaceAll('-', ' ')

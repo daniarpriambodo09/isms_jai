@@ -94,13 +94,25 @@
 ::-webkit-scrollbar-thumb { background: oklch(0.7 0.06 205 / 40%); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.55 0.08 205 / 70%); }
 
+/* ─── Home hero carousel transitions ─── */
+@keyframes hero-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hero-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes hero-ken-burns { from { transform: scale(1); } to { transform: scale(1.08); } }
+
 /* ─── Page fade-in animation ─── */
+/* No `both`/`forwards` fill-mode: once the animation finishes, <main>
+   must fall back to its normal cascaded style (transform: none), not
+   hold the animation's last computed transform. A held non-none transform
+   — even an identity translateY(0) — turns <main> into a containing block
+   for every `position: fixed` modal nested in page content, clipping them
+   to <main>'s box instead of the real viewport. No `backwards` needed
+   either since there's no animation-delay for it to matter. */
 @keyframes page-fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .page-fade-in {
-  animation: page-fade-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-fade-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ─── Navbar utilities ─── */

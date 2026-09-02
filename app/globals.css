@@ -1,5 +1,6 @@
 /* app/globals.css */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -81,17 +82,40 @@
   html { background: var(--background); }
   body {
     @apply bg-background text-foreground;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
     background-image: linear-gradient(to right, color-mix(in oklch, var(--foreground) 3%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 3%, transparent) 1px, transparent 1px);
     background-size: 32px 32px;
   }
 }
 
+/* ─── Custom scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: oklch(0.7 0.06 205 / 40%); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.55 0.08 205 / 70%); }
+
+/* ─── Page fade-in animation ─── */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-fade-in {
+  animation: page-fade-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ─── Navbar utilities ─── */
 .portal-surface { box-shadow: 0 12px 30px color-mix(in oklch, var(--primary) 7%, transparent); }
 .portal-eyebrow { letter-spacing: 0.16em; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--muted-foreground); }
 .nav-wipe::before { content: ''; position: absolute; inset: 0; z-index: -1; transform: translateY(101%); background: var(--accent); transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1); }
 .nav-wipe:hover::before, .nav-wipe:focus-visible::before { transform: translateY(0); }
 
+/* ─── Shimmer keyframe (used by login modal) ─── */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not(.light) { color-scheme: dark; }
 }
+

@@ -6,10 +6,11 @@
 // shown to logged-in admins).
 export const mainNav = [
   { label: 'Home', href: '/' },
-  { label: 'Kebijakan Dasar ISMS', href: '/kebijakan-dasar-ISMS' },
-  { label: 'Prosedur ISMS', href: '/prosedur-isms' },
-  { label: 'Working Standard & Standard Requirements TMMIN', href: '/working-standard' },
-  { label: 'ISMS Form Aplikasi & Kontrol CS', href: '/documents/forms' },
+  { label: 'ISMS Basic Policy', href: '/kebijakan-dasar-ISMS' },
+  { label: 'ISMS Procedures', href: '/prosedur-isms' },
+  { label: 'Working Standard', href: '/working-standard' },
+  { label: 'Education & Training', href: '/education' },
+  { label: 'Forms & CS Control', href: '/documents/forms' },
 ] as const
 
 export const documents = [

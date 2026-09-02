@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, FileText, ImagePlus, Loader2, Move, Plus, Save, Trash2, Type } from 'lucide-react'
+import { Check, FileText, ImagePlus, Loader2, Move, Plus, Save, Sparkles, Trash2, Type } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import PDFViewer from '@/components/documents/PDFViewer'
@@ -217,15 +217,46 @@ function pdfPath(src: string) {
 
 function UploadBox({ kind, asset, editable, onUpload, onRemove }: { kind: 'image' | 'pdf'; asset: Asset | null; editable: boolean; onUpload: (file: File) => void; onRemove: () => void }) {
   const isImage = kind === 'image'
-  return <div className="relative min-h-[520px] bg-white">
-    {asset ? (isImage ? <img src={asset.src} alt={asset.name} className="h-full min-h-[520px] w-full object-contain" /> : <PDFViewer filePath={pdfPath(asset.src)} fileName={asset.name} />) : editable ? (
-      <label className="flex min-h-[520px] cursor-pointer flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground transition-colors hover:bg-secondary/40">
-        {isImage ? <ImagePlus className="size-10 opacity-60" /> : <FileText className="size-10 opacity-60" />}<span className="font-semibold text-primary">Upload {isImage ? 'gambar' : 'PDF'}</span><span className="text-sm">{isImage ? 'JPG, PNG, atau WebP' : 'Dokumen PDF untuk detail gambar'}</span>
-        <input type="file" accept={isImage ? 'image/jpeg,image/png,image/webp' : 'application/pdf'} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = '' }} />
-      </label>
-    ) : <div className="grid min-h-[520px] place-items-center px-6 text-center text-muted-foreground"><span>Belum ada {isImage ? 'gambar' : 'detail PDF'}.</span></div>}
-    {asset && editable && <div className="absolute right-3 top-3 flex items-center gap-2"><label className="inline-flex cursor-pointer items-center gap-2 bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">{isImage ? <ImagePlus className="size-4" /> : <FileText className="size-4" />} Ganti<input type="file" accept={isImage ? 'image/jpeg,image/png,image/webp' : 'application/pdf'} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = '' }} /></label><button type="button" title={`Hapus ${isImage ? 'gambar' : 'PDF'}`} aria-label={`Hapus ${isImage ? 'gambar' : 'PDF'}`} onClick={onRemove} className="grid size-8 place-items-center bg-destructive text-white shadow-sm hover:bg-destructive/90"><Trash2 className="size-4" /></button></div>}
-  </div>
+  const label = isImage ? 'Gambar Sampul' : 'Detail Dokumen'
+  const Icon = isImage ? ImagePlus : FileText
+  return (
+    <div className="group relative flex min-h-[420px] flex-col overflow-hidden rounded-[1.75rem] border border-border bg-card shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:min-h-[480px]">
+      <div className="pointer-events-none absolute left-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-primary/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground shadow-sm backdrop-blur">
+        <Icon className="size-3.5" />{label}
+      </div>
+
+      {asset ? (
+        isImage ? (
+          <img src={asset.src} alt={asset.name} className="h-full min-h-[420px] w-full object-cover sm:min-h-[480px]" />
+        ) : (
+          <PDFViewer filePath={pdfPath(asset.src)} fileName={asset.name} />
+        )
+      ) : editable ? (
+        <label className="flex min-h-[420px] cursor-pointer flex-col items-center justify-center gap-3 bg-gradient-to-br from-secondary/50 via-secondary/20 to-transparent px-6 text-center text-muted-foreground transition-colors hover:from-secondary/70 sm:min-h-[480px]">
+          <span className="grid size-14 place-items-center rounded-full bg-primary/10 text-primary"><Icon className="size-6" /></span>
+          <span className="font-semibold text-primary">Upload {isImage ? 'gambar' : 'PDF'}</span>
+          <span className="text-sm">{isImage ? 'JPG, PNG, atau WebP' : 'Dokumen PDF untuk detail gambar'}</span>
+          <input type="file" accept={isImage ? 'image/jpeg,image/png,image/webp' : 'application/pdf'} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = '' }} />
+        </label>
+      ) : (
+        <div className="grid min-h-[420px] place-items-center bg-gradient-to-br from-secondary/30 to-transparent px-6 text-center text-muted-foreground sm:min-h-[480px]">
+          <span>Belum ada {isImage ? 'gambar' : 'detail PDF'}.</span>
+        </div>
+      )}
+
+      {asset && editable && (
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90">
+            <Icon className="size-3.5" /> Ganti
+            <input type="file" accept={isImage ? 'image/jpeg,image/png,image/webp' : 'application/pdf'} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) onUpload(file); event.currentTarget.value = '' }} />
+          </label>
+          <button type="button" title={`Hapus ${isImage ? 'gambar' : 'PDF'}`} aria-label={`Hapus ${isImage ? 'gambar' : 'PDF'}`} onClick={onRemove} className="grid size-8 place-items-center rounded-full bg-destructive text-white shadow-sm transition-colors hover:bg-destructive/90">
+            <Trash2 className="size-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function Page() {
@@ -243,10 +274,59 @@ export default function Page() {
     setSaving(true); setMessage('Menyimpan konten home...')
     try { const res = await fetch(`${API_BASE_PATH}/api/home-canvas`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ layout }) }); const data = await res.json().catch(() => ({})); if (!res.ok) throw new Error(data.message ?? `Gagal menyimpan (HTTP ${res.status}).`); setLayout(data.layout ?? layout); setMessage('Konten home tersimpan.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Gagal menyimpan konten home.') } finally { setSaving(false) }
   }
-  return <div className="space-y-5">
-    {!authLoading && isLoggedIn && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><div><p className="portal-eyebrow">Home content</p><h2 className="text-xl font-bold text-primary">Kelola gambar dan detail PDF</h2></div><button type="button" onClick={save} disabled={saving} className="inline-flex items-center gap-2 bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">{saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Simpan</button></div>}
-    {message && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-accent-foreground" />{message}</p>}
-    {loading ? <div className="grid min-h-[520px] place-items-center bg-white"><Loader2 className="size-7 animate-spin text-muted-foreground" /></div> : <section className="grid grid-cols-1 gap-6 lg:grid-cols-2"><div><p className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary">Gambar</p><UploadBox kind="image" asset={layout.image} editable={isLoggedIn} onUpload={(file) => upload('image', file)} onRemove={() => setLayout((current) => ({ ...current, image: null }))} /></div><div><p className="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-primary">Detail PDF</p><UploadBox kind="pdf" asset={layout.pdf} editable={isLoggedIn} onUpload={(file) => upload('pdf', file)} onRemove={() => setLayout((current) => ({ ...current, pdf: null }))} /></div></section>}
-    {isLoggedIn && <p className="text-xs text-muted-foreground">Gunakan tombol upload pada masing-masing kolom, lalu klik Simpan untuk menerbitkan perubahan.</p>}
-  </div>
+  return (
+    <div className="space-y-8">
+      <section
+        className="relative overflow-hidden rounded-[1.75rem] border border-border p-6 text-primary-foreground shadow-xl sm:p-10"
+        style={{ background: 'linear-gradient(135deg, #1a3a52 0%, #1a5f7a 45%, #278e84 100%)' }}
+      >
+        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
+        <div className="pointer-events-none absolute -bottom-14 left-1/3 h-44 w-44 rounded-full opacity-[0.08]" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
+
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-2xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
+              <Sparkles className="size-3.5" /> Portal ISMS
+            </div>
+            <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">Selamat Datang di Portal ISMS</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Pusat informasi kebijakan, prosedur, dan materi keamanan informasi PT. Jatim Autocomp Indonesia.</p>
+          </div>
+          {!authLoading && isLoggedIn && (
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, oklch(0.7 0.15 55) 0%, oklch(0.75 0.18 50) 100%)', color: '#1a2f1a' }}
+            >
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Simpan
+            </button>
+          )}
+        </div>
+      </section>
+
+      {!authLoading && isLoggedIn && (
+        <div><p className="portal-eyebrow">Home content</p><p className="mt-1 text-sm text-muted-foreground">Kelola gambar dan detail PDF yang tampil di halaman utama.</p></div>
+      )}
+
+      {message && (
+        <p className="inline-flex w-fit items-center gap-2 rounded-full bg-secondary/60 px-4 py-2 text-sm text-muted-foreground">
+          <Check className="size-4 text-accent-foreground" />{message}
+        </p>
+      )}
+
+      {loading ? (
+        <div className="grid min-h-[420px] place-items-center rounded-[1.75rem] border border-border bg-card shadow-sm">
+          <Loader2 className="size-7 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <UploadBox kind="image" asset={layout.image} editable={isLoggedIn} onUpload={(file) => upload('image', file)} onRemove={() => setLayout((current) => ({ ...current, image: null }))} />
+          <UploadBox kind="pdf" asset={layout.pdf} editable={isLoggedIn} onUpload={(file) => upload('pdf', file)} onRemove={() => setLayout((current) => ({ ...current, pdf: null }))} />
+        </section>
+      )}
+
+      {isLoggedIn && <p className="text-xs text-muted-foreground">Gunakan tombol upload pada masing-masing kartu, lalu klik Simpan untuk menerbitkan perubahan.</p>}
+    </div>
+  )
 }

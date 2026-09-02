@@ -1,85 +1,228 @@
 // app/audits/page.tsx
 
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react'
 import { audits } from '@/lib/portal-data'
 
 const timeline = [
-  ['MAR', '03', 'Q1 Audit', 'In 8 days'],
-  ['MAY', '19', 'Security review', 'In 75 days'],
-  ['AUG', '04', 'Q3 Audit', 'In 152 days'],
+  {
+    month: 'MAR', day: '03', label: 'Q1 Audit', eta: 'In 8 days',
+    status: 'upcoming', icon: <Clock className="size-4" />,
+  },
+  {
+    month: 'MAY', day: '19', label: 'Security Review', eta: 'In 75 days',
+    status: 'scheduled', icon: <ShieldCheck className="size-4" />,
+  },
+  {
+    month: 'AUG', day: '04', label: 'Q3 Audit', eta: 'In 152 days',
+    status: 'scheduled', icon: <CalendarDays className="size-4" />,
+  },
 ] as const
+
+const statusBadge = (status: string) => {
+  if (status === 'upcoming') return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide"
+      style={{ background: 'linear-gradient(135deg, #edf8f7, #d4f0ee)', color: '#1a6e6a', border: '1px solid rgba(39,142,132,0.25)' }}
+    >
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#278e84]" />
+      Upcoming
+    </span>
+  )
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide"
+      style={{ background: '#f3f6fa', color: '#5a7a92', border: '1px solid rgba(90,122,146,0.2)' }}
+    >
+      Scheduled
+    </span>
+  )
+}
 
 export default function AuditsPage() {
   return (
-    <section className="rounded-[9px] border border-[#e4edf2] bg-white p-[27px] shadow-[0_2px_8px_rgba(34,58,79,0.025)] max-[680px]:p-[18px_15px]">
-      <div className="flex items-start justify-between gap-5 mb-6 max-[680px]:flex-col">
-        <div>
-          <div className="mb-[9px] text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
-            MONITORING
-          </div>
-          <h2 className="text-[20px] text-[#20354a] tracking-[-0.025em]">Internal audit schedule</h2>
-          <p className="mt-[7px] text-[13px] leading-[1.5] text-[#75889c]">
-            Upcoming audit activities across the ISMS scope.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 self-center rounded-[7px] border border-[#dbe6ec] bg-white px-4 py-[10px] text-[13px] font-medium text-[#3c5369] hover:bg-[#f7fafc] [&>svg]:w-4"
-        >
-          <CalendarDays /> Add to calendar
-        </button>
-      </div>
-
-      <div className="mb-6 grid grid-cols-3 gap-px overflow-hidden rounded-[7px] border border-[#deeaef] bg-[#deeaef] max-[680px]:grid-cols-1">
-        {timeline.map(([month, day, label, eta], index) => (
-          <div
-            key={day}
-            className={`flex items-center gap-[13px] p-[18px] max-[680px]:p-[13px_15px] ${
-              index === 0 ? 'bg-[#edf8f7]' : 'bg-[#f7fafc]'
-            }`}
-          >
-            <div className="flex flex-col items-center border-r border-[#dbe8eb] pr-[15px]">
-              <span className="text-[9px] font-bold text-[#7195a1]">{month}</span>
-              <strong className="text-[22px] leading-[1.1] text-[#277e83]">{day}</strong>
+    <section
+      className="overflow-hidden rounded-2xl border"
+      style={{
+        borderColor: '#e0eaf1',
+        background: 'linear-gradient(145deg, #ffffff 0%, #f7fafc 100%)',
+        boxShadow: '0 4px 20px rgba(34,58,79,0.06), 0 1px 4px rgba(34,58,79,0.04)',
+      }}
+    >
+      {/* Card header */}
+      <div
+        className="border-b px-7 py-6"
+        style={{
+          borderColor: '#e8f0f5',
+          background: 'linear-gradient(135deg, #f8fbfd 0%, #f0f6fa 100%)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-5 max-[680px]:flex-col">
+          <div className="flex items-center gap-4">
+            {/* Icon badge */}
+            <div
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+              style={{
+                background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
+                boxShadow: '0 4px 12px rgba(39,142,132,0.3)',
+                color: 'white',
+              }}
+            >
+              <CalendarDays className="size-5" />
             </div>
             <div>
-              <strong className="block text-[12px] text-[#425c70]">{label}</strong>
-              <span className="mt-1 block text-[10px] text-[#8498a7]">{eta}</span>
+              <div
+                className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]"
+                style={{ color: '#278e84' }}
+              >
+                Monitoring
+              </div>
+              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: '#1a2f3e' }}>
+                Internal Audit Schedule
+              </h2>
+              <p className="mt-1 text-[12.5px] leading-snug" style={{ color: '#6a8499' }}>
+                Upcoming audit activities across the ISMS scope.
+              </p>
             </div>
           </div>
-        ))}
+
+          <button
+            type="button"
+            className="inline-flex flex-shrink-0 items-center gap-2 self-center rounded-xl border px-4 py-2.5 text-[12.5px] font-semibold transition-all duration-150 hover:scale-[1.02]"
+            style={{
+              borderColor: '#c8dce8',
+              background: 'linear-gradient(135deg, #ffffff, #f3f8fb)',
+              color: '#3c5369',
+              boxShadow: '0 2px 6px rgba(34,58,79,0.08)',
+            }}
+          >
+            <CalendarDays className="size-4" />
+            Add to calendar
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[7px] border border-[#e6edf1]">
-        <table className="w-full min-w-[760px] border-collapse text-[12px]">
-          <thead>
-            <tr>
-              {['Start', 'End', 'Period', 'Activities', 'Auditee', 'Auditor'].map((head) => (
-                <th
-                  key={head}
-                  className="whitespace-nowrap bg-[#f7fafc] px-[15px] py-[13px] text-left text-[9px] font-bold uppercase tracking-[0.07em] text-[#72889c]"
-                >
-                  {head}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {audits.map((row) => (
-              <tr key={row[0]}>
-                {row.map((value) => (
-                  <td
-                    key={value}
-                    className="whitespace-nowrap border-t border-[#edf1f4] px-[15px] py-[14px] text-[#62768a]"
+      <div className="p-7 max-[680px]:p-4">
+        {/* Timeline cards */}
+        <div className="mb-7 grid grid-cols-3 gap-4 max-[680px]:grid-cols-1">
+          {timeline.map((item, index) => (
+            <div
+              key={item.day}
+              className="relative overflow-hidden rounded-xl border p-5 transition-all duration-200 hover:scale-[1.01] hover:shadow-md"
+              style={{
+                borderColor: index === 0 ? 'rgba(39,142,132,0.3)' : '#dde8ef',
+                background: index === 0
+                  ? 'linear-gradient(135deg, #edf8f7 0%, #ddf2f0 100%)'
+                  : 'linear-gradient(135deg, #f8fbfd 0%, #f2f7fa 100%)',
+                boxShadow: index === 0
+                  ? '0 4px 16px rgba(39,142,132,0.15)'
+                  : '0 2px 8px rgba(34,58,79,0.05)',
+              }}
+            >
+              {/* Top accent bar */}
+              <div
+                className="absolute inset-x-0 top-0 h-[3px] rounded-t-xl"
+                style={{
+                  background: index === 0
+                    ? 'linear-gradient(90deg, #278e84, #1a5f7a)'
+                    : 'linear-gradient(90deg, #94afc0, #b0c5d4)',
+                }}
+              />
+
+              <div className="flex items-start justify-between gap-3">
+                {/* Date block */}
+                <div className="flex flex-col items-center">
+                  <span
+                    className="text-[9px] font-bold uppercase tracking-widest"
+                    style={{ color: index === 0 ? '#1a6e6a' : '#7a9bb0' }}
                   >
-                    {value}
-                  </td>
+                    {item.month}
+                  </span>
+                  <strong
+                    className="text-[28px] font-bold leading-none"
+                    style={{ color: index === 0 ? '#1a5f7a' : '#2f4a5e' }}
+                  >
+                    {item.day}
+                  </strong>
+                </div>
+
+                {/* Icon */}
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-lg"
+                  style={{
+                    background: index === 0 ? 'rgba(39,142,132,0.15)' : 'rgba(90,122,146,0.1)',
+                    color: index === 0 ? '#278e84' : '#5a7a92',
+                  }}
+                >
+                  {item.icon}
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <strong className="block text-[13px] font-bold" style={{ color: '#1a2f3e' }}>
+                  {item.label}
+                </strong>
+                <span className="mt-0.5 block text-[11px]" style={{ color: index === 0 ? '#3a7a74' : '#7a9bb0' }}>
+                  {item.eta}
+                </span>
+                <div className="mt-2.5">{statusBadge(item.status)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Audit table */}
+        <div
+          className="overflow-hidden rounded-xl border"
+          style={{ borderColor: '#e0eaf1' }}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] border-collapse text-[12px]">
+              <thead>
+                <tr
+                  style={{
+                    background: 'linear-gradient(135deg, #f0f6fa 0%, #e8f2f7 100%)',
+                  }}
+                >
+                  {['Start', 'End', 'Period', 'Activities', 'Auditee', 'Auditor'].map((head) => (
+                    <th
+                      key={head}
+                      className="whitespace-nowrap border-b px-4 py-3.5 text-left text-[9.5px] font-bold uppercase tracking-[0.1em]"
+                      style={{ borderColor: '#d8e8f0', color: '#5a7a92' }}
+                    >
+                      {head}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {audits.map((row, rowIndex) => (
+                  <tr
+                    key={row[0]}
+                    className="transition-colors hover:bg-[#f5f9fb]"
+                    style={{
+                      background: rowIndex % 2 === 1 ? '#fafcfd' : '#ffffff',
+                    }}
+                  >
+                    {row.map((value, colIndex) => (
+                      <td
+                        key={value}
+                        className="whitespace-nowrap border-b px-4 py-3.5"
+                        style={{
+                          borderColor: '#edf2f6',
+                          color: colIndex === 0 ? '#278e84' : '#4a6478',
+                          fontWeight: colIndex === 0 ? '600' : '400',
+                        }}
+                      >
+                        {value}
+                      </td>
+                    ))}
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
   )
-}
+}

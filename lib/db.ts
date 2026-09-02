@@ -2,8 +2,6 @@
 
 import { Pool, type QueryResultRow } from 'pg'
 
-// Reuse a single pg Pool across hot-reloads in development so we don't
-// exhaust Postgres connections every time a file is saved.
 declare global {
   // eslint-disable-next-line no-var
   var pgPool: Pool | undefined
@@ -27,13 +25,6 @@ if (process.env.NODE_ENV !== 'production') {
   global.pgPool = pool
 }
 
-/**
- * Typed query helper. Usage:
- *   const { rows } = await query<{ id: number; username: string }>(
- *     'SELECT id, username FROM admins WHERE id = $1',
- *     [id]
- *   )
- */
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
   params?: unknown[]

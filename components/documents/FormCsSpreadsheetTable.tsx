@@ -1,6 +1,6 @@
 'use client'
 
-import { Eye, Pencil, Trash2 } from 'lucide-react'
+import { Eye, FileSpreadsheet, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
 export type FormCsDocument = {
@@ -165,7 +165,12 @@ export function FormCsSpreadsheetTable({
           {groupHeaders.map((header) => <GroupHeaderRow key={header.id} header={header} />)}
 
           {rows.length === 0 && groupHeaders.length === 0 && (
-            <tr><td colSpan={5} className="border border-[#a8c9c9] px-5 py-14 text-center text-[#7290a5]">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</td></tr>
+            <tr>
+              <td colSpan={5} className="border border-[#a8c9c9] px-5 py-14 text-center">
+                <FileSpreadsheet className="mx-auto mb-3 size-9 text-[#a8c0c0]" />
+                <p className="font-medium text-[#7290a5]">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>
+              </td>
+            </tr>
           )}
 
           {rows.map((row, index) => (

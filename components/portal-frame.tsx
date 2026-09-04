@@ -2,10 +2,21 @@
 
 'use client'
 
+import { useEffect } from 'react'
 import { ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings } from 'lucide-react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
 import { titleFor } from '@/lib/portal-data'
+import { useAuth } from '@/context/AuthContext'
+
+// These two routes are standalone kiosk pages (vendor gate management at
+// Lobby / Pos Security) — they render with none of the portal's chrome,
+// and the "lobby"/"security" admin roles are confined to their one page
+// no matter what URL they try to reach.
+const KIOSK_ROUTES: Record<'lobby' | 'security', string> = {
+  lobby: '/admin-lobby',
+  security: '/admin-pos-security',
+}
 
 const PAGE_ICONS: Record<string, React.ReactNode> = {
   '/': <Home className="size-5" />,
@@ -21,6 +32,22 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
 
 export function PortalFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { adminUser, isLoading } = useAuth()
+  const isKioskRoute = pathname === KIOSK_ROUTES.lobby || pathname === KIOSK_ROUTES.security
+
+  // Confine the lobby/security kiosk roles to their one page, regardless of
+  // what URL they navigate to — the actual guarantee, not just a hidden menu.
+  useEffect(() => {
+    if (isLoading || !adminUser) return
+    const home = adminUser.role === 'lobby' ? KIOSK_ROUTES.lobby : adminUser.role === 'security' ? KIOSK_ROUTES.security : null
+    if (home && pathname !== home) router.replace(home)
+  }, [isLoading, adminUser, pathname, router])
+
+  if (isKioskRoute) return <>{children}</>
+
+  const isHome = pathname === '/'
+
   const segments = pathname.split('/').filter(Boolean)
   const isSectionPage = segments[0] === 'documents' && segments[1] === 'department' && segments.length === 4
   const pageTitle =
@@ -47,7 +74,8 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
       <Navbar />
 
       {/* ─── Page Header ─── */}
-      <header
+      {/* Home skips this bar entirely so the hero video sits flush against the navbar. */}
+      {!isHome && <header
         className="relative border-b border-border backdrop-blur-sm"
         style={{
           background: 'linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--secondary) 60%, var(--card)) 100%)',
@@ -115,16 +143,16 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
-      </header>
+      </header>}
 
       {/* ─── Main content ─── */}
-      <main className="page-fade-in mx-auto max-w-[1480px] px-10 pb-10 pt-9 max-[900px]:px-6 max-[900px]:py-7 max-[680px]:px-4 max-[680px]:py-6">
+      <main className={`page-fade-in mx-auto max-w-[1480px] px-10 pb-10 max-[900px]:px-6 max-[900px]:pb-7 max-[680px]:px-4 max-[680px]:pb-6 ${isHome ? 'pt-0 max-[900px]:pt-0 max-[680px]:pt-0' : 'pt-9 max-[900px]:pt-7 max-[680px]:pt-6'}`}>
         {children}
       </main>
 
       {/* ─── Footer ─── */}
       <footer
-        className="relative mt-6 border-t border-border"
+        className="relative mt-6 overflow-hidden border-t border-border"
         style={{
           background: 'linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--muted) 40%, var(--card)) 100%)',
         }}
@@ -136,17 +164,22 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
             background: 'linear-gradient(90deg, transparent 0%, oklch(0.48 0.12 180 / 50%) 30%, oklch(0.58 0.14 165 / 70%) 50%, oklch(0.48 0.12 180 / 50%) 70%, transparent 100%)',
           }}
         />
+        {/* Dot-grid texture, echoing the hero banners */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.035]"
+          style={{ backgroundImage: 'radial-gradient(circle, oklch(0.39 0.09 205) 1px, transparent 1px)', backgroundSize: '18px 18px' }}
+        />
 
-        <div className="mx-auto max-w-[1480px] px-10 py-8 max-[680px]:px-4 max-[680px]:py-6">
+        <div className="relative mx-auto max-w-[1480px] px-10 py-8 max-[680px]:px-4 max-[680px]:py-6">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             {/* Column 1 — Brand */}
             <div>
               <div className="flex items-center gap-2.5">
                 <div
-                  className="flex h-7 w-7 items-center justify-center rounded-lg"
-                  style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205), oklch(0.48 0.12 180))' }}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg"
+                  style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205), oklch(0.48 0.12 180))', boxShadow: '0 4px 14px oklch(0.39 0.09 205 / 30%)' }}
                 >
-                  <Shield className="size-3.5 text-white" />
+                  <Shield className="size-4 text-white" />
                 </div>
                 <span className="text-[13px] font-bold text-primary">ISMS Portal</span>
               </div>
@@ -170,8 +203,9 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
                   <a
                     key={href}
                     href={href}
-                    className="text-[11.5px] text-muted-foreground transition-colors hover:text-primary"
+                    className="group flex items-center gap-1.5 text-[11.5px] text-muted-foreground transition-colors hover:text-primary"
                   >
+                    <ChevronRight className="size-3 flex-none -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
                     {label}
                   </a>
                 ))}

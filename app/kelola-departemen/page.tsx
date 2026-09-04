@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Building2, Check, ChevronRight, Layers, Pencil, Plus, Search, Settings, X, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
+import { AdminGate } from '@/components/admin-gate'
 
 type Section = { id: number; department_id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -75,7 +76,7 @@ export default function KelolaDepartemenPage() {
   }, [departments, query])
   const selectedDepartment = filteredDepartments.find((dept) => dept.id === selectedDeptId) ?? filteredDepartments[0] ?? null
 
-  if (!isLoading && !isLoggedIn) return <section className="rounded-3xl border border-border bg-card p-10 text-center shadow-sm"><p className="text-sm text-muted-foreground">Halaman ini khusus untuk admin yang sudah login.</p></section>
+  if (!isLoading && !isLoggedIn) return <AdminGate />
 
   return (
     <div className="flex flex-col gap-7">

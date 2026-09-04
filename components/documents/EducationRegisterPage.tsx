@@ -8,6 +8,9 @@ import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { EducationFormModal, type EditableEducation } from '@/components/documents/EducationFormModal'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { usePagination } from '@/hooks/usePagination'
+import { Pagination } from '@/components/pagination'
 
 type EducationDocument = {
   id: number
@@ -102,6 +105,8 @@ export function EducationRegisterPage() {
   const [editing, setEditing] = useState<EducationDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<EducationDocument | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -137,20 +142,27 @@ export function EducationRegisterPage() {
 
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   const openEdit = (doc: EducationDocument) => { setEditing(doc); setFormOpen(true) }
+  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filtered, 20)
+  useEffect(() => { setPage(1) }, [searchQuery, categoryFilter, setPage])
 
-  const handleDelete = async (doc: EducationDocument) => {
-    if (!confirm(`Hapus dokumen "${doc.title}"?`)) return
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/education?id=${doc.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE_PATH}/api/education?id=${pendingDelete.id}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         setErrorMsg(data?.message ?? 'Gagal menghapus dokumen.')
+        setDeleting(false)
+        setPendingDelete(null)
         return
       }
       await loadDocuments()
     } catch {
       setErrorMsg('Tidak dapat menghubungi server.')
     }
+    setDeleting(false)
+    setPendingDelete(null)
   }
 
   const editableDoc: EditableEducation | undefined = editing
@@ -282,10 +294,10 @@ export function EducationRegisterPage() {
               style={{ background: 'linear-gradient(135deg, var(--secondary) 0%, color-mix(in oklch, var(--secondary) 60%, var(--card)) 100%)' }}
             >
               <tr>
-                {['Tanggal', 'Judul Materi', 'Kategori', 'Bahasa', 'Aksi'].map((head) => (
+                {['Tanggal', 'Judul Materi', 'Kategori', 'Bahasa', 'Aksi'].map((head, i) => (
                   <th
                     key={head}
-                    className="whitespace-nowrap px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground"
+                    className={`whitespace-nowrap px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[680px]:hidden' : ''}`}
                   >
                     {head}
                   </th>
@@ -325,14 +337,14 @@ export function EducationRegisterPage() {
                 </tr>
               )}
 
-              {filtered.map((doc, index) => (
+              {pageItems.map((doc, index) => (
                 <tr
                   key={doc.id}
                   className="transition-colors hover:bg-secondary/30"
                   style={{ background: index % 2 === 1 ? 'color-mix(in oklch, var(--secondary) 30%, transparent)' : undefined }}
                 >
                   {/* Tanggal */}
-                  <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground">
+                  <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground max-[680px]:hidden">
                     {formatDate(doc.uploaded_at)}
                   </td>
 
@@ -402,7 +414,7 @@ export function EducationRegisterPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(doc)}
+                            onClick={() => setPendingDelete(doc)}
                             aria-label={`Hapus ${doc.title}`}
                             title="Hapus dokumen"
                             className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
@@ -419,13 +431,8 @@ export function EducationRegisterPage() {
           </table>
         </div>
 
-        {/* Footer count */}
         {!loading && filtered.length > 0 && (
-          <div className="border-t border-border bg-secondary/20 px-5 py-3 text-xs text-muted-foreground">
-            Menampilkan{' '}
-            <span className="font-semibold text-foreground">{filtered.length}</span>
-            {(searchQuery || categoryFilter !== 'Semua') ? ` dari ${documents.length}` : ''} dokumen
-          </div>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filtered.length} pageSize={pageSize} />
         )}
       </div>
 
@@ -443,6 +450,14 @@ export function EducationRegisterPage() {
         onClose={() => setFormOpen(false)}
         onSaved={loadDocuments}
         document={editableDoc}
+      />
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus dokumen?"
+        message={`Dokumen "${pendingDelete?.title}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
       />
     </div>
   )

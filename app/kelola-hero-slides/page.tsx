@@ -7,6 +7,8 @@ import { ArrowDown, ArrowUp, Film, ImageIcon, Pencil, Plus, Settings, Trash2 } f
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { HeroSlideFormModal, type EditableHeroSlide } from '@/components/documents/HeroSlideFormModal'
+import { AdminGate } from '@/components/admin-gate'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 type Slide = {
   id: number
@@ -27,6 +29,8 @@ export default function KelolaHeroSlidesPage() {
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Slide | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Slide | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -47,17 +51,20 @@ export default function KelolaHeroSlidesPage() {
   useEffect(() => { if (isLoggedIn) load() }, [isLoggedIn, load])
 
   if (!isLoading && !isLoggedIn) {
-    return <section className="rounded-3xl border border-border bg-card p-10 text-center shadow-sm"><p className="text-sm text-muted-foreground">Halaman ini khusus untuk admin yang sudah login.</p></section>
+    return <AdminGate />
   }
 
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   const openEdit = (slide: Slide) => { setEditing(slide); setFormOpen(true) }
 
-  const handleDelete = async (slide: Slide) => {
-    if (!confirm(`Hapus slide "${slide.title}"?`)) return
-    const res = await fetch(`${API_BASE_PATH}/api/hero-slides/${slide.id}`, { method: 'DELETE', credentials: 'include' })
-    if (!res.ok) { const data = await res.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus slide.'); return }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    const res = await fetch(`${API_BASE_PATH}/api/hero-slides/${pendingDelete.id}`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) { const data = await res.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus slide.'); setDeleting(false); setPendingDelete(null); return }
     load()
+    setDeleting(false)
+    setPendingDelete(null)
   }
 
   const move = async (index: number, direction: -1 | 1) => {
@@ -85,7 +92,7 @@ export default function KelolaHeroSlidesPage() {
               <Settings className="size-3.5" /> Admin workspace
             </div>
             <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Kelola Hero Slides</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">Atur video/gambar yang tampil bergantian di hero halaman Home, beserta urutannya.</p>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">Atur video dan gambar untuk halaman Home, beserta urutannya. Slide bertipe <strong>Video</strong> tampil di hero utama, slide bertipe <strong>Gambar</strong> tampil di bagian Gallery di bawahnya.</p>
           </div>
           <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
             <Plus className="size-4" /> Tambah Slide
@@ -98,10 +105,10 @@ export default function KelolaHeroSlidesPage() {
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-secondary/55">
+            <thead className="table-head-gradient">
               <tr>
-                {['Urutan', 'Slide', 'Tipe', 'Status', 'Aksi'].map((head) => (
-                  <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
+                {['Urutan', 'Slide', 'Tipe', 'Status', 'Aksi'].map((head, i) => (
+                  <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 2 ? 'max-[640px]:hidden' : ''}`}>{head}</th>
                 ))}
               </tr>
             </thead>
@@ -113,7 +120,7 @@ export default function KelolaHeroSlidesPage() {
                 <tr><td colSpan={5} className="px-5 py-16 text-center"><Film className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Belum ada slide.</p></td></tr>
               )}
               {slides.map((slide, index) => (
-                <tr key={slide.id} className={index % 2 ? 'bg-secondary/20' : ''}>
+                <tr key={slide.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Naikkan urutan" className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-30">
@@ -135,7 +142,7 @@ export default function KelolaHeroSlidesPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{slide.media_type === 'video' ? 'Video' : 'Gambar'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground max-[640px]:hidden">{slide.media_type === 'video' ? 'Video' : 'Gambar'}</td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${slide.is_active ? 'bg-[#dff5e6] text-[#1a6e3a]' : 'bg-secondary text-muted-foreground'}`}>
                       {slide.is_active ? 'Aktif' : 'Nonaktif'}
@@ -146,7 +153,7 @@ export default function KelolaHeroSlidesPage() {
                       <button type="button" onClick={() => openEdit(slide)} aria-label={`Edit ${slide.title}`} className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground">
                         <Pencil className="size-4" />
                       </button>
-                      <button type="button" onClick={() => handleDelete(slide)} aria-label={`Hapus ${slide.title}`} className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+                      <button type="button" onClick={() => setPendingDelete(slide)} aria-label={`Hapus ${slide.title}`} className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="size-4" />
                       </button>
                     </div>
@@ -159,6 +166,14 @@ export default function KelolaHeroSlidesPage() {
       </div>
 
       <HeroSlideFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={load} slide={editableSlide} />
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus slide?"
+        message={`Slide "${pendingDelete?.title}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

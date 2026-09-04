@@ -5,6 +5,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { X, GraduationCap } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 export type EditableEducation = {
   id: number
@@ -41,6 +42,8 @@ export function EducationFormModal({
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEscapeClose(open, onClose)
 
   useEffect(() => {
     if (open) {
@@ -98,6 +101,9 @@ export function EducationFormModal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.55)] p-4 backdrop-blur-[2px]">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}
         className="w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(14,34,53,0.28)]"
         style={{ animation: 'dropdown-in 200ms cubic-bezier(0.22,1,0.36,1) both' }}
       >

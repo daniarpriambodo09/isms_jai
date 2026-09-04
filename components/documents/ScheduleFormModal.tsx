@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 export type ScheduleKind = 'audit-schedule' | 'training-schedule'
 export type Status = 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
@@ -55,6 +56,8 @@ export function ScheduleFormModal({
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  useEscapeClose(open, onClose)
+
   useEffect(() => {
     if (open) {
       setStartDate(item?.startDate ?? '')
@@ -106,7 +109,7 @@ export function ScheduleFormModal({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-[520px] max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Jadwal' : 'Tambah Jadwal'} className="w-full max-w-[520px] max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between bg-primary px-6 py-5 text-primary-foreground">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/65">{isAudit ? 'Jadwal Audit' : 'Jadwal Training'}</p>

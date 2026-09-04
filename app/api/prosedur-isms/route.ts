@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 
@@ -32,7 +32,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -132,7 +132,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 

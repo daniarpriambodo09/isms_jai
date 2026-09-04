@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 type RequestType = 'internal' | 'visitor'
@@ -34,7 +34,7 @@ const SELECT_COLUMNS = `id, request_type, nik, requester_name, dept_or_company, 
   from_at, to_at, location, objective, status, submitted_at, decided_at, decided_by, decision_note`
 
 export async function GET(request: NextRequest) {
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const typeParam = request.nextUrl.searchParams.get('type')

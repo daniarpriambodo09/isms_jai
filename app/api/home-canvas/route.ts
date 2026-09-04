@@ -1,7 +1,7 @@
 // app/api/home-canvas/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { saveHomeCanvasFile } from '@/lib/storage'
 
@@ -26,7 +26,7 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const admin = getAdminFromRequest(request)
+  const admin = getIsmsAdminFromRequest(request)
   if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   try {
     const body = await request.json() as { layout?: unknown }
@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   try {
     const form = await request.formData()
     const file = form.get('file')

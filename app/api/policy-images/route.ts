@@ -1,7 +1,7 @@
 // app/api/policy-images/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { savePolicyImage, deleteDocumentFile } from '@/lib/storage'
 
@@ -18,7 +18,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   try {
     const form = await request.formData()
     const files = form.getAll('files').filter((file): file is File => file instanceof File && file.type.startsWith('image/'))
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   const { id } = await request.json() as { id?: number }
   if (!Number.isInteger(id)) return NextResponse.json({ message: 'ID gambar tidak valid.' }, { status: 400 })
   const result = await query<{ file_path: string }>('DELETE FROM policy_images WHERE id = $1 RETURNING file_path', [id])

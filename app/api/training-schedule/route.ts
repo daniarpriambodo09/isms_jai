@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 type Status = 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
@@ -40,7 +40,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const body = await request.json() as TrainingInput

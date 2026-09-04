@@ -8,6 +8,7 @@ import { Camera, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
+import { AdminGate } from '@/components/admin-gate'
 
 const STATUS_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Semua' },
@@ -65,7 +66,7 @@ function KelolaPermintaanFotoVideoContent() {
   useEffect(() => { if (isLoggedIn) load() }, [isLoggedIn, load])
 
   if (!isLoading && !isLoggedIn) {
-    return <section className="rounded-3xl border border-border bg-card p-10 text-center shadow-sm"><p className="text-sm text-muted-foreground">Halaman ini khusus untuk admin yang sudah login.</p></section>
+    return <AdminGate />
   }
 
   return (

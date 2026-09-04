@@ -1,6 +1,6 @@
 // app/api/documents/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { saveDocumentFile } from '@/lib/storage'
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
 // Admin only — "Tambah Dokumen".
 export async function POST(request: NextRequest) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 

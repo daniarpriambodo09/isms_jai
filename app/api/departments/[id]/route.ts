@@ -1,13 +1,13 @@
 // app/api/departments/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 type DepartmentRow = { id: number; name: string; slug: string }
 
 // Admin only — rename a department.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 

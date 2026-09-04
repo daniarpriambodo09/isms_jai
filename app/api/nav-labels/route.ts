@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 
 // Default label fallback — mirrors portal-data.ts mainNav
 export const DEFAULT_NAV_LABELS: Record<string, string> = {
@@ -52,7 +52,7 @@ export async function GET() {
 
 // PUT /api/nav-labels — admin only
 export async function PUT(req: NextRequest) {
-  const session = getAdminFromRequest(req)
+  const session = getIsmsAdminFromRequest(req)
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }

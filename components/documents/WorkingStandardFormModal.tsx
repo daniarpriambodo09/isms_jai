@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 export type EditableWorkingStandard = {
   id: number
@@ -17,6 +18,8 @@ export function WorkingStandardFormModal({ open, onClose, onSaved, document }: {
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEscapeClose(open, onClose)
 
   useEffect(() => {
     if (open) {
@@ -62,7 +65,7 @@ export function WorkingStandardFormModal({ open, onClose, onSaved, document }: {
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-      <div className="w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'} className="w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
         <div className="mb-5 flex items-start justify-between"><div><div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">WORKING STANDARD</div><h2 className="text-[18px] font-bold text-[#20354a]">{isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}</h2></div><button type="button" onClick={onClose} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[#8798a8] hover:bg-[#f0f4f7]"><X className="w-[18px]" /></button></div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[#3c5369]">No. Kontrol</span><input value={controlNo} onChange={(event) => setControlNo(event.target.value)} required autoFocus placeholder="Contoh: WS-001" className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]" /></label>

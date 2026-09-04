@@ -1,13 +1,13 @@
 // app/api/sections/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 type SectionRow = { id: number; department_id: number; name: string; slug: string }
 
 // Admin only — rename a section.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 

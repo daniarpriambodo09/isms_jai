@@ -97,7 +97,6 @@
 /* ─── Home hero carousel transitions ─── */
 @keyframes hero-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes hero-fade-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes hero-ken-burns { from { transform: scale(1); } to { transform: scale(1.08); } }
 
 /* ─── Page fade-in animation ─── */
 /* No `both`/`forwards` fill-mode: once the animation finishes, <main>
@@ -125,6 +124,28 @@
 @keyframes shimmer {
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
+}
+
+/* ─── Data table polish (kelola-* admin tables) ─── */
+.table-head-gradient {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--primary) 10%, var(--secondary)) 0%, color-mix(in oklch, var(--accent) 8%, var(--secondary)) 100%);
+}
+/* `position` on <tr> itself is unreliable across browsers, so the accent
+   bar is anchored to the first <td> instead — table cells support
+   positioning contexts consistently. */
+.table-row-glow { transition: background 160ms; }
+.table-row-glow:hover {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--primary) 7%, transparent) 0%, transparent 70%);
+}
+.table-row-glow > td:first-child { position: relative; }
+.table-row-glow:hover > td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, oklch(0.48 0.12 180), oklch(0.58 0.14 165));
 }
 
 @media (prefers-color-scheme: dark) {

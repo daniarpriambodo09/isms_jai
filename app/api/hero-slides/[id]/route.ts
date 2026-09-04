@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveHeroSlideFile } from '@/lib/storage'
 
@@ -36,7 +36,7 @@ const SELECT_COLUMNS = `id, media_type, file_path, title, description, cta_label
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID slide tidak valid.' }, { status: 400 })
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const contentType = request.headers.get('content-type') ?? ''
 
@@ -114,7 +114,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID slide tidak valid.' }, { status: 400 })
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const result = await query<{ file_path: string }>('DELETE FROM hero_slides WHERE id = $1 RETURNING file_path', [id])

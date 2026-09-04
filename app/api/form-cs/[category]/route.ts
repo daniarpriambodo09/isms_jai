@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 
@@ -58,7 +58,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const form = await request.formData()
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const form = await request.formData()
@@ -155,7 +155,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const id = request.nextUrl.searchParams.get('id')

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { saveHeroSlideFile } from '@/lib/storage'
 
@@ -31,7 +31,7 @@ function isMediaType(value: string): value is MediaType {
 const SELECT_COLUMNS = `id, media_type, file_path, title, description, cta_label, cta_href, sort_order, is_active, created_at, updated_at`
 
 export async function GET(request: NextRequest) {
-  const includeInactive = request.nextUrl.searchParams.get('all') === '1' && Boolean(getAdminFromRequest(request))
+  const includeInactive = request.nextUrl.searchParams.get('all') === '1' && Boolean(getIsmsAdminFromRequest(request))
 
   try {
     const result = await query<SlideRow>(
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const form = await request.formData()

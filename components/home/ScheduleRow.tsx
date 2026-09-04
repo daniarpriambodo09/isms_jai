@@ -45,7 +45,12 @@ export function ScheduleRow({ title, endpoint }: { title: string; endpoint: 'aud
   return (
     <section>
       <div className="mb-3 flex items-center gap-2">
-        <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary"><Icon className="size-4" /></span>
+        <span
+          className="grid size-8 place-items-center rounded-full text-white shadow-sm"
+          style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' }}
+        >
+          <Icon className="size-4" />
+        </span>
         <p className="portal-eyebrow">{title}</p>
       </div>
 
@@ -58,7 +63,11 @@ export function ScheduleRow({ title, endpoint }: { title: string; endpoint: 'aud
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-2">
           {items.map((item) => (
-            <div key={item.id} className="w-72 flex-none rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div key={item.id} className="relative w-72 flex-none overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+              <div
+                className="absolute inset-x-0 top-0 h-[3px]"
+                style={{ background: 'linear-gradient(90deg, oklch(0.48 0.12 180) 0%, oklch(0.58 0.14 165) 50%, oklch(0.48 0.12 180) 100%)' }}
+              />
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-muted-foreground">{formatDate(item.start_date)} &ndash; {formatDate(item.end_date)}</span>
                 <span className={`inline-flex flex-none items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[item.status]}`}>{STATUS_LABEL[item.status]}</span>

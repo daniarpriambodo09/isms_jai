@@ -15,6 +15,7 @@ type AdminRow = {
   username: string
   email: string | null
   password_hash: string
+  role: 'ism_admin' | 'lobby' | 'security'
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await query<AdminRow>(
-      'SELECT id, username, email, password_hash FROM admins WHERE username = $1',
+      'SELECT id, username, email, password_hash, role FROM admins WHERE username = $1',
       [username]
     )
     const admin = result.rows[0]
@@ -40,10 +41,10 @@ export async function POST(request: NextRequest) {
     const signOptions: SignOptions = {
       expiresIn: JWT_EXPIRES_IN as SignOptions['expiresIn'],
     }
-    const token = jwt.sign({ sub: admin.id, username: admin.username }, JWT_SECRET, signOptions)
+    const token = jwt.sign({ sub: admin.id, username: admin.username, role: admin.role }, JWT_SECRET, signOptions)
 
     const response = NextResponse.json({
-      admin: { id: admin.id, username: admin.username, email: admin.email },
+      admin: { id: admin.id, username: admin.username, email: admin.email, role: admin.role },
     })
 
     response.cookies.set(COOKIE_NAME, token, {

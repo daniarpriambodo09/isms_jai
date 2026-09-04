@@ -7,6 +7,10 @@ import { CalendarDays, GraduationCap, Pencil, Plus, Settings, Trash2 } from 'luc
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { ScheduleFormModal, type EditableSchedule, type ScheduleKind, type Status } from '@/components/documents/ScheduleFormModal'
+import { AdminGate } from '@/components/admin-gate'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { usePagination } from '@/hooks/usePagination'
+import { Pagination } from '@/components/pagination'
 
 type AuditRow = { id: number; start_date: string; end_date: string; period_label: string | null; title: string; scope: string | null; pic: string | null; status: Status }
 type TrainingRow = { id: number; start_date: string; end_date: string; period_label: string | null; title: string; audience: string | null; pic: string | null; status: Status }
@@ -37,6 +41,8 @@ export default function KelolaJadwalPage() {
   const [error, setError] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Row | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Row | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,19 +62,25 @@ export default function KelolaJadwalPage() {
 
   useEffect(() => { if (isLoggedIn) load() }, [isLoggedIn, load])
 
+  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(rows, 20)
+  useEffect(() => { setPage(1) }, [tab, setPage])
+
   if (!isLoading && !isLoggedIn) {
-    return <section className="rounded-3xl border border-border bg-card p-10 text-center shadow-sm"><p className="text-sm text-muted-foreground">Halaman ini khusus untuk admin yang sudah login.</p></section>
+    return <AdminGate />
   }
 
   const isAudit = tab === 'audit-schedule'
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   const openEdit = (row: Row) => { setEditing(row); setFormOpen(true) }
 
-  const handleDelete = async (row: Row) => {
-    if (!confirm(`Hapus jadwal "${row.title}"?`)) return
-    const res = await fetch(`${API_BASE_PATH}/api/${tab}/${row.id}`, { method: 'DELETE', credentials: 'include' })
-    if (!res.ok) { const data = await res.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus jadwal.'); return }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    const res = await fetch(`${API_BASE_PATH}/api/${tab}/${pendingDelete.id}`, { method: 'DELETE', credentials: 'include' })
+    if (!res.ok) { const data = await res.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus jadwal.'); setDeleting(false); setPendingDelete(null); return }
     load()
+    setDeleting(false)
+    setPendingDelete(null)
   }
 
   const editableItem: EditableSchedule | undefined = editing
@@ -114,10 +126,10 @@ export default function KelolaJadwalPage() {
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[820px] text-sm">
-            <thead className="bg-secondary/55">
+            <thead className="table-head-gradient">
               <tr>
-                {['Periode', 'Judul', isAudit ? 'Scope' : 'Target Peserta', 'PIC', 'Status', 'Aksi'].map((head) => (
-                  <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
+                {['Periode', 'Judul', isAudit ? 'Scope' : 'Target Peserta', 'PIC', 'Status', 'Aksi'].map((head, i) => (
+                  <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 2 || i === 3 ? 'max-[760px]:hidden' : ''}`}>{head}</th>
                 ))}
               </tr>
             </thead>
@@ -128,22 +140,22 @@ export default function KelolaJadwalPage() {
               {!loading && rows.length === 0 && (
                 <tr><td colSpan={6} className="px-5 py-16 text-center"><CalendarDays className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Belum ada jadwal.</p></td></tr>
               )}
-              {rows.map((row, index) => (
-                <tr key={row.id} className={index % 2 ? 'bg-secondary/20' : ''}>
+              {pageItems.map((row, index) => (
+                <tr key={row.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                     {formatDate(row.start_date)} &ndash; {formatDate(row.end_date)}
                     {row.period_label && <span className="block text-[10px] font-semibold uppercase tracking-wide text-primary/70">{row.period_label}</span>}
                   </td>
                   <td className="min-w-[200px] px-4 py-3 font-medium text-foreground">{row.title}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{isAudit ? (row as AuditRow).scope : (row as TrainingRow).audience}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{row.pic}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground max-[760px]:hidden">{isAudit ? (row as AuditRow).scope : (row as TrainingRow).audience}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground max-[760px]:hidden">{row.pic}</td>
                   <td className="whitespace-nowrap px-4 py-3"><span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[row.status]}`}>{STATUS_LABEL[row.status]}</span></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => openEdit(row)} aria-label={`Edit ${row.title}`} className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground">
                         <Pencil className="size-4" />
                       </button>
-                      <button type="button" onClick={() => handleDelete(row)} aria-label={`Hapus ${row.title}`} className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+                      <button type="button" onClick={() => setPendingDelete(row)} aria-label={`Hapus ${row.title}`} className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="size-4" />
                       </button>
                     </div>
@@ -153,9 +165,20 @@ export default function KelolaJadwalPage() {
             </tbody>
           </table>
         </div>
+        {!loading && rows.length > 0 && (
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={rows.length} pageSize={pageSize} />
+        )}
       </div>
 
       <ScheduleFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={load} kind={tab} item={editableItem} />
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus jadwal?"
+        message={`Jadwal "${pendingDelete?.title}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

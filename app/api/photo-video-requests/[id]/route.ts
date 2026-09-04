@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 type Status = 'approved' | 'rejected'
@@ -10,7 +10,7 @@ const SELECT_COLUMNS = `id, request_type, nik, requester_name, dept_or_company, 
   from_at, to_at, location, objective, status, submitted_at, decided_at, decided_by, decision_note`
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = getAdminFromRequest(request)
+  const admin = getIsmsAdminFromRequest(request)
   if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = getAdminFromRequest(request)
+  const admin = getIsmsAdminFromRequest(request)
   if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params

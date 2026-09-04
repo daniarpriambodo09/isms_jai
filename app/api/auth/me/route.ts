@@ -7,7 +7,7 @@ const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET as string
 
 type TokenPayload = { sub: number; username: string }
-type AdminRow = { id: number; username: string; email: string | null }
+type AdminRow = { id: number; username: string; email: string | null; role: 'ism_admin' | 'lobby' | 'security' }
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const payload = decoded as unknown as TokenPayload
 
-    const result = await query<AdminRow>('SELECT id, username, email FROM admins WHERE id = $1', [
+    const result = await query<AdminRow>('SELECT id, username, email, role FROM admins WHERE id = $1', [
       payload.sub,
     ])
     const admin = result.rows[0]

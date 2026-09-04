@@ -5,6 +5,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Clock } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { usePagination } from '@/hooks/usePagination'
+import { Pagination } from '@/components/pagination'
 
 type Status = 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
 type AuditRow = {
@@ -77,6 +79,8 @@ export default function AuditsPage() {
       .slice(0, 3),
     [rows]
   )
+
+  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(rows, 20)
 
   return (
     <section
@@ -224,10 +228,10 @@ export default function AuditsPage() {
                     background: 'linear-gradient(135deg, #f0f6fa 0%, #e8f2f7 100%)',
                   }}
                 >
-                  {['Start', 'End', 'Period', 'Activities', 'Scope', 'PIC'].map((head) => (
+                  {['Start', 'End', 'Period', 'Activities', 'Scope', 'PIC'].map((head, i) => (
                     <th
                       key={head}
-                      className="whitespace-nowrap border-b px-4 py-3.5 text-left text-[9.5px] font-bold uppercase tracking-[0.1em]"
+                      className={`whitespace-nowrap border-b px-4 py-3.5 text-left text-[9.5px] font-bold uppercase tracking-[0.1em] ${i === 2 || i === 5 ? 'max-[760px]:hidden' : ''}`}
                       style={{ borderColor: '#d8e8f0', color: '#5a7a92' }}
                     >
                       {head}
@@ -237,12 +241,22 @@ export default function AuditsPage() {
               </thead>
               <tbody>
                 {loading && (
-                  <tr><td colSpan={6} className="px-4 py-10 text-center text-[12px]" style={{ color: '#7a9bb0' }}>Memuat jadwal audit...</td></tr>
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center">
+                      <div className="mx-auto mb-3 size-7 animate-spin rounded-full border-2 border-border border-b-ring" />
+                      <p className="text-[12px]" style={{ color: '#7a9bb0' }}>Memuat jadwal audit...</p>
+                    </td>
+                  </tr>
                 )}
                 {!loading && rows.length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-10 text-center text-[12px]" style={{ color: '#7a9bb0' }}>Belum ada jadwal audit.</td></tr>
+                  <tr>
+                    <td colSpan={6} className="px-4 py-12 text-center">
+                      <CalendarDays className="mx-auto mb-3 size-8" style={{ color: '#c3d5e0' }} />
+                      <p className="text-[12px] font-medium" style={{ color: '#7a9bb0' }}>Belum ada jadwal audit.</p>
+                    </td>
+                  </tr>
                 )}
-                {rows.map((row, rowIndex) => (
+                {pageItems.map((row, rowIndex) => (
                   <tr
                     key={row.id}
                     className="transition-colors hover:bg-[#f5f9fb]"
@@ -253,7 +267,7 @@ export default function AuditsPage() {
                     {[formatDate(row.start_date), formatDate(row.end_date), row.period_label ?? '—', row.title, row.scope ?? '—', row.pic ?? '—'].map((value, colIndex) => (
                       <td
                         key={colIndex}
-                        className="whitespace-nowrap border-b px-4 py-3.5"
+                        className={`whitespace-nowrap border-b px-4 py-3.5 ${colIndex === 2 || colIndex === 5 ? 'max-[760px]:hidden' : ''}`}
                         style={{
                           borderColor: '#edf2f6',
                           color: colIndex === 0 ? '#278e84' : '#4a6478',
@@ -268,6 +282,9 @@ export default function AuditsPage() {
               </tbody>
             </table>
           </div>
+          {!loading && rows.length > 0 && (
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={rows.length} pageSize={pageSize} />
+          )}
         </div>
       </div>
     </section>

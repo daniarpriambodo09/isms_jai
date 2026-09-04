@@ -4,6 +4,8 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { X, ShieldCheck, Eye, EyeOff, Lock, User, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { API_BASE_PATH } from '@/lib/config'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 export function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { login } = useAuth()
@@ -12,8 +14,11 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
   const [mounted, setMounted] = useState(false)
   const usernameRef = useRef<HTMLInputElement>(null)
+
+  useEscapeClose(open, onClose)
 
   useEffect(() => {
     if (open) {
@@ -23,6 +28,10 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       const timer = setTimeout(() => setMounted(false), 300)
       return () => clearTimeout(timer)
     }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) setSuccess(false)
   }, [open])
 
   if (!open && !mounted) return null
@@ -37,9 +46,13 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     setSubmitting(false)
 
     if (result.success) {
-      setUsername('')
-      setPassword('')
-      onClose()
+      setSuccess(true)
+      setTimeout(() => {
+        setUsername('')
+        setPassword('')
+        setSuccess(false)
+        onClose()
+      }, 1300)
     } else {
       setError(result.message)
     }
@@ -91,25 +104,27 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           animation: lm-shimmer 2.5s linear infinite;
         }
         .lm-input {
-          height: 44px;
+          height: 48px;
           width: 100%;
-          border-radius: 12px;
+          border-radius: 14px;
           border: 1.5px solid #dce6ed;
           background: #f8fafc;
           color: #20354a;
-          font-size: 13.5px;
+          font-size: 14px;
+          font-weight: 500;
           outline: none;
           box-shadow: inset 0 1px 3px rgba(14,34,53,0.06);
           transition: border-color 180ms, box-shadow 180ms, background 180ms;
-          padding: 0 44px 0 44px;
+          padding: 0 46px 0 52px;
         }
-        .lm-input:focus {
+        .lm-input::placeholder {
+          color: #a9bac8;
+          font-weight: 400;
+        }
+        .lm-field-wrap:focus-within .lm-input {
           border-color: #278e84;
           box-shadow: 0 0 0 3px rgba(39,142,132,0.13), inset 0 1px 3px rgba(14,34,53,0.04);
           background: #ffffff;
-        }
-        .lm-input-end {
-          padding-right: 44px;
         }
         .lm-close-btn {
           transition: background 150ms, color 150ms;
@@ -125,6 +140,79 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         .lm-eye-btn:hover { color: #278e84; }
         .lm-orb-1 { animation: lm-orb1 7s ease-in-out infinite; }
         .lm-orb-2 { animation: lm-orb2 9s ease-in-out infinite; }
+        @keyframes lm-banner-drift {
+          0%, 100% { transform: translate(0, 0) rotate(0deg); }
+          50% { transform: translate(-3%, -3%) rotate(3deg); }
+        }
+        .lm-banner-glow { animation: lm-banner-drift 10s ease-in-out infinite; }
+        .lm-field-icon {
+          background: #eef3f6;
+          color: #6d8598;
+          transition: background 180ms, color 180ms;
+        }
+        .lm-field-wrap:focus-within .lm-field-icon {
+          background: linear-gradient(135deg, #1a5f7a 0%, #278e84 100%);
+          color: #ffffff;
+        }
+        @keyframes lm-pop-in {
+          0% { opacity: 0; transform: scale(0.85); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes lm-circle-draw {
+          from { stroke-dashoffset: 152; }
+          to { stroke-dashoffset: 0; }
+        }
+        @keyframes lm-check-draw {
+          from { stroke-dashoffset: 40; }
+          to { stroke-dashoffset: 0; }
+        }
+        @keyframes lm-ring-pulse {
+          0% { transform: scale(0.75); opacity: 0.55; }
+          100% { transform: scale(1.9); opacity: 0; }
+        }
+        @keyframes lm-spark-burst {
+          0% { transform: scale(0); opacity: 0; }
+          35% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(0.4); opacity: 0; }
+        }
+        @keyframes lm-badge-bounce {
+          0% { transform: scale(0.6); opacity: 0; }
+          60% { transform: scale(1.08); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .lm-success-overlay {
+          animation: lm-pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .lm-success-badge {
+          animation: lm-badge-bounce 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .lm-success-circle {
+          stroke: #278e84;
+          stroke-width: 3;
+          stroke-linecap: round;
+          stroke-dasharray: 152;
+          stroke-dashoffset: 152;
+          animation: lm-circle-draw 550ms ease-out 120ms forwards;
+        }
+        .lm-success-check-path {
+          stroke: #278e84;
+          stroke-width: 4;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          stroke-dasharray: 40;
+          stroke-dashoffset: 40;
+          animation: lm-check-draw 320ms ease-out 620ms forwards;
+        }
+        .lm-success-ring {
+          border: 2px solid rgba(39,142,132,0.5);
+          animation: lm-ring-pulse 1500ms ease-out infinite;
+        }
+        .lm-success-ring-delay {
+          animation-delay: 750ms;
+        }
+        .lm-success-spark {
+          animation: lm-spark-burst 750ms ease-out 550ms both;
+        }
       `}</style>
 
       <div
@@ -134,16 +222,23 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           opacity: isVisible ? 1 : 0,
         }}
       >
-        {/* Backdrop */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'radial-gradient(ellipse at 60% 40%, rgba(14,34,53,0.72) 0%, rgba(8,18,32,0.88) 100%)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-          }}
-          onClick={onClose}
-        />
+        {/* Backdrop — full-screen building photo behind a brand-teal wash */}
+        <div className="absolute inset-0" onClick={onClose}>
+          <img
+            src={`${API_BASE_PATH}/images/yazaki-building.jpg`}
+            alt=""
+            aria-hidden
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'radial-gradient(ellipse at 60% 40%, rgba(14,34,53,0.72) 0%, rgba(8,18,32,0.88) 100%)',
+              backdropFilter: 'blur(3px)',
+              WebkitBackdropFilter: 'blur(3px)',
+            }}
+          />
+        </div>
 
         {/* Glowing orbs */}
         <div
@@ -163,6 +258,9 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
         {/* Modal Card */}
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Login Admin"
           className="relative z-10 w-full max-w-[420px]"
           style={{
             transition: 'transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 280ms ease',
@@ -171,56 +269,120 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           }}
         >
           <div
-            className="overflow-hidden rounded-3xl"
+            className="relative overflow-hidden rounded-3xl"
             style={{
               background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)',
               boxShadow:
                 '0 32px 80px rgba(14,34,53,0.38), 0 0 0 1px rgba(255,255,255,0.65), inset 0 1px 0 rgba(255,255,255,0.95)',
             }}
           >
-            {/* Animated top gradient bar */}
+            {/* Success takeover — celebratory checkmark before the modal auto-closes */}
+            {success && (
+              <div
+                className="lm-success-overlay absolute inset-0 z-20 flex flex-col items-center justify-center gap-3"
+                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)' }}
+              >
+                <div className="lm-success-badge relative flex h-24 w-24 items-center justify-center">
+                  <span className="lm-success-ring absolute inset-0 rounded-full" />
+                  <span className="lm-success-ring lm-success-ring-delay absolute inset-0 rounded-full" />
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <span
+                      key={i}
+                      className="pointer-events-none absolute left-1/2 top-1/2 block h-0 w-0"
+                      style={{ transform: `rotate(${i * 45}deg) translateY(-34px)` }}
+                    >
+                      <span
+                        className="lm-success-spark absolute block h-1.5 w-1.5 rounded-full"
+                        style={{
+                          left: '-3px',
+                          top: '-3px',
+                          background: i % 2 === 0 ? '#278e84' : '#1a5f7a',
+                          animationDelay: `${550 + i * 35}ms`,
+                        }}
+                      />
+                    </span>
+                  ))}
+                  <svg viewBox="0 0 52 52" className="h-16 w-16">
+                    <circle className="lm-success-circle" cx="26" cy="26" r="24" fill="none" />
+                    <path className="lm-success-check-path" fill="none" d="M14 27l7 7 16-16" />
+                  </svg>
+                </div>
+                <p className="text-[16px] font-bold" style={{ color: '#12293a' }}>
+                  Login berhasil{username ? `, ${username}` : ''}
+                </p>
+                <p className="text-[12px]" style={{ color: '#7290a5' }}>
+                  Mengalihkan ke Portal ISMS...
+                </p>
+              </div>
+            )}
+
+            {/* Hero gradient banner */}
+            <div
+              className="relative h-28 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #0e2235 0%, #1a5f7a 55%, #278e84 100%)' }}
+            >
+              {/* Dot-grid pattern */}
+              <div
+                className="absolute inset-0 opacity-[0.14]"
+                style={{
+                  backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
+                  backgroundSize: '16px 16px',
+                }}
+              />
+              {/* Drifting glow */}
+              <div
+                className="lm-banner-glow pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full"
+                style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 70%)' }}
+              />
+              <div
+                className="pointer-events-none absolute -bottom-12 -left-6 h-36 w-36 rounded-full"
+                style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)' }}
+              />
+
+              <p
+                className="absolute left-8 top-6 text-[10px] font-bold uppercase tracking-[0.18em]"
+                style={{ color: 'rgba(255,255,255,0.75)' }}
+              >
+                Admin Access
+              </p>
+
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Tutup"
+                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+              >
+                <X className="h-[18px] w-[18px]" />
+              </button>
+            </div>
+
+            {/* Floating avatar badge, overlapping the banner/form seam */}
+            <div className="relative px-8">
+              <div
+                className="absolute -top-9 flex h-[72px] w-[72px] items-center justify-center rounded-[22px]"
+                style={{
+                  background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
+                  boxShadow: '0 10px 26px rgba(39,142,132,0.4), 0 0 0 5px #ffffff',
+                }}
+              >
+                <ShieldCheck className="h-8 w-8 text-white" />
+              </div>
+            </div>
+
+            {/* Animated accent bar beneath the banner */}
             <div className="lm-top-bar h-[3px] w-full" />
 
-            <div className="px-8 pb-8 pt-7">
-              {/* Header */}
-              <div className="mb-6 flex items-start justify-between">
-                <div className="flex items-center gap-3.5">
-                  <div
-                    className="flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-2xl"
-                    style={{
-                      background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
-                      boxShadow: '0 6px 18px rgba(39,142,132,0.38)',
-                    }}
-                  >
-                    <ShieldCheck className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p
-                      className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.16em]"
-                      style={{ color: '#278e84' }}
-                    >
-                      Admin Access
-                    </p>
-                    <h2 className="text-[20px] font-bold leading-tight" style={{ color: '#12293a' }}>
-                      Login Admin
-                    </h2>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Tutup"
-                  className="lm-close-btn flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
-                  style={{ color: '#7290a5' }}
-                >
-                  <X className="h-[18px] w-[18px]" />
-                </button>
-              </div>
+            <div className="px-8 pb-8 pt-12">
+              <h2 className="text-[21px] font-bold leading-tight" style={{ color: '#12293a' }}>
+                Login Admin
+              </h2>
+              <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: '#7290a5' }}>
+                Masuk untuk mengelola konten Portal ISMS
+              </p>
 
               {/* Divider */}
               <div
-                className="mb-6 h-px w-full"
+                className="mb-6 mt-5 h-px w-full"
                 style={{
                   background:
                     'linear-gradient(90deg, transparent 0%, #dce6ed 25%, #dce6ed 75%, transparent 100%)',
@@ -238,11 +400,10 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                   >
                     Username
                   </label>
-                  <div className="relative">
-                    <User
-                      className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
-                      style={{ color: '#7290a5' }}
-                    />
+                  <div className="lm-field-wrap relative">
+                    <span className="lm-field-icon pointer-events-none absolute left-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[10px]">
+                      <User className="h-4 w-4" />
+                    </span>
                     <input
                       id="lm-username"
                       ref={usernameRef}
@@ -252,7 +413,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                       autoComplete="username"
                       placeholder="Masukkan username"
                       className="lm-input"
-                      style={{ paddingLeft: '44px', paddingRight: '16px' }}
+                      style={{ paddingRight: '16px' }}
                     />
                   </div>
                 </div>
@@ -266,11 +427,10 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                   >
                     Password
                   </label>
-                  <div className="relative">
-                    <Lock
-                      className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2"
-                      style={{ color: '#7290a5' }}
-                    />
+                  <div className="lm-field-wrap relative">
+                    <span className="lm-field-icon pointer-events-none absolute left-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[10px]">
+                      <Lock className="h-4 w-4" />
+                    </span>
                     <input
                       id="lm-password"
                       type={showPassword ? 'text' : 'password'}
@@ -280,7 +440,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                       autoComplete="current-password"
                       placeholder="••••••••"
                       className="lm-input"
-                      style={{ paddingLeft: '44px', paddingRight: '44px' }}
+                      style={{ paddingRight: '44px' }}
                     />
                     <button
                       type="button"

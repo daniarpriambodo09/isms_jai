@@ -10,11 +10,13 @@ import {
   Download,
   ImagePlus,
   ShieldCheck,
+  Sparkles,
   Upload,
   X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 type PolicyImage = {
   id: number
@@ -28,6 +30,8 @@ export default function PolicyPage() {
   const [images, setImages] = useState<PolicyImage[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const [isImageOpen, setIsImageOpen] = useState(false)
+  const [removingImage, setRemovingImage] = useState<PolicyImage | null>(null)
+  const [removePending, setRemovePending] = useState(false)
   const pointerStart = useRef<number | null>(null)
   const activeImage = images[activeIndex]
 
@@ -88,19 +92,23 @@ export default function PolicyPage() {
     event.target.value = ''
   }
 
-  async function removeImage() {
-    if (!activeImage) return
+  async function confirmRemoveImage() {
+    if (!removingImage) return
+    setRemovePending(true)
 
     const response = await fetch(`${API_BASE_PATH}/api/policy-images`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: activeImage.id }),
+      body: JSON.stringify({ id: removingImage.id }),
     })
 
     if (response.ok) {
-      setImages((current) => current.filter((image) => image.id !== activeImage.id))
+      setImages((current) => current.filter((image) => image.id !== removingImage.id))
       setActiveIndex((current) => Math.max(0, Math.min(current, images.length - 2)))
     }
+
+    setRemovePending(false)
+    setRemovingImage(null)
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -116,7 +124,18 @@ export default function PolicyPage() {
   }
 
   return (
-    <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="flex flex-col gap-6">
+      <header className="relative overflow-hidden rounded-3xl bg-primary px-6 py-7 text-primary-foreground shadow-xl shadow-primary/15 sm:px-8">
+        <div className="max-w-2xl">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-foreground">
+            <Sparkles className="size-3.5" /> Information security policy
+          </div>
+          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Kebijakan Dasar ISMS</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">Visual kebijakan keamanan informasi PT. Jatim Autocomp Indonesia — dikelola oleh Information Security Committee.</p>
+        </div>
+      </header>
+
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
       <article className="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-9 lg:p-11">
         <div
           className="relative aspect-[2.65] min-h-40 w-full overflow-hidden rounded-xl border border-border bg-muted/35 shadow-inner"
@@ -176,7 +195,7 @@ export default function PolicyPage() {
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
-                removeImage()
+                setRemovingImage(activeImage)
               }}
               aria-label="Hapus gambar policy"
               className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-foreground/85 text-background"
@@ -253,6 +272,16 @@ export default function PolicyPage() {
           </div>
         </div>
       )}
-    </section>
+      </section>
+
+      <ConfirmDialog
+        open={!!removingImage}
+        title="Hapus gambar policy?"
+        message="Gambar ini akan dihapus permanen dari carousel kebijakan. Tindakan ini tidak dapat dibatalkan."
+        pending={removePending}
+        onConfirm={confirmRemoveImage}
+        onCancel={() => setRemovingImage(null)}
+      />
+    </div>
   )
 }

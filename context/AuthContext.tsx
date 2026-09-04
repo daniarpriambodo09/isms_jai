@@ -12,10 +12,13 @@ import {
 } from 'react'
 import { API_BASE_PATH } from '@/lib/config'
 
+export type AdminRole = 'ism_admin' | 'lobby' | 'security'
+
 export type AdminUser = {
   id: number
   username: string
   email: string | null
+  role: AdminRole
 }
 
 type LoginResult = { success: true } | { success: false; message: string }

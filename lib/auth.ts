@@ -5,7 +5,8 @@ import jwt from 'jsonwebtoken'
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET as string
 
-type SessionPayload = { sub: number; username: string }
+export type AdminRole = 'ism_admin' | 'lobby' | 'security'
+type SessionPayload = { sub: number; username: string; role: AdminRole }
 
 /**
  * Whether the incoming request actually arrived over HTTPS — checked
@@ -24,8 +25,8 @@ export function isHttpsRequest(request: NextRequest): boolean {
 /**
  * Reads and verifies the admin session cookie on an API route.
  * Returns the decoded session payload, or null if the request is
- * not from an authenticated admin. Use this to guard any
- * modify/insert/update/delete endpoint.
+ * not from an authenticated admin (any role). Use this to guard any
+ * modify/insert/update/delete endpoint that isn't role-specific.
  */
 export function getAdminFromRequest(request: NextRequest): SessionPayload | null {
   const token = request.cookies.get(COOKIE_NAME)?.value
@@ -40,4 +41,27 @@ export function getAdminFromRequest(request: NextRequest): SessionPayload | null
   } catch {
     return null
   }
+}
+
+/**
+ * Same as getAdminFromRequest, but only returns a session for the
+ * main ISMS admin role. Use this (instead of getAdminFromRequest) to
+ * guard ISMS content-management endpoints — hero slides, schedules,
+ * document registers, departments, nav labels, etc. — so the lobby/
+ * security kiosk accounts can't incidentally write to them.
+ */
+export function getIsmsAdminFromRequest(request: NextRequest): SessionPayload | null {
+  const session = getAdminFromRequest(request)
+  return session?.role === 'ism_admin' ? session : null
+}
+
+/**
+ * Same as getAdminFromRequest, but only returns a session for the
+ * two vendor-gate kiosk roles (or the main ISMS admin, who can use
+ * both kiosk pages too). Use this to guard /api/vendor-registrations.
+ */
+export function getKioskAdminFromRequest(request: NextRequest): SessionPayload | null {
+  const session = getAdminFromRequest(request)
+  if (!session) return null
+  return session.role === 'lobby' || session.role === 'security' || session.role === 'ism_admin' ? session : null
 }

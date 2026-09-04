@@ -1,9 +1,5 @@
-import { PhotoVideoRequestForm } from '@/components/documents/PhotoVideoRequestForm'
+import { redirect } from 'next/navigation'
 
 export default function FotoVideoInternalPage() {
-  return (
-    <div className="py-8">
-      <PhotoVideoRequestForm locale="internal" />
-    </div>
-  )
+  redirect('/ijin-foto-video?type=internal')
 }

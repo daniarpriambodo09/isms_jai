@@ -6,6 +6,9 @@ import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { usePagination } from '@/hooks/usePagination'
+import { Pagination } from '@/components/pagination'
 
 type ProcedureDocument = {
   id: number
@@ -37,6 +40,8 @@ export function ProcedureRegisterPage() {
   const [editing, setEditing] = useState<ProcedureDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ProcedureDocument | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -64,20 +69,27 @@ export function ProcedureRegisterPage() {
 
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   const openEdit = (document: ProcedureDocument) => { setEditing(document); setFormOpen(true) }
+  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredDocuments, 20)
+  useEffect(() => { setPage(1) }, [query, setPage])
 
-  const handleDelete = async (document: ProcedureDocument) => {
-    if (!confirm(`Hapus dokumen "${document.title}"?`)) return
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms?id=${document.id}`, { method: 'DELETE' })
+      const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms?id=${pendingDelete.id}`, { method: 'DELETE' })
       if (!response.ok) {
         const data = await response.json().catch(() => null)
         setError(data?.message ?? 'Gagal menghapus dokumen.')
+        setDeleting(false)
+        setPendingDelete(null)
         return
       }
       await loadDocuments()
     } catch {
       setError('Tidak dapat menghubungi server.')
     }
+    setDeleting(false)
+    setPendingDelete(null)
   }
 
   const editableDocument: EditableProcedure | undefined = editing ? {
@@ -107,14 +119,26 @@ export function ProcedureRegisterPage() {
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-sm"><thead className="bg-secondary/55"><tr>{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Elf Date', 'Tanggal Upload', 'Aksi'].map((head) => <th key={head} className="whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Elf Date', 'Tanggal Upload', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
         {loading && <tr><td colSpan={6} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
         {!loading && filteredDocuments.length === 0 && <tr><td colSpan={6} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
-        {filteredDocuments.map((document, index) => <tr key={document.id} className={index % 2 ? 'bg-secondary/20' : ''}><td className="whitespace-nowrap px-5 py-4 font-semibold text-accent-foreground"><Highlight text={document.control_no} keyword={query} /></td><td className="min-w-[280px] px-5 py-4"><div className="flex items-center gap-3 font-medium text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span><Highlight text={document.title} keyword={query} /></div></td><td className="whitespace-nowrap px-5 py-4"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {document.revision}</span></td><td className="whitespace-nowrap px-5 py-4 text-muted-foreground">{formatDate(document.elf_date)}</td><td className="whitespace-nowrap px-5 py-4 text-muted-foreground">{formatDate(document.uploaded_at)}</td><td className="px-5 py-4"><div className="flex items-center gap-1"><button type="button" onClick={() => setViewing(document)} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>{isLoggedIn && <><button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button><button type="button" onClick={() => handleDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button></>}</div></td></tr>)}
-      </tbody></table></div>{!loading && filteredDocuments.length > 0 && <div className="border-t border-border bg-secondary/20 px-5 py-3 text-xs text-muted-foreground">Menampilkan <span className="font-semibold text-foreground">{filteredDocuments.length}</span>{query ? ` dari ${documents.length}` : ''} dokumen</div>}</div>
+        {pageItems.map((document, index) => <tr key={document.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}><td className="whitespace-nowrap px-5 py-4 font-semibold text-accent-foreground"><Highlight text={document.control_no} keyword={query} /></td><td className="min-w-[280px] px-5 py-4"><div className="flex items-center gap-3 font-medium text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span><Highlight text={document.title} keyword={query} /></div></td><td className="whitespace-nowrap px-5 py-4"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {document.revision}</span></td><td className="whitespace-nowrap px-5 py-4 text-muted-foreground max-[760px]:hidden">{formatDate(document.elf_date)}</td><td className="whitespace-nowrap px-5 py-4 text-muted-foreground max-[760px]:hidden">{formatDate(document.uploaded_at)}</td><td className="px-5 py-4"><div className="flex items-center gap-1"><button type="button" onClick={() => setViewing(document)} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>{isLoggedIn && <><button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button><button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button></>}</div></td></tr>)}
+      </tbody></table></div>
+        {!loading && filteredDocuments.length > 0 && (
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredDocuments.length} pageSize={pageSize} />
+        )}
+      </div>
 
       {viewing && <DocumentViewModal open={Boolean(viewing)} onClose={() => setViewing(null)} filePath={viewing.file_path} fileName={viewing.title} />}
       <ProcedureFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus dokumen?"
+        message={`Dokumen "${pendingDelete?.title}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

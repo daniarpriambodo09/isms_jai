@@ -1,6 +1,6 @@
 // app/api/documents/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 
@@ -16,7 +16,7 @@ type DocumentRow = {
 // file PDF-nya. Setiap kali diedit, "Revisi" (jumlah berapa kali revisi)
 // otomatis bertambah 1 — bukan field yang diketik manual.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -69,7 +69,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // Admin only — hapus dokumen (baris DB + file fisik di storage).
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!getAdminFromRequest(request)) {
+  if (!getIsmsAdminFromRequest(request)) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 

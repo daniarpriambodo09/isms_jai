@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import type { FormCsGroupHeader } from '@/components/documents/FormCsSpreadsheetTable'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 const inputClass = 'h-9 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]'
 
@@ -25,6 +27,10 @@ export function FormCsGroupHeaderModal({
   const [sortOrder, setSortOrder] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<FormCsGroupHeader | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  useEscapeClose(open && !pendingDelete, onClose)
 
   useEffect(() => {
     if (open) { setEditingId(null); setLabel(''); setSortOrder(groupHeaders.length); setError(null) }
@@ -51,18 +57,21 @@ export function FormCsGroupHeaderModal({
     } catch { setError('Tidak dapat menghubungi server.') } finally { setSubmitting(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Hapus baris grup ini?')) return
+  const confirmRemove = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/form-cs/${category}/group-headers?id=${id}`, { method: 'DELETE' })
-      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus.'); return }
+      const response = await fetch(`${API_BASE_PATH}/api/form-cs/${category}/group-headers?id=${pendingDelete.id}`, { method: 'DELETE' })
+      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus.'); setDeleting(false); setPendingDelete(null); return }
       onSaved()
     } catch { setError('Tidak dapat menghubungi server.') }
+    setDeleting(false)
+    setPendingDelete(null)
   }
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-      <div className="w-full max-w-[480px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
+      <div role="dialog" aria-modal="true" aria-label="Kelola Baris Grup" className="w-full max-w-[480px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
         <div className="mb-5 flex items-start justify-between">
           <h2 className="text-[18px] font-bold text-[#20354a]">Kelola Baris Grup</h2>
           <button type="button" onClick={onClose} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[#8798a8] hover:bg-[#f0f4f7]"><X className="w-[18px]" /></button>
@@ -75,7 +84,7 @@ export function FormCsGroupHeaderModal({
               <span className="truncate text-[12px] font-medium text-[#20354a]">{header.label}</span>
               <div className="flex items-center gap-1">
                 <button type="button" onClick={() => startEdit(header)} aria-label={`Edit ${header.label}`} className="grid size-7 place-items-center rounded text-[#7290a5] hover:bg-[#e4edf2]"><Pencil className="size-3.5" /></button>
-                <button type="button" onClick={() => remove(header.id)} aria-label={`Hapus ${header.label}`} className="grid size-7 place-items-center rounded text-[#7290a5] hover:bg-[#fdecec] hover:text-[#b3413a]"><Trash2 className="size-3.5" /></button>
+                <button type="button" onClick={() => setPendingDelete(header)} aria-label={`Hapus ${header.label}`} className="grid size-7 place-items-center rounded text-[#7290a5] hover:bg-[#fdecec] hover:text-[#b3413a]"><Trash2 className="size-3.5" /></button>
               </div>
             </div>
           ))}
@@ -100,6 +109,15 @@ export function FormCsGroupHeaderModal({
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus baris grup?"
+        message={`Baris grup "${pendingDelete?.label}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deleting}
+        onConfirm={confirmRemove}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

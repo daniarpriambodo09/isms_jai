@@ -1,13 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileText, Plus, Search, Settings2, X } from 'lucide-react'
+import { FileText, Plus, Search, Settings2, Sparkles, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { FormCsFormModal, type EditableFormCsDocument } from '@/components/documents/FormCsFormModal'
 import { FormCsSpreadsheetTable, type FormCsDocument, type FormCsGroupHeader } from '@/components/documents/FormCsSpreadsheetTable'
 import { FormCsGroupHeaderModal } from '@/components/documents/FormCsGroupHeaderModal'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 
@@ -22,6 +23,8 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
   const [formOpen, setFormOpen] = useState(false)
   const [groupHeaderModalOpen, setGroupHeaderModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<FormCsDocument | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -70,21 +73,31 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
       }
     : undefined
 
-  const handleDelete = async (document: FormCsDocument) => {
-    if (!confirm(`Hapus dokumen "${document.title}"${document.file_variant ? ` (${document.file_variant})` : ''}?`)) return
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/form-cs/${category}?id=${document.id}`, { method: 'DELETE' })
-      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus dokumen.'); return }
+      const response = await fetch(`${API_BASE_PATH}/api/form-cs/${category}?id=${pendingDelete.id}`, { method: 'DELETE' })
+      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus dokumen.'); setDeleting(false); setPendingDelete(null); return }
       await loadDocuments()
     } catch { setError('Tidak dapat menghubungi server.') }
+    setDeleting(false)
+    setPendingDelete(null)
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="relative overflow-hidden rounded-[1.25rem] border border-border bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/10 sm:p-8">
+      <section
+        className="relative overflow-hidden rounded-[1.25rem] p-6 text-primary-foreground shadow-xl sm:p-8"
+        style={{ background: 'linear-gradient(135deg, #1a3a52 0%, #1a5f7a 45%, #278e84 100%)' }}
+      >
+        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
+        <div className="pointer-events-none absolute -bottom-14 -left-10 h-52 w-52 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
         <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
           <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-2 text-xs text-primary-foreground/65"><FileText className="size-4" />Document register</div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
+              <Sparkles className="size-3.5" /> Document register
+            </div>
             <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Daftar dokumen {title} beserta bahasa dan tanggal upload.</p>
           </div>
@@ -131,7 +144,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
           isLoggedIn={isLoggedIn}
           onView={setViewing}
           onEdit={(document) => { setEditing(document); setFormOpen(true) }}
-          onDelete={handleDelete}
+          onDelete={setPendingDelete}
         />
       )}
 
@@ -144,6 +157,14 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
       {viewing && <DocumentViewModal open={Boolean(viewing)} onClose={() => setViewing(null)} filePath={viewing.file_path} fileName={viewing.title} />}
       <FormCsFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} category={category} title={title} document={editableDocument} />
       <FormCsGroupHeaderModal open={groupHeaderModalOpen} onClose={() => setGroupHeaderModalOpen(false)} onSaved={loadDocuments} category={category} groupHeaders={groupHeaders} />
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus dokumen?"
+        message={`Dokumen "${pendingDelete?.title}"${pendingDelete?.file_variant ? ` (${pendingDelete.file_variant})` : ''} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

@@ -1,13 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { LogOut, RotateCcw, ScanLine, ShieldCheck, Search, UserPlus, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Search, Trash2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { ActiveCardsWidget, type CardType } from '@/components/kiosk/ActiveCardsWidget'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { ChangePasswordModal } from '@/components/change-password-modal'
+import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
+import { downloadExcel } from '@/lib/excel-export'
+import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
 
 type Stage = 'pending_approval' | 'active' | 'closed'
-type CardType = 'visitor' | 'vendor' | 'affiliate'
+type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
 type EntryPath = 'security' | 'lobby_affiliate'
 
 type Registration = {
@@ -26,6 +32,20 @@ type Registration = {
   visitor_card_barcode: string | null
   vendor_card_barcode: string | null
   affiliate_card_barcode: string | null
+  special_area_card_barcode: string | null
+  photography_card_barcode: string | null
+}
+
+const WORK_AREA_TYPES: WorkAreaCardType[] = ['vendor', 'special_area', 'photography']
+const WORK_AREA_LABEL: Record<WorkAreaCardType, string> = {
+  vendor: 'VENDOR',
+  special_area: 'SPECIAL AREA',
+  photography: 'PHOTOGRAPHY',
+}
+const WORK_AREA_COLUMN: Record<WorkAreaCardType, 'vendor_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'> = {
+  vendor: 'vendor_card_barcode',
+  special_area: 'special_area_card_barcode',
+  photography: 'photography_card_barcode',
 }
 
 function formatDateTime(value: string | null) {
@@ -41,13 +61,29 @@ const STAGE_BADGE: Record<string, string> = {
   visitor: 'bg-[#dff5e6] text-[#1a6e3a]',
   vendor: 'bg-[#edf6ff] text-[#1a5fa0]',
   affiliate: 'bg-[#f7f0ff] text-[#6a30a0]',
+  special_area: 'bg-[#fde2e2] text-[#a13030]',
+  photography: 'bg-[#fff3d6] text-[#8a6100]',
   closed: 'bg-secondary text-muted-foreground',
+}
+const CARD_LABEL: Record<WorkAreaCardType | 'affiliate', string> = {
+  vendor: 'Kartu Vendor',
+  special_area: 'Kartu Special Area',
+  photography: 'Kartu Photography',
+  affiliate: 'Kartu Affiliate',
+}
+const CARD_BARCODE_FIELD: Record<CardType, keyof Registration> = {
+  visitor: 'visitor_card_barcode',
+  vendor: 'vendor_card_barcode',
+  affiliate: 'affiliate_card_barcode',
+  special_area: 'special_area_card_barcode',
+  photography: 'photography_card_barcode',
 }
 function statusOf(r: Registration): { key: string; label: string } {
   if (r.stage === 'pending_approval') return { key: 'pending_approval', label: 'Menunggu Approval Security' }
   if (r.stage === 'closed') return { key: 'closed', label: 'Selesai' }
-  if (r.current_card_type === 'vendor') return { key: 'vendor', label: 'Kartu Vendor' }
-  if (r.current_card_type === 'affiliate') return { key: 'affiliate', label: 'Kartu Affiliate' }
+  if (r.current_card_type && r.current_card_type in CARD_LABEL) {
+    return { key: r.current_card_type, label: CARD_LABEL[r.current_card_type as WorkAreaCardType | 'affiliate'] }
+  }
   return { key: 'visitor', label: 'Kartu Visitor' }
 }
 
@@ -139,11 +175,20 @@ function AffiliateModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 
 function DetailPanel({ registration, onClose, onChanged }: { registration: Registration; onClose: () => void; onChanged: () => void }) {
   const [barcode, setBarcode] = useState('')
+  const [swapTarget, setSwapTarget] = useState<WorkAreaCardType>('vendor')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editFullName, setEditFullName] = useState(registration.full_name)
+  const [editIdCard, setEditIdCard] = useState(registration.id_card)
+  const [editPicJai, setEditPicJai] = useState(registration.pic_jai)
+  const [editPurpose, setEditPurpose] = useState(registration.purpose)
+  const [editCompanyRemark, setEditCompanyRemark] = useState(registration.company_remark)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
   const status = statusOf(registration)
 
-  const runAction = async (action: 'swapToVendor' | 'returnVendor' | 'returnAffiliate') => {
+  const runAction = async (action: 'swapToWorkArea' | 'returnWorkArea' | 'returnAffiliate', cardType?: WorkAreaCardType) => {
     if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
     setError(null)
     setSubmitting(true)
@@ -152,7 +197,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action, barcode: barcode.trim() }),
+        body: JSON.stringify({ action, barcode: barcode.trim(), ...(cardType ? { cardType } : {}) }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal memproses.'); return }
@@ -162,6 +207,48 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
       setError('Tidak dapat menghubungi server.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const startEdit = () => {
+    setEditFullName(registration.full_name)
+    setEditIdCard(registration.id_card)
+    setEditPicJai(registration.pic_jai)
+    setEditPurpose(registration.purpose)
+    setEditCompanyRemark(registration.company_remark)
+    setEditError(null)
+    setEditing(true)
+  }
+
+  const saveEdit = async () => {
+    if (!editFullName.trim() || !editIdCard.trim() || !editPicJai.trim() || !editPurpose.trim() || !editCompanyRemark.trim()) {
+      setEditError('Semua field wajib diisi.')
+      return
+    }
+    setEditError(null)
+    setEditSaving(true)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${registration.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'editDetails',
+          fullName: editFullName.trim(),
+          idCard: editIdCard.trim(),
+          picJai: editPicJai.trim(),
+          purpose: editPurpose.trim(),
+          companyRemark: editCompanyRemark.trim(),
+        }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setEditError(data?.message ?? 'Gagal menyimpan perubahan.'); return }
+      setEditing(false)
+      onChanged()
+    } catch {
+      setEditError('Tidak dapat menghubungi server.')
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -176,53 +263,145 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
     <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between bg-primary px-5 py-4 text-primary-foreground">
         <h2 className="text-sm font-bold uppercase tracking-wide">{registration.full_name}</h2>
-        <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-7 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
-          <X className="size-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {!editing && (
+            <button type="button" onClick={startEdit} aria-label="Edit data tamu" title="Edit data tamu" className="grid size-7 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
+              <Pencil className="size-3.5" />
+            </button>
+          )}
+          <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-7 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
 
-      {row('PIC JAI :', registration.pic_jai)}
-      {row('Tujuan :', registration.purpose)}
-      {row('Keterangan :', registration.company_remark)}
-      {row('Status :', status.label)}
+      {editing ? (
+        <div className="flex flex-col gap-3 p-4">
+          <label>
+            <span className={labelClass}>Nama Lengkap</span>
+            <input value={editFullName} onChange={(e) => setEditFullName(e.target.value)} autoFocus className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Kartu Identitas</span>
+            <input value={editIdCard} onChange={(e) => setEditIdCard(e.target.value)} className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>PIC JAI</span>
+            <input value={editPicJai} onChange={(e) => setEditPicJai(e.target.value)} className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Tujuan</span>
+            <input value={editPurpose} onChange={(e) => setEditPurpose(e.target.value)} className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Keterangan</span>
+            <input value={editCompanyRemark} onChange={(e) => setEditCompanyRemark(e.target.value)} className={inputClass} />
+          </label>
+          {editError && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{editError}</p>}
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={() => setEditing(false)} className="flex-1 rounded-xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-secondary">Batal</button>
+            <button type="button" disabled={editSaving} onClick={saveEdit} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+              <Check className="size-4" />{editSaving ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {row('PIC JAI :', registration.pic_jai)}
+          {row('Tujuan :', registration.purpose)}
+          {row('Keterangan :', registration.company_remark)}
+          {row('Status :', status.label)}
+        </>
+      )}
 
       <div className="p-4">
         {registration.current_card_type === 'visitor' && (
           <div className="rounded-xl bg-accent/10 p-4">
-            <p className="mb-2 text-xs font-semibold text-foreground">Tukar ke Kartu VENDOR</p>
+            <p className="mb-2 text-xs font-semibold text-foreground">Tukar ke Kartu Area Kerja</p>
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {WORK_AREA_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setSwapTarget(type)}
+                  className="rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all"
+                  style={
+                    swapTarget === type
+                      ? { background: 'linear-gradient(135deg, #1a5f7a, #278e84)', color: 'white', borderColor: 'transparent' }
+                      : { background: 'transparent', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
+                  }
+                >
+                  {WORK_AREA_LABEL[type]}
+                </button>
+              ))}
+            </div>
             <div className="relative">
               <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan barcode kartu Vendor..." className={`${inputClass} pl-10`} />
+              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder={`Scan barcode kartu ${WORK_AREA_LABEL[swapTarget]}...`} className={`${inputClass} pl-10`} />
             </div>
-            <button type="button" disabled={submitting} onClick={() => runAction('swapToVendor')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="button" disabled={submitting} onClick={() => runAction('swapToWorkArea', swapTarget)} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
               {submitting ? 'Memproses...' : 'Tukar Kartu'}
             </button>
           </div>
         )}
-        {registration.current_card_type === 'vendor' && (
-          <div className="rounded-xl bg-accent/10 p-4">
-            <p className="mb-2 text-xs font-semibold text-foreground">Kembalikan Kartu VENDOR</p>
-            <div className="relative">
-              <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan barcode kartu Vendor yang dikembalikan..." className={`${inputClass} pl-10`} />
+        {registration.current_card_type && WORK_AREA_TYPES.includes(registration.current_card_type as WorkAreaCardType) && (() => {
+          const cardType = registration.current_card_type as WorkAreaCardType
+          const expected = registration[WORK_AREA_COLUMN[cardType]]
+          const trimmed = barcode.trim()
+          const matches = trimmed ? trimmed === expected : null
+          return (
+            <div className="rounded-xl bg-accent/10 p-4">
+              <p className="mb-2 text-xs font-semibold text-foreground">
+                Kembalikan Kartu {WORK_AREA_LABEL[cardType]}
+              </p>
+              {expected && (
+                <div className="mb-3 rounded-xl border border-border bg-card px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Nomor Kartu Terdaftar</p>
+                  <p className="font-mono text-sm font-bold tracking-wide text-foreground">{expected}</p>
+                </div>
+              )}
+              <div className="relative">
+                <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan barcode kartu yang dikembalikan..." className={`${inputClass} pl-10`} />
+              </div>
+              {trimmed && (
+                matches
+                  ? <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
+                  : <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
+              )}
+              <button type="button" disabled={submitting} onClick={() => runAction('returnWorkArea')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+                {submitting ? 'Memproses...' : 'Kembalikan ke Kartu Visitor'}
+              </button>
             </div>
-            <button type="button" disabled={submitting} onClick={() => runAction('returnVendor')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
-              {submitting ? 'Memproses...' : 'Kembalikan ke Kartu Visitor'}
-            </button>
-          </div>
-        )}
-        {registration.current_card_type === 'affiliate' && (
-          <div className="rounded-xl bg-accent/10 p-4">
-            <p className="mb-2 text-xs font-semibold text-foreground">Kembalikan Kartu AFFILIATE</p>
-            <div className="relative">
-              <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan barcode kartu Affiliate yang dikembalikan..." className={`${inputClass} pl-10`} />
+          )
+        })()}
+        {registration.current_card_type === 'affiliate' && (() => {
+          const trimmed = barcode.trim()
+          const matches = trimmed ? trimmed === registration.affiliate_card_barcode : null
+          return (
+            <div className="rounded-xl bg-accent/10 p-4">
+              <p className="mb-2 text-xs font-semibold text-foreground">Kembalikan Kartu AFFILIATE</p>
+              {registration.affiliate_card_barcode && (
+                <div className="mb-3 rounded-xl border border-border bg-card px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Nomor Kartu Terdaftar</p>
+                  <p className="font-mono text-sm font-bold tracking-wide text-foreground">{registration.affiliate_card_barcode}</p>
+                </div>
+              )}
+              <div className="relative">
+                <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan barcode kartu Affiliate yang dikembalikan..." className={`${inputClass} pl-10`} />
+              </div>
+              {trimmed && (
+                matches
+                  ? <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
+                  : <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
+              )}
+              <button type="button" disabled={submitting} onClick={() => runAction('returnAffiliate')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+                {submitting ? 'Memproses...' : 'Tutup Pendaftaran'}
+              </button>
             </div>
-            <button type="button" disabled={submitting} onClick={() => runAction('returnAffiliate')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
-              {submitting ? 'Memproses...' : 'Tutup Pendaftaran'}
-            </button>
-          </div>
-        )}
+          )
+        })()}
         {(registration.stage === 'pending_approval' || registration.stage === 'closed') && (
           <p className="text-center text-xs text-muted-foreground">
             {registration.stage === 'pending_approval' ? 'Tamu ini belum di-approve di Pos Security.' : 'Pendaftaran ini sudah selesai.'}
@@ -244,6 +423,15 @@ export function LobbyView() {
   const [searchError, setSearchError] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
   const [affiliateOpen, setAffiliateOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [tableQuery, setTableQuery] = useState('')
+  const [filterMonth, setFilterMonth] = useState('')
+  const [filterYear, setFilterYear] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -264,6 +452,38 @@ export function LobbyView() {
 
   useEffect(() => { load() }, [load])
 
+  const years = useMemo(() => availableYears(registrations, (r) => r.registered_at), [registrations])
+  const filteredRegistrations = useMemo(() => {
+    const value = tableQuery.trim().toLowerCase()
+    return registrations.filter((r) => {
+      if (!matchesPeriod(r.registered_at, filterMonth, filterYear)) return false
+      if (!value) return true
+      return (
+        r.full_name.toLowerCase().includes(value) ||
+        r.pic_jai.toLowerCase().includes(value) ||
+        r.company_remark.toLowerCase().includes(value)
+      )
+    })
+  }, [registrations, tableQuery, filterMonth, filterYear])
+
+  const handleExportCsv = () => {
+    downloadExcel(
+      `rekap-tamu-lobby-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      ['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status', 'Nomor Kartu', 'Jam Masuk', 'Jam Keluar'],
+      filteredRegistrations.map((r) => [
+        formatDateTime(r.registered_at),
+        r.full_name,
+        r.pic_jai,
+        r.company_remark,
+        r.entry_path === 'security' ? 'Security' : 'Affiliate',
+        statusOf(r).label,
+        r.current_card_type ? (r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '') : '',
+        formatDateTime(r.entry_at),
+        formatDateTime(r.exit_at),
+      ])
+    )
+  }
+
   const handleSearch = async (event: FormEvent) => {
     event.preventDefault()
     if (!searchBarcode.trim()) return
@@ -283,6 +503,61 @@ export function LobbyView() {
     }
   }
 
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${pendingDelete.id}`, { method: 'DELETE', credentials: 'include' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setListError(data?.message ?? 'Gagal menghapus pendaftaran.')
+        setDeleting(false)
+        setPendingDelete(null)
+        return
+      }
+      if (selected?.id === pendingDelete.id) setSelected(null)
+      await load()
+    } catch {
+      setListError('Tidak dapat menghubungi server.')
+    }
+    setDeleting(false)
+    setPendingDelete(null)
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const allVisibleSelected = filteredRegistrations.length > 0 && filteredRegistrations.every((r) => selectedIds.has(r.id))
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev)
+        filteredRegistrations.forEach((r) => next.delete(r.id))
+        return next
+      }
+      const next = new Set(prev)
+      filteredRegistrations.forEach((r) => next.add(r.id))
+      return next
+    })
+  }
+
+  const confirmBulkDelete = async () => {
+    setBulkDeleting(true)
+    const ids = Array.from(selectedIds)
+    const results = await Promise.all(ids.map((id) => fetch(`${API_BASE_PATH}/api/vendor-registrations/${id}`, { method: 'DELETE', credentials: 'include' })))
+    const failed = results.filter((r) => !r.ok).length
+    if (failed > 0) setListError(`${failed} dari ${ids.length} pendaftaran gagal dihapus.`)
+    if (selected && selectedIds.has(selected.id)) setSelected(null)
+    setSelectedIds(new Set())
+    await load()
+    setBulkDeleting(false)
+    setBulkDeleteOpen(false)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="flex items-center justify-between border-b border-border bg-primary px-6 py-4 text-primary-foreground">
@@ -295,6 +570,9 @@ export function LobbyView() {
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden text-xs text-primary-foreground/75 sm:inline">{adminUser?.username}</span>
+          <button onClick={() => setPasswordModalOpen(true)} className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs transition-colors hover:bg-primary-foreground/10">
+            <KeyRound className="size-4" />Ganti Password
+          </button>
           <button onClick={() => logout()} className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs transition-colors hover:bg-primary-foreground/10">
             <LogOut className="size-4" />Logout
           </button>
@@ -302,12 +580,15 @@ export function LobbyView() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography', 'affiliate']} />
+        <PhotoVideoRequestsPanel />
+
         <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <p className="portal-eyebrow mb-2">Scan Kartu Tamu</p>
           <form onSubmit={handleSearch} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input ref={searchInputRef} value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} autoFocus placeholder="Scan atau ketik barcode kartu (Visitor/Vendor/Affiliate)..." className={`${inputClass} pl-10`} />
+              <input ref={searchInputRef} value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} autoFocus placeholder="Scan atau ketik barcode kartu tamu..." className={`${inputClass} pl-10`} />
             </div>
             <button type="submit" disabled={searching} className="rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
               Cari
@@ -325,7 +606,7 @@ export function LobbyView() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="portal-eyebrow">Semua Pendaftaran</p>
-            <p className="mt-1 text-sm text-muted-foreground">{registrations.length} data</p>
+            <p className="mt-1 text-sm text-muted-foreground">{filteredRegistrations.length} data</p>
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
@@ -337,6 +618,53 @@ export function LobbyView() {
           </div>
         </div>
 
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="">Semua Bulan</option>
+            {MONTH_LABELS.map((label, i) => <option key={label} value={i}>{label}</option>)}
+          </select>
+          <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="">Semua Tahun</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {(filterMonth || filterYear) && (
+            <button type="button" onClick={() => { setFilterMonth(''); setFilterYear('') }} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary">
+              Reset Filter
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredRegistrations.length === 0}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="size-3.5" />Export ke Excel
+          </button>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={tableQuery}
+              onChange={(e) => setTableQuery(e.target.value)}
+              placeholder="Cari nama, PIC JAI, atau keterangan..."
+              className={`${inputClass} pl-10`}
+            />
+          </div>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
+              <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
+              <button type="button" onClick={() => setBulkDeleteOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90">
+                <Trash2 className="size-3.5" />Hapus Terpilih
+              </button>
+              <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary">
+                <X className="size-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
         {listError && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{listError}</p>}
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -344,19 +672,25 @@ export function LobbyView() {
             <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-secondary/55">
                 <tr>
-                  {['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status'].map((head) => (
+                  <th className="w-10 px-4 py-3">
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} onClick={(e) => e.stopPropagation()} aria-label="Pilih semua" className="size-4 rounded border-border" />
+                  </th>
+                  {['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status', 'Aksi'].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {loading && (
-                  <tr><td colSpan={6} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                  <tr><td colSpan={8} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
                 )}
                 {!loading && registrations.length === 0 && (
-                  <tr><td colSpan={6} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
+                  <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
                 )}
-                {registrations.map((r, index) => {
+                {!loading && registrations.length > 0 && filteredRegistrations.length === 0 && (
+                  <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+                )}
+                {filteredRegistrations.map((r, index) => {
                   const status = statusOf(r)
                   return (
                     <tr
@@ -364,6 +698,9 @@ export function LobbyView() {
                       onClick={() => setSelected(r)}
                       className={`cursor-pointer transition-colors hover:bg-secondary/40 ${index % 2 ? 'bg-secondary/20' : ''}`}
                     >
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Pilih ${r.full_name}`} className="size-4 rounded border-border" />
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.registered_at)}</td>
                       <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
@@ -371,6 +708,22 @@ export function LobbyView() {
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.entry_path === 'security' ? 'Security' : 'Affiliate'}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                        {r.current_card_type && (
+                          <span className="mt-1 block font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
+                            {r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={(event) => { event.stopPropagation(); setPendingDelete(r) }}
+                          aria-label={`Hapus pendaftaran ${r.full_name}`}
+                          title="Hapus pendaftaran"
+                          className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
                       </td>
                     </tr>
                   )
@@ -382,6 +735,27 @@ export function LobbyView() {
       </main>
 
       {affiliateOpen && <AffiliateModal onClose={() => setAffiliateOpen(false)} onSaved={load} />}
+      {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus pendaftaran?"
+        message={
+          pendingDelete?.stage === 'active'
+            ? `Pendaftaran "${pendingDelete?.full_name}" akan dihapus permanen — tamu ini masih memegang kartu fisik yang belum dikembalikan. Pastikan kartunya sudah kembali sebelum menghapus.`
+            : `Pendaftaran "${pendingDelete?.full_name}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`
+        }
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Hapus pendaftaran terpilih?"
+        message={`${selectedIds.size} pendaftaran akan dihapus permanen. Pastikan tidak ada tamu yang masih memegang kartu fisik dari pendaftaran yang dipilih. Tindakan ini tidak dapat dibatalkan.`}
+        pending={bulkDeleting}
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
+      />
     </div>
   )
 }

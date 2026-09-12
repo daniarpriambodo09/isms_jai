@@ -15,6 +15,10 @@ type Slide = {
 const ROTATE_MS = 6000
 const TRANSITION_MS = 900
 
+// Breaks the gallery out of <main>'s centered max-width/padding so it spans the
+// full browser width edge-to-edge, matching the hero video above it.
+const FULL_BLEED = 'w-screen ml-[calc(50%-50vw)]'
+
 function slideUrl(slide: Slide) {
   return `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(slide.file_path)}`
 }
@@ -80,7 +84,7 @@ export function ImageShowcase() {
   if (loading || !current) return null
 
   return (
-    <section>
+    <section id="gallery" className="scroll-mt-24">
       <div className="mb-3 flex items-center gap-2">
         <span
           className="grid size-8 place-items-center rounded-full text-white shadow-sm"
@@ -91,11 +95,7 @@ export function ImageShowcase() {
         <p className="portal-eyebrow">Gallery</p>
       </div>
 
-      <div
-        className="relative rounded-[1.85rem] p-[2px]"
-        style={{ background: 'linear-gradient(135deg, oklch(0.48 0.12 180 / 45%) 0%, oklch(0.7 0.15 55 / 35%) 50%, oklch(0.58 0.14 165 / 45%) 100%)' }}
-      >
-        <div className="relative h-[280px] overflow-hidden rounded-[1.75rem] bg-[#1a3a52] shadow-sm sm:h-[380px]">
+      <div className={`relative h-[70vh] min-h-[420px] max-h-[780px] overflow-hidden bg-[#1a3a52] ${FULL_BLEED}`}>
         {outgoing && images[outgoing.index] && (
           <ImageLayer key={`out-${outgoing.key}`} slide={images[outgoing.index]} phase="out" onDone={() => setOutgoing((prev) => (prev?.key === outgoing.key ? null : prev))} />
         )}
@@ -107,19 +107,19 @@ export function ImageShowcase() {
               type="button"
               onClick={goPrev}
               aria-label="Gambar sebelumnya"
-              className="absolute left-3 top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+              className="absolute left-3 top-1/2 z-20 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25 sm:left-5"
             >
-              <ChevronLeft className="size-4" />
+              <ChevronLeft className="size-5" />
             </button>
             <button
               type="button"
               onClick={goNext}
               aria-label="Gambar berikutnya"
-              className="absolute right-3 top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+              className="absolute right-3 top-1/2 z-20 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25 sm:right-5"
             >
-              <ChevronRight className="size-4" />
+              <ChevronRight className="size-5" />
             </button>
-            <div className="absolute bottom-3 right-4 z-20 flex items-center gap-1.5">
+            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 sm:bottom-6 sm:right-8">
               {images.map((slide, i) => (
                 <button
                   key={slide.id}
@@ -132,7 +132,6 @@ export function ImageShowcase() {
             </div>
           </>
         )}
-        </div>
       </div>
 
       <p className="mt-3 text-sm font-medium text-foreground">{current.title}</p>

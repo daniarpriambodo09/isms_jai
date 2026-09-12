@@ -5,7 +5,6 @@ import { X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
-type KeteranganType = 'none' | 'plain-note' | 'web-base-approval' | 'list-all-daftar'
 type FileKind = 'pdf' | 'xls'
 
 export type EditableFormCsDocument = {
@@ -13,20 +12,10 @@ export type EditableFormCsDocument = {
   controlNo: string
   title: string
   language: string
-  keteranganType: KeteranganType
   keteranganNote: string | null
-  fileVariant: string | null
   fileKind: FileKind
   titleEmphasisFrom: number | null
 }
-
-const KETERANGAN_OPTIONS: { value: KeteranganType; label: string }[] = [
-  { value: 'none', label: 'Tidak ada' },
-  { value: 'plain-note', label: 'Catatan teks' },
-  { value: 'web-base-approval', label: 'Web Base (Approval)' },
-  { value: 'list-all-daftar', label: 'List All + Daftar' },
-]
-const FILE_VARIANTS = ['', 'A', 'B', 'C', 'D']
 
 const inputClass = 'h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]'
 const labelText = 'text-[12px] font-medium text-[#3c5369]'
@@ -37,10 +26,8 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
   const [name, setName] = useState('')
   const [language, setLanguage] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [keteranganType, setKeteranganType] = useState<KeteranganType>('none')
   const [keteranganNote, setKeteranganNote] = useState('')
   const [fileKind, setFileKind] = useState<FileKind>('pdf')
-  const [fileVariant, setFileVariant] = useState('')
   const [italicEnabled, setItalicEnabled] = useState(false)
   const [italicSubstring, setItalicSubstring] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -54,10 +41,8 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
       setName(document?.title ?? '')
       setLanguage(document?.language ?? '')
       setFile(null)
-      setKeteranganType(document?.keteranganType ?? 'none')
       setKeteranganNote(document?.keteranganNote ?? '')
       setFileKind(document?.fileKind ?? 'pdf')
-      setFileVariant(document?.fileVariant ?? '')
       const emphasisFrom = document?.titleEmphasisFrom
       const docTitle = document?.title ?? ''
       if (emphasisFrom != null && emphasisFrom >= 0 && emphasisFrom < docTitle.length) {
@@ -87,10 +72,9 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
       formData.set('language', language)
       if (file) formData.set('file', file)
       if (document) formData.set('id', String(document.id))
-      formData.set('keteranganType', keteranganType)
-      if (keteranganType === 'plain-note') formData.set('keteranganNote', keteranganNote)
+      formData.set('keteranganType', keteranganNote.trim() ? 'plain-note' : 'none')
+      formData.set('keteranganNote', keteranganNote)
       formData.set('fileKind', fileKind)
-      if (fileVariant) formData.set('fileVariant', fileVariant)
       if (titleEmphasisFrom >= 0) formData.set('titleEmphasisFrom', String(titleEmphasisFrom))
 
       const response = await fetch(`${API_BASE_PATH}/api/form-cs/${category}`, { method: isEdit ? 'PUT' : 'POST', body: formData })
@@ -118,7 +102,6 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
           <label className="flex flex-col gap-[6px]">
             <span className={labelText}>No. Kontrol</span>
             <input value={controlNo} onChange={(event) => setControlNo(event.target.value)} required autoFocus placeholder="Contoh: FA-001" className={inputClass} />
-            <span className="text-[11px] text-[#8798a8]">Gunakan No. Kontrol yang sama untuk menambah varian file (A-D) pada baris yang sama.</span>
           </label>
 
           <label className="flex flex-col gap-[6px]">
@@ -142,34 +125,18 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
             <input value={language} onChange={(event) => setLanguage(event.target.value)} required placeholder="Contoh: IDN / ENG" className={inputClass} />
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-[6px]">
-              <span className={labelText}>Jenis File</span>
-              <select value={fileKind} onChange={(event) => setFileKind(event.target.value as FileKind)} className={inputClass}>
-                <option value="pdf">PDF</option>
-                <option value="xls">XLS</option>
-              </select>
-            </label>
-            <label className="flex flex-col gap-[6px]">
-              <span className={labelText}>Varian File (A-D)</span>
-              <select value={fileVariant} onChange={(event) => setFileVariant(event.target.value)} className={inputClass}>
-                {FILE_VARIANTS.map((variant) => <option key={variant} value={variant}>{variant || '—'}</option>)}
-              </select>
-            </label>
-          </div>
+          <label className="flex flex-col gap-[6px]">
+            <span className={labelText}>Jenis File</span>
+            <select value={fileKind} onChange={(event) => setFileKind(event.target.value as FileKind)} className={inputClass}>
+              <option value="pdf">PDF</option>
+              <option value="xls">XLS</option>
+            </select>
+          </label>
 
           <label className="flex flex-col gap-[6px]">
             <span className={labelText}>Keterangan</span>
-            <select value={keteranganType} onChange={(event) => setKeteranganType(event.target.value as KeteranganType)} className={inputClass}>
-              {KETERANGAN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
+            <input value={keteranganNote} onChange={(event) => setKeteranganNote(event.target.value)} placeholder="Contoh: * Added by 25/08/2017 (SSA)" className={inputClass} />
           </label>
-          {keteranganType === 'plain-note' && (
-            <label className="flex flex-col gap-[6px]">
-              <span className={labelText}>Teks Catatan</span>
-              <input value={keteranganNote} onChange={(event) => setKeteranganNote(event.target.value)} placeholder="Contoh: * Added by 25/08/2017 (SSA)" className={inputClass} />
-            </label>
-          )}
 
           <label className="flex flex-col gap-[6px]">
             <span className={labelText}>{isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}</span>

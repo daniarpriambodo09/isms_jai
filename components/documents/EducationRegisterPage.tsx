@@ -11,6 +11,7 @@ import { EducationFormModal, type EditableEducation } from '@/components/documen
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
+import { downloadExcel } from '@/lib/excel-export'
 
 type EducationDocument = {
   id: number
@@ -107,6 +108,9 @@ export function EducationRegisterPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<EducationDocument | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -144,6 +148,37 @@ export function EducationRegisterPage() {
   const openEdit = (doc: EducationDocument) => { setEditing(doc); setFormOpen(true) }
   const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filtered, 20)
   useEffect(() => { setPage(1) }, [searchQuery, categoryFilter, setPage])
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })
+  }
+  const allVisibleSelected = filtered.length > 0 && filtered.every((d) => selectedIds.has(d.id))
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allVisibleSelected) filtered.forEach((d) => next.delete(d.id))
+      else filtered.forEach((d) => next.add(d.id))
+      return next
+    })
+  }
+  const confirmBulkDelete = async () => {
+    setBulkDeleting(true)
+    const ids = Array.from(selectedIds)
+    const results = await Promise.all(ids.map((id) => fetch(`${API_BASE_PATH}/api/education?id=${id}`, { method: 'DELETE' })))
+    const failed = results.filter((r) => !r.ok).length
+    if (failed > 0) setErrorMsg(`${failed} dari ${ids.length} dokumen gagal dihapus.`)
+    setSelectedIds(new Set())
+    await loadDocuments()
+    setBulkDeleting(false)
+    setBulkDeleteOpen(false)
+  }
+  const handleExportCsv = () => {
+    downloadExcel(
+      `education-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      ['Judul Materi', 'Kategori', 'Bahasa', 'Tanggal Upload'],
+      filtered.map((d) => [d.title, d.category, d.language, formatDate(d.uploaded_at)])
+    )
+  }
 
   const confirmDelete = async () => {
     if (!pendingDelete) return
@@ -229,6 +264,14 @@ export function EducationRegisterPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isLoggedIn && selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
+              <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
+              <button type="button" onClick={() => setBulkDeleteOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90"><Trash2 className="size-3.5" />Hapus Terpilih</button>
+              <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
+            </div>
+          )}
+          {isLoggedIn && <button type="button" onClick={handleExportCsv} disabled={filtered.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-3.5" />Export Excel</button>}
           {/* Category filter pills */}
           <div className="flex flex-wrap gap-1.5">
             {allCategories.map((cat) => (
@@ -294,6 +337,11 @@ export function EducationRegisterPage() {
               style={{ background: 'linear-gradient(135deg, var(--secondary) 0%, color-mix(in oklch, var(--secondary) 60%, var(--card)) 100%)' }}
             >
               <tr>
+                {isLoggedIn && (
+                  <th className="w-10 px-5 py-3.5">
+                    <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" />
+                  </th>
+                )}
                 {['Tanggal', 'Judul Materi', 'Kategori', 'Bahasa', 'Aksi'].map((head, i) => (
                   <th
                     key={head}
@@ -307,7 +355,7 @@ export function EducationRegisterPage() {
             <tbody className="divide-y divide-border">
               {loading && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-16 text-center">
+                  <td colSpan={6} className="px-5 py-16 text-center">
                     <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" />
                     <p className="text-sm text-muted-foreground">Memuat dokumen...</p>
                   </td>
@@ -316,7 +364,7 @@ export function EducationRegisterPage() {
 
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-16 text-center">
+                  <td colSpan={6} className="px-5 py-16 text-center">
                     <GraduationCap className="mx-auto mb-3 size-10 text-muted-foreground/30" />
                     <p className="font-medium text-muted-foreground">
                       {searchQuery || categoryFilter !== 'Semua'
@@ -343,6 +391,11 @@ export function EducationRegisterPage() {
                   className="transition-colors hover:bg-secondary/30"
                   style={{ background: index % 2 === 1 ? 'color-mix(in oklch, var(--secondary) 30%, transparent)' : undefined }}
                 >
+                  {isLoggedIn && (
+                    <td className="px-5 py-4">
+                      <input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => toggleSelect(doc.id)} aria-label={`Pilih ${doc.title}`} className="size-4 rounded border-border" />
+                    </td>
+                  )}
                   {/* Tanggal */}
                   <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground max-[680px]:hidden">
                     {formatDate(doc.uploaded_at)}
@@ -458,6 +511,14 @@ export function EducationRegisterPage() {
         pending={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Hapus dokumen terpilih?"
+        message={`${selectedIds.size} dokumen akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={bulkDeleting}
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
     </div>
   )

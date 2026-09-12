@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { logActivity } from '@/lib/activity-log'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
-type CardType = 'visitor' | 'vendor' | 'affiliate'
+type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
 
 type VendorRegistrationRow = {
   id: number
@@ -23,11 +24,14 @@ type VendorRegistrationRow = {
   visitor_card_barcode: string | null
   vendor_card_barcode: string | null
   affiliate_card_barcode: string | null
+  special_area_card_barcode: string | null
+  photography_card_barcode: string | null
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, stage, current_card_type,
-  visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode`
+  visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
+  special_area_card_barcode, photography_card_barcode`
 
 export async function GET(request: NextRequest) {
   const session = getKioskAdminFromRequest(request)
@@ -92,6 +96,7 @@ export async function POST(request: NextRequest) {
          RETURNING ${SELECT_COLUMNS}`,
         [fullName, idCard, picJai, purpose, companyRemark, session.username, affiliateBarcode]
       )
+      await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu Affiliate "${result.rows[0].full_name}"`)
       return NextResponse.json({ registration: result.rows[0] }, { status: 201 })
     }
 
@@ -102,6 +107,7 @@ export async function POST(request: NextRequest) {
        RETURNING ${SELECT_COLUMNS}`,
       [fullName, idCard, picJai, purpose, companyRemark, session.username]
     )
+    await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu "${result.rows[0].full_name}"`)
     return NextResponse.json({ registration: result.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[vendor-registrations/POST]', error)

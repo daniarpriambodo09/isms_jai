@@ -2,9 +2,9 @@
 
 'use client'
 
-import { Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Camera, Settings } from 'lucide-react'
+import { Camera, Search, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
@@ -39,6 +39,7 @@ function KelolaPermintaanFotoVideoContent() {
   const searchParams = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '')
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') ?? '')
+  const [query, setQuery] = useState('')
   const [requests, setRequests] = useState<PhotoVideoRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<PhotoVideoRequest | null>(null)
@@ -64,6 +65,17 @@ function KelolaPermintaanFotoVideoContent() {
   }, [statusFilter, typeFilter])
 
   useEffect(() => { if (isLoggedIn) load() }, [isLoggedIn, load])
+
+  const filteredRequests = useMemo(() => {
+    const value = query.trim().toLowerCase()
+    if (!value) return requests
+    return requests.filter((req) =>
+      req.requester_name.toLowerCase().includes(value) ||
+      (req.nik ?? '').toLowerCase().includes(value) ||
+      req.dept_or_company.toLowerCase().includes(value) ||
+      req.location.toLowerCase().includes(value)
+    )
+  }, [requests, query])
 
   if (!isLoading && !isLoggedIn) {
     return <AdminGate />
@@ -100,6 +112,16 @@ function KelolaPermintaanFotoVideoContent() {
         </div>
       </div>
 
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Cari nama, NIK, dept/company, atau lokasi..."
+          className="h-10 w-full max-w-sm rounded-xl border border-input bg-card pl-10 pr-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15"
+        />
+      </div>
+
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -119,7 +141,10 @@ function KelolaPermintaanFotoVideoContent() {
               {!loading && requests.length === 0 && (
                 <tr><td colSpan={8} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Tidak ada pengajuan</p></td></tr>
               )}
-              {requests.map((req, index) => (
+              {!loading && requests.length > 0 && filteredRequests.length === 0 && (
+                <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+              )}
+              {filteredRequests.map((req, index) => (
                 <tr key={req.id} className={index % 2 ? 'bg-secondary/20' : ''}>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.submitted_at)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.request_type === 'internal' ? 'Internal' : 'Visitor'}</td>

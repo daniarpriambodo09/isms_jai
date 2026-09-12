@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { logActivity } from '@/lib/activity-log'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 type GroupHeaderRow = { id: number; category: Category; sort_order: number; label: string; control_no_prefix: string | null }
@@ -34,7 +35,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const body = await request.json()
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
        RETURNING id, category, sort_order, label, control_no_prefix`,
       [category, sortOrder, label, controlNoPrefix]
     )
+    await logActivity(session, 'create', 'form_cs_group_header', result.rows[0].id, `Menambahkan baris grup "${result.rows[0].label}"`)
     return NextResponse.json({ groupHeader: result.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[form-cs/group-headers/POST]', error)
@@ -59,7 +62,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const body = await request.json()
@@ -78,6 +82,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       [label, sortOrder, controlNoPrefix, id, category]
     )
     if (result.rows.length === 0) return NextResponse.json({ message: 'Baris grup tidak ditemukan.' }, { status: 404 })
+    await logActivity(session, 'update', 'form_cs_group_header', id, `Mengubah baris grup "${result.rows[0].label}"`)
     return NextResponse.json({ groupHeader: result.rows[0] })
   } catch (error) {
     console.error('[form-cs/group-headers/PUT]', error)
@@ -88,13 +93,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const id = request.nextUrl.searchParams.get('id')
     if (!id || !/^\d+$/.test(id)) return NextResponse.json({ message: 'ID baris grup tidak valid.' }, { status: 400 })
-    const result = await query('DELETE FROM form_cs_group_headers WHERE id = $1 AND category = $2 RETURNING id', [id, category])
+    const result = await query<{ id: number; label: string }>('DELETE FROM form_cs_group_headers WHERE id = $1 AND category = $2 RETURNING id, label', [id, category])
     if (result.rows.length === 0) return NextResponse.json({ message: 'Baris grup tidak ditemukan.' }, { status: 404 })
+    await logActivity(session, 'delete', 'form_cs_group_header', id, `Menghapus baris grup "${result.rows[0].label}"`)
     return NextResponse.json({ message: 'Baris grup dihapus.' })
   } catch (error) {
     console.error('[form-cs/group-headers/DELETE]', error)

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
+import { logActivity } from '@/lib/activity-log'
 
 type EducationRow = {
   id: number
@@ -29,7 +30,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest) {
       [title.trim(), category.trim(), language.trim(), filePath]
     )
 
+    await logActivity(session, 'create', 'education_document', result.rows[0].id, `Menambahkan dokumen education "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[education/POST]', error)
@@ -69,7 +72,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -120,6 +124,7 @@ export async function PUT(request: NextRequest) {
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)
+    await logActivity(session, 'update', 'education_document', id, `Mengubah dokumen education "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] })
   } catch (error) {
     console.error('[education/PUT]', error)
@@ -128,7 +133,8 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -138,8 +144,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ message: 'ID dokumen tidak valid.' }, { status: 400 })
     }
 
-    const result = await query<{ id: number; file_path: string }>(
-      'DELETE FROM education_documents WHERE id = $1 RETURNING id, file_path',
+    const result = await query<{ id: number; title: string; file_path: string }>(
+      'DELETE FROM education_documents WHERE id = $1 RETURNING id, title, file_path',
       [id]
     )
     if (result.rows.length === 0) {
@@ -147,6 +153,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await deleteDocumentFile(result.rows[0].file_path)
+    await logActivity(session, 'delete', 'education_document', id, `Menghapus dokumen education "${result.rows[0].title}"`)
     return NextResponse.json({ message: 'Dokumen dihapus.' })
   } catch (error) {
     console.error('[education/DELETE]', error)

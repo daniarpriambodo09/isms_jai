@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 type RequestType = 'internal' | 'visitor'
@@ -33,8 +33,11 @@ function isStatus(value: unknown): value is Status { return typeof value === 'st
 const SELECT_COLUMNS = `id, request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera,
   from_at, to_at, location, objective, status, submitted_at, decided_at, decided_by, decision_note`
 
+// Read access is shared with the Lobby/Security kiosk roles (getKioskAdminFromRequest)
+// so those pages can show a view-only copy of the same requests — deciding
+// (PUT below) stays ism_admin-only via getIsmsAdminFromRequest.
 export async function GET(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getKioskAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const typeParam = request.nextUrl.searchParams.get('type')

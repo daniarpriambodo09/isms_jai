@@ -2,85 +2,48 @@
 
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Clock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CalendarDays, FileText, Maximize2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
-import { usePagination } from '@/hooks/usePagination'
-import { Pagination } from '@/components/pagination'
+import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
-type Status = 'scheduled' | 'ongoing' | 'completed' | 'cancelled'
-type AuditRow = {
+type ScheduleDocument = {
   id: number
-  start_date: string
-  end_date: string
-  period_label: string | null
-  title: string
-  scope: string | null
-  pic: string | null
-  status: Status
+  kind: 'audit' | 'training'
+  file_path: string
+  mime_type: string
+  title: string | null
+  description: string | null
+  uploaded_at: string
+  uploaded_by: string | null
 }
 
-function toUtcDate(value: string) {
-  return new Date(`${value.slice(0, 10)}T00:00:00Z`)
-}
-function formatShort(value: string, part: 'month' | 'day') {
-  const date = toUtcDate(value)
-  return part === 'month'
-    ? date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase()
-    : date.toLocaleDateString('en-US', { day: '2-digit', timeZone: 'UTC' })
-}
 function formatDate(value: string) {
-  return toUtcDate(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })
-}
-function formatEta(value: string) {
-  const diffDays = Math.round((toUtcDate(value).getTime() - Date.now()) / 86_400_000)
-  if (diffDays > 1) return `In ${diffDays} days`
-  if (diffDays === 1) return 'Tomorrow'
-  if (diffDays === 0) return 'Today'
-  return 'In progress'
+  return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-const statusBadge = (highlighted: boolean) => {
-  if (highlighted) return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide"
-      style={{ background: 'linear-gradient(135deg, #edf8f7, #d4f0ee)', color: '#1a6e6a', border: '1px solid rgba(39,142,132,0.25)' }}
-    >
-      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#278e84]" />
-      Upcoming
-    </span>
-  )
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wide"
-      style={{ background: '#f3f6fa', color: '#5a7a92', border: '1px solid rgba(90,122,146,0.2)' }}
-    >
-      Scheduled
-    </span>
-  )
+function fileUrl(doc: ScheduleDocument) {
+  return `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(doc.file_path)}`
 }
 
 export default function AuditsPage() {
-  const [rows, setRows] = useState<AuditRow[]>([])
+  const [docs, setDocs] = useState<ScheduleDocument[]>([])
   const [loading, setLoading] = useState(true)
+  const [openDoc, setOpenDoc] = useState<ScheduleDocument | null>(null)
+
+  useEscapeClose(Boolean(openDoc), () => setOpenDoc(null))
 
   useEffect(() => {
-    fetch(`${API_BASE_PATH}/api/audit-schedule`, { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : { items: [] }))
-      .then((data: { items: AuditRow[] }) => setRows(data.items ?? []))
-      .catch(() => setRows([]))
+    fetch(`${API_BASE_PATH}/api/schedule-documents`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { documents: {} }))
+      .then((data: { documents?: { audit: ScheduleDocument[] } }) => setDocs(data.documents?.audit ?? []))
+      .catch(() => setDocs([]))
       .finally(() => setLoading(false))
   }, [])
 
-  const timeline = useMemo(
-    () => rows
-      .filter((row) => row.status === 'scheduled' || row.status === 'ongoing')
-      .sort((a, b) => a.start_date.localeCompare(b.start_date))
-      .slice(0, 3),
-    [rows]
-  )
-
-  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(rows, 20)
+  const isImageOpen = openDoc?.mime_type.startsWith('image/')
+  const isPdfOpen = openDoc?.mime_type === 'application/pdf'
 
   return (
     <section
@@ -91,202 +54,97 @@ export default function AuditsPage() {
         boxShadow: '0 4px 20px rgba(34,58,79,0.06), 0 1px 4px rgba(34,58,79,0.04)',
       }}
     >
-      {/* Card header */}
       <div
         className="border-b px-7 py-6"
-        style={{
-          borderColor: '#e8f0f5',
-          background: 'linear-gradient(135deg, #f8fbfd 0%, #f0f6fa 100%)',
-        }}
+        style={{ borderColor: '#e8f0f5', background: 'linear-gradient(135deg, #f8fbfd 0%, #f0f6fa 100%)' }}
       >
-        <div className="flex items-start justify-between gap-5 max-[680px]:flex-col">
-          <div className="flex items-center gap-4">
-            {/* Icon badge */}
-            <div
-              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-              style={{
-                background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
-                boxShadow: '0 4px 12px rgba(39,142,132,0.3)',
-                color: 'white',
-              }}
-            >
-              <CalendarDays className="size-5" />
-            </div>
-            <div>
-              <div
-                className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]"
-                style={{ color: '#278e84' }}
-              >
-                Monitoring
-              </div>
-              <h2 className="text-[20px] font-bold tracking-tight" style={{ color: '#1a2f3e' }}>
-                Internal Audit Schedule
-              </h2>
-              <p className="mt-1 text-[12.5px] leading-snug" style={{ color: '#6a8499' }}>
-                Upcoming audit activities across the ISMS scope.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="inline-flex flex-shrink-0 items-center gap-2 self-center rounded-xl border px-4 py-2.5 text-[12.5px] font-semibold transition-all duration-150 hover:scale-[1.02]"
-            style={{
-              borderColor: '#c8dce8',
-              background: 'linear-gradient(135deg, #ffffff, #f3f8fb)',
-              color: '#3c5369',
-              boxShadow: '0 2px 6px rgba(34,58,79,0.08)',
-            }}
+        <div className="flex items-center gap-4">
+          <div
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
+            style={{ background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)', boxShadow: '0 4px 12px rgba(39,142,132,0.3)', color: 'white' }}
           >
-            <CalendarDays className="size-4" />
-            Add to calendar
-          </button>
+            <CalendarDays className="size-5" />
+          </div>
+          <div>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: '#278e84' }}>Monitoring</div>
+            <h2 className="text-[20px] font-bold tracking-tight" style={{ color: '#1a2f3e' }}>Internal Audit Schedule</h2>
+            <p className="mt-1 text-[12.5px] leading-snug" style={{ color: '#6a8499' }}>Jadwal audit terbaru yang diunggah admin ISM.</p>
+          </div>
         </div>
       </div>
 
       <div className="p-7 max-[680px]:p-4">
-        {/* Timeline cards */}
-        {!loading && timeline.length > 0 && (
-          <div className="mb-7 grid grid-cols-3 gap-4 max-[680px]:grid-cols-1">
-            {timeline.map((item, index) => (
-              <div
-                key={item.id}
-                className="relative overflow-hidden rounded-xl border p-5 transition-all duration-200 hover:scale-[1.01] hover:shadow-md"
-                style={{
-                  borderColor: index === 0 ? 'rgba(39,142,132,0.3)' : '#dde8ef',
-                  background: index === 0
-                    ? 'linear-gradient(135deg, #edf8f7 0%, #ddf2f0 100%)'
-                    : 'linear-gradient(135deg, #f8fbfd 0%, #f2f7fa 100%)',
-                  boxShadow: index === 0
-                    ? '0 4px 16px rgba(39,142,132,0.15)'
-                    : '0 2px 8px rgba(34,58,79,0.05)',
-                }}
-              >
-                {/* Top accent bar */}
-                <div
-                  className="absolute inset-x-0 top-0 h-[3px] rounded-t-xl"
-                  style={{
-                    background: index === 0
-                      ? 'linear-gradient(90deg, #278e84, #1a5f7a)'
-                      : 'linear-gradient(90deg, #94afc0, #b0c5d4)',
-                  }}
-                />
-
-                <div className="flex items-start justify-between gap-3">
-                  {/* Date block */}
-                  <div className="flex flex-col items-center">
-                    <span
-                      className="text-[9px] font-bold uppercase tracking-widest"
-                      style={{ color: index === 0 ? '#1a6e6a' : '#7a9bb0' }}
-                    >
-                      {formatShort(item.start_date, 'month')}
-                    </span>
-                    <strong
-                      className="text-[28px] font-bold leading-none"
-                      style={{ color: index === 0 ? '#1a5f7a' : '#2f4a5e' }}
-                    >
-                      {formatShort(item.start_date, 'day')}
-                    </strong>
-                  </div>
-
-                  {/* Icon */}
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-lg"
-                    style={{
-                      background: index === 0 ? 'rgba(39,142,132,0.15)' : 'rgba(90,122,146,0.1)',
-                      color: index === 0 ? '#278e84' : '#5a7a92',
-                    }}
+        {loading ? (
+          <div className="h-64 animate-pulse rounded-xl bg-secondary/50" />
+        ) : docs.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-secondary/30 px-6 py-14 text-center text-sm text-muted-foreground">
+            <CalendarDays className="mx-auto mb-3 size-9 text-muted-foreground/40" />
+            Belum ada jadwal audit diunggah.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {docs.map((doc) => {
+              const isImage = doc.mime_type.startsWith('image/')
+              return isImage ? (
+                <div key={doc.id}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenDoc(doc)}
+                    className="group relative block w-full overflow-hidden rounded-2xl shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
                   >
-                    {index === 0 ? <Clock className="size-4" /> : <CalendarDays className="size-4" />}
-                  </div>
+                    <div className="aspect-video w-full">
+                      <img src={fileUrl(doc)} alt={doc.title ?? 'Jadwal Audit'} className="h-full w-full object-cover" />
+                    </div>
+                    <span className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                      <Maximize2 className="size-4" />
+                    </span>
+                  </button>
+                  {(doc.title || doc.description) && (
+                    <div className="mt-2 px-1">
+                      {doc.title && <p className="text-sm font-semibold" style={{ color: '#1a2f3e' }}>{doc.title}</p>}
+                      {doc.description && <p className="mt-0.5 text-xs" style={{ color: '#7a9bb0' }}>{doc.description}</p>}
+                    </div>
+                  )}
                 </div>
-
-                <div className="mt-3">
-                  <strong className="block text-[13px] font-bold" style={{ color: '#1a2f3e' }}>
-                    {item.title}
-                  </strong>
-                  <span className="mt-0.5 block text-[11px]" style={{ color: index === 0 ? '#3a7a74' : '#7a9bb0' }}>
-                    {formatEta(item.start_date)}
+              ) : (
+                <button
+                  key={doc.id}
+                  type="button"
+                  onClick={() => setOpenDoc(doc)}
+                  className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  <span className="grid size-12 flex-shrink-0 place-items-center overflow-hidden rounded-xl bg-primary/10 text-primary">
+                    <FileText className="size-6" />
                   </span>
-                  <div className="mt-2.5">{statusBadge(index === 0)}</div>
-                </div>
-              </div>
-            ))}
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{doc.title ?? 'Jadwal Audit'}</p>
+                    {doc.description && <p className="truncate text-xs" style={{ color: '#7a9bb0' }}>{doc.description}</p>}
+                    <p className="text-xs" style={{ color: '#7a9bb0' }}>Diperbarui {formatDate(doc.uploaded_at)}{doc.uploaded_by && ` oleh ${doc.uploaded_by}`} · Klik untuk membuka</p>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         )}
-
-        {/* Audit table */}
-        <div
-          className="overflow-hidden rounded-xl border"
-          style={{ borderColor: '#e0eaf1' }}
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-[12px]">
-              <thead>
-                <tr
-                  style={{
-                    background: 'linear-gradient(135deg, #f0f6fa 0%, #e8f2f7 100%)',
-                  }}
-                >
-                  {['Start', 'End', 'Period', 'Activities', 'Scope', 'PIC'].map((head, i) => (
-                    <th
-                      key={head}
-                      className={`whitespace-nowrap border-b px-4 py-3.5 text-left text-[9.5px] font-bold uppercase tracking-[0.1em] ${i === 2 || i === 5 ? 'max-[760px]:hidden' : ''}`}
-                      style={{ borderColor: '#d8e8f0', color: '#5a7a92' }}
-                    >
-                      {head}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
-                      <div className="mx-auto mb-3 size-7 animate-spin rounded-full border-2 border-border border-b-ring" />
-                      <p className="text-[12px]" style={{ color: '#7a9bb0' }}>Memuat jadwal audit...</p>
-                    </td>
-                  </tr>
-                )}
-                {!loading && rows.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center">
-                      <CalendarDays className="mx-auto mb-3 size-8" style={{ color: '#c3d5e0' }} />
-                      <p className="text-[12px] font-medium" style={{ color: '#7a9bb0' }}>Belum ada jadwal audit.</p>
-                    </td>
-                  </tr>
-                )}
-                {pageItems.map((row, rowIndex) => (
-                  <tr
-                    key={row.id}
-                    className="transition-colors hover:bg-[#f5f9fb]"
-                    style={{
-                      background: rowIndex % 2 === 1 ? '#fafcfd' : '#ffffff',
-                    }}
-                  >
-                    {[formatDate(row.start_date), formatDate(row.end_date), row.period_label ?? '—', row.title, row.scope ?? '—', row.pic ?? '—'].map((value, colIndex) => (
-                      <td
-                        key={colIndex}
-                        className={`whitespace-nowrap border-b px-4 py-3.5 ${colIndex === 2 || colIndex === 5 ? 'max-[760px]:hidden' : ''}`}
-                        style={{
-                          borderColor: '#edf2f6',
-                          color: colIndex === 0 ? '#278e84' : '#4a6478',
-                          fontWeight: colIndex === 0 ? '600' : '400',
-                        }}
-                      >
-                        {value}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!loading && rows.length > 0 && (
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={rows.length} pageSize={pageSize} />
-          )}
-        </div>
       </div>
+
+      {openDoc && (
+        isPdfOpen ? (
+          <DocumentViewModal open={Boolean(openDoc)} onClose={() => setOpenDoc(null)} filePath={openDoc.file_path} fileName={openDoc.title ?? 'Jadwal Audit'} />
+        ) : isImageOpen ? (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/90" onClick={() => setOpenDoc(null)}>
+            <img src={fileUrl(openDoc)} alt={openDoc.title ?? 'Jadwal Audit'} className="h-screen w-screen object-contain" onClick={(e) => e.stopPropagation()} />
+            <button
+              type="button"
+              onClick={() => setOpenDoc(null)}
+              aria-label="Tutup"
+              className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
+        ) : null
+      )}
     </section>
   )
 }

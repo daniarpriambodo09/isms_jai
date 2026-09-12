@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { logActivity } from '@/lib/activity-log'
 
 type SectionRow = { id: number; department_id: number; name: string; slug: string }
 
@@ -15,7 +16,8 @@ function slugify(value: string) {
 
 // Admin only — add a new section under a department.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!getIsmsAdminFromRequest(request)) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       'INSERT INTO sections (department_id, name, slug) VALUES ($1, $2, $3) RETURNING id, department_id, name, slug',
       [id, name.trim(), slug]
     )
+    await logActivity(session, 'create', 'section', result.rows[0].id, `Menambahkan section "${result.rows[0].name}"`)
     return NextResponse.json({ section: result.rows[0] }, { status: 201 })
   } catch (error: any) {
     if (error?.code === '23505') {

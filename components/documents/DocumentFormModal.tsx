@@ -33,6 +33,7 @@ export function DocumentFormModal({
 
   const [title, setTitle] = useState(document?.title ?? '')
   const [uploadedAt, setUploadedAt] = useState(document?.uploadedAt ?? '')
+  const [revision, setRevision] = useState(String(document?.revision ?? 1))
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -58,6 +59,7 @@ export function DocumentFormModal({
         const formData = new FormData()
         formData.set('title', title)
         if (uploadedAt) formData.set('uploadedAt', uploadedAt)
+        formData.set('revision', revision)
         if (file) formData.set('file', file)
 
         res = await fetch(`${API_BASE_PATH}/api/documents/${document.id}`, {
@@ -140,10 +142,18 @@ export function DocumentFormModal({
           )}
 
           {isEdit && (
-            <p className="rounded-[6px] bg-[#f5fafb] px-3 py-2 text-[11px] text-[#7c91a1]">
-              Revisi saat ini: <strong className="text-[#40566a]">{document?.revision}</strong> — akan
-              otomatis bertambah menjadi {(document?.revision ?? 1) + 1} setelah disimpan.
-            </p>
+            <label className="flex flex-col gap-[6px]">
+              <span className="text-[12px] font-medium text-[#3c5369]">Revisi</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={revision}
+                onChange={(event) => setRevision(event.target.value)}
+                required
+                className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]"
+              />
+            </label>
           )}
 
           <label className="flex flex-col gap-[6px]">

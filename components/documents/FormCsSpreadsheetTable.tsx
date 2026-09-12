@@ -1,7 +1,6 @@
 'use client'
 
 import { Eye, FileSpreadsheet, Pencil, Trash2 } from 'lucide-react'
-import Link from 'next/link'
 
 export type FormCsDocument = {
   id: number
@@ -42,10 +41,10 @@ function FileChip({ kind, variant }: { kind: 'pdf' | 'xls'; variant: string | nu
   const isXls = kind === 'xls'
   return (
     <span
-      className="inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-bold"
-      style={isXls ? { background: '#e3f5e3', color: '#1f7a3f' } : { background: '#fde4e4', color: '#a13030' }}
+      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+      style={isXls ? { background: '#dff5e6', color: '#1a6e3a' } : { background: '#fde2e2', color: '#a13030' }}
     >
-      {isXls ? 'XLS' : variant ? `PDF(${variant})` : 'PDF'}
+      {isXls ? 'XLS' : variant ? `PDF (${variant})` : 'PDF'}
     </span>
   )
 }
@@ -59,62 +58,30 @@ function generateMonthBadges() {
 }
 const MONTH_BADGES = generateMonthBadges()
 
-function GroupHeaderRow({ header }: { header: FormCsGroupHeader }) {
+function GroupHeaderRow({ header, colSpanOffset = 0 }: { header: FormCsGroupHeader; colSpanOffset?: number }) {
   return (
     <tr>
-      <td colSpan={2} className="border border-[#a8c9c9] bg-[#b8dede] p-2 align-top">
-        <div className="mb-1.5 text-center text-[12px] font-bold uppercase leading-snug text-[#20354a]">{header.label}</div>
+      <td colSpan={2 + colSpanOffset} className="bg-secondary/50 p-3 align-top">
+        <div className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary">{header.label}</div>
         <div className="grid grid-cols-6 gap-1">
           {MONTH_BADGES.map((badge) => (
             <span
               key={badge.label}
-              className="rounded px-1 py-1 text-center text-[9.5px] font-bold"
-              style={badge.year === 2024 ? { background: '#d6f5f5', color: '#1a7a7a', border: '1px solid #a8e0e0' } : { background: '#d4f5c8', color: '#2f7a1f', border: '1px solid #a8e0a0' }}
+              className="rounded-full px-1 py-1 text-center text-[9.5px] font-bold"
+              style={badge.year === 2024 ? { background: '#d6f5f5', color: '#1a7a7a' } : { background: '#d4f5c8', color: '#2f7a1f' }}
             >
               {badge.label}
             </span>
           ))}
         </div>
       </td>
-      <td className="border border-[#a8c9c9] bg-[#f5faf9]" />
-      <td className="border border-[#a8c9c9] bg-[#f5faf9]" />
-      <td className="border border-[#a8c9c9] bg-[#f5faf9]" />
+      <td className="bg-secondary/50" colSpan={3} />
     </tr>
   )
 }
 
-function WebBaseApprovalCell() {
-  return (
-    <div className="inline-flex flex-col gap-1 rounded border border-[#c9d6de] bg-[#f5f8fa] p-1.5 text-center text-[10px]">
-      <span className="font-bold text-[#3c5369]">WEB BASE :</span>
-      <div className="grid grid-cols-2 gap-1">
-        <div className="flex flex-col gap-1">
-          <span className="font-semibold text-[#3c5369]">NON-YAZAKI</span>
-          <span className="rounded bg-[#f6d3d3] px-1.5 py-0.5 font-bold text-[#a13030]">APPROVAL</span>
-          <span className="rounded bg-[#dbeef0] px-1.5 py-0.5 font-bold text-[#20776e]">LIST ALL</span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <span className="font-semibold text-[#3c5369]">YAZAKI</span>
-          <span className="rounded bg-[#f6d3d3] px-1.5 py-0.5 font-bold text-[#a13030]">APPROVAL</span>
-          <span className="rounded bg-[#f6e3d3] px-1.5 py-0.5 font-bold text-[#8a5a00]">APPROVAL PLAN</span>
-          <span className="rounded bg-[#dbeef0] px-1.5 py-0.5 font-bold text-[#20776e]">LIST ALL</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ListAllDaftarCell() {
-  const daftarHref = '/foto-video-internal'
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      <Link href="/kelola-permintaan-foto-video" className="rounded bg-[#278e84] px-2 py-1 text-[10px] font-bold text-white hover:bg-[#20776e]">LIST ALL</Link>
-      <Link href={daftarHref} className="rounded bg-[#20354a] px-2 py-1 text-[10px] font-bold text-white hover:bg-[#284360]">DAFTAR</Link>
-    </div>
-  )
-}
-
-type Row = { key: string; controlNo: string; title: string; emphasisFrom: number | null; language: string; keteranganType: FormCsDocument['keterangan_type']; keteranganNote: string | null; files: FormCsDocument[] }
+export type FormCsRow = { key: string; controlNo: string; title: string; emphasisFrom: number | null; language: string; keteranganType: FormCsDocument['keterangan_type']; keteranganNote: string | null; files: FormCsDocument[] }
+type Row = FormCsRow
 
 function groupRows(documents: FormCsDocument[]): Row[] {
   const map = new Map<string, Row>()
@@ -140,6 +107,9 @@ export function FormCsSpreadsheetTable({
   onView,
   onEdit,
   onDelete,
+  selectedIds,
+  onToggleRow,
+  onToggleAll,
 }: {
   documents: FormCsDocument[]
   groupHeaders: FormCsGroupHeader[]
@@ -148,73 +118,94 @@ export function FormCsSpreadsheetTable({
   onView: (doc: FormCsDocument) => void
   onEdit: (doc: FormCsDocument) => void
   onDelete: (doc: FormCsDocument) => void
+  selectedIds?: Set<number>
+  onToggleRow?: (row: Row) => void
+  onToggleAll?: () => void
 }) {
   const rows = groupRows(documents)
+  const showSelection = isLoggedIn && !!selectedIds && !!onToggleRow && !!onToggleAll
+  const allSelected = showSelection && rows.length > 0 && rows.every((row) => row.files.every((f) => selectedIds!.has(f.id)))
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#a8c9c9]">
-      <table className="w-full min-w-[960px] border-collapse text-[12px]">
-        <thead>
-          <tr>
-            {['CTRL No.', 'NAMA DOKUMEN', 'LANG', 'FILE', 'KETERANGAN'].map((head) => (
-              <th key={head} className="border border-[#a8c9c9] bg-[#b8dede] px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-[#20354a]">{head}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {groupHeaders.map((header) => <GroupHeaderRow key={header.id} header={header} />)}
-
-          {rows.length === 0 && groupHeaders.length === 0 && (
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[960px] text-sm">
+          <thead className="table-head-gradient">
             <tr>
-              <td colSpan={5} className="border border-[#a8c9c9] px-5 py-14 text-center">
-                <FileSpreadsheet className="mx-auto mb-3 size-9 text-[#a8c0c0]" />
-                <p className="font-medium text-[#7290a5]">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>
-              </td>
+              {showSelection && (
+                <th className="w-9 px-4 py-3">
+                  <input type="checkbox" checked={allSelected} onChange={onToggleAll} aria-label="Pilih semua" className="size-4 rounded border-border" />
+                </th>
+              )}
+              {['CTRL No.', 'Nama Dokumen', 'Lang', 'File', 'Keterangan'].map((head) => (
+                <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
+              ))}
             </tr>
-          )}
+          </thead>
+          <tbody className="divide-y divide-border">
+            {groupHeaders.map((header) => <GroupHeaderRow key={header.id} header={header} colSpanOffset={showSelection ? 1 : 0} />)}
 
-          {rows.map((row, index) => (
-            <tr key={row.key} className={index % 2 ? 'bg-[#f5faf9]' : 'bg-white'}>
-              <td className="border border-[#d8e8e8] px-3 py-2.5 align-top font-semibold text-[#278e84]"><Highlight text={row.controlNo} keyword={query} /></td>
-              <td className="min-w-[260px] border border-[#d8e8e8] px-3 py-2.5 align-top font-medium text-[#20354a]">
-                <TitleCell title={row.title} emphasisFrom={row.emphasisFrom} keyword={query} />
-              </td>
-              <td className="border border-[#d8e8e8] px-3 py-2.5 align-top text-[#3c5369]">{row.language}</td>
-              <td className="border border-[#d8e8e8] px-3 py-2.5 align-top">
-                <div className="flex flex-col items-start gap-1">
-                  {row.files.map((file) => (
-                    <button key={file.id} type="button" onClick={() => onView(file)} className="cursor-pointer" title="Lihat dokumen">
-                      <FileChip kind={file.file_kind} variant={file.file_variant} />
-                    </button>
-                  ))}
-                </div>
-              </td>
-              <td className="border border-[#d8e8e8] px-3 py-2.5 align-top">
-                <div className="flex flex-col gap-2">
-                  {row.keteranganType === 'plain-note' && row.keteranganNote && (
-                    <span className="text-[11px] italic text-[#c0392b]">{row.keteranganNote}</span>
-                  )}
-                  {row.keteranganType === 'web-base-approval' && <WebBaseApprovalCell />}
-                  {row.keteranganType === 'list-all-daftar' && <ListAllDaftarCell />}
+            {rows.length === 0 && groupHeaders.length === 0 && (
+              <tr>
+                <td colSpan={showSelection ? 6 : 5} className="px-5 py-14 text-center">
+                  <FileSpreadsheet className="mx-auto mb-3 size-9 text-muted-foreground/40" />
+                  <p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>
+                </td>
+              </tr>
+            )}
 
-                  {isLoggedIn && (
-                    <div className="flex items-center gap-1 pt-1">
-                      <button type="button" onClick={() => onEdit(row.files[0])} aria-label={`Edit ${row.controlNo}`} title="Edit" className="grid size-6 place-items-center rounded text-[#7290a5] hover:bg-[#e4edf2] hover:text-[#20354a]"><Pencil className="size-3.5" /></button>
-                      {row.files.map((file) => (
-                        <button key={file.id} type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.control_no}${file.file_variant ? ` (${file.file_variant})` : ''}`} title={`Hapus${file.file_variant ? ` varian ${file.file_variant}` : ''}`} className="grid size-6 place-items-center rounded text-[#7290a5] hover:bg-[#fdecec] hover:text-[#b3413a]"><Trash2 className="size-3.5" /></button>
-                      ))}
-                      <button type="button" onClick={() => onView(row.files[0])} aria-label={`Lihat ${row.controlNo}`} title="Lihat" className="grid size-6 place-items-center rounded text-[#7290a5] hover:bg-[#e4edf2] hover:text-[#20354a]"><Eye className="size-3.5" /></button>
-                    </div>
-                  )}
-                  {!isLoggedIn && (
-                    <button type="button" onClick={() => onView(row.files[0])} aria-label={`Lihat ${row.controlNo}`} title="Lihat" className="grid size-6 w-fit place-items-center rounded text-[#7290a5] hover:bg-[#e4edf2] hover:text-[#20354a]"><Eye className="size-3.5" /></button>
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            {rows.map((row, index) => (
+              <tr key={row.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+                {showSelection && (
+                  <td className="px-4 py-3 align-top">
+                    <input
+                      type="checkbox"
+                      checked={row.files.every((f) => selectedIds!.has(f.id))}
+                      onChange={() => onToggleRow!(row)}
+                      aria-label={`Pilih ${row.controlNo}`}
+                      className="size-4 rounded border-border"
+                    />
+                  </td>
+                )}
+                <td className="px-4 py-3 align-top font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></td>
+                <td className="min-w-[260px] px-4 py-3 align-top font-medium text-foreground">
+                  <TitleCell title={row.title} emphasisFrom={row.emphasisFrom} keyword={query} />
+                </td>
+                <td className="px-4 py-3 align-top text-muted-foreground">{row.language}</td>
+                <td className="px-4 py-3 align-top">
+                  <div className="flex flex-col items-start gap-1.5">
+                    {row.files.map((file) => (
+                      <button key={file.id} type="button" onClick={() => onView(file)} className="cursor-pointer" title="Lihat dokumen">
+                        <FileChip kind={file.file_kind} variant={file.file_variant} />
+                      </button>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-4 py-3 align-top">
+                  <div className="flex flex-col gap-2">
+                    {row.keteranganNote && (
+                      <span className="text-[11px] italic text-destructive">{row.keteranganNote}</span>
+                    )}
+
+                    {isLoggedIn && (
+                      <div className="flex items-center gap-1 pt-1">
+                        <button type="button" onClick={() => onEdit(row.files[0])} aria-label={`Edit ${row.controlNo}`} title="Edit" className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-3.5" /></button>
+                        {row.files.map((file) => (
+                          <button key={file.id} type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.control_no}${file.file_variant ? ` (${file.file_variant})` : ''}`} title={`Hapus${file.file_variant ? ` varian ${file.file_variant}` : ''}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
+                        ))}
+                        <button type="button" onClick={() => onView(row.files[0])} aria-label={`Lihat ${row.controlNo}`} title="Lihat" className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
+                      </div>
+                    )}
+                    {!isLoggedIn && (
+                      <button type="button" onClick={() => onView(row.files[0])} aria-label={`Lihat ${row.controlNo}`} title="Lihat" className="grid size-7 w-fit place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

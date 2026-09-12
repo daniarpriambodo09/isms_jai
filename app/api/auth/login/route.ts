@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import jwt, { type SignOptions } from 'jsonwebtoken'
 import { query } from '@/lib/db'
 import { isHttpsRequest } from '@/lib/auth'
+import { isLoginLocked, recordLoginFailure, recordLoginSuccess } from '@/lib/rate-limit'
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET as string
@@ -26,6 +27,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Username dan password wajib diisi.' }, { status: 400 })
     }
 
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+    const rateLimitKey = `${ip}:${username.toLowerCase()}`
+    const lockedForSeconds = isLoginLocked(rateLimitKey)
+    if (lockedForSeconds) {
+      return NextResponse.json(
+        { message: `Terlalu banyak percobaan gagal. Coba lagi dalam ${Math.ceil(lockedForSeconds / 60)} menit.` },
+        { status: 429 }
+      )
+    }
+
     const result = await query<AdminRow>(
       'SELECT id, username, email, password_hash, role FROM admins WHERE username = $1',
       [username]
@@ -35,8 +46,11 @@ export async function POST(request: NextRequest) {
     // Same generic message whether the username doesn't exist or the
     // password is wrong, so we don't leak which usernames are valid.
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
+      recordLoginFailure(rateLimitKey)
       return NextResponse.json({ message: 'Username atau password salah.' }, { status: 401 })
     }
+
+    recordLoginSuccess(rateLimitKey)
 
     const signOptions: SignOptions = {
       expiresIn: JWT_EXPIRES_IN as SignOptions['expiresIn'],

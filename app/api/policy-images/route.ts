@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { savePolicyImage, deleteDocumentFile } from '@/lib/storage'
+import { logActivity } from '@/lib/activity-log'
 
 type PolicyRow = { id: number; file_name: string; mime_type: string; file_path: string; display_order: number }
 
@@ -18,7 +19,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   try {
     const form = await request.formData()
     const files = form.getAll('files').filter((file): file is File => file instanceof File && file.type.startsWith('image/'))
@@ -31,6 +33,7 @@ export async function POST(request: NextRequest) {
       const result = await query<PolicyRow>('INSERT INTO policy_images (file_name, mime_type, file_path, display_order) VALUES ($1, $2, $3, $4) RETURNING id, file_name, mime_type, file_path, display_order', [file.name, file.type, filePath, start + index])
       saved.push(result.rows[0])
     }
+    await logActivity(session, 'create', 'policy_image', null, `Menambahkan ${saved.length} gambar policy`)
     return NextResponse.json({ images: saved }, { status: 201 })
   } catch (error) {
     console.error('[policy-images/POST]', error)
@@ -39,11 +42,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   const { id } = await request.json() as { id?: number }
   if (!Number.isInteger(id)) return NextResponse.json({ message: 'ID gambar tidak valid.' }, { status: 400 })
-  const result = await query<{ file_path: string }>('DELETE FROM policy_images WHERE id = $1 RETURNING file_path', [id])
+  const result = await query<{ file_path: string; file_name: string }>('DELETE FROM policy_images WHERE id = $1 RETURNING file_path, file_name', [id])
   if (!result.rows[0]) return NextResponse.json({ message: 'Gambar tidak ditemukan.' }, { status: 404 })
   await deleteDocumentFile(result.rows[0].file_path)
+  await logActivity(session, 'delete', 'policy_image', String(id), `Menghapus gambar policy "${result.rows[0].file_name}"`)
   return NextResponse.json({ success: true })
 }

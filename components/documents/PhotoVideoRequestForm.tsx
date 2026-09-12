@@ -1,13 +1,26 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
-import { Camera, CheckCircle2, Clock, MapPin, Send, Sparkles, Users } from 'lucide-react'
+import { CalendarDays, Camera, CheckCircle2, Clock, MapPin, Send, Sparkles, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 
 type Department = { id: number; name: string; slug: string }
 
 const inputClass = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
+
+function todayDateStr() {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+function nowTimeStr() {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 function Field({ label, span = 1, children }: { label: string; span?: 1 | 2; children: React.ReactNode }) {
   return (
@@ -26,8 +39,10 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [deptOrCompany, setDeptOrCompany] = useState('')
   const [dept, setDept] = useState('')
   const [deptPicKamera, setDeptPicKamera] = useState('')
-  const [fromAt, setFromAt] = useState('')
-  const [toAt, setToAt] = useState('')
+  const [fromDate, setFromDate] = useState(todayDateStr)
+  const [fromTime, setFromTime] = useState(nowTimeStr)
+  const [toDate, setToDate] = useState(todayDateStr)
+  const [toTime, setToTime] = useState('')
   const [location, setLocation] = useState('')
   const [objective, setObjective] = useState('')
   const [departments, setDepartments] = useState<Department[]>([])
@@ -45,7 +60,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
 
   const resetForm = () => {
     setNik(''); setRequesterName(''); setDeptOrCompany(''); setDept(''); setDeptPicKamera('')
-    setFromAt(''); setToAt(''); setLocation(''); setObjective('')
+    setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(''); setLocation(''); setObjective('')
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -58,8 +73,8 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
         requestType: locale,
         requesterName,
         deptOrCompany,
-        fromAt: fromAt ? new Date(fromAt).toISOString() : '',
-        toAt: toAt ? new Date(toAt).toISOString() : '',
+        fromAt: fromDate && fromTime ? new Date(`${fromDate}T${fromTime}`).toISOString() : '',
+        toAt: toDate && toTime ? new Date(`${toDate}T${toTime}`).toISOString() : '',
         location,
         objective,
         ...(isInternal ? { nik, deptPicKamera } : { dept }),
@@ -145,16 +160,28 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
               </select>
             </Field>
           )}
-          <Field label={isInternal ? 'Dari Tgl/Jam' : 'From Date/Time'}>
+          <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>
             <div className="relative">
-              <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input type="datetime-local" value={fromAt} onChange={(e) => setFromAt(e.target.value)} required className={`${inputClass} pl-10`} />
+              <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} required className={`${inputClass} pl-10`} />
             </div>
           </Field>
-          <Field label={isInternal ? 'Sampai Tgl/Jam' : 'To Date/Time'}>
+          <Field label={isInternal ? 'Sampai Tanggal' : 'To Date'}>
+            <div className="relative">
+              <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} required className={`${inputClass} pl-10`} />
+            </div>
+          </Field>
+          <Field label={isInternal ? 'Dari Jam' : 'From Time'}>
             <div className="relative">
               <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input type="datetime-local" value={toAt} onChange={(e) => setToAt(e.target.value)} required className={`${inputClass} pl-10`} />
+              <input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} required className={`${inputClass} pl-10`} />
+            </div>
+          </Field>
+          <Field label={isInternal ? 'Sampai Jam' : 'To Time'}>
+            <div className="relative">
+              <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input type="time" value={toTime} onChange={(e) => setToTime(e.target.value)} required className={`${inputClass} pl-10`} />
             </div>
           </Field>
           <Field label={isInternal ? 'Lokasi' : 'Location'}>

@@ -9,8 +9,8 @@ export default function Page() {
     <div className="flex flex-col gap-8">
       <HeroCarousel />
       <ImageShowcase />
-      <ScheduleRow title="Upcoming Audit Schedule" endpoint="audit-schedule" />
-      <ScheduleRow title="Upcoming Training Schedule" endpoint="training-schedule" />
+      <ScheduleRow kind="audit" />
+      <ScheduleRow kind="training" />
     </div>
   )
 }

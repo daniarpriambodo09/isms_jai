@@ -2,8 +2,8 @@
 
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { ArrowDown, ArrowUp, Film, ImageIcon, Pencil, Plus, Settings, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowDown, ArrowUp, Film, ImageIcon, Pencil, Plus, Search, Settings, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { HeroSlideFormModal, type EditableHeroSlide } from '@/components/documents/HeroSlideFormModal'
@@ -31,6 +31,10 @@ export default function KelolaHeroSlidesPage() {
   const [editing, setEditing] = useState<Slide | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Slide | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [query, setQuery] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -79,6 +83,45 @@ export default function KelolaHeroSlidesPage() {
     load()
   }
 
+  const filteredSlides = useMemo(() => {
+    const value = query.trim().toLowerCase()
+    if (!value) return slides
+    return slides.filter((s) => s.title.toLowerCase().includes(value) || (s.description ?? '').toLowerCase().includes(value))
+  }, [slides, query])
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+  const allVisibleSelected = filteredSlides.length > 0 && filteredSlides.every((s) => selectedIds.has(s.id))
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        const next = new Set(prev)
+        filteredSlides.forEach((s) => next.delete(s.id))
+        return next
+      }
+      const next = new Set(prev)
+      filteredSlides.forEach((s) => next.add(s.id))
+      return next
+    })
+  }
+
+  const confirmBulkDelete = async () => {
+    setBulkDeleting(true)
+    const ids = Array.from(selectedIds)
+    const results = await Promise.all(ids.map((id) => fetch(`${API_BASE_PATH}/api/hero-slides/${id}`, { method: 'DELETE', credentials: 'include' })))
+    const failed = results.filter((r) => !r.ok).length
+    if (failed > 0) setError(`${failed} dari ${ids.length} slide gagal dihapus.`)
+    setSelectedIds(new Set())
+    await load()
+    setBulkDeleting(false)
+    setBulkDeleteOpen(false)
+  }
+
   const editableSlide: EditableHeroSlide | undefined = editing
     ? { id: editing.id, mediaType: editing.media_type, title: editing.title, description: editing.description, ctaLabel: editing.cta_label, ctaHref: editing.cta_href, isActive: editing.is_active }
     : undefined
@@ -102,11 +145,37 @@ export default function KelolaHeroSlidesPage() {
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari judul atau deskripsi slide..."
+            className="h-10 w-full max-w-sm rounded-xl border border-input bg-card pl-10 pr-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15"
+          />
+        </div>
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
+            <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
+            <button type="button" onClick={() => setBulkDeleteOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90">
+              <Trash2 className="size-3.5" />Hapus Terpilih
+            </button>
+            <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary">
+              <X className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="table-head-gradient">
               <tr>
+                <th className="w-10 px-4 py-3">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" />
+                </th>
                 {['Urutan', 'Slide', 'Tipe', 'Status', 'Aksi'].map((head, i) => (
                   <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 2 ? 'max-[640px]:hidden' : ''}`}>{head}</th>
                 ))}
@@ -114,13 +183,21 @@ export default function KelolaHeroSlidesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {loading && (
-                <tr><td colSpan={5} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                <tr><td colSpan={6} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
               )}
               {!loading && slides.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-16 text-center"><Film className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Belum ada slide.</p></td></tr>
+                <tr><td colSpan={6} className="px-5 py-16 text-center"><Film className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Belum ada slide.</p></td></tr>
               )}
-              {slides.map((slide, index) => (
-                <tr key={slide.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+              {!loading && slides.length > 0 && filteredSlides.length === 0 && (
+                <tr><td colSpan={6} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+              )}
+              {filteredSlides.map((slide, displayIndex) => {
+                const index = slides.findIndex((s) => s.id === slide.id)
+                return (
+                <tr key={slide.id} className={`table-row-glow ${displayIndex % 2 ? 'bg-secondary/20' : ''}`}>
+                  <td className="px-4 py-3">
+                    <input type="checkbox" checked={selectedIds.has(slide.id)} onChange={() => toggleSelect(slide.id)} aria-label={`Pilih ${slide.title}`} className="size-4 rounded border-border" />
+                  </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button type="button" onClick={() => move(index, -1)} disabled={index === 0} aria-label="Naikkan urutan" className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-30">
@@ -159,7 +236,8 @@ export default function KelolaHeroSlidesPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -173,6 +251,14 @@ export default function KelolaHeroSlidesPage() {
         pending={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Hapus slide terpilih?"
+        message={`${selectedIds.size} slide akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={bulkDeleting}
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
     </div>
   )

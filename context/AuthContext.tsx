@@ -58,6 +58,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth()
   }, [checkAuth])
 
+  // Proactively detect an expired/revoked session (JWT past its 8h maxAge,
+  // or an admin account deleted while logged in) instead of waiting for the
+  // next full page load — every admin-only view reads `adminUser` from this
+  // context, so clearing it here reactively drops the user back to the
+  // login gate (AdminGate / KioskLoginForm) app-wide without extra plumbing.
+  useEffect(() => {
+    if (!adminUser) return
+    const interval = setInterval(checkAuth, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [adminUser, checkAuth])
+
   const login = useCallback(async (username: string, password: string): Promise<LoginResult> => {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/auth/login`, {

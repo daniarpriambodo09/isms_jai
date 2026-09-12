@@ -28,7 +28,7 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export function PhotoVideoDecisionModal({ request, onClose, onDecided }: { request: PhotoVideoRequest; onClose: () => void; onDecided: () => void }) {
+export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly = false }: { request: PhotoVideoRequest; onClose: () => void; onDecided?: () => void; readOnly?: boolean }) {
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +49,7 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided }: { reque
         setError(data?.message ?? 'Gagal menyimpan keputusan.')
         return
       }
-      onDecided()
+      onDecided?.()
       onClose()
     } catch {
       setError('Tidak dapat menghubungi server.')
@@ -97,37 +97,45 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided }: { reque
             </p>
           )}
 
-          <label className="mt-4 flex flex-col gap-1.5">
-            <span className="text-xs font-semibold text-muted-foreground">Catatan keputusan (opsional)</span>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              rows={2}
-              className="rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15"
-            />
-          </label>
+          {readOnly ? (
+            <p className="mt-5 rounded-lg bg-secondary/40 px-3 py-2 text-center text-xs text-muted-foreground">
+              Tampilan lihat saja — keputusan hanya dapat diproses oleh Admin ISM.
+            </p>
+          ) : (
+            <>
+              <label className="mt-4 flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-muted-foreground">Catatan keputusan (opsional)</span>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  className="rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15"
+                />
+              </label>
 
-          {error && <p className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
+              {error && <p className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
 
-          <div className="mt-5 flex gap-3">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => decide('rejected')}
-              className="flex-1 rounded-lg border border-destructive/30 bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Tolak
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => decide('approved')}
-              className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-              style={{ background: 'linear-gradient(135deg, oklch(0.48 0.12 180) 0%, oklch(0.58 0.14 165) 100%)' }}
-            >
-              Setujui
-            </button>
-          </div>
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => decide('rejected')}
+                  className="flex-1 rounded-lg border border-destructive/30 bg-destructive/10 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/15 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Tolak
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => decide('approved')}
+                  className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                  style={{ background: 'linear-gradient(135deg, oklch(0.48 0.12 180) 0%, oklch(0.58 0.14 165) 100%)' }}
+                >
+                  Setujui
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

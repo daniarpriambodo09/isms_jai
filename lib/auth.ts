@@ -6,7 +6,7 @@ const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET as string
 
 export type AdminRole = 'ism_admin' | 'lobby' | 'security'
-type SessionPayload = { sub: number; username: string; role: AdminRole }
+export type SessionPayload = { sub: number; username: string; role: AdminRole }
 
 /**
  * Whether the incoming request actually arrived over HTTPS — checked

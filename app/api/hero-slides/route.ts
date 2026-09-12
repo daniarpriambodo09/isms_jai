@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { saveHeroSlideFile } from '@/lib/storage'
+import { logActivity } from '@/lib/activity-log'
 
 type MediaType = 'video' | 'image'
 type SlideRow = {
@@ -47,7 +48,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const form = await request.formData()
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
         nextOrder.rows[0].next,
       ]
     )
+    await logActivity(session, 'create', 'hero_slide', result.rows[0].id, `Menambahkan hero slide "${result.rows[0].title}"`)
     return NextResponse.json({ slide: result.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[hero-slides/POST]', error)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
+import { logActivity } from '@/lib/activity-log'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 type KeteranganType = 'none' | 'plain-note' | 'web-base-approval' | 'list-all-daftar'
@@ -58,7 +59,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const form = await request.formData()
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
        RETURNING ${SELECT_COLUMNS}`,
       [category, controlNo.trim(), title.trim(), language.trim(), filePath, keteranganType, keteranganNote, fileVariant, fileKind, titleEmphasisFrom]
     )
+    await logActivity(session, 'create', 'form_cs_document', result.rows[0].id, `Menambahkan ${categoryLabel(category)} "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[form-cs/POST]', error)
@@ -101,7 +104,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const form = await request.formData()
@@ -145,6 +149,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)
+    await logActivity(session, 'update', 'form_cs_document', id, `Mengubah ${categoryLabel(category)} "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] })
   } catch (error) {
     console.error('[form-cs/PUT]', error)
@@ -155,14 +160,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
   const category = await getCategory(params)
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
-  if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const id = request.nextUrl.searchParams.get('id')
     if (!id || !/^\d+$/.test(id)) return NextResponse.json({ message: 'ID dokumen tidak valid.' }, { status: 400 })
-    const result = await query<{ file_path: string }>('DELETE FROM form_cs_documents WHERE id = $1 AND category = $2 RETURNING file_path', [id, category])
+    const result = await query<{ title: string; file_path: string }>('DELETE FROM form_cs_documents WHERE id = $1 AND category = $2 RETURNING title, file_path', [id, category])
     if (result.rows.length === 0) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
     await deleteDocumentFile(result.rows[0].file_path)
+    await logActivity(session, 'delete', 'form_cs_document', id, `Menghapus ${categoryLabel(category)} "${result.rows[0].title}"`)
     return NextResponse.json({ message: 'Dokumen dihapus.' })
   } catch (error) {
     console.error('[form-cs/DELETE]', error)

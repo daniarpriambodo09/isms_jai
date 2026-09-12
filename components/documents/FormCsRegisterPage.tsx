@@ -1,14 +1,17 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileText, Plus, Search, Settings2, Sparkles, X } from 'lucide-react'
+import Link from 'next/link'
+import { Camera, Download, FileText, Plus, Search, Settings2, Sparkles, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { FormCsFormModal, type EditableFormCsDocument } from '@/components/documents/FormCsFormModal'
-import { FormCsSpreadsheetTable, type FormCsDocument, type FormCsGroupHeader } from '@/components/documents/FormCsSpreadsheetTable'
+import { FormCsSpreadsheetTable, type FormCsDocument, type FormCsGroupHeader, type FormCsRow } from '@/components/documents/FormCsSpreadsheetTable'
 import { FormCsGroupHeaderModal } from '@/components/documents/FormCsGroupHeaderModal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { VendorRegistrationsPanel } from '@/components/documents/VendorRegistrationsPanel'
+import { downloadExcel } from '@/lib/excel-export'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 
@@ -25,6 +28,9 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<FormCsDocument | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -65,9 +71,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
         controlNo: editing.control_no,
         title: editing.title,
         language: editing.language,
-        keteranganType: editing.keterangan_type,
         keteranganNote: editing.keterangan_note,
-        fileVariant: editing.file_variant,
         fileKind: editing.file_kind,
         titleEmphasisFrom: editing.title_emphasis_from,
       }
@@ -83,6 +87,53 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
     } catch { setError('Tidak dapat menghubungi server.') }
     setDeleting(false)
     setPendingDelete(null)
+  }
+
+  // Selection is per row (grouped by No. Kontrol) since that's how a human
+  // reasons about "delete this document" — a row can hold several file
+  // variants, so toggling a row toggles every file id underneath it.
+  const toggleRow = (row: FormCsRow) => {
+    const rowIds = row.files.map((f) => f.id)
+    const allSelected = rowIds.every((id) => selectedIds.has(id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      rowIds.forEach((id) => (allSelected ? next.delete(id) : next.add(id)))
+      return next
+    })
+  }
+  const toggleAll = () => {
+    const allIds = filteredDocuments.map((d) => d.id)
+    const allSelected = allIds.length > 0 && allIds.every((id) => selectedIds.has(id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      allIds.forEach((id) => (allSelected ? next.delete(id) : next.add(id)))
+      return next
+    })
+  }
+  const confirmBulkDelete = async () => {
+    setBulkDeleting(true)
+    const ids = Array.from(selectedIds)
+    const results = await Promise.all(ids.map((id) => fetch(`${API_BASE_PATH}/api/form-cs/${category}?id=${id}`, { method: 'DELETE' })))
+    const failed = results.filter((r) => !r.ok).length
+    if (failed > 0) setError(`${failed} dari ${ids.length} file gagal dihapus.`)
+    setSelectedIds(new Set())
+    await loadDocuments()
+    setBulkDeleting(false)
+    setBulkDeleteOpen(false)
+  }
+
+  const handleExportCsv = () => {
+    downloadExcel(
+      `${category}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      ['No. Kontrol', 'Nama Dokumen', 'Bahasa', 'Variant', 'Tanggal Upload'],
+      filteredDocuments.map((d) => [
+        d.control_no,
+        d.title,
+        d.language,
+        d.file_variant ?? '',
+        new Date(d.uploaded_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+      ])
+    )
   }
 
   return (
@@ -101,31 +152,50 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
             <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Daftar dokumen {title} beserta bahasa dan tanggal upload.</p>
           </div>
-          {isLoggedIn && (
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setGroupHeaderModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/10">
-                <Settings2 className="size-4" />Kelola Baris Grup
-              </button>
-              <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
-                <Plus className="size-4" />Tambah Dokumen
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {category === 'form-aplikasi' && (
+              <Link href="/ijin-foto-video" className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20">
+                <Camera className="size-4" />Ijin Foto/Video
+              </Link>
+            )}
+            {isLoggedIn && (
+              <>
+                <button type="button" onClick={() => setGroupHeaderModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/10">
+                  <Settings2 className="size-4" />Kelola Baris Grup
+                </button>
+                <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+                  <Plus className="size-4" />Tambah Dokumen
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </section>
 
+      {category === 'kontrol-cs' && isLoggedIn && <VendorRegistrationsPanel />}
+
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{documents.length} dokumen terdaftar</p></div>
-        <div className="relative w-full sm:w-80">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari No. Kontrol atau dokumen..."
-            aria-label={`Cari ${title}`}
-            className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25"
-          />
-          {query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}
+        <div className="flex flex-wrap items-center gap-2">
+          {isLoggedIn && selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
+              <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
+              <button type="button" onClick={() => setBulkDeleteOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90"><Trash2 className="size-3.5" />Hapus Terpilih</button>
+              <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
+            </div>
+          )}
+          {isLoggedIn && <button type="button" onClick={handleExportCsv} disabled={filteredDocuments.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-3.5" />Export Excel</button>}
+          <div className="relative w-full sm:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Cari No. Kontrol atau dokumen..."
+              aria-label={`Cari ${title}`}
+              className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25"
+            />
+            {query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}
+          </div>
         </div>
       </div>
 
@@ -145,6 +215,9 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
           onView={setViewing}
           onEdit={(document) => { setEditing(document); setFormOpen(true) }}
           onDelete={setPendingDelete}
+          selectedIds={selectedIds}
+          onToggleRow={toggleRow}
+          onToggleAll={toggleAll}
         />
       )}
 
@@ -164,6 +237,14 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
         pending={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Hapus dokumen terpilih?"
+        message={`${selectedIds.size} file akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={bulkDeleting}
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
     </div>
   )

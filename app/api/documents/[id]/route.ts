@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
+import { logActivity } from '@/lib/activity-log'
 
 type DocumentRow = {
   id: number
@@ -12,11 +13,11 @@ type DocumentRow = {
   uploaded_at: string
 }
 
-// Admin only — edit nama dokumen, tanggal upload, dan (opsional) ganti
-// file PDF-nya. Setiap kali diedit, "Revisi" (jumlah berapa kali revisi)
-// otomatis bertambah 1 — bukan field yang diketik manual.
+// Admin only — edit nama dokumen, revisi, tanggal upload, dan (opsional)
+// ganti file PDF-nya.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!getIsmsAdminFromRequest(request)) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -24,10 +25,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const form = await request.formData()
   const title = form.get('title')
   const uploadedAt = form.get('uploadedAt')
+  const revisionRaw = form.get('revision')
   const file = form.get('file')
 
   if (typeof title !== 'string' || !title.trim()) {
     return NextResponse.json({ message: 'Nama dokumen wajib diisi.' }, { status: 400 })
+  }
+  const revision = typeof revisionRaw === 'string' && /^\d+$/.test(revisionRaw) ? Number(revisionRaw) : NaN
+  if (!Number.isInteger(revision) || revision < 1) {
+    return NextResponse.json({ message: 'Revisi wajib diisi dengan angka minimal 1.' }, { status: 400 })
   }
   if (file instanceof File && file.size > 0 && file.type !== 'application/pdf') {
     return NextResponse.json({ message: 'File harus berupa PDF.' }, { status: 400 })
@@ -50,16 +56,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
        SET title = $1,
            uploaded_at = COALESCE($2::timestamptz, uploaded_at),
            file_path = COALESCE($3, file_path),
-           revision = revision + 1
+           revision = $5
        WHERE id = $4
        RETURNING id, title, revision, file_path, uploaded_at`,
-      [title.trim(), typeof uploadedAt === 'string' && uploadedAt ? uploadedAt : null, newFilePath, id]
+      [title.trim(), typeof uploadedAt === 'string' && uploadedAt ? uploadedAt : null, newFilePath, id, revision]
     )
 
     if (newFilePath) {
       await deleteDocumentFile(existing.rows[0].file_path)
     }
 
+    await logActivity(session, 'update', 'document', id, `Mengubah dokumen "${result.rows[0].title}" (revisi ${result.rows[0].revision})`)
     return NextResponse.json({ document: result.rows[0] })
   } catch (error) {
     console.error('[documents/[id]/PUT]', error)
@@ -69,7 +76,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 // Admin only — hapus dokumen (baris DB + file fisik di storage).
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!getIsmsAdminFromRequest(request)) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -77,7 +85,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   try {
     const result = await query<DocumentRow>(
-      'DELETE FROM documents WHERE id = $1 RETURNING id, file_path',
+      'DELETE FROM documents WHERE id = $1 RETURNING id, title, file_path',
       [id]
     )
 
@@ -86,6 +94,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     await deleteDocumentFile(result.rows[0].file_path)
+    await logActivity(session, 'delete', 'document', id, `Menghapus dokumen "${result.rows[0].title}"`)
 
     return NextResponse.json({ message: 'Dokumen dihapus.' })
   } catch (error) {

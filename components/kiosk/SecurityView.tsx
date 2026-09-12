@@ -1,13 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ArrowDownUp, LogOut, Plus, RotateCcw, ScanLine, ShieldCheck, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { ArrowDownUp, Check, Download, KeyRound, LogOut, Plus, RotateCcw, ScanLine, ShieldCheck, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { ActiveCardsWidget, type CardType } from '@/components/kiosk/ActiveCardsWidget'
+import { ChangePasswordModal } from '@/components/change-password-modal'
+import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
+import { downloadExcel } from '@/lib/excel-export'
+import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
 
 type Stage = 'pending_approval' | 'active' | 'closed'
-type CardType = 'visitor' | 'vendor' | 'affiliate'
 
 type Registration = {
   id: number
@@ -22,6 +26,18 @@ type Registration = {
   stage: Stage
   current_card_type: CardType | null
   visitor_card_barcode: string | null
+  vendor_card_barcode: string | null
+  affiliate_card_barcode: string | null
+  special_area_card_barcode: string | null
+  photography_card_barcode: string | null
+}
+
+const CARD_BARCODE_FIELD: Record<CardType, keyof Registration> = {
+  visitor: 'visitor_card_barcode',
+  vendor: 'vendor_card_barcode',
+  affiliate: 'affiliate_card_barcode',
+  special_area: 'special_area_card_barcode',
+  photography: 'photography_card_barcode',
 }
 
 function formatDateTime(value: string | null) {
@@ -118,12 +134,14 @@ function ScanPrompt({
   title,
   description,
   submitLabel,
+  expectedBarcode,
   onClose,
   onSubmit,
 }: {
   title: string
   description: string
   submitLabel: string
+  expectedBarcode?: string | null
   onClose: () => void
   onSubmit: (barcode: string) => Promise<string | null>
 }) {
@@ -143,6 +161,9 @@ function ScanPrompt({
     if (message) setError(message)
   }
 
+  const trimmed = barcode.trim()
+  const matches = expectedBarcode ? trimmed === expectedBarcode : null
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
       <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
@@ -154,10 +175,21 @@ function ScanPrompt({
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-5">
           <p className="text-xs text-muted-foreground">{description}</p>
+          {expectedBarcode && (
+            <div className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Nomor Kartu Terdaftar</p>
+              <p className="font-mono text-sm font-bold tracking-wide text-foreground">{expectedBarcode}</p>
+            </div>
+          )}
           <div className="relative">
             <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan atau ketik barcode..." className={`${inputClass} pl-10`} />
           </div>
+          {expectedBarcode && trimmed && (
+            matches
+              ? <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
+              : <p className="flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
+          )}
           {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-secondary">Batal</button>
@@ -193,6 +225,9 @@ export function SecurityView() {
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
   const [formOpen, setFormOpen] = useState(false)
   const [scanTarget, setScanTarget] = useState<{ registration: Registration; action: 'approve' | 'close' } | null>(null)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [filterMonth, setFilterMonth] = useState('')
+  const [filterYear, setFilterYear] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -211,6 +246,30 @@ export function SecurityView() {
   }, [sort])
 
   useEffect(() => { load() }, [load])
+
+  const years = useMemo(() => availableYears(registrations, (r) => r.registered_at), [registrations])
+  const filteredRegistrations = useMemo(
+    () => registrations.filter((r) => matchesPeriod(r.registered_at, filterMonth, filterYear)),
+    [registrations, filterMonth, filterYear]
+  )
+
+  const handleExportCsv = () => {
+    downloadExcel(
+      `rekap-tamu-security-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      ['Tanggal/Jam', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status'],
+      filteredRegistrations.map((r) => [
+        formatDateTime(r.registered_at),
+        r.full_name,
+        r.id_card,
+        r.pic_jai,
+        r.purpose,
+        r.company_remark,
+        formatDateTime(r.entry_at),
+        formatDateTime(r.exit_at),
+        statusOf(r).label,
+      ])
+    )
+  }
 
   const handleScanSubmit = async (barcode: string): Promise<string | null> => {
     if (!scanTarget) return null
@@ -239,6 +298,9 @@ export function SecurityView() {
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden text-xs text-primary-foreground/75 sm:inline">{adminUser?.username}</span>
+          <button onClick={() => setPasswordModalOpen(true)} className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs transition-colors hover:bg-primary-foreground/10">
+            <KeyRound className="size-4" />Ganti Password
+          </button>
           <button onClick={() => logout()} className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs transition-colors hover:bg-primary-foreground/10">
             <LogOut className="size-4" />Logout
           </button>
@@ -246,6 +308,9 @@ export function SecurityView() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography']} />
+        <PhotoVideoRequestsPanel />
+
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
@@ -257,6 +322,31 @@ export function SecurityView() {
           </div>
           <button type="button" onClick={() => setFormOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
             <Plus className="size-4" />Pendaftaran &gt;&gt;
+          </button>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="">Semua Bulan</option>
+            {MONTH_LABELS.map((label, i) => <option key={label} value={i}>{label}</option>)}
+          </select>
+          <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="">Semua Tahun</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {(filterMonth || filterYear) && (
+            <button type="button" onClick={() => { setFilterMonth(''); setFilterYear('') }} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary">
+              Reset Filter
+            </button>
+          )}
+          <span className="text-xs text-muted-foreground">{filteredRegistrations.length} data</span>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredRegistrations.length === 0}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="size-3.5" />Export ke Excel
           </button>
         </div>
 
@@ -279,7 +369,10 @@ export function SecurityView() {
                 {!loading && registrations.length === 0 && (
                   <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
                 )}
-                {registrations.map((r, index) => {
+                {!loading && registrations.length > 0 && filteredRegistrations.length === 0 && (
+                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada data pada periode ini.</td></tr>
+                )}
+                {filteredRegistrations.map((r, index) => {
                   const status = statusOf(r)
                   return (
                     <tr key={r.id} className={index % 2 ? 'bg-secondary/20' : ''}>
@@ -293,6 +386,11 @@ export function SecurityView() {
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.exit_at)}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                        {r.current_card_type && (
+                          <span className="mt-1 block font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
+                            {r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {r.stage === 'pending_approval' && (
@@ -316,6 +414,7 @@ export function SecurityView() {
       </main>
 
       {formOpen && <RegisterModal onClose={() => setFormOpen(false)} onSaved={load} />}
+      {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
       {scanTarget && (
         <ScanPrompt
           title={scanTarget.action === 'approve' ? 'Approve — Scan Kartu Visitor' : 'Scan Kartu Visitor yang Dikembalikan'}
@@ -323,6 +422,7 @@ export function SecurityView() {
             ? `Scan barcode kartu VISITOR yang akan diberikan kepada ${scanTarget.registration.full_name}.`
             : `Scan barcode kartu VISITOR yang dikembalikan oleh ${scanTarget.registration.full_name}.`}
           submitLabel={scanTarget.action === 'approve' ? 'Approve' : 'Tutup Pendaftaran'}
+          expectedBarcode={scanTarget.action === 'close' ? scanTarget.registration.visitor_card_barcode : null}
           onClose={() => setScanTarget(null)}
           onSubmit={handleScanSubmit}
         />

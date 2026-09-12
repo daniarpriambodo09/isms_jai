@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings } from 'lucide-react'
+import { ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
 import { titleFor } from '@/lib/portal-data'
@@ -22,12 +22,14 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
   '/': <Home className="size-5" />,
   '/audits': <ClipboardList className="size-5" />,
   '/prosedur-isms': <BookOpen className="size-5" />,
+  '/standard-isms-p14': <BookMarked className="size-5" />,
   '/working-standard': <BookMarked className="size-5" />,
   '/form-aplikasi': <FileText className="size-5" />,
   '/kontrol-cs': <LayoutGrid className="size-5" />,
   '/kebijakan-dasar-ISMS': <Shield className="size-5" />,
   '/news': <FileText className="size-5" />,
   '/kelola-departemen': <Settings className="size-5" />,
+  '/kelola-admin': <Users className="size-5" />,
 }
 
 export function PortalFrame({ children }: { children: React.ReactNode }) {
@@ -57,15 +59,17 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
         ? 'Halaman Tidak Ditemukan'
         : pathname === '/prosedur-isms'
           ? 'Prosedur ISMS'
-          : pathname === '/working-standard'
-            ? 'Working Standard & Standard Requirements TMMIN'
-            : pathname === '/form-aplikasi'
-              ? 'Form Aplikasi'
-              : pathname === '/kontrol-cs'
-                ? 'Kontrol CS'
-                : isSectionPage
-                  ? decodeURIComponent(segments.at(-1) ?? '').replaceAll('-', ' ').toUpperCase()
-                  : titleFor(segments.at(-1) ?? 'Home')
+          : pathname === '/standard-isms-p14'
+            ? 'Standard ISMS-P14'
+            : pathname === '/working-standard'
+              ? 'Working Standard & Standard Requirements TMMIN'
+              : pathname === '/form-aplikasi'
+                ? 'Form Aplikasi'
+                : pathname === '/kontrol-cs'
+                  ? 'Kontrol CS'
+                  : isSectionPage
+                    ? decodeURIComponent(segments.at(-1) ?? '').replaceAll('-', ' ').toUpperCase()
+                    : titleFor(segments.at(-1) ?? 'Home')
 
   const pageIcon = PAGE_ICONS[pathname] ?? <FileText className="size-5" />
 
@@ -139,7 +143,6 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
               }}
             >
               <LockKeyhole className="size-3" />
-              Internal knowledge base
             </div>
           </div>
         </div>
@@ -248,4 +251,4 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
       </footer>
     </div>
   )
-}
+}

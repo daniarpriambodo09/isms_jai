@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { logActivity } from '@/lib/activity-log'
 
 // Default label fallback — mirrors portal-data.ts mainNav
 export const DEFAULT_NAV_LABELS: Record<string, string> = {
@@ -65,15 +66,25 @@ export async function PUT(req: NextRequest) {
 
     await ensureTable()
 
+    const before = await query<NavLabelRow>('SELECT key, label FROM nav_labels')
+    const beforeMap: Record<string, string> = {}
+    for (const row of before.rows) beforeMap[row.key] = row.label
+
+    const changed: string[] = []
     for (const { key, label } of body) {
       if (!DEFAULT_NAV_LABELS[key]) continue // ignore unknown keys
       const trimmed = label.trim()
       if (!trimmed) continue
+      const priorValue = beforeMap[key] ?? DEFAULT_NAV_LABELS[key]
+      if (trimmed !== priorValue) changed.push(`${key}: "${priorValue}" → "${trimmed}"`)
       await query(
         `INSERT INTO nav_labels (key, label) VALUES ($1, $2)
          ON CONFLICT (key) DO UPDATE SET label = EXCLUDED.label`,
         [key, trimmed]
       )
+    }
+    if (changed.length > 0) {
+      await logActivity(session, 'update', 'nav_label', null, `Mengubah label menu navbar: ${changed.join(', ')}`)
     }
 
     const result = await query<NavLabelRow>('SELECT key, label FROM nav_labels')

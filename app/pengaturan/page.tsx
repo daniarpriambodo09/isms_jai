@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Loader2, RotateCcw, Settings } from 'lucide-react'
+import { Check, KeyRound, Loader2, RotateCcw, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 
@@ -39,6 +39,12 @@ export default function PengaturanPage() {
   const [status, setStatus] = useState<Status>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordStatus, setPasswordStatus] = useState<Status>('idle')
+  const [passwordError, setPasswordError] = useState('')
+
   useEffect(() => {
     if (!isLoading && !isLoggedIn) router.replace('/')
   }, [isLoading, isLoggedIn, router])
@@ -52,6 +58,31 @@ export default function PengaturanPage() {
       .catch(() => {})
       .finally(() => setFetchLoading(false))
   }, [])
+
+  const handleChangePassword = async () => {
+    setPasswordError('')
+    if (!currentPassword) { setPasswordError('Password saat ini wajib diisi.'); setPasswordStatus('error'); return }
+    if (newPassword.length < 6) { setPasswordError('Password baru minimal 6 karakter.'); setPasswordStatus('error'); return }
+    if (newPassword !== confirmPassword) { setPasswordError('Konfirmasi password tidak cocok.'); setPasswordStatus('error'); return }
+
+    setPasswordStatus('saving')
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/auth/change-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Gagal mengubah password.')
+      setPasswordStatus('saved')
+      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setTimeout(() => setPasswordStatus('idle'), 2500)
+    } catch (e) {
+      setPasswordError(e instanceof Error ? e.message : 'Terjadi kesalahan.')
+      setPasswordStatus('error')
+    }
+  }
 
   if (isLoading || !isLoggedIn) return null
 
@@ -182,6 +213,73 @@ export default function PengaturanPage() {
             </div>
           </div>
         )}
+
+        {/* Change password */}
+        <div className="mt-8 rounded-2xl border border-border bg-card shadow-sm">
+          <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+            <KeyRound className="size-4 text-muted-foreground" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Ganti Password
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 px-5 py-4">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Password saat ini</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => { setCurrentPassword(e.target.value); setPasswordStatus('idle') }}
+                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Password baru</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => { setNewPassword(e.target.value); setPasswordStatus('idle') }}
+                placeholder="Minimal 6 karakter"
+                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Konfirmasi password baru</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => { setConfirmPassword(e.target.value); setPasswordStatus('idle') }}
+                className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border px-5 py-4">
+            {passwordStatus === 'error' && (
+              <p className="text-sm text-destructive">{passwordError}</p>
+            )}
+            {passwordStatus === 'saved' && (
+              <p className="flex items-center gap-1.5 text-sm text-emerald-600">
+                <Check className="size-4" /> Password berhasil diubah
+              </p>
+            )}
+            {(passwordStatus === 'idle' || passwordStatus === 'saving') && <span />}
+
+            <button
+              type="button"
+              onClick={handleChangePassword}
+              disabled={passwordStatus === 'saving'}
+              className="flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
+              style={{
+                background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)',
+                boxShadow: '0 3px 12px oklch(0.39 0.09 205 / 35%)',
+              }}
+            >
+              {passwordStatus === 'saving' && <Loader2 className="size-4 animate-spin" />}
+              Ubah Password
+            </button>
+          </div>
+        </div>
 
       </div>
     </main>

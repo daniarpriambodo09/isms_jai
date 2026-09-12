@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { saveDocumentFile } from '@/lib/storage'
+import { logActivity } from '@/lib/activity-log'
 
 type DocumentRow = {
   id: number
@@ -54,7 +55,8 @@ export async function GET(request: NextRequest) {
 
 // Admin only — "Tambah Dokumen".
 export async function POST(request: NextRequest) {
-  if (!getIsmsAdminFromRequest(request)) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
 
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
       [departmentId, sectionId && typeof sectionId === 'string' ? sectionId : null, title.trim(), filePath]
     )
 
+    await logActivity(session, 'create', 'document', result.rows[0].id, `Menambahkan dokumen "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[documents/POST]', error)

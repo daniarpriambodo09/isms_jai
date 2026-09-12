@@ -4,7 +4,7 @@ import { query } from '@/lib/db'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
-type CardType = 'visitor' | 'vendor' | 'affiliate'
+type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
 
 type VendorRegistrationRow = {
   id: number
@@ -23,14 +23,17 @@ type VendorRegistrationRow = {
   visitor_card_barcode: string | null
   vendor_card_barcode: string | null
   affiliate_card_barcode: string | null
+  special_area_card_barcode: string | null
+  photography_card_barcode: string | null
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, stage, current_card_type,
-  visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode`
+  visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
+  special_area_card_barcode, photography_card_barcode`
 
 // Look up a guest by whichever card they're currently holding (Lobby scans the
-// physical card in front of them — could be a VISITOR, VENDOR, or AFFILIATE card).
+// physical card in front of them — could be any of the five card types).
 export async function GET(request: NextRequest) {
   if (!getKioskAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
@@ -43,7 +46,9 @@ export async function GET(request: NextRequest) {
        WHERE stage = 'active' AND (
          (current_card_type = 'visitor' AND visitor_card_barcode = $1) OR
          (current_card_type = 'vendor' AND vendor_card_barcode = $1) OR
-         (current_card_type = 'affiliate' AND affiliate_card_barcode = $1)
+         (current_card_type = 'affiliate' AND affiliate_card_barcode = $1) OR
+         (current_card_type = 'special_area' AND special_area_card_barcode = $1) OR
+         (current_card_type = 'photography' AND photography_card_barcode = $1)
        )
        LIMIT 1`,
       [barcode]

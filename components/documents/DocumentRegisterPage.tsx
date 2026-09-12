@@ -3,7 +3,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Eye, FileText, FolderOpen, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { Download, Eye, FileText, FolderOpen, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
@@ -11,6 +11,7 @@ import { DocumentFormModal, type EditableDocument } from '@/components/documents
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
+import { downloadExcel } from '@/lib/excel-export'
 
 type ApiDocument = { id: number; title: string; revision: number; file_path: string; uploaded_at: string }
 type DepartmentInfo = { id: number; name: string; slug: string }
@@ -37,6 +38,9 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
   const [editing, setEditing] = useState<ApiDocument | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ApiDocument | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -69,6 +73,37 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   const openEdit = (doc: ApiDocument) => { setEditing(doc); setFormOpen(true) }
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })
+  }
+  const allVisibleSelected = filteredDocs.length > 0 && filteredDocs.every((d) => selectedIds.has(d.id))
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allVisibleSelected) filteredDocs.forEach((d) => next.delete(d.id))
+      else filteredDocs.forEach((d) => next.add(d.id))
+      return next
+    })
+  }
+  const confirmBulkDelete = async () => {
+    setBulkDeleting(true)
+    const ids = Array.from(selectedIds)
+    const results = await Promise.all(ids.map((id) => fetch(`${API_BASE_PATH}/api/documents/${id}`, { method: 'DELETE' })))
+    const failed = results.filter((r) => !r.ok).length
+    if (failed > 0) console.error(`${failed} dari ${ids.length} dokumen gagal dihapus.`)
+    setSelectedIds(new Set())
+    await loadDocuments()
+    setBulkDeleting(false)
+    setBulkDeleteOpen(false)
+  }
+  const handleExportCsv = () => {
+    downloadExcel(
+      `dokumen-${department.slug}${section ? `-${section.slug}` : ''}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      ['Nama Dokumen', 'Revisi', 'Tanggal Upload'],
+      filteredDocs.map((d) => [d.title, d.revision, formatDate(d.uploaded_at)])
+    )
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <section className="relative overflow-hidden rounded-[1.25rem] border border-border bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/10 sm:p-8">
@@ -84,20 +119,30 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{docs.length} dokumen terdaftar</p></div>
-        <div className="relative w-full sm:w-80">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama dokumen..." aria-label="Cari nama dokumen" className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25" />
-          {query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}
+        <div className="flex flex-wrap items-center gap-2">
+          {isLoggedIn && selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
+              <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
+              <button type="button" onClick={() => setBulkDeleteOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90"><Trash2 className="size-3.5" />Hapus Terpilih</button>
+              <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
+            </div>
+          )}
+          {isLoggedIn && <button type="button" onClick={handleExportCsv} disabled={filteredDocs.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-3.5" />Export Excel</button>}
+          <div className="relative w-full sm:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari nama dokumen..." aria-label="Cari nama dokumen" className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25" />
+            {query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}
+          </div>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm">
-          <thead className="table-head-gradient"><tr>{['Tanggal Upload', 'Nama Dokumen', 'Revisi', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[560px]:hidden' : ''}`}>{head}</th>)}</tr></thead>
+          <thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['Tanggal Upload', 'Nama Dokumen', 'Revisi', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[560px]:hidden' : ''}`}>{head}</th>)}</tr></thead>
           <tbody className="divide-y divide-border">
-            {loading && <tr><td colSpan={4} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
-            {!loading && filteredDocs.length === 0 && <tr><td colSpan={4} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{hasFilter ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>{hasFilter && <button onClick={() => setQuery('')} className="mt-2 text-xs font-semibold text-primary hover:underline">Hapus pencarian</button>}</td></tr>}
-            {pageItems.map((doc, index) => <tr key={doc.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}><td className="whitespace-nowrap px-5 py-4 text-muted-foreground max-[560px]:hidden">{formatDate(doc.uploaded_at)}</td><td className="min-w-[260px] px-5 py-4"><div className="flex items-center gap-3 font-medium text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span><Highlight text={doc.title} keyword={query} /></div></td><td className="px-5 py-4"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {doc.revision}</span></td><td className="px-5 py-4"><div className="flex items-center gap-1"><button type="button" onClick={() => setViewing(doc)} aria-label={`Lihat ${doc.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>{isLoggedIn && <><button type="button" onClick={() => openEdit(doc)} aria-label={`Edit ${doc.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button><button type="button" onClick={() => setPendingDelete(doc)} aria-label={`Hapus ${doc.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button></>}</div></td></tr>)}
+            {loading && <tr><td colSpan={5} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
+            {!loading && filteredDocs.length === 0 && <tr><td colSpan={5} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{hasFilter ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>{hasFilter && <button onClick={() => setQuery('')} className="mt-2 text-xs font-semibold text-primary hover:underline">Hapus pencarian</button>}</td></tr>}
+            {pageItems.map((doc, index) => <tr key={doc.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>{isLoggedIn && <td className="px-5 py-4"><input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => toggleSelect(doc.id)} aria-label={`Pilih ${doc.title}`} className="size-4 rounded border-border" /></td>}<td className="whitespace-nowrap px-5 py-4 text-muted-foreground max-[560px]:hidden">{formatDate(doc.uploaded_at)}</td><td className="min-w-[260px] px-5 py-4"><div className="flex items-center gap-3 font-medium text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span><Highlight text={doc.title} keyword={query} /></div></td><td className="px-5 py-4"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {doc.revision}</span></td><td className="px-5 py-4"><div className="flex items-center gap-1"><button type="button" onClick={() => setViewing(doc)} aria-label={`Lihat ${doc.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>{isLoggedIn && <><button type="button" onClick={() => openEdit(doc)} aria-label={`Edit ${doc.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button><button type="button" onClick={() => setPendingDelete(doc)} aria-label={`Hapus ${doc.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button></>}</div></td></tr>)}
           </tbody>
         </table></div>
         {!loading && filteredDocs.length > 0 && (
@@ -114,6 +159,14 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
         pending={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        title="Hapus dokumen terpilih?"
+        message={`${selectedIds.size} dokumen akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={bulkDeleting}
+        onConfirm={confirmBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
     </div>
   )

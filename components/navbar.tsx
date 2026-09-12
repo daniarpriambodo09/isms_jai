@@ -22,6 +22,7 @@ export function Navbar() {
   const { isLoggedIn, adminUser, isLoading, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [deptMenuOpen, setDeptMenuOpen] = useState(false)
+  const [ismsStandardMenuOpen, setIsmsStandardMenuOpen] = useState(false)
   const [formCsMenuOpen, setFormCsMenuOpen] = useState(false)
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
   const [expandedDept, setExpandedDept] = useState<string | null>(null)
@@ -51,7 +52,7 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setFormCsMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
+  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setIsmsStandardMenuOpen(false); setFormCsMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
 
   // Lets any page (e.g. the AdminGate empty-state) open the login modal without lifting its state.
   useEffect(() => {
@@ -66,6 +67,7 @@ export function Navbar() {
       if (event.key !== 'Escape') return
       setMobileOpen(false)
       setDeptMenuOpen(false)
+      setIsmsStandardMenuOpen(false)
       setFormCsMenuOpen(false)
       setSettingsMenuOpen(false)
     }
@@ -77,7 +79,7 @@ export function Navbar() {
 
   const navLink = 'nav-wipe relative isolate overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
   const navLinkActive = 'bg-accent text-white hover:text-white'
-  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-hero-slides', '/kelola-jadwal'].includes(pathname)
+  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin'].includes(pathname)
 
   // Active underline indicator
   const activeIndicator = (
@@ -91,7 +93,47 @@ export function Navbar() {
     <>
       <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">Application Form</Link>
       <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">CS Control</Link>
-      <Link href="/ijin-foto-video" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">Photo/Video Permit</Link>
+    </>
+  )
+
+  const renderMainNavItem = (item: (typeof mainNav)[number]) => {
+    const key = item.href === '/' ? 'home'
+      : item.href === '/kebijakan-dasar-ISMS' ? 'kebijakan'
+        : item.href === '/education' ? 'edukasi'
+          : null
+    const label = key ? (navLabels[key] ?? item.label) : item.label
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={cn(navLink, pathname === item.href && navLinkActive)}
+      >
+        {label}
+        {pathname === item.href && activeIndicator}
+      </Link>
+    )
+  }
+
+  const renderMobileNavItem = (item: (typeof mainNav)[number]) => {
+    const key = item.href === '/' ? 'home'
+      : item.href === '/kebijakan-dasar-ISMS' ? 'kebijakan'
+        : item.href === '/education' ? 'edukasi'
+          : null
+    const label = key ? (navLabels[key] ?? item.label) : item.label
+    return (
+      <Link key={item.href} href={item.href} className={cn('nav-drawer-item block rounded-md px-3 py-2.5 text-sm font-medium text-foreground', pathname === item.href && 'bg-secondary font-semibold text-primary')}>
+        {label}
+      </Link>
+    )
+  }
+
+  const ismsStandardRoutes = ['/prosedur-isms', '/standard-isms-p14', '/working-standard']
+  const isIsmsStandardActive = ismsStandardRoutes.includes(pathname)
+  const ismsStandardItems = (
+    <>
+      <Link href="/prosedur-isms" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">{navLabels.prosedur ?? 'ISMS Procedures'}</Link>
+      <Link href="/standard-isms-p14" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">Standard ISMS-P14</Link>
+      <Link href="/working-standard" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">{navLabels.working_standard ?? 'Working Standard'}</Link>
     </>
   )
 
@@ -193,27 +235,39 @@ export function Navbar() {
 
           <div className="hidden flex-1 items-center gap-1 md:flex">
             {mainNav
-              .filter((item) => item.href !== '/documents/forms')
-              .map((item) => {
-                // Map href to navLabels key
-                const key = item.href === '/' ? 'home'
-                  : item.href === '/kebijakan-dasar-ISMS' ? 'kebijakan'
-                    : item.href === '/prosedur-isms' ? 'prosedur'
-                      : item.href === '/working-standard' ? 'working_standard'
-                        : item.href === '/education' ? 'edukasi'
-                          : null
-                const label = key ? (navLabels[key] ?? item.label) : item.label
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(navLink, pathname === item.href && navLinkActive)}
-                  >
-                    {label}
-                    {pathname === item.href && activeIndicator}
-                  </Link>
-                )
-              })}
+              .filter((item) => item.href === '/' || item.href === '/kebijakan-dasar-ISMS')
+              .map(renderMainNavItem)}
+
+            {/* ISMS Standard dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsmsStandardMenuOpen((v) => !v)}
+                className={cn('flex items-center gap-1', navLink, isIsmsStandardActive && navLinkActive)}
+              >
+                ISMS Standard
+                <ChevronDown className={cn('size-4 transition-transform duration-200', ismsStandardMenuOpen && 'rotate-180')} />
+                {isIsmsStandardActive && activeIndicator}
+              </button>
+              {ismsStandardMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setIsmsStandardMenuOpen(false)} />
+                  {dropdownPanel(
+                    <>
+                      <div className="border-b border-border px-3 pb-2 pt-1">
+                        <p className="portal-eyebrow">Document library</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Choose document category</p>
+                      </div>
+                      {ismsStandardItems}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {mainNav
+              .filter((item) => item.href === '/education')
+              .map(renderMainNavItem)}
 
             {/* Form CS dropdown */}
             <div className="relative">
@@ -324,6 +378,14 @@ export function Navbar() {
                         >
                           Manage Schedules
                         </Link>
+                        {adminUser?.role === 'ism_admin' && (
+                          <Link
+                            href="/kelola-admin"
+                            className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground"
+                          >
+                            Manage Admin Accounts
+                          </Link>
+                        )}
                       </>
                     )}
                   </>
@@ -410,20 +472,10 @@ export function Navbar() {
         </div>
         <div className="nav-dropdown-bar h-[3px] w-full flex-shrink-0" />
         <div className="flex-1 overflow-y-auto p-3">
-          {mainNav.filter((item) => item.href !== '/documents/forms').map((item) => {
-            const key = item.href === '/' ? 'home'
-              : item.href === '/kebijakan-dasar-ISMS' ? 'kebijakan'
-                : item.href === '/prosedur-isms' ? 'prosedur'
-                  : item.href === '/working-standard' ? 'working_standard'
-                    : item.href === '/education' ? 'edukasi'
-                      : null
-            const label = key ? (navLabels[key] ?? item.label) : item.label
-            return (
-              <Link key={item.href} href={item.href} className={cn('nav-drawer-item block rounded-md px-3 py-2.5 text-sm font-medium text-foreground', pathname === item.href && 'bg-secondary font-semibold text-primary')}>
-                {label}
-              </Link>
-            )
-          })}
+          {mainNav.filter((item) => item.href === '/' || item.href === '/kebijakan-dasar-ISMS').map(renderMobileNavItem)}
+          <div className="portal-eyebrow px-3 pb-2 pt-5">ISMS Standard</div>
+          {ismsStandardItems}
+          {mainNav.filter((item) => item.href === '/education').map(renderMobileNavItem)}
           <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.form_cs ?? 'Forms & CS Control'}</div>
           {formCsItems}
           <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.departemen ?? 'Departments'}</div>
@@ -446,6 +498,11 @@ export function Navbar() {
               <Link href="/kelola-jadwal" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                 <Settings className="size-4" />Manage Schedules
               </Link>
+              {adminUser?.role === 'ism_admin' && (
+                <Link href="/kelola-admin" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                  <Settings className="size-4" />Manage Admin Accounts
+                </Link>
+              )}
             </>
           )}
         </div>

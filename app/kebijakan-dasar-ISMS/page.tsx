@@ -3,12 +3,12 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import {
   ChevronLeft,
   ChevronRight,
-  Download,
-  ImagePlus,
+  GalleryHorizontal,
   ShieldCheck,
   Sparkles,
   Upload,
@@ -17,6 +17,10 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+
+// Breaks the image out of <main>'s centered max-width/padding so it spans the
+// full browser width edge-to-edge, matching the Home hero's full-bleed treatment.
+const FULL_BLEED = 'w-screen ml-[calc(50%-50vw)]'
 
 type PolicyImage = {
   id: number
@@ -135,97 +139,125 @@ export default function PolicyPage() {
         </div>
       </header>
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-      <article className="min-w-0 rounded-xl border border-border bg-card p-6 shadow-sm sm:p-9 lg:p-11">
-        <div
-          className="relative aspect-[2.65] min-h-40 w-full overflow-hidden rounded-xl border border-border bg-muted/35 shadow-inner"
-          onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
-        >
-          {activeImage && (
+      {/* Full-bleed image — spans the full browser width like the Home hero, so nothing
+          feels boxed-in. object-contain (never object-cover) keeps the whole image
+          visible with no cropping/distortion; the backdrop is a soft gradient using
+          the page's own background tokens (not a colored blur or flat white) so any
+          letterboxing blends with the page instead of standing out as its own box. */}
+      <div
+        className={`relative overflow-hidden ${FULL_BLEED} h-[70vh] min-h-[420px] max-h-[780px]`}
+        style={{ background: 'linear-gradient(180deg, var(--card) 0%, var(--background) 55%, var(--muted) 100%)' }}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+      >
+        {activeImage && (
+          <button
+            type="button"
+            onClick={() => setIsImageOpen(true)}
+            className="absolute inset-0 cursor-zoom-in"
+            aria-label="Perbesar gambar policy"
+          >
+            <Image
+              src={activeImage.url}
+              alt="Policy visual"
+              fill
+              unoptimized
+              className="object-contain"
+            />
+          </button>
+        )}
+
+        {!activeImage && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="grid size-16 place-items-center rounded-2xl bg-muted">
+              <GalleryHorizontal className="size-7 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Belum ada gambar kebijakan.</p>
+            {isLoggedIn && (
+              <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+                <Upload className="size-4" /> Tambah gambar
+                <input type="file" accept="image/*" multiple onChange={handleImages} className="sr-only" />
+              </label>
+            )}
+          </div>
+        )}
+
+        {images.length > 1 && (
+          <>
             <button
               type="button"
-              onClick={() => setIsImageOpen(true)}
-              className="absolute inset-0 cursor-zoom-in"
-              aria-label="Perbesar gambar policy"
-            >
-              <Image
-                src={activeImage.url}
-                alt="Policy visual"
-                fill
-                unoptimized
-                className="object-contain"
-              />
-            </button>
-          )}
-
-          {images.length > 1 && (
-            <>
-              <button
-                type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onPointerUp={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  moveImage(-1)
-                }}
-                aria-label="Gambar sebelumnya"
-                className="absolute left-3 top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-background active:scale-95"
-              >
-                <ChevronLeft className="size-5" />
-              </button>
-              <button
-                type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onPointerUp={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  moveImage(1)
-                }}
-                aria-label="Gambar berikutnya"
-                className="absolute right-3 top-1/2 z-20 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-background active:scale-95"
-              >
-                <ChevronRight className="size-5" />
-              </button>
-            </>
-          )}
-
-          {isLoggedIn && activeImage && (
-            <button
-              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
               onClick={(event) => {
                 event.stopPropagation()
-                setRemovingImage(activeImage)
+                moveImage(-1)
               }}
-              aria-label="Hapus gambar policy"
-              className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-foreground/85 text-background"
+              aria-label="Gambar sebelumnya"
+              className="absolute left-3 top-1/2 z-20 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-background active:scale-95 sm:left-5"
             >
-              <X className="size-4" />
+              <ChevronLeft className="size-5" />
             </button>
-          )}
-        </div>
-      </article>
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                moveImage(1)
+              }}
+              aria-label="Gambar berikutnya"
+              className="absolute right-3 top-1/2 z-20 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-background active:scale-95 sm:right-5"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 sm:bottom-6 sm:right-8">
+              {images.map((image, i) => (
+                <button
+                  key={image.id}
+                  type="button"
+                  onClick={(event) => { event.stopPropagation(); setActiveIndex(i) }}
+                  aria-label={`Gambar ${i + 1}`}
+                  className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${i === activeIndex ? 'w-6 bg-primary' : 'w-1.5 bg-foreground/25 hover:bg-foreground/50'}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
 
-      <aside className="flex h-fit flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm">
+        {isLoggedIn && activeImage && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              setRemovingImage(activeImage)
+            }}
+            aria-label="Hapus gambar policy"
+            className="absolute right-3 top-3 z-20 grid size-9 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-destructive/10 hover:text-destructive active:scale-95 sm:right-5 sm:top-5"
+          >
+            <X className="size-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Slim control bar — one row instead of a separate boxed sidebar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="grid size-10 place-items-center rounded-lg bg-accent/15 text-accent-foreground">
+          <div className="grid size-10 flex-shrink-0 place-items-center rounded-lg bg-accent/15 text-accent-foreground">
             <ShieldCheck className="size-5" />
           </div>
           <div>
-            <strong className="block text-sm text-foreground">Policy owner</strong>
-            <span className="text-xs text-muted-foreground">Information Security Committee</span>
+            <strong className="block text-sm text-foreground">Information Security Committee</strong>
+            <span className="text-xs text-muted-foreground">{images.length} gambar kebijakan</span>
           </div>
         </div>
 
-        <div className="mt-2 border-t border-border pt-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <strong className="block text-sm text-foreground">Policy visual</strong>
-              <span className="text-xs text-muted-foreground">{images.length} gambar</span>
-            </div>
-            <ImagePlus className="size-5 text-muted-foreground" />
-          </div>
-
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/#gallery"
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+          >
+            <GalleryHorizontal className="size-4" /> Lihat Gallery di Home
+          </Link>
           {isLoggedIn && (
             <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">
               <Upload className="size-4" /> Tambah gambar
@@ -239,40 +271,33 @@ export default function PolicyPage() {
             </label>
           )}
         </div>
-      </aside>
+      </div>
 
       {isImageOpen && activeImage && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Preview gambar policy"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/80 p-4"
+          className="fixed inset-0 z-50 bg-black"
           onClick={() => setIsImageOpen(false)}
         >
-          <div
-            className="relative max-h-[92vh] w-full max-w-6xl"
-            onClick={(event) => event.stopPropagation()}
+          <Image
+            src={activeImage.url}
+            alt="Policy visual"
+            fill
+            unoptimized
+            className="object-contain"
+          />
+          <button
+            type="button"
+            onClick={() => setIsImageOpen(false)}
+            aria-label="Tutup preview gambar"
+            className="absolute right-4 top-4 z-10 grid size-11 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
           >
-            <Image
-              src={activeImage.url}
-              alt="Policy visual"
-              width={1600}
-              height={1000}
-              unoptimized
-              className="max-h-[88vh] w-full rounded-xl object-contain shadow-2xl"
-            />
-            <button
-              type="button"
-              onClick={() => setIsImageOpen(false)}
-              aria-label="Tutup preview gambar"
-              className="absolute right-2 top-2 grid size-10 place-items-center rounded-full bg-background/90 text-foreground"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
+            <X className="size-5" />
+          </button>
         </div>
       )}
-      </section>
 
       <ConfirmDialog
         open={!!removingImage}

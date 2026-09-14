@@ -9,7 +9,7 @@ import { useEscapeClose } from '@/hooks/useEscapeClose'
 export type EditableDocument = {
   id: number
   title: string
-  revision: number
+  revision: string
   uploadedAt: string // yyyy-mm-dd, for <input type="date">
 }
 
@@ -33,7 +33,7 @@ export function DocumentFormModal({
 
   const [title, setTitle] = useState(document?.title ?? '')
   const [uploadedAt, setUploadedAt] = useState(document?.uploadedAt ?? '')
-  const [revision, setRevision] = useState(String(document?.revision ?? 1))
+  const [revision, setRevision] = useState(document?.revision ?? '')
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -71,6 +71,7 @@ export function DocumentFormModal({
         formData.set('title', title)
         formData.set('departmentId', String(departmentId))
         if (sectionId) formData.set('sectionId', String(sectionId))
+        formData.set('revision', revision)
         if (file) formData.set('file', file)
 
         res = await fetch(`${API_BASE_PATH}/api/documents`, {
@@ -141,20 +142,16 @@ export function DocumentFormModal({
             </label>
           )}
 
-          {isEdit && (
-            <label className="flex flex-col gap-[6px]">
-              <span className="text-[12px] font-medium text-[#3c5369]">Revisi</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={revision}
-                onChange={(event) => setRevision(event.target.value)}
-                required
-                className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]"
-              />
-            </label>
-          )}
+          <label className="flex flex-col gap-[6px]">
+            <span className="text-[12px] font-medium text-[#3c5369]">Revisi (catatan, opsional)</span>
+            <input
+              type="text"
+              value={revision}
+              onChange={(event) => setRevision(event.target.value)}
+              placeholder="Contoh: Rev. 1 atau catatan bebas dari admin"
+              className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]"
+            />
+          </label>
 
           <label className="flex flex-col gap-[6px]">
             <span className="text-[12px] font-medium text-[#3c5369]">

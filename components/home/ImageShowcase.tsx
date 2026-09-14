@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ImageIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Maximize, Minimize } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 
 type Slide = {
@@ -14,6 +14,7 @@ type Slide = {
 
 const ROTATE_MS = 6000
 const TRANSITION_MS = 900
+const DEFAULT_ASPECT = 16 / 9
 
 // Breaks the gallery out of <main>'s centered max-width/padding so it spans the
 // full browser width edge-to-edge, matching the hero video above it.
@@ -23,10 +24,22 @@ function slideUrl(slide: Slide) {
   return `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(slide.file_path)}`
 }
 
-// One image's full visual (backdrop blur + contained image), rendered as either
-// the incoming (fading in) or outgoing (fading out) layer. Keyed by the caller
-// so each activation restarts the CSS animation from scratch.
-function ImageLayer({ slide, phase, onDone }: { slide: Slide; phase: 'in' | 'out'; onDone?: () => void }) {
+// One image's full visual, rendered as either the incoming (fading in) or
+// outgoing (fading out) layer. Keyed by the caller so each activation
+// restarts the CSS animation from scratch.
+//
+// Outside true fullscreen, the box below sizes itself to each image's own
+// aspect ratio (reported here via onLoadAspect), so there's no letterbox
+// gap to fill — no blurred backdrop needed, the image just fills the box.
+// Inside true fullscreen the viewport size is fixed and can't adapt to the
+// image, so that case keeps the blurred-backdrop + object-contain fallback.
+function ImageLayer({ slide, phase, isFullscreen, onDone, onLoadAspect }: {
+  slide: Slide
+  phase: 'in' | 'out'
+  isFullscreen: boolean
+  onDone?: () => void
+  onLoadAspect?: (ratio: number) => void
+}) {
   const url = slideUrl(slide)
   const fadeAnimation = phase === 'in'
     ? `hero-fade-in ${TRANSITION_MS}ms ease-out forwards`
@@ -34,10 +47,15 @@ function ImageLayer({ slide, phase, onDone }: { slide: Slide; phase: 'in' | 'out
 
   return (
     <div className="absolute inset-0" style={{ animation: fadeAnimation }} onAnimationEnd={phase === 'out' ? onDone : undefined}>
-      {/* Blurred backdrop fills the frame without cropping the real image below. */}
-      <img src={url} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" />
-      {/* Real image, always shown at 1:1 fit — never cropped. */}
-      <img src={url} alt={slide.title} className="absolute inset-0 h-full w-full object-contain" />
+      {isFullscreen && (
+        <img src={url} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" />
+      )}
+      <img
+        src={url}
+        alt={slide.title}
+        className="absolute inset-0 h-full w-full object-contain"
+        onLoad={(event) => onLoadAspect?.(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)}
+      />
     </div>
   )
 }
@@ -47,9 +65,12 @@ export function ImageShowcase() {
   const [loading, setLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)
   const [outgoing, setOutgoing] = useState<{ index: number; key: number } | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [aspect, setAspect] = useState(DEFAULT_ASPECT)
   const activeIndexRef = useRef(0)
   const transitionKeyRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch(`${API_BASE_PATH}/api/hero-slides`, { cache: 'no-store' })
@@ -60,6 +81,20 @@ export function ImageShowcase() {
   }, [])
 
   useEffect(() => { activeIndexRef.current = activeIndex }, [activeIndex])
+
+  useEffect(() => {
+    const handleChange = () => setIsFullscreen(document.fullscreenElement === boxRef.current)
+    document.addEventListener('fullscreenchange', handleChange)
+    return () => document.removeEventListener('fullscreenchange', handleChange)
+  }, [])
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      boxRef.current?.requestFullscreen()
+    }
+  }
 
   const goTo = (nextIndex: number) => {
     if (nextIndex === activeIndexRef.current) return
@@ -85,21 +120,22 @@ export function ImageShowcase() {
 
   return (
     <section id="gallery" className="scroll-mt-24">
-      <div className="mb-3 flex items-center gap-2">
-        <span
-          className="grid size-8 place-items-center rounded-full text-white shadow-sm"
-          style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' }}
-        >
-          <ImageIcon className="size-4" />
-        </span>
-        <p className="portal-eyebrow">Gallery</p>
-      </div>
-
-      <div className={`relative h-[70vh] min-h-[420px] max-h-[780px] overflow-hidden bg-[#1a3a52] ${FULL_BLEED}`}>
-        {outgoing && images[outgoing.index] && (
-          <ImageLayer key={`out-${outgoing.key}`} slide={images[outgoing.index]} phase="out" onDone={() => setOutgoing((prev) => (prev?.key === outgoing.key ? null : prev))} />
+      <div
+        ref={boxRef}
+        className={`relative overflow-hidden bg-[#1a3a52] ${isFullscreen ? 'h-screen w-screen' : `w-full min-h-[280px] max-h-[780px] ${FULL_BLEED}`}`}
+        style={isFullscreen ? undefined : { aspectRatio: aspect }}
+      >
+        {!isFullscreen && (
+          /* Fades the page's own cream background into the box instead of cutting
+             straight to its dark backdrop, so it reads as a continuation of the
+             hero above rather than a separate block dropped underneath it. */
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 sm:h-24" style={{ background: 'linear-gradient(180deg, oklch(0.96 0.025 92) 0%, oklch(0.96 0.025 92 / 55%) 50%, transparent 100%)' }} />
         )}
-        <ImageLayer key={`in-${activeIndex}`} slide={current} phase="in" />
+
+        {outgoing && images[outgoing.index] && (
+          <ImageLayer key={`out-${outgoing.key}`} slide={images[outgoing.index]} phase="out" isFullscreen={isFullscreen} onDone={() => setOutgoing((prev) => (prev?.key === outgoing.key ? null : prev))} />
+        )}
+        <ImageLayer key={`in-${activeIndex}`} slide={current} phase="in" isFullscreen={isFullscreen} onLoadAspect={setAspect} />
 
         {images.length > 1 && (
           <>
@@ -132,10 +168,17 @@ export function ImageShowcase() {
             </div>
           </>
         )}
-      </div>
 
-      <p className="mt-3 text-sm font-medium text-foreground">{current.title}</p>
-      {current.description && <p className="mt-0.5 text-xs text-muted-foreground">{current.description}</p>}
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          aria-label={isFullscreen ? 'Keluar layar penuh' : 'Tampilkan layar penuh'}
+          title={isFullscreen ? 'Keluar layar penuh' : 'Tampilkan layar penuh'}
+          className="absolute right-3 top-3 z-20 grid size-9 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25 sm:right-5 sm:top-5"
+        >
+          {isFullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
+        </button>
+      </div>
     </section>
   )
 }

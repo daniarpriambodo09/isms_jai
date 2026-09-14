@@ -21,7 +21,6 @@
     "pm2": "^7.0.4",
     "react": "^19",
     "react-dom": "^19",
-    "react-easy-crop": "^6.2.3",
     "server-only": "^0.0.1",
     "shadcn": "^4.8.0",
     "tailwind-merge": "^3.3.1",

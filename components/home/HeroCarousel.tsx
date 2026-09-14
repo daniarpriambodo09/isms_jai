@@ -69,12 +69,14 @@ function SlideLayer({
         />
       </div>
 
-      {!isFullscreen && (
+      {!isFullscreen && phase === 'in' && (
         <>
           {/* Top gradient matches the navbar's color so it blends straight into the video below. */}
           <div className="absolute inset-x-0 top-0 h-12 sm:h-16" style={{ background: 'linear-gradient(180deg, var(--primary) 0%, transparent 100%)' }} />
 
-          <div className="absolute inset-x-0 bottom-0 h-28 sm:h-40" style={{ background: 'linear-gradient(0deg, oklch(0.96 0.025 92 / 96%) 0%, oklch(0.96 0.025 92 / 60%) 55%, oklch(0.96 0.025 92 / 0%) 100%)' }} />
+          {/* Solid enough behind the caption that it stays legible no matter what's
+              playing underneath, instead of letting busy video footage show through. */}
+          <div className="absolute inset-x-0 bottom-0 h-36 sm:h-52" style={{ background: 'linear-gradient(0deg, oklch(0.96 0.025 92 / 99%) 0%, oklch(0.96 0.025 92 / 92%) 45%, oklch(0.96 0.025 92 / 0%) 100%)' }} />
 
           <div className="relative z-10 flex h-full flex-col justify-end p-6 text-foreground sm:p-10">
             <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-3">

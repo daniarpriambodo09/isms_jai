@@ -3,10 +3,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Building2, Check, ChevronRight, Layers, Pencil, Plus, Search, Settings, X, type LucideIcon } from 'lucide-react'
+import { Building2, Check, ChevronRight, Layers, Pencil, Plus, Search, Settings, Trash2, X, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 type Section = { id: number; department_id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -39,6 +40,10 @@ export default function KelolaDepartemenPage() {
   const [sectionDraft, setSectionDraft] = useState('')
   const [addingSectionFor, setAddingSectionFor] = useState<number | null>(null)
   const [newSectionName, setNewSectionName] = useState('')
+  const [pendingDeleteDept, setPendingDeleteDept] = useState<Department | null>(null)
+  const [deletingDept, setDeletingDept] = useState(false)
+  const [pendingDeleteSection, setPendingDeleteSection] = useState<Section | null>(null)
+  const [deletingSection, setDeletingSection] = useState(false)
 
   const loadDepartments = useCallback(async () => {
     setLoading(true)
@@ -65,6 +70,31 @@ export default function KelolaDepartemenPage() {
     if (!newSectionName.trim()) return
     await fetch(`${API_BASE_PATH}/api/departments/${departmentId}/sections`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newSectionName.trim() }) })
     setAddingSectionFor(null); setNewSectionName(''); loadDepartments()
+  }
+  const confirmDeleteDepartment = async () => {
+    if (!pendingDeleteDept) return
+    setDeletingDept(true)
+    try {
+      if ((await fetch(`${API_BASE_PATH}/api/departments/${pendingDeleteDept.id}`, { method: 'DELETE' })).ok) {
+        setSelectedDeptId(null)
+        await loadDepartments()
+      }
+    } finally {
+      setDeletingDept(false)
+      setPendingDeleteDept(null)
+    }
+  }
+  const confirmDeleteSection = async () => {
+    if (!pendingDeleteSection) return
+    setDeletingSection(true)
+    try {
+      if ((await fetch(`${API_BASE_PATH}/api/sections/${pendingDeleteSection.id}`, { method: 'DELETE' })).ok) {
+        await loadDepartments()
+      }
+    } finally {
+      setDeletingSection(false)
+      setPendingDeleteSection(null)
+    }
   }
 
   const totalSections = useMemo(() => departments.reduce((sum, dept) => sum + dept.sections.length, 0), [departments])
@@ -170,6 +200,7 @@ export default function KelolaDepartemenPage() {
                         <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-border"><Layers className="size-3.5 text-primary" /> {selectedDepartment.sections.length} section</div>
                       </div>
                       <button onClick={() => { setEditingDeptId(selectedDepartment.id); setDeptDraft(selectedDepartment.name) }} className={iconButtonClass} aria-label={`Edit ${selectedDepartment.name}`}><Pencil className="size-4" /></button>
+                      <button onClick={() => setPendingDeleteDept(selectedDepartment)} className={`${iconButtonClass} hover:bg-destructive/10 hover:text-destructive`} aria-label={`Hapus ${selectedDepartment.name}`} title="Hapus departemen"><Trash2 className="size-4" /></button>
                     </>
                   )}
                 </div>
@@ -189,7 +220,10 @@ export default function KelolaDepartemenPage() {
                             <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground"><ChevronRight className="size-3.5" /></span>
                             <span className="truncate text-sm font-medium text-foreground/85">{section.name}</span>
                           </div>
-                          <button onClick={() => { setEditingSectionId(section.id); setSectionDraft(section.name) }} className={`${iconButtonClass} size-8 opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100`} aria-label={`Edit ${section.name}`}><Pencil className="size-3.5" /></button>
+                          <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100">
+                            <button onClick={() => { setEditingSectionId(section.id); setSectionDraft(section.name) }} className={`${iconButtonClass} size-8`} aria-label={`Edit ${section.name}`}><Pencil className="size-3.5" /></button>
+                            <button onClick={() => setPendingDeleteSection(section)} className={`${iconButtonClass} size-8 hover:bg-destructive/10 hover:text-destructive`} aria-label={`Hapus ${section.name}`} title="Hapus section"><Trash2 className="size-3.5" /></button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -214,6 +248,24 @@ export default function KelolaDepartemenPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteDept}
+        title="Hapus departemen?"
+        message={`Departemen "${pendingDeleteDept?.name}" beserta ${pendingDeleteDept?.sections.length ?? 0} section dan seluruh dokumennya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deletingDept}
+        onConfirm={confirmDeleteDepartment}
+        onCancel={() => setPendingDeleteDept(null)}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteSection}
+        title="Hapus section?"
+        message={`Section "${pendingDeleteSection?.name}" beserta seluruh dokumennya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deletingSection}
+        onConfirm={confirmDeleteSection}
+        onCancel={() => setPendingDeleteSection(null)}
+      />
     </div>
   )
 }

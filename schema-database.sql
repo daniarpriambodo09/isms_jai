@@ -123,7 +123,7 @@ CREATE TABLE public.documents (
     department_id integer NOT NULL,
     section_id integer,
     title character varying(255) NOT NULL,
-    revision integer DEFAULT 1 NOT NULL,
+    revision text DEFAULT ''::text NOT NULL,
     file_path text NOT NULL,
     uploaded_at timestamp with time zone DEFAULT now() NOT NULL
 );

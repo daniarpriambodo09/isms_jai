@@ -168,10 +168,23 @@ export function FormCsSpreadsheetTable({
                   </td>
                 )}
                 <td className="px-4 py-3 align-top font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></td>
+                {/* Nama Dokumen / Lang / File / Aksi are rendered one line per file (rather
+                    than collapsed to the first file's data) so that when two files share a
+                    Ctrl No — e.g. an Indonesian and a Japanese version — both file names,
+                    languages, and their own edit/delete controls are visible and clearly
+                    paired, instead of only the first file's title/language showing. */}
                 <td className="min-w-[260px] px-4 py-3 align-top font-medium text-foreground">
-                  <TitleCell title={row.title} emphasisFrom={row.emphasisFrom} keyword={query} />
+                  <div className="flex flex-col gap-1.5">
+                    {row.files.map((file) => (
+                      <div key={file.id}><TitleCell title={file.title} emphasisFrom={file.title_emphasis_from} keyword={query} /></div>
+                    ))}
+                  </div>
                 </td>
-                <td className="px-4 py-3 align-top text-muted-foreground">{row.language}</td>
+                <td className="px-4 py-3 align-top text-muted-foreground">
+                  <div className="flex flex-col gap-1.5">
+                    {row.files.map((file) => <div key={file.id}>{file.language}</div>)}
+                  </div>
+                </td>
                 <td className="px-4 py-3 align-top">
                   <div className="flex flex-col items-start gap-1.5">
                     {row.files.map((file) => (
@@ -182,23 +195,17 @@ export function FormCsSpreadsheetTable({
                   </div>
                 </td>
                 <td className="px-4 py-3 align-top">
-                  <div className="flex flex-col gap-2">
-                    {row.keteranganNote && (
-                      <span className="text-[11px] italic text-destructive">{row.keteranganNote}</span>
-                    )}
-
-                    {isLoggedIn && (
-                      <div className="flex items-center gap-1 pt-1">
-                        <button type="button" onClick={() => onEdit(row.files[0])} aria-label={`Edit ${row.controlNo}`} title="Edit" className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-3.5" /></button>
-                        {row.files.map((file) => (
-                          <button key={file.id} type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.control_no}${file.file_variant ? ` (${file.file_variant})` : ''}`} title={`Hapus${file.file_variant ? ` varian ${file.file_variant}` : ''}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
-                        ))}
-                        <button type="button" onClick={() => onView(row.files[0])} aria-label={`Lihat ${row.controlNo}`} title="Lihat" className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
+                  <div className="flex flex-col gap-1.5">
+                    {row.files.map((file) => (
+                      <div key={file.id} className="flex items-center gap-3">
+                        <span className="min-w-0 flex-1 text-[11px] italic text-destructive">{file.keterangan_note}</span>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {isLoggedIn && <button type="button" onClick={() => onEdit(file)} aria-label={`Edit ${file.title} (${file.language})`} title={`Edit ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-3.5" /></button>}
+                          {isLoggedIn && <button type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.title} (${file.language})`} title={`Hapus ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>}
+                          <button type="button" onClick={() => onView(file)} aria-label={`Lihat ${file.title} (${file.language})`} title={`Lihat ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
+                        </div>
                       </div>
-                    )}
-                    {!isLoggedIn && (
-                      <button type="button" onClick={() => onView(row.files[0])} aria-label={`Lihat ${row.controlNo}`} title="Lihat" className="grid size-7 w-fit place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
-                    )}
+                    ))}
                   </div>
                 </td>
               </tr>

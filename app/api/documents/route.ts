@@ -8,7 +8,7 @@ import { logActivity } from '@/lib/activity-log'
 type DocumentRow = {
   id: number
   title: string
-  revision: number
+  revision: string
   file_path: string
   uploaded_at: string
 }
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
     const title = form.get('title')
     const departmentId = form.get('departmentId')
     const sectionId = form.get('sectionId')
+    const revisionRaw = form.get('revision')
     const file = form.get('file')
 
     if (typeof title !== 'string' || !title.trim()) {
@@ -77,13 +78,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'File PDF wajib diunggah.' }, { status: 400 })
     }
 
+    const revision = typeof revisionRaw === 'string' ? revisionRaw.trim() : ''
     const filePath = await saveDocumentFile(file)
 
     const result = await query<DocumentRow>(
       `INSERT INTO documents (department_id, section_id, title, revision, file_path)
-       VALUES ($1, $2, $3, 1, $4)
+       VALUES ($1, $2, $3, $5, $4)
        RETURNING id, title, revision, file_path, uploaded_at`,
-      [departmentId, sectionId && typeof sectionId === 'string' ? sectionId : null, title.trim(), filePath]
+      [departmentId, sectionId && typeof sectionId === 'string' ? sectionId : null, title.trim(), filePath, revision]
     )
 
     await logActivity(session, 'create', 'document', result.rows[0].id, `Menambahkan dokumen "${result.rows[0].title}"`)

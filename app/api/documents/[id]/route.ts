@@ -8,7 +8,7 @@ import { logActivity } from '@/lib/activity-log'
 type DocumentRow = {
   id: number
   title: string
-  revision: number
+  revision: string
   file_path: string
   uploaded_at: string
 }
@@ -31,10 +31,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (typeof title !== 'string' || !title.trim()) {
     return NextResponse.json({ message: 'Nama dokumen wajib diisi.' }, { status: 400 })
   }
-  const revision = typeof revisionRaw === 'string' && /^\d+$/.test(revisionRaw) ? Number(revisionRaw) : NaN
-  if (!Number.isInteger(revision) || revision < 1) {
-    return NextResponse.json({ message: 'Revisi wajib diisi dengan angka minimal 1.' }, { status: 400 })
-  }
+  const revision = typeof revisionRaw === 'string' ? revisionRaw.trim() : ''
   if (file instanceof File && file.size > 0 && file.type !== 'application/pdf') {
     return NextResponse.json({ message: 'File harus berupa PDF.' }, { status: 400 })
   }

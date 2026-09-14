@@ -3,12 +3,14 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Camera, Search, Settings } from 'lucide-react'
+import { Camera, Search, Settings, Trash2, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
 import { AdminGate } from '@/components/admin-gate'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 const STATUS_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Semua' },
@@ -35,7 +37,8 @@ const STATUS_BADGE: Record<string, string> = {
 const STATUS_LABEL: Record<string, string> = { pending: 'Pending', approved: 'Disetujui', rejected: 'Ditolak' }
 
 function KelolaPermintaanFotoVideoContent() {
-  const { isLoggedIn, isLoading } = useAuth()
+  const { isLoggedIn, isLoading, adminUser } = useAuth()
+  const isIsmAdmin = adminUser?.role === 'ism_admin'
   const searchParams = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '')
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') ?? '')
@@ -44,6 +47,8 @@ function KelolaPermintaanFotoVideoContent() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<PhotoVideoRequest | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PhotoVideoRequest | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -65,6 +70,30 @@ function KelolaPermintaanFotoVideoContent() {
   }, [statusFilter, typeFilter])
 
   useEffect(() => { if (isLoggedIn) load() }, [isLoggedIn, load])
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${pendingDelete.id}`, { method: 'DELETE' })
+      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menghapus pengajuan.'); setDeleting(false); setPendingDelete(null); return }
+      await load()
+    } catch { setError('Tidak dapat menghubungi server.') }
+    setDeleting(false)
+    setPendingDelete(null)
+  }
+
+  const markTaken = async (req: PhotoVideoRequest) => {
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark-taken' }),
+      })
+      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menandai pengajuan.'); return }
+      await load()
+    } catch { setError('Tidak dapat menghubungi server.') }
+  }
 
   const filteredRequests = useMemo(() => {
     const value = query.trim().toLowerCase()
@@ -92,6 +121,12 @@ function KelolaPermintaanFotoVideoContent() {
             <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Permintaan Foto/Video</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">Tinjau dan putuskan pengajuan izin pengambilan foto/video dari karyawan dan visitor.</p>
           </div>
+          <Link
+            href="/kelola-pic-approve"
+            className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20"
+          >
+            <Users className="size-4" /> Kelola PIC Approve
+          </Link>
         </div>
       </header>
 
@@ -129,20 +164,20 @@ function KelolaPermintaanFotoVideoContent() {
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-secondary/55">
               <tr>
-                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'Status', 'Aksi'].map((head) => (
+                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'PIC Approve', 'Status', 'Aksi'].map((head) => (
                   <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && (
-                <tr><td colSpan={8} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                <tr><td colSpan={9} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
               )}
               {!loading && requests.length === 0 && (
-                <tr><td colSpan={8} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Tidak ada pengajuan</p></td></tr>
+                <tr><td colSpan={9} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Tidak ada pengajuan</p></td></tr>
               )}
               {!loading && requests.length > 0 && filteredRequests.length === 0 && (
-                <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+                <tr><td colSpan={9} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
               )}
               {filteredRequests.map((req, index) => (
                 <tr key={req.id} className={index % 2 ? 'bg-secondary/20' : ''}>
@@ -152,11 +187,29 @@ function KelolaPermintaanFotoVideoContent() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">{req.dept_or_company}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{req.location}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.from_at)} &ndash; {formatDateTime(req.to_at)}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {req.pic_approve_name ?? '—'}
+                    {req.taken_at && (
+                      <span className="mt-1 block text-[10px] font-semibold text-accent-foreground">
+                        {req.taken_ack_at ? 'Sudah diambil · dikonfirmasi' : 'Sudah diambil · menunggu konfirmasi PIC'}
+                      </span>
+                    )}
+                  </td>
                   <td className="whitespace-nowrap px-4 py-3"><span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span></td>
                   <td className="px-4 py-3">
-                    <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
-                      {req.status === 'pending' ? 'Putuskan' : 'Lihat'}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                        {isIsmAdmin && req.status === 'pending' ? 'Putuskan' : 'Lihat'}
+                      </button>
+                      {isIsmAdmin && req.status === 'approved' && !req.taken_at && (
+                        <button type="button" onClick={() => markTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                          Tandai Sudah Diambil
+                        </button>
+                      )}
+                      {isIsmAdmin && (
+                        <button type="button" onClick={() => setPendingDelete(req)} aria-label={`Hapus pengajuan ${req.requester_name}`} title="Hapus pengajuan" className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -166,8 +219,17 @@ function KelolaPermintaanFotoVideoContent() {
       </div>
 
       {selected && (
-        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} />
+        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} readOnly={!isIsmAdmin} />
       )}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus pengajuan?"
+        message={`Pengajuan foto/video dari "${pendingDelete?.requester_name}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

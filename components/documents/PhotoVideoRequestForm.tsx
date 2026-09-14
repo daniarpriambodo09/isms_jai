@@ -1,13 +1,93 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarDays, Camera, CheckCircle2, Clock, MapPin, Send, Sparkles, Users } from 'lucide-react'
+import { CalendarDays, Camera, CheckCircle2, Clock, History, MapPin, Search, Send, Sparkles, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 
-type Department = { id: number; name: string; slug: string }
+type Section = { id: number; name: string; slug: string }
+type Department = { id: number; name: string; slug: string; sections: Section[] }
+type Pic = { id: number; name: string; department_id: number | null }
+
+type LookupRequest = {
+  id: number
+  requester_name: string
+  location: string
+  from_at: string
+  to_at: string
+  status: 'pending' | 'approved' | 'rejected'
+  taken_at: string | null
+  submitted_at: string
+}
 
 const inputClass = 'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
+const STATUS_LABEL: Record<LookupRequest['status'], string> = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' }
+const STATUS_TONE: Record<LookupRequest['status'], string> = { pending: 'bg-[#fff3d6] text-[#8a6100]', approved: 'bg-[#dff5e6] text-[#1a6e3a]', rejected: 'bg-[#fdecec] text-[#b3413a]' }
+
+// Self-service "have I already submitted?" lookup by NIK — internal only,
+// since visitors have no NIK. Kept collapsed by default so it doesn't
+// crowd the form for the common case of a first-time submission.
+function NikHistoryLookup() {
+  const [open, setOpen] = useState(false)
+  const [nik, setNik] = useState('')
+  const [results, setResults] = useState<LookupRequest[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const search = async () => {
+    if (!nik.trim()) return
+    setSearching(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/lookup?nik=${encodeURIComponent(nik.trim())}`, { cache: 'no-store' })
+      const data = await res.json()
+      if (!res.ok) { setError(data?.message ?? 'Gagal memuat riwayat.'); return }
+      setResults(data.requests ?? [])
+    } catch {
+      setError('Tidak dapat menghubungi server.')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  return (
+    <div className="mb-6">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:underline"
+      >
+        <History className="size-3.5" /> {open ? 'Sembunyikan' : 'Cek riwayat pengajuan saya'}
+      </button>
+
+      {open && (
+        <div className="mt-3 rounded-xl border border-border bg-secondary/30 p-4">
+          <div className="flex gap-2">
+            <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Masukkan NIK" className={inputClass} />
+            <button type="button" onClick={search} disabled={searching || !nik.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+              <Search className="size-4" /> {searching ? 'Mencari...' : 'Cek'}
+            </button>
+          </div>
+          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+          {results && results.length === 0 && !error && <p className="mt-3 text-xs text-muted-foreground">Belum ada pengajuan dengan NIK tersebut.</p>}
+          {results && results.length > 0 && (
+            <ul className="mt-3 flex flex-col gap-2">
+              {results.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card px-3 py-2 text-xs">
+                  <span className="text-foreground">
+                    {new Date(r.from_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} &middot; {r.location}
+                    {r.taken_at && <span className="ml-1.5 text-muted-foreground">(sudah diambil)</span>}
+                  </span>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_TONE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function todayDateStr() {
   const d = new Date()
@@ -36,9 +116,12 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
 
   const [nik, setNik] = useState('')
   const [requesterName, setRequesterName] = useState('')
-  const [deptOrCompany, setDeptOrCompany] = useState('')
+  const [deptId, setDeptId] = useState('')
+  const [sectionId, setSectionId] = useState('')
+  const [companyName, setCompanyName] = useState('')
   const [dept, setDept] = useState('')
   const [deptPicKamera, setDeptPicKamera] = useState('')
+  const [picApproveId, setPicApproveId] = useState('')
   const [fromDate, setFromDate] = useState(todayDateStr)
   const [fromTime, setFromTime] = useState(nowTimeStr)
   const [toDate, setToDate] = useState(todayDateStr)
@@ -46,6 +129,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [location, setLocation] = useState('')
   const [objective, setObjective] = useState('')
   const [departments, setDepartments] = useState<Department[]>([])
+  const [pics, setPics] = useState<Pic[]>([])
   const [error, setError] = useState<string | null>(null)
   const [successAt, setSuccessAt] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -58,8 +142,24 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
       .catch(() => setDepartments([]))
   }, [isInternal])
 
+  useEffect(() => {
+    fetch(`${API_BASE_PATH}/api/pic-approvers`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { pics: [] }))
+      .then((data: { pics: Pic[] }) => setPics(data.pics ?? []))
+      .catch(() => setPics([]))
+  }, [])
+
+  const selectedDept = departments.find((d) => String(d.id) === deptId)
+
+  // A PIC with no department applies everywhere (e.g. a general/HQ approver).
+  // For visitors there's no department selection to filter against, so the
+  // full roster is shown instead.
+  const availablePics = isInternal
+    ? pics.filter((pic) => pic.department_id === null || String(pic.department_id) === deptId)
+    : pics
+
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setDeptOrCompany(''); setDept(''); setDeptPicKamera('')
+    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setDept(''); setDeptPicKamera(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(''); setLocation(''); setObjective('')
   }
 
@@ -69,10 +169,15 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
     setSuccessAt(null)
     setSubmitting(true)
     try {
+      const section = selectedDept?.sections.find((s) => String(s.id) === sectionId)
+      const deptOrCompany = isInternal
+        ? `${selectedDept?.name ?? ''}${section ? ` - ${section.name}` : ''}`
+        : companyName
       const payload = {
         requestType: locale,
         requesterName,
         deptOrCompany,
+        picApproveId,
         fromAt: fromDate && fromTime ? new Date(`${fromDate}T${fromTime}`).toISOString() : '',
         toAt: toDate && toTime ? new Date(`${toDate}T${toTime}`).toISOString() : '',
         location,
@@ -124,6 +229,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
           <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary"><Users className="size-4" /></span>
           <p className="portal-eyebrow">{isInternal ? 'Data Pemohon' : 'Requester Details'}</p>
         </div>
+        {isInternal && <NikHistoryLookup />}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isInternal && (
             <Field label="NIK">
@@ -133,9 +239,30 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
           <Field label={isInternal ? 'Nama' : 'Full Name'} span={isInternal ? 1 : 2}>
             <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required className={inputClass} />
           </Field>
-          <Field label={isInternal ? 'Dept. / Seksi' : 'Company / Organization'}>
-            <input value={deptOrCompany} onChange={(e) => setDeptOrCompany(e.target.value)} required className={inputClass} />
-          </Field>
+          {isInternal ? (
+            <>
+              <Field label="Dept.">
+                <select value={deptId} onChange={(e) => { setDeptId(e.target.value); setSectionId(''); setPicApproveId('') }} required className={inputClass}>
+                  <option value="">Pilih departemen...</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>{department.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Seksi">
+                <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} disabled={!selectedDept || selectedDept.sections.length === 0} className={inputClass}>
+                  <option value="">{selectedDept && selectedDept.sections.length === 0 ? 'Tidak ada section' : 'Pilih section (opsional)...'}</option>
+                  {selectedDept?.sections.map((section) => (
+                    <option key={section.id} value={section.id}>{section.name}</option>
+                  ))}
+                </select>
+              </Field>
+            </>
+          ) : (
+            <Field label="Company / Organization">
+              <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required className={inputClass} />
+            </Field>
+          )}
           {!isInternal && (
             <Field label="Department">
               <input value={dept} onChange={(e) => setDept(e.target.value)} required className={inputClass} />
@@ -160,6 +287,14 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
               </select>
             </Field>
           )}
+          <Field label="PIC Approve" span={2}>
+            <select value={picApproveId} onChange={(e) => setPicApproveId(e.target.value)} required className={inputClass} disabled={isInternal && !deptId}>
+              <option value="">{isInternal && !deptId ? 'Pilih Dept. terlebih dahulu...' : 'Pilih PIC yang akan menyetujui...'}</option>
+              {availablePics.map((pic) => (
+                <option key={pic.id} value={pic.id}>{pic.name}</option>
+              ))}
+            </select>
+          </Field>
           <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>
             <div className="relative">
               <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

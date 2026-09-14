@@ -19,7 +19,21 @@ type EducationDocument = {
   category: string
   language: string
   file_path: string
+  mime_type: string
   uploaded_at: string
+}
+
+// The original filename (including extension) is preserved as part of
+// file_path when it's saved — reuse that instead of hardcoding an
+// extension, since a document's category (PDF/Video/PPT/...) no longer
+// implies a fixed file type.
+function fileExtension(filePath: string) {
+  const match = /\.([a-zA-Z0-9]+)$/.exec(filePath)
+  return match ? match[1] : 'pdf'
+}
+
+function canPreviewInline(mimeType: string) {
+  return mimeType === 'application/pdf' || mimeType.startsWith('video/')
 }
 
 function formatDate(value: string) {
@@ -205,7 +219,15 @@ export function EducationRegisterPage() {
     : undefined
 
   const downloadUrl = (filePath: string, title: string) =>
-    `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}&download=1&name=${encodeURIComponent(title)}.pdf`
+    `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}&download=1&name=${encodeURIComponent(title)}.${fileExtension(filePath)}`
+
+  const handleView = (doc: EducationDocument) => {
+    if (canPreviewInline(doc.mime_type)) {
+      setViewing(doc)
+    } else {
+      window.open(downloadUrl(doc.file_path, doc.title), '_blank')
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -430,12 +452,12 @@ export function EducationRegisterPage() {
                   {/* Aksi */}
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1">
-                      {/* Lihat PDF */}
+                      {/* Lihat (inline untuk PDF/video, tab baru untuk tipe lain) */}
                       <button
                         type="button"
-                        onClick={() => setViewing(doc)}
+                        onClick={() => handleView(doc)}
                         aria-label={`Lihat ${doc.title}`}
-                        title="Lihat PDF"
+                        title={canPreviewInline(doc.mime_type) ? 'Lihat' : 'Buka file'}
                         className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                       >
                         <Eye className="size-4" />
@@ -446,7 +468,7 @@ export function EducationRegisterPage() {
                         href={downloadUrl(doc.file_path, doc.title)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title="Download PDF"
+                        title="Download"
                         aria-label={`Download ${doc.title}`}
                         className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                       >
@@ -496,6 +518,7 @@ export function EducationRegisterPage() {
           onClose={() => setViewing(null)}
           filePath={viewing.file_path}
           fileName={viewing.title}
+          mimeType={viewing.mime_type}
         />
       )}
       <EducationFormModal

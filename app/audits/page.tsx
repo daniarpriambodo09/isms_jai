@@ -10,7 +10,7 @@ import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type ScheduleDocument = {
   id: number
-  kind: 'audit' | 'training'
+  kind: string
   file_path: string
   mime_type: string
   title: string | null
@@ -36,8 +36,8 @@ export default function AuditsPage() {
 
   useEffect(() => {
     fetch(`${API_BASE_PATH}/api/schedule-documents`, { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : { documents: {} }))
-      .then((data: { documents?: { audit: ScheduleDocument[] } }) => setDocs(data.documents?.audit ?? []))
+      .then((res) => (res.ok ? res.json() : { documents: [] }))
+      .then((data: { documents?: ScheduleDocument[] }) => setDocs((data.documents ?? []).filter((doc) => doc.kind === 'audit')))
       .catch(() => setDocs([]))
       .finally(() => setLoading(false))
   }, [])
@@ -90,12 +90,11 @@ export default function AuditsPage() {
                   <button
                     type="button"
                     onClick={() => setOpenDoc(doc)}
-                    className="group relative block w-full overflow-hidden rounded-2xl shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+                    className="group relative block h-64 w-full overflow-hidden rounded-2xl shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
                   >
-                    <div className="aspect-video w-full">
-                      <img src={fileUrl(doc)} alt={doc.title ?? 'Jadwal Audit'} className="h-full w-full object-cover" />
-                    </div>
-                    <span className="absolute right-3 top-3 grid size-9 place-items-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                    <img src={fileUrl(doc)} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-2xl" />
+                    <img src={fileUrl(doc)} alt={doc.title ?? 'Jadwal Audit'} className="absolute inset-0 h-full w-full object-contain" />
+                    <span className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
                       <Maximize2 className="size-4" />
                     </span>
                   </button>

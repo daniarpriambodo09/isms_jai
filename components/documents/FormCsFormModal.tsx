@@ -122,7 +122,12 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
 
           <label className="flex flex-col gap-[6px]">
             <span className={labelText}>Bahasa</span>
-            <input value={language} onChange={(event) => setLanguage(event.target.value)} required placeholder="Contoh: IDN / ENG" className={inputClass} />
+            <select value={language} onChange={(event) => setLanguage(event.target.value)} required className={inputClass}>
+              <option value="" disabled>Pilih bahasa</option>
+              <option value="Indonesia">Indonesia</option>
+              <option value="Inggris">Inggris</option>
+              <option value="Jepang">Jepang</option>
+            </select>
           </label>
 
           <label className="flex flex-col gap-[6px]">

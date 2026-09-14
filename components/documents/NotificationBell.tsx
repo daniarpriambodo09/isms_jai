@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bell, Camera, UserPlus } from 'lucide-react'
+import { Bell, Camera, X, UserPlus } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -22,6 +22,14 @@ type PendingRegistration = {
   registered_at: string
 }
 
+type TakenRequest = {
+  id: number
+  requester_name: string
+  location: string
+  from_at: string
+  pic_approve_name: string | null
+}
+
 const POLL_MS = 30000
 
 function formatRelative(value: string) {
@@ -36,6 +44,7 @@ function formatRelative(value: string) {
 export function NotificationBell() {
   const [requests, setRequests] = useState<PendingRequest[]>([])
   const [registrations, setRegistrations] = useState<PendingRegistration[]>([])
+  const [awaitingAck, setAwaitingAck] = useState<TakenRequest[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -43,17 +52,21 @@ export function NotificationBell() {
 
   const load = useCallback(async () => {
     try {
-      const [reqRes, regRes] = await Promise.all([
+      const [reqRes, regRes, ackRes] = await Promise.all([
         fetch(`${API_BASE_PATH}/api/photo-video-requests?status=pending`, { cache: 'no-store', credentials: 'include' }),
         fetch(`${API_BASE_PATH}/api/vendor-registrations?stage=pending_approval`, { cache: 'no-store', credentials: 'include' }),
+        fetch(`${API_BASE_PATH}/api/photo-video-requests?awaitingAck=1`, { cache: 'no-store', credentials: 'include' }),
       ])
       const reqData = reqRes.ok ? await reqRes.json() : { requests: [] }
       const regData = regRes.ok ? await regRes.json() : { registrations: [] }
+      const ackData = ackRes.ok ? await ackRes.json() : { requests: [] }
       setRequests(reqData.requests ?? [])
       setRegistrations(regData.registrations ?? [])
+      setAwaitingAck(ackData.requests ?? [])
     } catch {
       setRequests([])
       setRegistrations([])
+      setAwaitingAck([])
     } finally {
       setLoading(false)
     }
@@ -65,7 +78,18 @@ export function NotificationBell() {
     return () => clearInterval(interval)
   }, [load])
 
-  const count = requests.length + registrations.length
+  const dismissTaken = async (id: number) => {
+    try {
+      await fetch(`${API_BASE_PATH}/api/photo-video-requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'dismiss-taken' }),
+      })
+      setAwaitingAck((prev) => prev.filter((r) => r.id !== id))
+    } catch { /* no-op — leave it in the list so the user can retry */ }
+  }
+
+  const count = requests.length + registrations.length + awaitingAck.length
 
   return (
     <div className="relative">
@@ -114,6 +138,29 @@ export function NotificationBell() {
                   <p className="text-xs text-muted-foreground">Belum ada notifikasi baru.</p>
                 </div>
               )}
+              {awaitingAck.map((req) => (
+                <div key={`ack-${req.id}`} className="flex items-start gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0">
+                  <span className="mt-0.5 grid size-8 flex-none place-items-center rounded-full bg-accent/15 text-accent-foreground">
+                    <Camera className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium text-foreground">{req.requester_name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      Foto/video sudah diambil &middot; {req.location}{req.pic_approve_name && <> &middot; PIC: {req.pic_approve_name}</>}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground/70">{formatRelative(req.from_at)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => dismissTaken(req.id)}
+                    aria-label={`Tutup notifikasi ${req.requester_name}`}
+                    title="Tutup notifikasi"
+                    className="mt-0.5 grid size-7 flex-none place-items-center rounded-full text-muted-foreground transition hover:bg-secondary"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+              ))}
               {requests.map((req) => (
                 <Link
                   key={`req-${req.id}`}

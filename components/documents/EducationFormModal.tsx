@@ -61,7 +61,7 @@ export function EducationFormModal({
     event.preventDefault()
     setError(null)
     if (!isEdit && !file) {
-      setError('File PDF wajib diunggah.')
+      setError('File wajib diunggah.')
       return
     }
 
@@ -181,18 +181,17 @@ export function EducationFormModal({
 
           <label className={labelClass}>
             <span className={labelTextClass}>
-              {isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}
+              {isEdit ? 'Upload Ulang File (opsional)' : 'File Materi'}
             </span>
             <input
               type="file"
-              accept="application/pdf"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               required={!isEdit}
               className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#1a5f7a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white hover:file:bg-[#278e84]"
             />
-            {isEdit && (
-              <span className="text-[11px] text-[#8798a8]">Kosongkan jika hanya mengubah data dokumen.</span>
-            )}
+            <span className="text-[11px] text-[#8798a8]">
+              {isEdit ? 'Kosongkan jika hanya mengubah data dokumen.' : 'Sesuaikan file dengan kategori — PDF, video, PPT, dokumen, dll.'}
+            </span>
           </label>
 
           {error && (

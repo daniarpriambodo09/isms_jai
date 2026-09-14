@@ -79,7 +79,7 @@ export function Navbar() {
 
   const navLink = 'nav-wipe relative isolate overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
   const navLinkActive = 'bg-accent text-white hover:text-white'
-  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin'].includes(pathname)
+  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin'].includes(pathname)
 
   // Active underline indicator
   const activeIndicator = (
@@ -348,43 +348,33 @@ export function Navbar() {
                           <p className="portal-eyebrow">Admin Panel</p>
                           <p className="mt-1 text-xs text-muted-foreground">Choose a feature to manage</p>
                         </div>
-                        <Link
-                          href="/pengaturan"
-                          className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground"
-                        >
+
+                        <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Content</p>
+                        <Link href="/pengaturan" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                           Manage Menu Content
                         </Link>
-                        <Link
-                          href="/kelola-departemen"
-                          className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground"
-                        >
-                          Manage Departments
-                        </Link>
-                        <Link
-                          href="/kelola-permintaan-foto-video"
-                          className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground"
-                        >
-                          Photo/Video Requests
-                        </Link>
-                        <Link
-                          href="/kelola-hero-slides"
-                          className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground"
-                        >
+                        <Link href="/kelola-hero-slides" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                           Manage Hero Slides
                         </Link>
-                        <Link
-                          href="/kelola-jadwal"
-                          className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground"
-                        >
+                        <Link href="/kelola-jadwal" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                           Manage Schedules
                         </Link>
+
+                        <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Organization &amp; Requests</p>
+                        <Link href="/kelola-departemen" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                          Manage Departments
+                        </Link>
+                        <Link href="/kelola-permintaan-foto-video" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                          Photo/Video Requests
+                        </Link>
+
                         {adminUser?.role === 'ism_admin' && (
-                          <Link
-                            href="/kelola-admin"
-                            className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground"
-                          >
-                            Manage Admin Accounts
-                          </Link>
+                          <>
+                            <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Accounts</p>
+                            <Link href="/kelola-admin" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                              Manage Admin Accounts
+                            </Link>
+                          </>
                         )}
                       </>
                     )}
@@ -483,14 +473,10 @@ export function Navbar() {
           {isLoggedIn && (
             <>
               <div className="portal-eyebrow px-3 pb-2 pt-5">Admin Settings</div>
+
+              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Content</p>
               <Link href="/pengaturan" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                 <Settings className="size-4" />Manage Menu Content
-              </Link>
-              <Link href="/kelola-departemen" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Manage Departments
-              </Link>
-              <Link href="/kelola-permintaan-foto-video" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Photo/Video Requests
               </Link>
               <Link href="/kelola-hero-slides" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                 <Settings className="size-4" />Manage Hero Slides
@@ -498,10 +484,22 @@ export function Navbar() {
               <Link href="/kelola-jadwal" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                 <Settings className="size-4" />Manage Schedules
               </Link>
+
+              <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Organization &amp; Requests</p>
+              <Link href="/kelola-departemen" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                <Settings className="size-4" />Manage Departments
+              </Link>
+              <Link href="/kelola-permintaan-foto-video" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                <Settings className="size-4" />Photo/Video Requests
+              </Link>
+
               {adminUser?.role === 'ism_admin' && (
-                <Link href="/kelola-admin" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                  <Settings className="size-4" />Manage Admin Accounts
-                </Link>
+                <>
+                  <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Accounts</p>
+                  <Link href="/kelola-admin" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                    <Settings className="size-4" />Manage Admin Accounts
+                  </Link>
+                </>
               )}
             </>
           )}

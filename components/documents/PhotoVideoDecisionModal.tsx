@@ -22,6 +22,10 @@ export type PhotoVideoRequest = {
   decided_at: string | null
   decided_by: string | null
   decision_note: string | null
+  pic_approve_id: number | null
+  pic_approve_name: string | null
+  taken_at: string | null
+  taken_ack_at: string | null
 }
 
 function formatDateTime(value: string) {

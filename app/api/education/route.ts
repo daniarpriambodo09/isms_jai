@@ -12,13 +12,14 @@ type EducationRow = {
   category: string
   language: string
   file_path: string
+  mime_type: string
   uploaded_at: string
 }
 
 export async function GET() {
   try {
     const result = await query<EducationRow>(
-      `SELECT id, title, category, language, file_path, uploaded_at
+      `SELECT id, title, category, language, file_path, mime_type, uploaded_at
        FROM education_documents
        ORDER BY uploaded_at DESC, id DESC`
     )
@@ -51,16 +52,16 @@ export async function POST(request: NextRequest) {
     if (typeof language !== 'string' || !language.trim()) {
       return NextResponse.json({ message: 'Bahasa wajib dipilih.' }, { status: 400 })
     }
-    if (!(file instanceof File) || file.size === 0 || file.type !== 'application/pdf') {
-      return NextResponse.json({ message: 'File PDF wajib diunggah.' }, { status: 400 })
+    if (!(file instanceof File) || file.size === 0) {
+      return NextResponse.json({ message: 'File wajib diunggah.' }, { status: 400 })
     }
 
     const filePath = await saveDocumentFile(file)
     const result = await query<EducationRow>(
-      `INSERT INTO education_documents (title, category, language, file_path)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, title, category, language, file_path, uploaded_at`,
-      [title.trim(), category.trim(), language.trim(), filePath]
+      `INSERT INTO education_documents (title, category, language, file_path, mime_type)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, title, category, language, file_path, mime_type, uploaded_at`,
+      [title.trim(), category.trim(), language.trim(), filePath, file.type || 'application/octet-stream']
     )
 
     await logActivity(session, 'create', 'education_document', result.rows[0].id, `Menambahkan dokumen education "${result.rows[0].title}"`)
@@ -97,10 +98,6 @@ export async function PUT(request: NextRequest) {
     if (typeof language !== 'string' || !language.trim()) {
       return NextResponse.json({ message: 'Bahasa wajib dipilih.' }, { status: 400 })
     }
-    if (file instanceof File && file.size > 0 && file.type !== 'application/pdf') {
-      return NextResponse.json({ message: 'File harus berupa PDF.' }, { status: 400 })
-    }
-
     const existing = await query<{ file_path: string }>(
       'SELECT file_path FROM education_documents WHERE id = $1',
       [id]
@@ -111,16 +108,18 @@ export async function PUT(request: NextRequest) {
 
     const replacement = file instanceof File && file.size > 0
     const newFilePath = replacement ? await saveDocumentFile(file) : null
+    const newMimeType = replacement ? (file as File).type || 'application/octet-stream' : null
     const result = await query<EducationRow>(
       `UPDATE education_documents
        SET title     = $1,
            category  = $2,
            language  = $3,
            file_path = COALESCE($4, file_path),
+           mime_type = COALESCE($5, mime_type),
            uploaded_at = CASE WHEN $4 IS NOT NULL THEN now() ELSE uploaded_at END
-       WHERE id = $5
-       RETURNING id, title, category, language, file_path, uploaded_at`,
-      [title.trim(), category.trim(), language.trim(), newFilePath, id]
+       WHERE id = $6
+       RETURNING id, title, category, language, file_path, mime_type, uploaded_at`,
+      [title.trim(), category.trim(), language.trim(), newFilePath, newMimeType, id]
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)

@@ -61,7 +61,7 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setError(null)
-    if (!isEdit && !file) { setError('File PDF wajib diunggah.'); return }
+    if (!isEdit && !file) { setError(`File ${fileKind === 'xls' ? 'Excel' : 'PDF'} wajib diunggah.`); return }
     setSubmitting(true)
     try {
       const titleEmphasisFrom = italicEnabled && italicSubstring.trim() ? name.lastIndexOf(italicSubstring.trim()) : -1
@@ -127,6 +127,10 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
               <option value="IDN">IDN</option>
               <option value="ENG">ENG</option>
               <option value="JPN">JPN</option>
+              <option value="IDN-JPN">IDN-JPN</option>
+              <option value="IDN-ENG">IDN-ENG</option>
+              <option value="ENG-JPN">ENG-JPN</option>
+              <option value="ENG-IDN">ENG-IDN</option>
             </select>
           </label>
 
@@ -144,8 +148,8 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
           </label>
 
           <label className="flex flex-col gap-[6px]">
-            <span className={labelText}>{isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}</span>
-            <input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#20354a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />
+            <span className={labelText}>{isEdit ? `Upload Ulang ${fileKind === 'xls' ? 'Excel' : 'PDF'} (opsional)` : `File ${fileKind === 'xls' ? 'Excel' : 'PDF'}`}</span>
+            <input type="file" accept={fileKind === 'xls' ? '.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf'} onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#20354a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />
             {isEdit && <span className="text-[11px] text-[#8798a8]">Kosongkan jika hanya mengubah data dokumen.</span>}
           </label>
 

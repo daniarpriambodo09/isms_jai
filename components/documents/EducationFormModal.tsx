@@ -22,7 +22,7 @@ const CATEGORIES = [
   'Lainnya',
 ]
 
-const LANGUAGES = ['Indonesia', 'English']
+const LANGUAGES = ['IDN', 'ENG', 'JPN', 'IDN-JPN', 'IDN-ENG', 'ENG-JPN', 'ENG-IDN']
 
 export function EducationFormModal({
   open,

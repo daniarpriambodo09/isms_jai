@@ -23,6 +23,14 @@ type DocumentRow = {
 
 const KETERANGAN_TYPES: KeteranganType[] = ['none', 'plain-note', 'web-base-approval', 'list-all-daftar']
 const FILE_KINDS: FileKind[] = ['pdf', 'xls']
+const EXCEL_MIME_TYPES = [
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]
+
+function isValidFileForKind(file: File, fileKind: FileKind) {
+  return fileKind === 'xls' ? EXCEL_MIME_TYPES.includes(file.type) : file.type === 'application/pdf'
+}
 
 function isCategory(value: string): value is Category { return value === 'form-aplikasi' || value === 'kontrol-cs' }
 function categoryLabel(category: Category) { return category === 'form-aplikasi' ? 'Form Aplikasi' : 'Kontrol CS' }
@@ -77,12 +85,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (typeof controlNo !== 'string' || !controlNo.trim()) return NextResponse.json({ message: 'No. Kontrol wajib diisi.' }, { status: 400 })
     if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ message: 'Nama dokumen wajib diisi.' }, { status: 400 })
     if (typeof language !== 'string' || !language.trim()) return NextResponse.json({ message: 'Bahasa wajib diisi.' }, { status: 400 })
-    if (!(file instanceof File) || file.size === 0 || file.type !== 'application/pdf') return NextResponse.json({ message: 'File PDF wajib diunggah.' }, { status: 400 })
+    const fileKind: FileKind = typeof fileKindRaw === 'string' && isFileKind(fileKindRaw) ? fileKindRaw : 'pdf'
+    if (!(file instanceof File) || file.size === 0 || !isValidFileForKind(file, fileKind)) {
+      return NextResponse.json({ message: `File ${fileKind === 'xls' ? 'Excel' : 'PDF'} wajib diunggah.` }, { status: 400 })
+    }
 
     const keteranganType: KeteranganType = typeof keteranganTypeRaw === 'string' && isKeteranganType(keteranganTypeRaw) ? keteranganTypeRaw : 'none'
     const keteranganNote = keteranganType === 'plain-note' && typeof keteranganNoteRaw === 'string' && keteranganNoteRaw.trim() ? keteranganNoteRaw.trim() : null
     const fileVariant = typeof fileVariantRaw === 'string' && fileVariantRaw.trim() ? fileVariantRaw.trim().toUpperCase() : null
-    const fileKind: FileKind = typeof fileKindRaw === 'string' && isFileKind(fileKindRaw) ? fileKindRaw : 'pdf'
     const titleEmphasisFrom = typeof titleEmphasisFromRaw === 'string' && /^\d+$/.test(titleEmphasisFromRaw) ? Number(titleEmphasisFromRaw) : null
 
     const filePath = await saveDocumentFile(file)
@@ -124,12 +134,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (typeof controlNo !== 'string' || !controlNo.trim()) return NextResponse.json({ message: 'No. Kontrol wajib diisi.' }, { status: 400 })
     if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ message: 'Nama dokumen wajib diisi.' }, { status: 400 })
     if (typeof language !== 'string' || !language.trim()) return NextResponse.json({ message: 'Bahasa wajib diisi.' }, { status: 400 })
-    if (file instanceof File && file.size > 0 && file.type !== 'application/pdf') return NextResponse.json({ message: 'File harus berupa PDF.' }, { status: 400 })
+    const fileKind: FileKind = typeof fileKindRaw === 'string' && isFileKind(fileKindRaw) ? fileKindRaw : 'pdf'
+    if (file instanceof File && file.size > 0 && !isValidFileForKind(file, fileKind)) {
+      return NextResponse.json({ message: `File harus berupa ${fileKind === 'xls' ? 'Excel' : 'PDF'}.` }, { status: 400 })
+    }
 
     const keteranganType: KeteranganType = typeof keteranganTypeRaw === 'string' && isKeteranganType(keteranganTypeRaw) ? keteranganTypeRaw : 'none'
     const keteranganNote = keteranganType === 'plain-note' && typeof keteranganNoteRaw === 'string' && keteranganNoteRaw.trim() ? keteranganNoteRaw.trim() : null
     const fileVariant = typeof fileVariantRaw === 'string' && fileVariantRaw.trim() ? fileVariantRaw.trim().toUpperCase() : null
-    const fileKind: FileKind = typeof fileKindRaw === 'string' && isFileKind(fileKindRaw) ? fileKindRaw : 'pdf'
     const titleEmphasisFrom = typeof titleEmphasisFromRaw === 'string' && /^\d+$/.test(titleEmphasisFromRaw) ? Number(titleEmphasisFromRaw) : null
 
     const existing = await query<{ file_path: string }>('SELECT file_path FROM form_cs_documents WHERE id = $1 AND category = $2', [id, category])

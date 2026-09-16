@@ -64,17 +64,23 @@ function Highlight({ text, keyword }: { text: string; keyword: string }) {
 }
 
 const LANGUAGE_BADGE: Record<string, { label: string; bg: string; color: string; border: string }> = {
-  Indonesia: {
-    label: '🇮🇩 Indonesia',
+  IDN: {
+    label: '🇮🇩 IDN',
     bg: '#edf6ff',
     color: '#1a5fa0',
     border: 'rgba(26,95,160,0.2)',
   },
-  English: {
-    label: '🇬🇧 English',
+  ENG: {
+    label: '🇬🇧 ENG',
     bg: '#f0faf0',
     color: '#276e4a',
     border: 'rgba(39,110,74,0.2)',
+  },
+  JPN: {
+    label: '🇯🇵 JPN',
+    bg: '#fdf0f0',
+    color: '#a03030',
+    border: 'rgba(160,48,48,0.2)',
   },
 }
 

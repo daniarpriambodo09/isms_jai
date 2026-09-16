@@ -82,6 +82,7 @@ function GroupHeaderRow({ header, colSpanOffset = 0 }: { header: FormCsGroupHead
 
 export type FormCsRow = { key: string; controlNo: string; title: string; emphasisFrom: number | null; language: string; keteranganType: FormCsDocument['keterangan_type']; keteranganNote: string | null; files: FormCsDocument[] }
 type Row = FormCsRow
+type TitleGroup = { key: string; title: string; emphasisFrom: number | null; files: FormCsDocument[] }
 
 function groupRows(documents: FormCsDocument[]): Row[] {
   const map = new Map<string, Row>()
@@ -95,6 +96,27 @@ function groupRows(documents: FormCsDocument[]): Row[] {
       order.push(key)
     }
     row.files.push(doc)
+  }
+  return order.map((key) => map.get(key)!)
+}
+
+// Several files under the same Ctrl No are often just language variants of
+// the exact same document (e.g. an IDN, ENG, and JPN PDF) — grouping them by
+// title collapses that repeated title into a single line with all its
+// language variants listed together, instead of repeating the full title
+// once per file.
+function groupFilesByTitle(files: FormCsDocument[]): TitleGroup[] {
+  const map = new Map<string, TitleGroup>()
+  const order: string[] = []
+  for (const file of files) {
+    const key = file.title
+    let group = map.get(key)
+    if (!group) {
+      group = { key, title: file.title, emphasisFrom: file.title_emphasis_from, files: [] }
+      map.set(key, group)
+      order.push(key)
+    }
+    group.files.push(file)
   }
   return order.map((key) => map.get(key)!)
 }
@@ -154,7 +176,9 @@ export function FormCsSpreadsheetTable({
               </tr>
             )}
 
-            {rows.map((row, index) => (
+            {rows.map((row, index) => {
+              const titleGroups = groupFilesByTitle(row.files)
+              return (
               <tr key={row.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
                 {showSelection && (
                   <td className="px-4 py-3 align-top">
@@ -168,48 +192,68 @@ export function FormCsSpreadsheetTable({
                   </td>
                 )}
                 <td className="px-4 py-3 align-top font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></td>
-                {/* Nama Dokumen / Lang / File / Aksi are rendered one line per file (rather
-                    than collapsed to the first file's data) so that when two files share a
-                    Ctrl No — e.g. an Indonesian and a Japanese version — both file names,
-                    languages, and their own edit/delete controls are visible and clearly
-                    paired, instead of only the first file's title/language showing. */}
+                {/* Nama Dokumen / Lang / File / Aksi are rendered one line per title
+                    group (files sharing an identical title, grouped by groupFilesByTitle)
+                    rather than one line per file — so when several files under a Ctrl No
+                    are just language variants of the same document (e.g. IDN/ENG/JPN
+                    versions), the title shows once with all its language variants listed
+                    together, instead of repeating the full title once per file. A group
+                    with a single file renders exactly as before. */}
                 <td className="min-w-[260px] px-4 py-3 align-top font-medium text-foreground">
                   <div className="flex flex-col gap-1.5">
-                    {row.files.map((file) => (
-                      <div key={file.id}><TitleCell title={file.title} emphasisFrom={file.title_emphasis_from} keyword={query} /></div>
+                    {titleGroups.map((group) => (
+                      <div key={group.key} className="py-0.5"><TitleCell title={group.title} emphasisFrom={group.emphasisFrom} keyword={query} /></div>
                     ))}
                   </div>
                 </td>
                 <td className="px-4 py-3 align-top text-muted-foreground">
                   <div className="flex flex-col gap-1.5">
-                    {row.files.map((file) => <div key={file.id}>{file.language}</div>)}
+                    {titleGroups.map((group) => (
+                      <div key={group.key} className="flex flex-wrap items-center gap-1 py-0.5">
+                        {group.files.map((file) => (
+                          <button key={file.id} type="button" onClick={() => onView(file)} title={`Lihat versi ${file.language}`} className="rounded-md border border-border px-1.5 py-0.5 text-[11px] font-semibold text-foreground transition hover:bg-secondary hover:text-primary">
+                            {file.language}
+                          </button>
+                        ))}
+                      </div>
+                    ))}
                   </div>
                 </td>
                 <td className="px-4 py-3 align-top">
                   <div className="flex flex-col items-start gap-1.5">
-                    {row.files.map((file) => (
-                      <button key={file.id} type="button" onClick={() => onView(file)} className="cursor-pointer" title="Lihat dokumen">
-                        <FileChip kind={file.file_kind} variant={file.file_variant} />
-                      </button>
+                    {titleGroups.map((group) => (
+                      <div key={group.key} className="flex flex-wrap items-center gap-1 py-0.5">
+                        {group.files.map((file) => (
+                          <button key={file.id} type="button" onClick={() => onView(file)} className="cursor-pointer" title="Lihat dokumen">
+                            <FileChip kind={file.file_kind} variant={file.file_variant} />
+                          </button>
+                        ))}
+                      </div>
                     ))}
                   </div>
                 </td>
                 <td className="px-4 py-3 align-top">
                   <div className="flex flex-col gap-1.5">
-                    {row.files.map((file) => (
-                      <div key={file.id} className="flex items-center gap-3">
-                        <span className="min-w-0 flex-1 text-[11px] italic text-destructive">{file.keterangan_note}</span>
-                        <div className="flex shrink-0 items-center gap-1">
-                          {isLoggedIn && <button type="button" onClick={() => onEdit(file)} aria-label={`Edit ${file.title} (${file.language})`} title={`Edit ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-3.5" /></button>}
-                          {isLoggedIn && <button type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.title} (${file.language})`} title={`Hapus ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>}
-                          <button type="button" onClick={() => onView(file)} aria-label={`Lihat ${file.title} (${file.language})`} title={`Lihat ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
-                        </div>
+                    {titleGroups.map((group) => (
+                      <div key={group.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-0.5">
+                        {group.files.map((file) => (
+                          <div key={file.id} className="flex items-center gap-1.5">
+                            {group.files.length > 1 && <span className="text-[10px] font-bold text-muted-foreground">{file.language}</span>}
+                            {file.keterangan_note && <span className="text-[11px] italic text-destructive">{file.keterangan_note}</span>}
+                            <div className="flex shrink-0 items-center gap-1">
+                              {isLoggedIn && <button type="button" onClick={() => onEdit(file)} aria-label={`Edit ${file.title} (${file.language})`} title={`Edit ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-3.5" /></button>}
+                              {isLoggedIn && <button type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.title} (${file.language})`} title={`Hapus ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>}
+                              <button type="button" onClick={() => onView(file)} aria-label={`Lihat ${file.title} (${file.language})`} title={`Lihat ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>

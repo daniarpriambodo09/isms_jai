@@ -25,14 +25,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ message: 'Departemen tidak valid.' }, { status: 400 })
   }
 
-  const existing = await query<{ id: number }>('SELECT id FROM pic_approvers WHERE id = $1', [id])
-  if (existing.rows.length === 0) return NextResponse.json({ message: 'PIC tidak ditemukan.' }, { status: 404 })
+  try {
+    const existing = await query<{ id: number }>('SELECT id FROM pic_approvers WHERE id = $1', [id])
+    if (existing.rows.length === 0) return NextResponse.json({ message: 'PIC tidak ditemukan.' }, { status: 404 })
 
-  await query('UPDATE pic_approvers SET name = $1, department_id = $2 WHERE id = $3', [name, departmentId, id])
-  const result = await query<PicApproverRow>(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE p.id = $1`, [id])
+    await query('UPDATE pic_approvers SET name = $1, department_id = $2 WHERE id = $3', [name, departmentId, id])
+    const result = await query<PicApproverRow>(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE p.id = $1`, [id])
 
-  await logActivity(session, 'update', 'pic_approver', id, `Mengubah PIC Approve "${name}"`)
-  return NextResponse.json({ pic: result.rows[0] })
+    await logActivity(session, 'update', 'pic_approver', id, `Mengubah PIC Approve "${name}"`)
+    return NextResponse.json({ pic: result.rows[0] })
+  } catch (error) {
+    console.error('[pic-approvers/[id]/PUT]', error)
+    return NextResponse.json({ message: 'Gagal menyimpan perubahan PIC.' }, { status: 500 })
+  }
 }
 
 // Admin only — remove a person from the PIC Approve roster. Requests that
@@ -43,9 +48,14 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params
-  const result = await query<{ id: number; name: string }>('DELETE FROM pic_approvers WHERE id = $1 RETURNING id, name', [id])
-  if (result.rows.length === 0) return NextResponse.json({ message: 'PIC tidak ditemukan.' }, { status: 404 })
+  try {
+    const result = await query<{ id: number; name: string }>('DELETE FROM pic_approvers WHERE id = $1 RETURNING id, name', [id])
+    if (result.rows.length === 0) return NextResponse.json({ message: 'PIC tidak ditemukan.' }, { status: 404 })
 
-  await logActivity(session, 'delete', 'pic_approver', id, `Menghapus PIC Approve "${result.rows[0].name}"`)
-  return NextResponse.json({ message: 'PIC dihapus.' })
+    await logActivity(session, 'delete', 'pic_approver', id, `Menghapus PIC Approve "${result.rows[0].name}"`)
+    return NextResponse.json({ message: 'PIC dihapus.' })
+  } catch (error) {
+    console.error('[pic-approvers/[id]/DELETE]', error)
+    return NextResponse.json({ message: 'Gagal menghapus PIC.' }, { status: 500 })
+  }
 }

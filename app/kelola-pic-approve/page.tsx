@@ -31,9 +31,12 @@ export default function KelolaPicApprovePage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [editDeptId, setEditDeptId] = useState('')
+  const [editError, setEditError] = useState('')
+  const [editSaving, setEditSaving] = useState(false)
 
   const [pendingDelete, setPendingDelete] = useState<Pic | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [listError, setListError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -93,25 +96,44 @@ export default function KelolaPicApprovePage() {
     setEditingId(pic.id)
     setEditName(pic.name)
     setEditDeptId(pic.department_id ? String(pic.department_id) : '')
+    setEditError('')
   }
 
   const submitEdit = async (id: number) => {
     if (!editName.trim()) return
-    await fetch(`${API_BASE_PATH}/api/pic-approvers/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: editName.trim(), departmentId: editDeptId || null }),
-    })
-    setEditingId(null)
-    await load()
+    setEditSaving(true)
+    setEditError('')
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/pic-approvers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName.trim(), departmentId: editDeptId || null }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) throw new Error(data?.message ?? 'Gagal menyimpan perubahan PIC.')
+      setEditingId(null)
+      await load()
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : 'Terjadi kesalahan.')
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   const confirmDelete = async () => {
     if (!pendingDelete) return
     setDeleting(true)
+    setListError('')
     try {
-      await fetch(`${API_BASE_PATH}/api/pic-approvers/${pendingDelete.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE_PATH}/api/pic-approvers/${pendingDelete.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setListError(data?.message ?? 'Gagal menghapus PIC.')
+        return
+      }
       await load()
+    } catch {
+      setListError('Tidak dapat menghubungi server.')
     } finally {
       setDeleting(false)
       setPendingDelete(null)
@@ -151,6 +173,8 @@ export default function KelolaPicApprovePage() {
         </div>
       </div>
 
+      {listError && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{listError}</p>}
+
       {addingOpen && (
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tambah PIC baru</p>
@@ -184,16 +208,19 @@ export default function KelolaPicApprovePage() {
                 {groupPics.map((pic) => (
                   <div key={pic.id} className="group/row flex items-center justify-between gap-3 px-4 py-3">
                     {editingId === pic.id ? (
-                      <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-                        <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus className={inputClass} />
-                        <select value={editDeptId} onChange={(e) => setEditDeptId(e.target.value)} className={inputClass}>
-                          <option value="">{ALL_DEPARTMENTS_GROUP}</option>
-                          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                        </select>
-                        <div className="flex items-center gap-1.5">
-                          <button onClick={() => submitEdit(pic.id)} className={`${iconButtonClass} text-primary`} aria-label="Simpan"><Check className="size-4" /></button>
-                          <button onClick={() => setEditingId(null)} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
+                      <div className="flex flex-1 flex-col gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus className={inputClass} />
+                          <select value={editDeptId} onChange={(e) => setEditDeptId(e.target.value)} className={inputClass}>
+                            <option value="">{ALL_DEPARTMENTS_GROUP}</option>
+                            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => submitEdit(pic.id)} disabled={editSaving || !editName.trim()} className={`${iconButtonClass} text-primary disabled:opacity-50`} aria-label="Simpan"><Check className="size-4" /></button>
+                            <button onClick={() => setEditingId(null)} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
+                          </div>
                         </div>
+                        {editError && <p className="text-xs text-destructive">{editError}</p>}
                       </div>
                     ) : (
                       <>

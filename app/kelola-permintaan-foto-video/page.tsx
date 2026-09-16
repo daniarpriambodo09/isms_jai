@@ -191,7 +191,7 @@ function KelolaPermintaanFotoVideoContent() {
                     {req.pic_approve_name ?? '—'}
                     {req.taken_at && (
                       <span className="mt-1 block text-[10px] font-semibold text-accent-foreground">
-                        {req.taken_ack_at ? 'Sudah diambil · dikonfirmasi' : 'Sudah diambil · menunggu konfirmasi PIC'}
+                        {req.taken_ack_at ? 'Sudah diambil · dikonfirmasi' : 'Sudah diambil · menunggu dikonfirmasi admin'}
                       </span>
                     )}
                   </td>

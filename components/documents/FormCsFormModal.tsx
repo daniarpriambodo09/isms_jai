@@ -124,9 +124,9 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
             <span className={labelText}>Bahasa</span>
             <select value={language} onChange={(event) => setLanguage(event.target.value)} required className={inputClass}>
               <option value="" disabled>Pilih bahasa</option>
-              <option value="Indonesia">Indonesia</option>
-              <option value="Inggris">Inggris</option>
-              <option value="Jepang">Jepang</option>
+              <option value="IDN">IDN</option>
+              <option value="ENG">ENG</option>
+              <option value="JPN">JPN</option>
             </select>
           </label>
 

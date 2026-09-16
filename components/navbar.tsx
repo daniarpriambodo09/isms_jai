@@ -77,7 +77,7 @@ export function Navbar() {
   const departmentHref = (dept: Department) => `/documents/department/${dept.slug}`
   const sectionHref = (dept: Department, section: Section) => `/documents/department/${dept.slug}/${section.slug}`
 
-  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
+  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium uppercase text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
   const navLinkActive = 'bg-accent text-white hover:text-white'
   const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin'].includes(pathname)
 
@@ -132,7 +132,7 @@ export function Navbar() {
   const ismsStandardItems = (
     <>
       <Link href="/prosedur-isms" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">{navLabels.prosedur ?? 'ISMS Procedures'}</Link>
-      <Link href="/standard-isms-p14" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">Standard ISMS-P14</Link>
+      <Link href="/standard-isms-p14" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">Standard Requirement TMMIN</Link>
       <Link href="/working-standard" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">{navLabels.working_standard ?? 'Working Standard'}</Link>
     </>
   )
@@ -190,6 +190,7 @@ export function Navbar() {
           animation: nav-bar-shimmer 3s linear infinite;
         }
         .nav-drop-item {
+          text-transform: uppercase;
           transition: background 160ms, padding-left 160ms, color 160ms;
         }
         .nav-drop-item:hover {
@@ -197,6 +198,7 @@ export function Navbar() {
           padding-left: 16px;
         }
         .nav-drawer-item {
+          text-transform: uppercase;
           transition: background 160ms, padding-left 160ms;
         }
         .nav-drawer-item:hover {

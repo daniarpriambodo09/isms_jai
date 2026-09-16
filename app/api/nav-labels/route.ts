@@ -16,8 +16,13 @@ export const DEFAULT_NAV_LABELS: Record<string, string> = {
 
 type NavLabelRow = { key: string; label: string }
 
-// Ensure table exists on first use — idempotent
+// Ensure table exists on first use — idempotent, but only actually runs the
+// CREATE TABLE + seed queries once per server process. Without this guard,
+// GET (hit unauthenticated on every single page load via the navbar) would
+// re-run 8 queries on every request forever.
+let tableEnsured = false
 async function ensureTable() {
+  if (tableEnsured) return
   await query(`
     CREATE TABLE IF NOT EXISTS nav_labels (
       key   VARCHAR(50) PRIMARY KEY,
@@ -32,6 +37,7 @@ async function ensureTable() {
       [key, label]
     )
   }
+  tableEnsured = true
 }
 
 // GET /api/nav-labels — public, used by navbar on every load

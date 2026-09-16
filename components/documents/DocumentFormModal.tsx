@@ -1,7 +1,7 @@
 // components/documents/DocumentFormModal.tsx
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
@@ -39,6 +39,16 @@ export function DocumentFormModal({
   const [submitting, setSubmitting] = useState(false)
 
   useEscapeClose(open, onClose)
+
+  useEffect(() => {
+    if (open) {
+      setTitle(document?.title ?? '')
+      setUploadedAt(document?.uploadedAt ?? '')
+      setRevision(document?.revision ?? '')
+      setFile(null)
+      setError(null)
+    }
+  }, [open, document])
 
   if (!open) return null
 

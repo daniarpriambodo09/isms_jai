@@ -5,48 +5,12 @@ import { ArrowDownUp, Check, Download, KeyRound, LogOut, Plus, RotateCcw, ScanLi
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
-import { ActiveCardsWidget, type CardType } from '@/components/kiosk/ActiveCardsWidget'
+import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-
-type Stage = 'pending_approval' | 'active' | 'closed'
-
-type Registration = {
-  id: number
-  full_name: string
-  id_card: string
-  pic_jai: string
-  purpose: string
-  company_remark: string
-  registered_at: string
-  entry_at: string | null
-  exit_at: string | null
-  stage: Stage
-  current_card_type: CardType | null
-  visitor_card_barcode: string | null
-  vendor_card_barcode: string | null
-  affiliate_card_barcode: string | null
-  special_area_card_barcode: string | null
-  photography_card_barcode: string | null
-}
-
-const CARD_BARCODE_FIELD: Record<CardType, keyof Registration> = {
-  visitor: 'visitor_card_barcode',
-  vendor: 'vendor_card_barcode',
-  affiliate: 'affiliate_card_barcode',
-  special_area: 'special_area_card_barcode',
-  photography: 'photography_card_barcode',
-}
-
-function formatDateTime(value: string | null) {
-  if (!value) return '—'
-  return new Date(value).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
-const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
+import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, type Registration } from '@/components/kiosk/kiosk-shared'
 
 function RegisterModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [fullName, setFullName] = useState('')

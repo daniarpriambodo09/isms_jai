@@ -8,24 +8,12 @@ export const mainNav = [
   { label: 'Home', href: '/' },
   { label: 'ISMS Basic Policy', href: '/kebijakan-dasar-ISMS' },
   { label: 'Education & Training', href: '/education' },
-  { label: 'Forms & CS Control', href: '/documents/forms' },
-] as const
-
-export const documents = [
-  ['P14-001', 'Prosedur Pengendalian Dokumen', '04', '12 Feb 2025', 'Active', 'pdf'],
-  ['P14-002', 'Prosedur Audit Internal ISMS', '03', '08 Jan 2025', 'Active', 'pdf'],
-  ['P14-007', 'Standard Pengelolaan Akses Informasi', '02', '19 Nov 2024', 'Active', 'pdf'],
-  ['P14-011', 'Working Standard - Incident Response', '01', '03 Oct 2024', 'Active', 'pdf'],
-  ['P14-014', 'Form Evaluasi Risiko Keamanan Informasi', '05', '22 Aug 2024', 'Obsolete', 'xls'],
-  ['P14-018', 'Checklist Review Kepatuhan Departemen', '02', '14 Jul 2024', 'Active', 'xls'],
 ] as const
 
 export const titleFor = (segment: string) =>
   decodeURIComponent(segment)
     .replaceAll('-', ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
-
-export type DocumentRow = (typeof documents)[number]
 
 export const announcements = [
   ['ISMS Awareness Training — Q1 2025', 'Mandatory training schedule for all employees', '21 Feb 2025'],

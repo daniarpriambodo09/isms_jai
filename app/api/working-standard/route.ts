@@ -11,12 +11,13 @@ type WorkingStandardRow = {
   revision: number
   uploaded_at: string
   file_path: string
+  effective_date: string | null
 }
 
 export async function GET() {
   try {
     const result = await query<WorkingStandardRow>(
-      `SELECT id, control_no, title, revision, uploaded_at, file_path
+      `SELECT id, control_no, title, revision, uploaded_at, file_path, effective_date
        FROM working_standard_documents
        ORDER BY control_no ASC, id ASC`
     )
@@ -35,18 +36,20 @@ export async function POST(request: NextRequest) {
     const form = await request.formData()
     const controlNo = form.get('controlNo')
     const title = form.get('title')
+    const effectiveDateRaw = form.get('effectiveDate')
     const file = form.get('file')
 
     if (typeof controlNo !== 'string' || !controlNo.trim()) return NextResponse.json({ message: 'No. Kontrol wajib diisi.' }, { status: 400 })
     if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ message: 'Nama dokumen wajib diisi.' }, { status: 400 })
     if (!(file instanceof File) || file.size === 0 || file.type !== 'application/pdf') return NextResponse.json({ message: 'File PDF wajib diunggah.' }, { status: 400 })
+    const effectiveDate = typeof effectiveDateRaw === 'string' && effectiveDateRaw.trim() ? effectiveDateRaw.trim() : null
 
     const filePath = await saveDocumentFile(file)
     const result = await query<WorkingStandardRow>(
-      `INSERT INTO working_standard_documents (control_no, title, file_path)
-       VALUES ($1, $2, $3)
-       RETURNING id, control_no, title, revision, uploaded_at, file_path`,
-      [controlNo.trim(), title.trim(), filePath]
+      `INSERT INTO working_standard_documents (control_no, title, file_path, effective_date)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, control_no, title, revision, uploaded_at, file_path, effective_date`,
+      [controlNo.trim(), title.trim(), filePath, effectiveDate]
     )
     await logActivity(session, 'create', 'working_standard_document', result.rows[0].id, `Menambahkan Working Standard "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] }, { status: 201 })
@@ -66,6 +69,7 @@ export async function PUT(request: NextRequest) {
     const controlNo = form.get('controlNo')
     const title = form.get('title')
     const revisionRaw = form.get('revision')
+    const effectiveDateRaw = form.get('effectiveDate')
     const file = form.get('file')
 
     if (typeof id !== 'string' || !/^\d+$/.test(id)) return NextResponse.json({ message: 'ID dokumen tidak valid.' }, { status: 400 })
@@ -74,6 +78,7 @@ export async function PUT(request: NextRequest) {
     const revision = typeof revisionRaw === 'string' && /^\d+$/.test(revisionRaw) ? Number(revisionRaw) : NaN
     if (!Number.isInteger(revision) || revision < 1) return NextResponse.json({ message: 'Revisi wajib diisi dengan angka minimal 1.' }, { status: 400 })
     if (file instanceof File && file.size > 0 && file.type !== 'application/pdf') return NextResponse.json({ message: 'File harus berupa PDF.' }, { status: 400 })
+    const effectiveDate = typeof effectiveDateRaw === 'string' && effectiveDateRaw.trim() ? effectiveDateRaw.trim() : null
 
     const existing = await query<{ file_path: string }>('SELECT file_path FROM working_standard_documents WHERE id = $1', [id])
     if (existing.rows.length === 0) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
@@ -86,10 +91,11 @@ export async function PUT(request: NextRequest) {
            title = $2,
            file_path = COALESCE($3, file_path),
            uploaded_at = CASE WHEN $3 IS NOT NULL THEN now() ELSE uploaded_at END,
-           revision = $5
+           revision = $5,
+           effective_date = $6
        WHERE id = $4
-       RETURNING id, control_no, title, revision, uploaded_at, file_path`,
-      [controlNo.trim(), title.trim(), newFilePath, id, revision]
+       RETURNING id, control_no, title, revision, uploaded_at, file_path, effective_date`,
+      [controlNo.trim(), title.trim(), newFilePath, id, revision, effectiveDate]
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)

@@ -29,7 +29,8 @@ function monogramFor(name: string) {
 }
 
 export default function KelolaDepartemenPage() {
-  const { isLoggedIn, isLoading } = useAuth()
+  const { isLoggedIn, isLoading, adminUser } = useAuth()
+  const isAdmin = adminUser?.role === 'ism_admin'
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -44,6 +45,9 @@ export default function KelolaDepartemenPage() {
   const [deletingDept, setDeletingDept] = useState(false)
   const [pendingDeleteSection, setPendingDeleteSection] = useState<Section | null>(null)
   const [deletingSection, setDeletingSection] = useState(false)
+  const [addingDept, setAddingDept] = useState(false)
+  const [newDeptName, setNewDeptName] = useState('')
+  const [savingDept, setSavingDept] = useState(false)
 
   const loadDepartments = useCallback(async () => {
     setLoading(true)
@@ -65,6 +69,21 @@ export default function KelolaDepartemenPage() {
     if (!sectionDraft.trim()) return
     await fetch(`${API_BASE_PATH}/api/sections/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: sectionDraft.trim() }) })
     setEditingSectionId(null); loadDepartments()
+  }
+  const addDepartment = async () => {
+    if (!newDeptName.trim()) return
+    setSavingDept(true)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/departments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newDeptName.trim() }) })
+      if (res.ok) {
+        const data = await res.json()
+        setAddingDept(false); setNewDeptName('')
+        await loadDepartments()
+        setSelectedDeptId(data.department?.id ?? null)
+      }
+    } finally {
+      setSavingDept(false)
+    }
   }
   const addSection = async (departmentId: number) => {
     if (!newSectionName.trim()) return
@@ -136,7 +155,32 @@ export default function KelolaDepartemenPage() {
       {loading ? (
         <div className="rounded-3xl border border-border bg-card p-12 text-center text-sm text-muted-foreground shadow-sm">Memuat struktur departemen...</div>
       ) : departments.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border bg-secondary/40 p-12 text-center text-sm text-muted-foreground">Belum ada departemen.</div>
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-border bg-secondary/40 p-12 text-center text-sm text-muted-foreground">
+          <p>Belum ada departemen.</p>
+          {isAdmin && (
+            addingDept ? (
+              <div className="flex w-full max-w-sm items-center gap-2">
+                <input
+                  value={newDeptName}
+                  onChange={(event) => setNewDeptName(event.target.value)}
+                  placeholder="Nama departemen baru"
+                  autoFocus
+                  onKeyDown={(event) => { if (event.key === 'Enter') addDepartment(); if (event.key === 'Escape') setAddingDept(false) }}
+                  className={inputClass}
+                />
+                <button onClick={addDepartment} disabled={savingDept} className={`${iconButtonClass} text-primary`} aria-label="Simpan departemen"><Check className="size-4" /></button>
+                <button onClick={() => { setAddingDept(false); setNewDeptName('') }} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setAddingDept(true); setNewDeptName('') }}
+                className="flex items-center gap-2 rounded-xl border border-dashed border-primary/40 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/5"
+              >
+                <Plus className="size-4" /> Tambah dept
+              </button>
+            )
+          )}
+        </div>
       ) : (
         <div className="grid overflow-hidden rounded-3xl border border-border bg-card shadow-sm lg:grid-cols-[320px_minmax(0,1fr)]">
           {/* Left rail: searchable department index */}
@@ -152,6 +196,29 @@ export default function KelolaDepartemenPage() {
                 />
                 {query && <button onClick={() => setQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label="Bersihkan pencarian"><X className="size-4" /></button>}
               </div>
+              {isAdmin && (
+                addingDept ? (
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      value={newDeptName}
+                      onChange={(event) => setNewDeptName(event.target.value)}
+                      placeholder="Nama departemen baru"
+                      autoFocus
+                      onKeyDown={(event) => { if (event.key === 'Enter') addDepartment(); if (event.key === 'Escape') setAddingDept(false) }}
+                      className={inputClass}
+                    />
+                    <button onClick={addDepartment} disabled={savingDept} className={`${iconButtonClass} text-primary`} aria-label="Simpan departemen"><Check className="size-4" /></button>
+                    <button onClick={() => { setAddingDept(false); setNewDeptName('') }} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setAddingDept(true); setNewDeptName('') }}
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/5"
+                  >
+                    <Plus className="size-4" /> Tambah dept
+                  </button>
+                )
+              )}
             </div>
             <div className="flex-1 divide-y divide-border overflow-y-auto lg:max-h-[560px]">
               {filteredDepartments.length === 0 && <div className="px-4 py-10 text-center text-sm text-muted-foreground">Tidak ada yang cocok.</div>}

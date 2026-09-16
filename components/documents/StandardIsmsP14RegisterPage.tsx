@@ -56,7 +56,7 @@ export function StandardIsmsP14RegisterPage() {
       setError(null)
     } catch (loadError) {
       setDocuments([])
-      setError(loadError instanceof Error ? loadError.message : 'Gagal memuat daftar Standard ISMS-P14.')
+      setError(loadError instanceof Error ? loadError.message : 'Gagal memuat daftar Standard Requirement TMMIN.')
     } finally {
       setLoading(false)
     }
@@ -137,8 +137,8 @@ export function StandardIsmsP14RegisterPage() {
         <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
           <div className="max-w-2xl">
             <div className="mb-4 flex items-center gap-2 text-xs text-primary-foreground/65"><FileText className="size-4" /> Document register</div>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">Standard ISMS-P14</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Daftar dokumen Standard ISMS-P14 beserta revisinya.</p>
+            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">Standard Requirement TMMIN</h2>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Daftar dokumen Standard Requirement TMMIN beserta revisinya.</p>
           </div>
           {isLoggedIn && <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
         </div>

@@ -495,6 +495,7 @@ CREATE TABLE public.working_standard_documents (
     revision integer DEFAULT 1 NOT NULL,
     file_path text NOT NULL,
     uploaded_at timestamp with time zone DEFAULT now() NOT NULL,
+    effective_date date,
     CONSTRAINT working_standard_documents_revision_check CHECK ((revision > 0))
 );
 

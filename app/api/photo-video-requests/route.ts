@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     if (!deptOrCompany) return NextResponse.json({ message: 'Dept/Seksi atau Company wajib diisi.' }, { status: 400 })
     if (!location) return NextResponse.json({ message: 'Lokasi wajib diisi.' }, { status: 400 })
     if (!objective) return NextResponse.json({ message: 'Tujuan wajib diisi.' }, { status: 400 })
+    if (objective.length > 2000) return NextResponse.json({ message: 'Tujuan maksimal 2000 karakter.' }, { status: 400 })
     if (!fromAt || Number.isNaN(Date.parse(fromAt))) return NextResponse.json({ message: 'Tanggal/jam mulai tidak valid.' }, { status: 400 })
     if (!toAt || Number.isNaN(Date.parse(toAt))) return NextResponse.json({ message: 'Tanggal/jam selesai tidak valid.' }, { status: 400 })
     if (new Date(toAt).getTime() < new Date(fromAt).getTime()) return NextResponse.json({ message: 'Tanggal/jam selesai harus setelah mulai.' }, { status: 400 })

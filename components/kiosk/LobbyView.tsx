@@ -5,36 +5,15 @@ import { Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldC
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
-import { ActiveCardsWidget, type CardType } from '@/components/kiosk/ActiveCardsWidget'
+import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
+import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, type Registration } from '@/components/kiosk/kiosk-shared'
 
-type Stage = 'pending_approval' | 'active' | 'closed'
 type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
-type EntryPath = 'security' | 'lobby_affiliate'
-
-type Registration = {
-  id: number
-  full_name: string
-  id_card: string
-  pic_jai: string
-  purpose: string
-  company_remark: string
-  registered_at: string
-  entry_at: string | null
-  exit_at: string | null
-  entry_path: EntryPath
-  stage: Stage
-  current_card_type: CardType | null
-  visitor_card_barcode: string | null
-  vendor_card_barcode: string | null
-  affiliate_card_barcode: string | null
-  special_area_card_barcode: string | null
-  photography_card_barcode: string | null
-}
 
 const WORK_AREA_TYPES: WorkAreaCardType[] = ['vendor', 'special_area', 'photography']
 const WORK_AREA_LABEL: Record<WorkAreaCardType, string> = {
@@ -47,14 +26,6 @@ const WORK_AREA_COLUMN: Record<WorkAreaCardType, 'vendor_card_barcode' | 'specia
   special_area: 'special_area_card_barcode',
   photography: 'photography_card_barcode',
 }
-
-function formatDateTime(value: string | null) {
-  if (!value) return '—'
-  return new Date(value).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
-const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
 
 const STAGE_BADGE: Record<string, string> = {
   pending_approval: 'bg-[#fff3d6] text-[#8a6100]',
@@ -70,13 +41,6 @@ const CARD_LABEL: Record<WorkAreaCardType | 'affiliate', string> = {
   special_area: 'Kartu Special Area',
   photography: 'Kartu Photography',
   affiliate: 'Kartu Affiliate',
-}
-const CARD_BARCODE_FIELD: Record<CardType, keyof Registration> = {
-  visitor: 'visitor_card_barcode',
-  vendor: 'vendor_card_barcode',
-  affiliate: 'affiliate_card_barcode',
-  special_area: 'special_area_card_barcode',
-  photography: 'photography_card_barcode',
 }
 function statusOf(r: Registration): { key: string; label: string } {
   if (r.stage === 'pending_approval') return { key: 'pending_approval', label: 'Menunggu Approval Security' }

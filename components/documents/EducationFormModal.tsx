@@ -16,6 +16,7 @@ export type EditableEducation = {
 
 const CATEGORIES = [
   'PDF',
+  'XLS',
   'Video',
   'PPT',
   'Dokumen',

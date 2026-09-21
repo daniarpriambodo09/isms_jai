@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Camera, Download, FileText, Plus, Search, Settings2, Sparkles, Trash2, X } from 'lucide-react'
+import { Camera, ClipboardList, Download, FileText, Plus, Search, Settings2, Sparkles, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
@@ -154,9 +154,14 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
           </div>
           <div className="flex flex-wrap gap-2">
             {category === 'form-aplikasi' && (
-              <Link href="/ijin-foto-video" className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20">
-                <Camera className="size-4" />Ijin Foto/Video
-              </Link>
+              <>
+                <Link href="/ijin-foto-video" className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20">
+                  <Camera className="size-4" />Ijin Foto/Video
+                </Link>
+                <Link href="/rekap-foto-video" className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20">
+                  <ClipboardList className="size-4" />Rekap Foto/Video
+                </Link>
+              </>
             )}
             {isLoggedIn && (
               <>
@@ -227,7 +232,15 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
         </div>
       )}
 
-      {viewing && <DocumentViewModal open={Boolean(viewing)} onClose={() => setViewing(null)} filePath={viewing.file_path} fileName={viewing.title} />}
+      {viewing && (
+        <DocumentViewModal
+          open={Boolean(viewing)}
+          onClose={() => setViewing(null)}
+          filePath={viewing.file_path}
+          fileName={viewing.title}
+          mimeType={viewing.file_kind === 'xls' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf'}
+        />
+      )}
       <FormCsFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} category={category} title={title} document={editableDocument} />
       <FormCsGroupHeaderModal open={groupHeaderModalOpen} onClose={() => setGroupHeaderModalOpen(false)} onSaved={loadDocuments} category={category} groupHeaders={groupHeaders} />
       <ConfirmDialog

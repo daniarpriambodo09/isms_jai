@@ -31,6 +31,23 @@ function Highlight({ text, keyword }: { text: string; keyword: string }) {
   return <>{text.split(regex).map((part, index) => regex.test(part) ? <mark key={index} className="rounded-sm bg-accent/35 px-1 text-accent-foreground">{part}</mark> : <span key={index}>{part}</span>)}</>
 }
 
+type TitleGroup = { key: string; title: string; docs: StandardIsmsP14Document[] }
+
+// Two documents occasionally share the exact same title — grouping by title
+// collapses the repeated title into a single line with every matching
+// control no./revision/date/action listed together.
+function groupByTitle(docs: StandardIsmsP14Document[]): TitleGroup[] {
+  const map = new Map<string, TitleGroup>()
+  const order: string[] = []
+  for (const doc of docs) {
+    const key = doc.title
+    let group = map.get(key)
+    if (!group) { group = { key, title: doc.title, docs: [] }; map.set(key, group); order.push(key) }
+    group.docs.push(doc)
+  }
+  return order.map((key) => map.get(key)!)
+}
+
 export function StandardIsmsP14RegisterPage() {
   const { isLoggedIn } = useAuth()
   const [documents, setDocuments] = useState<StandardIsmsP14Document[]>([])
@@ -162,7 +179,51 @@ export function StandardIsmsP14RegisterPage() {
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Tanggal Upload', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 ? 'max-[680px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
         {loading && <tr><td colSpan={6} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
         {!loading && filteredDocuments.length === 0 && <tr><td colSpan={6} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
-        {pageItems.map((document, index) => <tr key={document.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>{isLoggedIn && <td className="px-5 py-4"><input type="checkbox" checked={selectedIds.has(document.id)} onChange={() => toggleSelect(document.id)} aria-label={`Pilih ${document.title}`} className="size-4 rounded border-border" /></td>}<td className="whitespace-nowrap px-5 py-4 font-semibold text-accent-foreground"><Highlight text={document.control_no} keyword={query} /></td><td className="min-w-[300px] px-5 py-4"><div className="flex items-center gap-3 font-medium text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span><Highlight text={document.title} keyword={query} /></div></td><td className="whitespace-nowrap px-5 py-4"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {document.revision}</span></td><td className="whitespace-nowrap px-5 py-4 text-muted-foreground max-[680px]:hidden">{formatDate(document.uploaded_at)}</td><td className="px-5 py-4"><div className="flex items-center gap-1"><button type="button" onClick={() => setViewing(document)} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>{isLoggedIn && <><button type="button" onClick={() => { setEditing(document); setFormOpen(true) }} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button><button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button></>}</div></td></tr>)}
+        {groupByTitle(pageItems).map((group, index) => (
+          <tr key={group.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+            {isLoggedIn && (
+              <td className="px-5 py-4 align-top">
+                <div className="flex flex-col gap-1.5">
+                  {group.docs.map((document) => <div key={document.id} className="py-0.5"><input type="checkbox" checked={selectedIds.has(document.id)} onChange={() => toggleSelect(document.id)} aria-label={`Pilih ${document.title}`} className="size-4 rounded border-border" /></div>)}
+                </div>
+              </td>
+            )}
+            <td className="px-5 py-4 align-top font-semibold text-accent-foreground">
+              <div className="flex flex-col gap-1.5">
+                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5"><Highlight text={document.control_no} keyword={query} /></div>)}
+              </div>
+            </td>
+            <td className="min-w-[300px] px-5 py-4 align-top">
+              <div className="flex items-center gap-3 font-medium text-foreground">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span>
+                <Highlight text={group.title} keyword={query} />
+              </div>
+            </td>
+            <td className="px-5 py-4 align-top">
+              <div className="flex flex-col gap-1.5">
+                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {document.revision}</span></div>)}
+              </div>
+            </td>
+            <td className="px-5 py-4 align-top text-muted-foreground max-[680px]:hidden">
+              <div className="flex flex-col gap-1.5">
+                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{formatDate(document.uploaded_at)}</div>)}
+              </div>
+            </td>
+            <td className="px-5 py-4 align-top">
+              <div className="flex flex-col gap-1.5">
+                {group.docs.map((document) => (
+                  <div key={document.id} className="flex items-center gap-1 py-0.5">
+                    <button type="button" onClick={() => setViewing(document)} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                    {isLoggedIn && <>
+                      <button type="button" onClick={() => { setEditing(document); setFormOpen(true) }} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
+                      <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
+                    </>}
+                  </div>
+                ))}
+              </div>
+            </td>
+          </tr>
+        ))}
       </tbody></table></div>
         {!loading && filteredDocuments.length > 0 && (
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredDocuments.length} pageSize={pageSize} />

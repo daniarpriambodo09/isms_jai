@@ -1,6 +1,8 @@
 'use client'
 
-import { Eye, FileSpreadsheet, Pencil, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import Link from 'next/link'
+import { Eye, FileSpreadsheet, Pencil, Trash2, ShieldCheck, UserPlus } from 'lucide-react'
 
 export type FormCsDocument = {
   id: number
@@ -51,31 +53,64 @@ function FileChip({ kind, variant }: { kind: 'pdf' | 'xls'; variant: string | nu
 
 function generateMonthBadges() {
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  const badges: { label: string; year: 2024 | 2025 }[] = []
-  for (let m = 0; m < 12; m++) badges.push({ label: `${months[m]} '24`, year: 2024 })
-  for (let m = 0; m < 6; m++) badges.push({ label: `${months[m]} '25`, year: 2025 })
+  const badges: { label: string; monthIndex: number; year: number }[] = []
+  for (let m = 0; m < 12; m++) badges.push({ label: `${months[m]} '24`, monthIndex: m, year: 2024 })
+  for (let m = 0; m < 6; m++) badges.push({ label: `${months[m]} '25`, monthIndex: m, year: 2025 })
   return badges
 }
 const MONTH_BADGES = generateMonthBadges()
 
+// Jumps to the guest-registration log for that month — Lobby and Pos
+// Security keep separate registers, so clicking a month opens a small choice
+// between the two instead of guessing which one the admin wants.
+function MonthBadgeLink({ label, monthIndex, year }: { label: string; monthIndex: number; year: number }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full rounded-full px-1 py-1 text-center text-[9.5px] font-bold transition hover:opacity-75"
+        style={year === 2024 ? { background: '#d6f5f5', color: '#1a7a7a' } : { background: '#d4f5c8', color: '#2f7a1f' }}
+      >
+        {label}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute left-1/2 top-full z-40 mt-1 w-40 -translate-x-1/2 overflow-hidden rounded-lg border border-border bg-card shadow-lg">
+            <Link
+              href={`/admin-lobby?month=${monthIndex}&year=${year}`}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-3 py-2 text-[11px] font-semibold text-foreground transition hover:bg-secondary"
+            >
+              <UserPlus className="size-3.5" /> Admin Lobby
+            </Link>
+            <Link
+              href={`/admin-pos-security?month=${monthIndex}&year=${year}`}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 border-t border-border px-3 py-2 text-[11px] font-semibold text-foreground transition hover:bg-secondary"
+            >
+              <ShieldCheck className="size-3.5" /> Pos Security
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function GroupHeaderRow({ header, colSpanOffset = 0 }: { header: FormCsGroupHeader; colSpanOffset?: number }) {
   return (
     <tr>
-      <td colSpan={2 + colSpanOffset} className="bg-secondary/50 p-3 align-top">
+      <td colSpan={6 + colSpanOffset} className="bg-secondary/50 p-3 align-top">
         <div className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary">{header.label}</div>
-        <div className="grid grid-cols-6 gap-1">
+        <div className="grid grid-cols-12 gap-1">
           {MONTH_BADGES.map((badge) => (
-            <span
-              key={badge.label}
-              className="rounded-full px-1 py-1 text-center text-[9.5px] font-bold"
-              style={badge.year === 2024 ? { background: '#d6f5f5', color: '#1a7a7a' } : { background: '#d4f5c8', color: '#2f7a1f' }}
-            >
-              {badge.label}
-            </span>
+            <MonthBadgeLink key={badge.label} label={badge.label} monthIndex={badge.monthIndex} year={badge.year} />
           ))}
         </div>
       </td>
-      <td className="bg-secondary/50" colSpan={3} />
     </tr>
   )
 }
@@ -159,7 +194,7 @@ export function FormCsSpreadsheetTable({
                   <input type="checkbox" checked={allSelected} onChange={onToggleAll} aria-label="Pilih semua" className="size-4 rounded border-border" />
                 </th>
               )}
-              {['CTRL No.', 'Nama Dokumen', 'Lang', 'File', 'Keterangan'].map((head) => (
+              {['CTRL No.', 'Nama Dokumen', 'Lang', 'File', 'Keterangan', 'Aksi'].map((head) => (
                 <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
               ))}
             </tr>
@@ -169,7 +204,7 @@ export function FormCsSpreadsheetTable({
 
             {rows.length === 0 && groupHeaders.length === 0 && (
               <tr>
-                <td colSpan={showSelection ? 6 : 5} className="px-5 py-14 text-center">
+                <td colSpan={showSelection ? 7 : 6} className="px-5 py-14 text-center">
                   <FileSpreadsheet className="mx-auto mb-3 size-9 text-muted-foreground/40" />
                   <p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>
                 </td>
@@ -240,11 +275,21 @@ export function FormCsSpreadsheetTable({
                           <div key={file.id} className="flex items-center gap-1.5">
                             {group.files.length > 1 && <span className="text-[10px] font-bold text-muted-foreground">{file.language}</span>}
                             {file.keterangan_note && <span className="text-[11px] italic text-destructive">{file.keterangan_note}</span>}
-                            <div className="flex shrink-0 items-center gap-1">
-                              {isLoggedIn && <button type="button" onClick={() => onEdit(file)} aria-label={`Edit ${file.title} (${file.language})`} title={`Edit ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-3.5" /></button>}
-                              {isLoggedIn && <button type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.title} (${file.language})`} title={`Hapus ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>}
-                              <button type="button" onClick={() => onView(file)} aria-label={`Lihat ${file.title} (${file.language})`} title={`Lihat ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
-                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-4 py-3 align-top">
+                  <div className="flex flex-col gap-1.5">
+                    {titleGroups.map((group) => (
+                      <div key={group.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-0.5">
+                        {group.files.map((file) => (
+                          <div key={file.id} className="flex shrink-0 items-center gap-1">
+                            {isLoggedIn && <button type="button" onClick={() => onEdit(file)} aria-label={`Edit ${file.title} (${file.language})`} title={`Edit ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-3.5" /></button>}
+                            {isLoggedIn && <button type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.title} (${file.language})`} title={`Hapus ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>}
+                            <button type="button" onClick={() => onView(file)} aria-label={`Lihat ${file.title} (${file.language})`} title={`Lihat ${file.language}`} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-primary"><Eye className="size-3.5" /></button>
                           </div>
                         ))}
                       </div>

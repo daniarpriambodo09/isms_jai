@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Search, Trash2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
@@ -379,6 +380,10 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
 
 export function LobbyView() {
   const { adminUser, logout } = useAuth()
+  // A month/year badge elsewhere in the portal (e.g. the Form Aplikasi group
+  // header) can deep-link here as ?month=0-11&year=YYYY to land pre-filtered
+  // on that period instead of the unfiltered full list.
+  const searchParams = useSearchParams()
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
@@ -391,8 +396,8 @@ export function LobbyView() {
   const [deleting, setDeleting] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [tableQuery, setTableQuery] = useState('')
-  const [filterMonth, setFilterMonth] = useState('')
-  const [filterYear, setFilterYear] = useState('')
+  const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
+  const [filterYear, setFilterYear] = useState(searchParams.get('year') ?? '')
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)

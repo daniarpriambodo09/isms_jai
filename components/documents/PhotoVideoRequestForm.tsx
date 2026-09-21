@@ -7,6 +7,7 @@ import { API_BASE_PATH } from '@/lib/config'
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
 type Pic = { id: number; name: string; department_id: number | null }
+type VisitorApprover = { id: number; code: string; fullName: string | null }
 
 type LookupRequest = {
   id: number
@@ -24,24 +25,36 @@ const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
 const STATUS_LABEL: Record<LookupRequest['status'], string> = { pending: 'Menunggu', approved: 'Disetujui', rejected: 'Ditolak' }
 const STATUS_TONE: Record<LookupRequest['status'], string> = { pending: 'bg-[#fff3d6] text-[#8a6100]', approved: 'bg-[#dff5e6] text-[#1a6e3a]', rejected: 'bg-[#fdecec] text-[#b3413a]' }
 
-// Self-service "have I already submitted?" lookup by NIK — internal only,
-// since visitors have no NIK. Kept collapsed by default so it doesn't
-// crowd the form for the common case of a first-time submission.
-function NikHistoryLookup() {
+// Self-service "what's the status of my request?" lookup, available to both
+// internal and visitor requesters — before this, visitors had no way at all
+// to check back on a pending/approved/rejected request. Internal employees
+// can still search their whole history by NIK; everyone (internal or
+// visitor) can also look up one specific request by the reference number
+// shown right after submitting, and cancel it themselves while it's still
+// pending. Kept collapsed by default so it doesn't crowd the form for the
+// common case of a first-time submission.
+function StatusLookup({ isInternal }: { isInternal: boolean }) {
   const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState<'ref' | 'nik'>('ref')
   const [nik, setNik] = useState('')
+  const [ref, setRef] = useState('')
   const [results, setResults] = useState<LookupRequest[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cancelingId, setCancelingId] = useState<number | null>(null)
+  const [cancelError, setCancelError] = useState<string | null>(null)
 
   const search = async () => {
-    if (!nik.trim()) return
+    const value = mode === 'nik' ? nik.trim() : ref.trim()
+    if (!value) return
     setSearching(true)
     setError(null)
+    setCancelError(null)
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/lookup?nik=${encodeURIComponent(nik.trim())}`, { cache: 'no-store' })
+      const param = mode === 'nik' ? `nik=${encodeURIComponent(value)}` : `ref=${encodeURIComponent(value)}`
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/lookup?${param}`, { cache: 'no-store' })
       const data = await res.json()
-      if (!res.ok) { setError(data?.message ?? 'Gagal memuat riwayat.'); return }
+      if (!res.ok) { setError(data?.message ?? 'Gagal memuat status.'); setResults(null); return }
       setResults(data.requests ?? [])
     } catch {
       setError('Tidak dapat menghubungi server.')
@@ -50,35 +63,74 @@ function NikHistoryLookup() {
     }
   }
 
+  const cancelRequest = async (id: number) => {
+    setCancelingId(id)
+    setCancelError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/lookup?ref=${id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setCancelError(data?.message ?? 'Gagal membatalkan pengajuan.'); return }
+      setResults((prev) => prev?.filter((r) => r.id !== id) ?? null)
+    } catch {
+      setCancelError('Tidak dapat menghubungi server.')
+    } finally {
+      setCancelingId(null)
+    }
+  }
+
   return (
     <div className="mb-6">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:underline"
+        className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary shadow-sm transition hover:bg-primary/15"
       >
-        <History className="size-3.5" /> {open ? 'Sembunyikan' : 'Cek riwayat pengajuan saya'}
+        <History className="size-4" /> {open ? 'Sembunyikan' : 'Cek status pengajuan saya'}
       </button>
 
       {open && (
         <div className="mt-3 rounded-xl border border-border bg-secondary/30 p-4">
+          {isInternal && (
+            <div className="mb-3 flex gap-1.5">
+              <button type="button" onClick={() => { setMode('ref'); setResults(null); setError(null) }} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${mode === 'ref' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}>Nomor Referensi</button>
+              <button type="button" onClick={() => { setMode('nik'); setResults(null); setError(null) }} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${mode === 'nik' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-secondary'}`}>NIK (semua riwayat)</button>
+            </div>
+          )}
           <div className="flex gap-2">
-            <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Masukkan NIK" className={inputClass} />
-            <button type="button" onClick={search} disabled={searching || !nik.trim()} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+            {mode === 'nik' ? (
+              <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Masukkan NIK" className={inputClass} />
+            ) : (
+              <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Contoh: 42" inputMode="numeric" className={inputClass} />
+            )}
+            <button type="button" onClick={search} disabled={searching || !(mode === 'nik' ? nik.trim() : ref.trim())} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
               <Search className="size-4" /> {searching ? 'Mencari...' : 'Cek'}
             </button>
           </div>
+          {mode === 'ref' && <p className="mt-1.5 text-[11px] text-muted-foreground">Nomor referensi ditampilkan setelah Anda mengirim pengajuan.</p>}
           {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-          {results && results.length === 0 && !error && <p className="mt-3 text-xs text-muted-foreground">Belum ada pengajuan dengan NIK tersebut.</p>}
+          {cancelError && <p className="mt-2 text-xs text-destructive">{cancelError}</p>}
+          {results && results.length === 0 && !error && <p className="mt-3 text-xs text-muted-foreground">Tidak ada pengajuan yang cocok.</p>}
           {results && results.length > 0 && (
             <ul className="mt-3 flex flex-col gap-2">
               {results.map((r) => (
                 <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card px-3 py-2 text-xs">
                   <span className="text-foreground">
-                    {new Date(r.from_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} &middot; {r.location}
+                    #{r.id} &middot; {new Date(r.from_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })} &middot; {r.location}
                     {r.taken_at && <span className="ml-1.5 text-muted-foreground">(sudah diambil)</span>}
                   </span>
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_TONE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                  <span className="flex items-center gap-2">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_TONE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
+                    {r.status === 'pending' && (
+                      <button
+                        type="button"
+                        onClick={() => cancelRequest(r.id)}
+                        disabled={cancelingId === r.id}
+                        className="rounded-md border border-destructive/30 px-2 py-1 text-[10px] font-semibold text-destructive transition hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {cancelingId === r.id ? 'Membatalkan...' : 'Batalkan'}
+                      </button>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -120,6 +172,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [sectionId, setSectionId] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [dept, setDept] = useState('')
+  const [cameraSerialNo, setCameraSerialNo] = useState('')
   const [deptPicKamera, setDeptPicKamera] = useState('')
   const [picApproveId, setPicApproveId] = useState('')
   const [fromDate, setFromDate] = useState(todayDateStr)
@@ -130,8 +183,9 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [objective, setObjective] = useState('')
   const [departments, setDepartments] = useState<Department[]>([])
   const [pics, setPics] = useState<Pic[]>([])
+  const [visitorApprover, setVisitorApprover] = useState<VisitorApprover | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [successAt, setSuccessAt] = useState<string | null>(null)
+  const [successInfo, setSuccessInfo] = useState<{ id: number; submittedAt: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -143,30 +197,35 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   }, [isInternal])
 
   useEffect(() => {
+    if (!isInternal) return
     fetch(`${API_BASE_PATH}/api/pic-approvers`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { pics: [] }))
       .then((data: { pics: Pic[] }) => setPics(data.pics ?? []))
       .catch(() => setPics([]))
-  }, [])
+  }, [isInternal])
+
+  useEffect(() => {
+    if (isInternal) return
+    fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { approver: null }))
+      .then((data: { approver: VisitorApprover | null }) => setVisitorApprover(data.approver))
+      .catch(() => setVisitorApprover(null))
+  }, [isInternal])
 
   const selectedDept = departments.find((d) => String(d.id) === deptId)
 
   // A PIC with no department applies everywhere (e.g. a general/HQ approver).
-  // For visitors there's no department selection to filter against, so the
-  // full roster is shown instead.
-  const availablePics = isInternal
-    ? pics.filter((pic) => pic.department_id === null || String(pic.department_id) === deptId)
-    : pics
+  const availablePics = pics.filter((pic) => pic.department_id === null || String(pic.department_id) === deptId)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setDept(''); setDeptPicKamera(''); setPicApproveId('')
+    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setDept(''); setCameraSerialNo(''); setDeptPicKamera(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(''); setLocation(''); setObjective('')
   }
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setError(null)
-    setSuccessAt(null)
+    setSuccessInfo(null)
     setSubmitting(true)
     try {
       const section = selectedDept?.sections.find((s) => String(s.id) === sectionId)
@@ -177,12 +236,14 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
         requestType: locale,
         requesterName,
         deptOrCompany,
-        picApproveId,
         fromAt: fromDate && fromTime ? new Date(`${fromDate}T${fromTime}`).toISOString() : '',
         toAt: toDate && toTime ? new Date(`${toDate}T${toTime}`).toISOString() : '',
         location,
         objective,
-        ...(isInternal ? { nik, deptPicKamera } : { dept }),
+        // Visitor requests are always routed to whichever PIC is configured
+        // as the Visitor default — the server resolves it and ignores
+        // picApproveId entirely for this type (see /api/photo-video-requests).
+        ...(isInternal ? { nik, deptPicKamera, picApproveId } : { dept, cameraSerialNo }),
       }
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, {
         method: 'POST',
@@ -191,7 +252,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) { setError(data?.message ?? 'Gagal mengirim pengajuan.'); return }
-      setSuccessAt(data?.request?.submitted_at ?? new Date().toISOString())
+      setSuccessInfo({ id: data?.request?.id, submittedAt: data?.request?.submitted_at ?? new Date().toISOString() })
       resetForm()
     } catch {
       setError('Tidak dapat menghubungi server.')
@@ -229,7 +290,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
           <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary"><Users className="size-4" /></span>
           <p className="portal-eyebrow">{isInternal ? 'Data Pemohon' : 'Requester Details'}</p>
         </div>
-        {isInternal && <NikHistoryLookup />}
+        <StatusLookup isInternal={isInternal} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isInternal && (
             <Field label="NIK">
@@ -287,14 +348,34 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
               </select>
             </Field>
           )}
-          <Field label="PIC Approve" span={2}>
-            <select value={picApproveId} onChange={(e) => setPicApproveId(e.target.value)} required className={inputClass} disabled={isInternal && !deptId}>
-              <option value="">{isInternal && !deptId ? 'Pilih Dept. terlebih dahulu...' : 'Pilih PIC yang akan menyetujui...'}</option>
-              {availablePics.map((pic) => (
-                <option key={pic.id} value={pic.id}>{pic.name}</option>
-              ))}
-            </select>
-          </Field>
+          {!isInternal && (
+            <Field label="Serial No. Kamera" span={2}>
+              <input value={cameraSerialNo} onChange={(e) => setCameraSerialNo(e.target.value)} placeholder="Contoh: PRIBADI" className={inputClass} />
+              <p className="mt-1 text-[11px] text-muted-foreground">Opsional — isi &quot;PRIBADI&quot; jika menggunakan kamera/HP milik sendiri.</p>
+            </Field>
+          )}
+          {isInternal ? (
+            <Field label="PIC Approve" span={2}>
+              <select value={picApproveId} onChange={(e) => setPicApproveId(e.target.value)} required className={inputClass} disabled={!deptId}>
+                <option value="">{!deptId ? 'Pilih Dept. terlebih dahulu...' : 'Pilih PIC terkait...'}</option>
+                {availablePics.map((pic) => (
+                  <option key={pic.id} value={pic.id}>{pic.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                PIC ini hanya dicatat sebagai kontak terkait — keputusan disetujui/ditolak tetap diproses oleh Admin ISM, bukan otomatis oleh PIC yang dipilih.
+              </p>
+            </Field>
+          ) : (
+            <Field label="Approver" span={2}>
+              <div className={`${inputClass} flex items-center text-muted-foreground`}>
+                {visitorApprover?.fullName ?? visitorApprover?.code ?? 'Admin ISM'}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                This registration will be routed automatically to the approver above — no need to select one.
+              </p>
+            </Field>
+          )}
           <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>
             <div className="relative">
               <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -345,11 +426,23 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
         {error && (
           <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
         )}
-        {successAt && (
-          <p className="mt-4 flex items-center gap-2 rounded-xl border border-accent/20 bg-accent/10 px-4 py-3 text-sm text-accent-foreground">
-            <CheckCircle2 className="size-4 flex-none" />
-            {isInternal ? 'Pengajuan terkirim' : 'Registration submitted'} &middot; {new Date(successAt).toLocaleString('id-ID')}
-          </p>
+        {successInfo && (
+          <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 px-4 py-3 text-sm text-accent-foreground">
+            <p className="flex items-center gap-2">
+              <CheckCircle2 className="size-4 flex-none" />
+              {isInternal ? 'Pengajuan terkirim' : 'Registration submitted'} &middot; {new Date(successInfo.submittedAt).toLocaleString('id-ID')}
+            </p>
+            {successInfo.id != null && (
+              <p className="mt-2 pl-6 text-xs">
+                {isInternal ? 'Nomor referensi: ' : 'Reference number: '}
+                <strong className="font-mono text-sm">#{successInfo.id}</strong>
+                <br />
+                {isInternal
+                  ? 'Simpan nomor ini untuk cek status atau membatalkan pengajuan lewat "Cek status pengajuan saya" di atas.'
+                  : 'Save this number to check the status or cancel your registration via "Cek status pengajuan saya" above.'}
+              </p>
+            )}
+          </div>
         )}
       </form>
     </div>

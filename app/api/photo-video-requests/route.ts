@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { getSmtpSettings, sendMail } from '@/lib/smtp'
+import { buildVisitorApprovalEmail } from '@/lib/email-templates'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -26,6 +29,8 @@ type PhotoVideoRequestRow = {
   pic_approve_name: string | null
   taken_at: string | null
   taken_ack_at: string | null
+  camera_control_no: string | null
+  photo_id_no: string | null
 }
 
 const REQUEST_TYPES: RequestType[] = ['internal', 'visitor']
@@ -36,7 +41,7 @@ function isStatus(value: unknown): value is Status { return typeof value === 'st
 
 const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
-  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at`
+  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
 // Read access is shared with the Lobby/Security kiosk roles (getKioskAdminFromRequest)
@@ -92,38 +97,105 @@ export async function POST(request: NextRequest) {
 
     let nik: string | null = null
     let dept: string | null = null
+    let cameraSerialNo: string | null = null
     let deptPicKamera: string | null = null
+    let picApproveId: number
 
     if (requestType === 'internal') {
       nik = typeof body.nik === 'string' && body.nik.trim() ? body.nik.trim() : null
       deptPicKamera = typeof body.deptPicKamera === 'string' ? body.deptPicKamera.trim() : ''
       if (!deptPicKamera) return NextResponse.json({ message: 'Dept. PIC Kamera wajib dipilih.' }, { status: 400 })
+
+      picApproveId = Number(body.picApproveId)
+      if (!Number.isInteger(picApproveId) || picApproveId <= 0) {
+        return NextResponse.json({ message: 'PIC Approve wajib dipilih.' }, { status: 400 })
+      }
+      const picCheck = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE id = $1`, [picApproveId])
+      if (picCheck.rows.length === 0) return NextResponse.json({ message: 'PIC Approve tidak valid.' }, { status: 400 })
     } else {
       dept = typeof body.dept === 'string' ? body.dept.trim() : ''
       if (!dept) return NextResponse.json({ message: 'Department wajib diisi.' }, { status: 400 })
+      cameraSerialNo = typeof body.cameraSerialNo === 'string' && body.cameraSerialNo.trim() ? body.cameraSerialNo.trim() : null
+
+      // Visitor requests don't let the requester pick a PIC — they're always
+      // routed to whichever PIC an ISM Admin has marked as the Visitor
+      // default (see /api/pic-approvers/visitor-default), so the client's
+      // own picApproveId (if any) is ignored here.
+      const visitorPic = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`)
+      if (visitorPic.rows.length === 0) {
+        return NextResponse.json({ message: 'Approver untuk pengajuan Visitor belum diatur. Hubungi Admin ISM.' }, { status: 400 })
+      }
+      picApproveId = visitorPic.rows[0].id
     }
 
-    const picApproveId = Number(body.picApproveId)
-    if (!Number.isInteger(picApproveId) || picApproveId <= 0) {
-      return NextResponse.json({ message: 'PIC Approve wajib dipilih.' }, { status: 400 })
-    }
-    const picCheck = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE id = $1`, [picApproveId])
-    if (picCheck.rows.length === 0) return NextResponse.json({ message: 'PIC Approve tidak valid.' }, { status: 400 })
+    // Only Visitor requests get a token — it's what lets the approver act
+    // straight from the email link without logging in (see the
+    // approve/reject route). Internal requests are still decided from the
+    // admin panel only, so they don't need one.
+    const approvalToken = requestType === 'visitor' ? randomBytes(24).toString('hex') : null
 
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
-         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING id`,
-      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId]
+      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,
       [result.rows[0].id]
     )
+
+    if (requestType === 'visitor') {
+      await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken }, request.nextUrl.origin)
+    }
+
     return NextResponse.json({ request: created.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[photo-video-requests/POST]', error)
     return NextResponse.json({ message: 'Gagal mengirim pengajuan.' }, { status: 500 })
+  }
+}
+
+// Best-effort email to the configured Visitor approver — failures are
+// logged, never surfaced to the requester, since the submission itself
+// already succeeded (the DB row is the source of truth either way).
+async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approval_token: string | null }, requestOrigin: string) {
+  try {
+    const picResult = await query<{ email: string | null; full_name: string | null; name: string }>(
+      `SELECT email, full_name, name FROM pic_approvers WHERE id = $1`,
+      [requestRow.pic_approve_id]
+    )
+    const pic = picResult.rows[0]
+    if (!pic?.email) return
+
+    const settings = await getSmtpSettings()
+    if (!settings || !settings.host || !settings.port || !settings.senderEmail) return
+    if (!requestRow.approval_token) return
+
+    // Prefer the host:port this submission actually came in on (guaranteed
+    // reachable, and includes the right port) over the admin-configured App
+    // URL, which is easy to leave without a port — see the matching note
+    // in [id]/pdf/route.ts.
+    const base = requestOrigin || settings.appUrl?.replace(/\/$/, '') || ''
+    const approveUrl = `${base}/isms-jai/api/photo-video-requests/approve?token=${requestRow.approval_token}&action=approve`
+    const rejectUrl = `${base}/isms-jai/api/photo-video-requests/approve?token=${requestRow.approval_token}&action=reject`
+
+    const { subject, html } = buildVisitorApprovalEmail({
+      approverName: pic.full_name ?? pic.name,
+      requesterName: requestRow.requester_name,
+      deptOrCompany: requestRow.dept_or_company,
+      dept: requestRow.dept,
+      fromAt: requestRow.from_at,
+      toAt: requestRow.to_at,
+      location: requestRow.location,
+      objective: requestRow.objective,
+      approveUrl,
+      rejectUrl,
+    })
+
+    await sendMail(settings, { to: pic.email, subject, html })
+  } catch (error) {
+    console.error('[photo-video-requests/notifyVisitorApprover]', error)
   }
 }

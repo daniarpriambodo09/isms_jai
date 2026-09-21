@@ -5,7 +5,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Camera, Search, Settings, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, Camera, Eye, Search, Settings, Trash2, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
@@ -49,6 +49,9 @@ function KelolaPermintaanFotoVideoContent() {
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<PhotoVideoRequest | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [pendingMarkTaken, setPendingMarkTaken] = useState<PhotoVideoRequest | null>(null)
+  const [markingTaken, setMarkingTaken] = useState(false)
+  const [unmarkingId, setUnmarkingId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -83,16 +86,33 @@ function KelolaPermintaanFotoVideoContent() {
     setPendingDelete(null)
   }
 
-  const markTaken = async (req: PhotoVideoRequest) => {
+  const confirmMarkTaken = async () => {
+    if (!pendingMarkTaken) return
+    setMarkingTaken(true)
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${req.id}`, {
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${pendingMarkTaken.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'mark-taken' }),
       })
-      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menandai pengajuan.'); return }
+      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal menandai pengajuan.'); setMarkingTaken(false); setPendingMarkTaken(null); return }
       await load()
     } catch { setError('Tidak dapat menghubungi server.') }
+    setMarkingTaken(false)
+    setPendingMarkTaken(null)
+  }
+
+  const unmarkTaken = async (req: PhotoVideoRequest) => {
+    setUnmarkingId(req.id)
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unmark-taken' }),
+      })
+      if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal membatalkan tanda.'); return }
+      await load()
+    } catch { setError('Tidak dapat menghubungi server.') } finally { setUnmarkingId(null) }
   }
 
   const filteredRequests = useMemo(() => {
@@ -121,12 +141,20 @@ function KelolaPermintaanFotoVideoContent() {
             <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Permintaan Foto/Video</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">Tinjau dan putuskan pengajuan izin pengambilan foto/video dari karyawan dan visitor.</p>
           </div>
-          <Link
-            href="/kelola-pic-approve"
-            className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20"
-          >
-            <Users className="size-4" /> Kelola PIC Approve
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/kelola-pic-approve"
+              className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20"
+            >
+              <Users className="size-4" /> Kelola PIC Approve
+            </Link>
+            <Link
+              href="/kelola-kamera"
+              className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20"
+            >
+              <Camera className="size-4" /> Kelola Kontrol Kamera
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -195,16 +223,40 @@ function KelolaPermintaanFotoVideoContent() {
                       </span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3"><span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span></td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span>
+                    {req.status === 'pending' && new Date(req.to_at).getTime() < Date.now() && (
+                      <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-destructive" title="Periode yang diajukan sudah lewat tapi belum diputuskan">
+                        <AlertTriangle className="size-3" /> Terlewat
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
-                        {isIsmAdmin && req.status === 'pending' ? 'Putuskan' : 'Lihat'}
+                        {isIsmAdmin && req.status === 'pending' ? 'Tinjau' : 'Lihat'}
                       </button>
                       {isIsmAdmin && req.status === 'approved' && !req.taken_at && (
-                        <button type="button" onClick={() => markTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
-                          Tandai Sudah Diambil
+                        <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                          Sudah Diambil
                         </button>
+                      )}
+                      {isIsmAdmin && req.status === 'approved' && req.taken_at && (
+                        <button type="button" onClick={() => unmarkTaken(req)} disabled={unmarkingId === req.id} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60">
+                          {unmarkingId === req.id ? 'Membatalkan...' : 'Batalkan Tanda'}
+                        </button>
+                      )}
+                      {req.request_type === 'visitor' && req.status !== 'pending' && (
+                        <a
+                          href={`${API_BASE_PATH}/api/photo-video-requests/${req.id}/pdf`}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Lihat sertifikat PDF pengajuan ${req.requester_name}`}
+                          title="Lihat hasil pengajuan (sertifikat PDF)"
+                          className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                        >
+                          <Eye className="size-3.5" />
+                        </a>
                       )}
                       {isIsmAdmin && (
                         <button type="button" onClick={() => setPendingDelete(req)} aria-label={`Hapus pengajuan ${req.requester_name}`} title="Hapus pengajuan" className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
@@ -229,6 +281,17 @@ function KelolaPermintaanFotoVideoContent() {
         pending={deleting}
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={!!pendingMarkTaken}
+        title="Konfirmasi Foto/Video Sudah Diambil"
+        message={`Pengajuan dari "${pendingMarkTaken?.requester_name}" akan ditandai sudah diambil, dan notifikasi akan dikirim ke admin lain. Kamu masih bisa membatalkan tanda ini nanti kalau perlu.`}
+        danger={false}
+        confirmLabel="Tandai"
+        pending={markingTaken}
+        onConfirm={confirmMarkTaken}
+        onCancel={() => setPendingMarkTaken(null)}
       />
     </div>
   )

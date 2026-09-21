@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Camera, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Camera, Check, Plus, ScanLine, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -26,7 +26,14 @@ export type PhotoVideoRequest = {
   pic_approve_name: string | null
   taken_at: string | null
   taken_ack_at: string | null
+  camera_control_no: string | null
+  photo_id_no: string | null
 }
+
+type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null }
+type Department = { id: number; name: string }
+
+const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
@@ -34,10 +41,68 @@ function formatDateTime(value: string) {
 
 export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly = false }: { request: PhotoVideoRequest; onClose: () => void; onDecided?: () => void; readOnly?: boolean }) {
   const [note, setNote] = useState('')
+  const [cameras, setCameras] = useState<CameraItem[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [cameraControlNo, setCameraControlNo] = useState(request.camera_control_no ?? '')
+  const [photoIdNo, setPhotoIdNo] = useState(request.photo_id_no ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [addingCamera, setAddingCamera] = useState(false)
+  const [newCameraCode, setNewCameraCode] = useState('')
+  const [newCameraDeptId, setNewCameraDeptId] = useState('')
+  const [addCameraError, setAddCameraError] = useState<string | null>(null)
+  const [addingCameraSubmitting, setAddingCameraSubmitting] = useState(false)
+
   useEscapeClose(true, onClose)
+
+  const loadCameras = () => {
+    fetch(`${API_BASE_PATH}/api/camera-equipment`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { cameras: [] }))
+      .then((data: { cameras: CameraItem[] }) => setCameras(data.cameras ?? []))
+      .catch(() => setCameras([]))
+  }
+
+  useEffect(() => {
+    loadCameras()
+    fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { departments: [] }))
+      .then((data: { departments: Department[] }) => setDepartments(data.departments ?? []))
+      .catch(() => setDepartments([]))
+  }, [])
+
+  const submitNewCamera = async () => {
+    if (!newCameraCode.trim()) return
+    setAddingCameraSubmitting(true)
+    setAddCameraError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/camera-equipment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: newCameraCode.trim(), departmentId: newCameraDeptId || null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Gagal menambahkan kontrol kamera.')
+      setCameraControlNo(data.camera.code)
+      loadCameras()
+      setAddingCamera(false)
+      setNewCameraCode('')
+      setNewCameraDeptId('')
+    } catch (e) {
+      setAddCameraError(e instanceof Error ? e.message : 'Terjadi kesalahan.')
+    } finally {
+      setAddingCameraSubmitting(false)
+    }
+  }
+
+  const generalCameras = cameras.filter((c) => c.department_id === null)
+  const groupedCameras = cameras.reduce<Record<string, CameraItem[]>>((acc, c) => {
+    if (c.department_id === null) return acc
+    const key = c.department_name ?? 'Lainnya'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(c)
+    return acc
+  }, {})
 
   const decide = async (status: 'approved' | 'rejected') => {
     setSubmitting(true)
@@ -46,7 +111,12 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${request.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, decisionNote: note }),
+        body: JSON.stringify({
+          status,
+          decisionNote: note,
+          cameraControlNo: status === 'approved' ? cameraControlNo : null,
+          photoIdNo: status === 'approved' ? photoIdNo : null,
+        }),
       })
       if (!response.ok) {
         const data = await response.json().catch(() => null)
@@ -92,6 +162,8 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
             <dt className="text-muted-foreground">Lokasi</dt><dd className="text-foreground">{request.location}</dd>
             <dt className="text-muted-foreground">Tujuan</dt><dd className="text-foreground">{request.objective}</dd>
             <dt className="text-muted-foreground">Diajukan</dt><dd className="text-foreground">{formatDateTime(request.submitted_at)}</dd>
+            {request.camera_control_no && (<><dt className="text-muted-foreground">Kontrol No. Kamera</dt><dd className="text-foreground">{request.camera_control_no}</dd></>)}
+            {request.photo_id_no && (<><dt className="text-muted-foreground">No ID Photography</dt><dd className="text-foreground">{request.photo_id_no}</dd></>)}
           </dl>
 
           {request.status !== 'pending' && (
@@ -101,12 +173,71 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
             </p>
           )}
 
-          {readOnly ? (
+          {readOnly || request.status !== 'pending' ? (
             <p className="mt-5 rounded-lg bg-secondary/40 px-3 py-2 text-center text-xs text-muted-foreground">
-              Tampilan lihat saja — keputusan hanya dapat diproses oleh Admin ISM.
+              {request.status !== 'pending'
+                ? 'Pengajuan ini sudah diputuskan dan tidak bisa diubah lagi dari sini.'
+                : 'Tampilan lihat saja — keputusan hanya dapat diproses oleh Admin ISM.'}
             </p>
           ) : (
             <>
+              <div className="mt-5 rounded-xl bg-accent/10 p-4">
+                <p className="mb-3 text-xs font-semibold text-foreground">Kelengkapan approval (diisi kalau disetujui)</p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">Kontrol No. Kamera</span>
+                      {!addingCamera && (
+                        <button
+                          type="button"
+                          onClick={() => { setAddingCamera(true); setNewCameraCode(''); setNewCameraDeptId(''); setAddCameraError(null) }}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                        >
+                          <Plus className="size-3" /> Tambah baru
+                        </button>
+                      )}
+                    </div>
+                    {addingCamera ? (
+                      <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-2.5">
+                        <input value={newCameraCode} onChange={(e) => setNewCameraCode(e.target.value)} placeholder="Contoh: TRN-CAM-02" autoFocus className={inputClass} />
+                        <select value={newCameraDeptId} onChange={(e) => setNewCameraDeptId(e.target.value)} className={inputClass}>
+                          <option value="">Semua Departemen</option>
+                          {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                        {addCameraError && <p className="text-xs text-destructive">{addCameraError}</p>}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => setAddingCamera(false)} className="flex-1 rounded-lg border border-border bg-card py-1.5 text-xs font-medium text-foreground transition hover:bg-secondary">Batal</button>
+                          <button type="button" onClick={submitNewCamera} disabled={addingCameraSubmitting || !newCameraCode.trim()} className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+                            <Check className="size-3.5" />{addingCameraSubmitting ? 'Menyimpan...' : 'Simpan & Pilih'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <select value={cameraControlNo} onChange={(e) => setCameraControlNo(e.target.value)} className={inputClass}>
+                        <option value="">Pilih kontrol kamera...</option>
+                        {generalCameras.length > 0 && (
+                          <optgroup label="Semua Departemen">
+                            {generalCameras.map((c) => <option key={c.id} value={c.code}>{c.code}</option>)}
+                          </optgroup>
+                        )}
+                        {Object.entries(groupedCameras).map(([deptName, list]) => (
+                          <optgroup key={deptName} label={deptName}>
+                            {list.map((c) => <option key={c.id} value={c.code}>{c.code}</option>)}
+                          </optgroup>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-xs font-semibold text-muted-foreground">No ID Photography</span>
+                    <div className="relative">
+                      <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <input value={photoIdNo} onChange={(e) => setPhotoIdNo(e.target.value)} placeholder="Scan atau ketik ID..." className={`${inputClass} pl-10`} />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               <label className="mt-4 flex flex-col gap-1.5">
                 <span className="text-xs font-semibold text-muted-foreground">Catatan keputusan (opsional)</span>
                 <textarea

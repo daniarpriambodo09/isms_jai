@@ -79,7 +79,7 @@ export function Navbar() {
 
   const navLink = 'nav-wipe relative isolate overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium uppercase text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
   const navLinkActive = 'bg-accent text-white hover:text-white'
-  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin'].includes(pathname)
+  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-kamera', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin', '/kelola-smtp'].includes(pathname)
 
   // Active underline indicator
   const activeIndicator = (
@@ -369,12 +369,22 @@ export function Navbar() {
                         <Link href="/kelola-permintaan-foto-video" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                           Photo/Video Requests
                         </Link>
+                        <Link href="/kelola-kamera" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                          Manage Camera Equipment
+                        </Link>
+                        <Link href="/kelola-pic-approve" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                          Manage PIC Approvers
+                        </Link>
 
                         {adminUser?.role === 'ism_admin' && (
                           <>
                             <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Accounts</p>
                             <Link href="/kelola-admin" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                               Manage Admin Accounts
+                            </Link>
+                            <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">System</p>
+                            <Link href="/kelola-smtp" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                              SMTP Settings
                             </Link>
                           </>
                         )}
@@ -494,12 +504,22 @@ export function Navbar() {
               <Link href="/kelola-permintaan-foto-video" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                 <Settings className="size-4" />Photo/Video Requests
               </Link>
+              <Link href="/kelola-kamera" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                <Settings className="size-4" />Manage Camera Equipment
+              </Link>
+              <Link href="/kelola-pic-approve" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                <Settings className="size-4" />Manage PIC Approvers
+              </Link>
 
               {adminUser?.role === 'ism_admin' && (
                 <>
                   <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Accounts</p>
                   <Link href="/kelola-admin" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                     <Settings className="size-4" />Manage Admin Accounts
+                  </Link>
+                  <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">System</p>
+                  <Link href="/kelola-smtp" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                    <Settings className="size-4" />SMTP Settings
                   </Link>
                 </>
               )}

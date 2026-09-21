@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO standard_isms_p14_documents (control_no, title, file_path)
        VALUES ($1, $2, $3)
        RETURNING id, control_no, title, revision, uploaded_at, file_path`,
-      [controlNo.trim(), title.trim(), filePath]
+      [controlNo.trim().toUpperCase(), title.trim(), filePath]
     )
     await logActivity(session, 'create', 'standard_isms_p14_document', result.rows[0].id, `Menambahkan Standard ISMS-P14 "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] }, { status: 201 })
@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
            revision = $5
        WHERE id = $4
        RETURNING id, control_no, title, revision, uploaded_at, file_path`,
-      [controlNo.trim(), title.trim(), newFilePath, id, revision]
+      [controlNo.trim().toUpperCase(), title.trim(), newFilePath, id, revision]
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)

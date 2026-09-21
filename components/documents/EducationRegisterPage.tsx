@@ -32,10 +32,6 @@ function fileExtension(filePath: string) {
   return match ? match[1] : 'pdf'
 }
 
-function canPreviewInline(mimeType: string) {
-  return mimeType === 'application/pdf' || mimeType.startsWith('video/')
-}
-
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('id-ID', {
     day: '2-digit',
@@ -86,6 +82,7 @@ const LANGUAGE_BADGE: Record<string, { label: string; bg: string; color: string;
 
 const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
   'PDF':      { bg: '#fff0f0', color: '#a03030' },
+  'XLS':      { bg: '#e6f7ea', color: '#1a6e3a' },
   'Video':    { bg: '#f0f4ff', color: '#3a52a0' },
   'PPT':      { bg: '#fff8ed', color: '#8a5a00' },
   'Dokumen':  { bg: '#edf8f7', color: '#1a6e6a' },
@@ -114,6 +111,28 @@ function LanguageBadge({ language }: { language: string }) {
       {style.label}
     </span>
   )
+}
+
+type TitleGroup = { key: string; title: string; docs: EducationDocument[] }
+
+// Several documents often share the exact same title — e.g. a PDF and a PPT
+// version, or an IDN and an ENG version of the same material. Grouping them
+// collapses the repeated title into one row with all its variants listed
+// together, instead of one full row per file.
+function groupDocumentsByTitle(docs: EducationDocument[]): TitleGroup[] {
+  const map = new Map<string, TitleGroup>()
+  const order: string[] = []
+  for (const doc of docs) {
+    const key = doc.title
+    let group = map.get(key)
+    if (!group) {
+      group = { key, title: doc.title, docs: [] }
+      map.set(key, group)
+      order.push(key)
+    }
+    group.docs.push(doc)
+  }
+  return order.map((key) => map.get(key)!)
 }
 
 export function EducationRegisterPage() {
@@ -169,8 +188,13 @@ export function EducationRegisterPage() {
   const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filtered, 20)
   useEffect(() => { setPage(1) }, [searchQuery, categoryFilter, setPage])
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })
+  const toggleGroupSelect = (ids: number[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const allSelected = ids.every((id) => next.has(id))
+      ids.forEach((id) => (allSelected ? next.delete(id) : next.add(id)))
+      return next
+    })
   }
   const allVisibleSelected = filtered.length > 0 && filtered.every((d) => selectedIds.has(d.id))
   const toggleSelectAll = () => {
@@ -228,11 +252,7 @@ export function EducationRegisterPage() {
     `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}&download=1&name=${encodeURIComponent(title)}.${fileExtension(filePath)}`
 
   const handleView = (doc: EducationDocument) => {
-    if (canPreviewInline(doc.mime_type)) {
-      setViewing(doc)
-    } else {
-      window.open(downloadUrl(doc.file_path, doc.title), '_blank')
-    }
+    setViewing(doc)
   }
 
   return (
@@ -413,24 +433,28 @@ export function EducationRegisterPage() {
                 </tr>
               )}
 
-              {pageItems.map((doc, index) => (
+              {groupDocumentsByTitle(pageItems).map((group, index) => {
+                const groupIds = group.docs.map((d) => d.id)
+                return (
                 <tr
-                  key={doc.id}
+                  key={group.key}
                   className="transition-colors hover:bg-secondary/30"
                   style={{ background: index % 2 === 1 ? 'color-mix(in oklch, var(--secondary) 30%, transparent)' : undefined }}
                 >
                   {isLoggedIn && (
-                    <td className="px-5 py-4">
-                      <input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => toggleSelect(doc.id)} aria-label={`Pilih ${doc.title}`} className="size-4 rounded border-border" />
+                    <td className="px-5 py-4 align-top">
+                      <input type="checkbox" checked={groupIds.every((id) => selectedIds.has(id))} onChange={() => toggleGroupSelect(groupIds)} aria-label={`Pilih ${group.title}`} className="size-4 rounded border-border" />
                     </td>
                   )}
                   {/* Tanggal */}
-                  <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground max-[680px]:hidden">
-                    {formatDate(doc.uploaded_at)}
+                  <td className="whitespace-nowrap px-5 py-4 align-top text-xs text-muted-foreground max-[680px]:hidden">
+                    <div className="flex flex-col gap-1.5">
+                      {group.docs.map((doc) => <div key={doc.id} className="py-0.5">{formatDate(doc.uploaded_at)}</div>)}
+                    </div>
                   </td>
 
-                  {/* Judul */}
-                  <td className="min-w-[280px] px-5 py-4">
+                  {/* Judul — shown once per group, not repeated per file */}
+                  <td className="min-w-[280px] px-5 py-4 align-top">
                     <div className="flex items-center gap-3 font-medium text-foreground">
                       <span
                         className="grid size-9 flex-shrink-0 place-items-center rounded-lg"
@@ -441,73 +465,104 @@ export function EducationRegisterPage() {
                       >
                         <FileText className="size-4" />
                       </span>
-                      <Highlight text={doc.title} keyword={searchQuery} />
+                      <Highlight text={group.title} keyword={searchQuery} />
                     </div>
                   </td>
 
                   {/* Kategori */}
-                  <td className="whitespace-nowrap px-5 py-4">
-                    <CategoryBadge category={doc.category} />
+                  <td className="whitespace-nowrap px-5 py-4 align-top">
+                    <div className="flex flex-col gap-1.5">
+                      {group.docs.map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => handleView(doc)}
+                          title={`Lihat versi ${doc.category}`}
+                          className="cursor-pointer rounded-full py-0.5 text-left transition hover:opacity-75"
+                        >
+                          <CategoryBadge category={doc.category} />
+                        </button>
+                      ))}
+                    </div>
                   </td>
 
                   {/* Bahasa */}
-                  <td className="whitespace-nowrap px-5 py-4">
-                    <LanguageBadge language={doc.language} />
+                  <td className="whitespace-nowrap px-5 py-4 align-top">
+                    <div className="flex flex-col gap-1.5">
+                      {group.docs.map((doc) => (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => handleView(doc)}
+                          title={`Lihat versi ${doc.language}`}
+                          className="cursor-pointer rounded-full py-0.5 text-left transition hover:opacity-75"
+                        >
+                          <LanguageBadge language={doc.language} />
+                        </button>
+                      ))}
+                    </div>
                   </td>
 
                   {/* Aksi */}
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-1">
-                      {/* Lihat (inline untuk PDF/video, tab baru untuk tipe lain) */}
-                      <button
-                        type="button"
-                        onClick={() => handleView(doc)}
-                        aria-label={`Lihat ${doc.title}`}
-                        title={canPreviewInline(doc.mime_type) ? 'Lihat' : 'Buka file'}
-                        className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                      >
-                        <Eye className="size-4" />
-                      </button>
-
-                      {/* Download */}
-                      <a
-                        href={downloadUrl(doc.file_path, doc.title)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Download"
-                        aria-label={`Download ${doc.title}`}
-                        className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                      >
-                        <Download className="size-4" />
-                      </a>
-
-                      {/* Admin: Edit & Delete */}
-                      {isLoggedIn && (
-                        <>
+                  <td className="px-5 py-4 align-top">
+                    <div className="flex flex-col gap-1.5">
+                      {group.docs.map((doc) => (
+                        <div key={doc.id} className="flex items-center gap-1 py-0.5">
+                          {/* Lihat — DocumentViewModal itself decides how to render each
+                              file type (PDF, video, Excel, PPTX inline; anything else
+                              falls back to an explicit "open file" link inside the modal). */}
                           <button
                             type="button"
-                            onClick={() => openEdit(doc)}
-                            aria-label={`Edit ${doc.title}`}
-                            title="Edit dokumen"
-                            className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-accent-foreground"
+                            onClick={() => handleView(doc)}
+                            aria-label={`Lihat ${doc.title} (${doc.category}, ${doc.language})`}
+                            title="Lihat"
+                            className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                           >
-                            <Pencil className="size-4" />
+                            <Eye className="size-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setPendingDelete(doc)}
-                            aria-label={`Hapus ${doc.title}`}
-                            title="Hapus dokumen"
-                            className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+
+                          {/* Download */}
+                          <a
+                            href={downloadUrl(doc.file_path, doc.title)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Download"
+                            aria-label={`Download ${doc.title} (${doc.category}, ${doc.language})`}
+                            className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                           >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </>
-                      )}
+                            <Download className="size-4" />
+                          </a>
+
+                          {/* Admin: Edit & Delete */}
+                          {isLoggedIn && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => openEdit(doc)}
+                                aria-label={`Edit ${doc.title} (${doc.category}, ${doc.language})`}
+                                title="Edit dokumen"
+                                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-accent-foreground"
+                              >
+                                <Pencil className="size-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingDelete(doc)}
+                                aria-label={`Hapus ${doc.title} (${doc.category}, ${doc.language})`}
+                                title="Hapus dokumen"
+                                className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="size-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

@@ -125,13 +125,6 @@ export function ImageShowcase() {
         className={`relative overflow-hidden bg-[#1a3a52] ${isFullscreen ? 'h-screen w-screen' : `w-full min-h-[280px] max-h-[780px] ${FULL_BLEED}`}`}
         style={isFullscreen ? undefined : { aspectRatio: aspect }}
       >
-        {!isFullscreen && (
-          /* Fades the page's own cream background into the box instead of cutting
-             straight to its dark backdrop, so it reads as a continuation of the
-             hero above rather than a separate block dropped underneath it. */
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 sm:h-24" style={{ background: 'linear-gradient(180deg, oklch(0.96 0.025 92) 0%, oklch(0.96 0.025 92 / 55%) 50%, transparent 100%)' }} />
-        )}
-
         {outgoing && images[outgoing.index] && (
           <ImageLayer key={`out-${outgoing.key}`} slide={images[outgoing.index]} phase="out" isFullscreen={isFullscreen} onDone={() => setOutgoing((prev) => (prev?.key === outgoing.key ? null : prev))} />
         )}

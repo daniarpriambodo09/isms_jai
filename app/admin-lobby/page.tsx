@@ -2,12 +2,12 @@
 
 'use client'
 
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { KioskLoginForm } from '@/components/kiosk/KioskLoginForm'
 import { LobbyView } from '@/components/kiosk/LobbyView'
 
-export default function AdminLobbyPage() {
+function AdminLobbyContent() {
   const { adminUser, isLoading } = useAuth()
   const [revealView, setRevealView] = useState(false)
   const sawLoginForm = useRef(false)
@@ -23,4 +23,12 @@ export default function AdminLobbyPage() {
 
   sawLoginForm.current = true
   return <KioskLoginForm title="Admin Lobby" subtitle="Login khusus admin Lobby" onCelebrationDone={() => setRevealView(true)} />
+}
+
+export default function AdminLobbyPage() {
+  return (
+    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Memuat...</div>}>
+      <AdminLobbyContent />
+    </Suspense>
+  )
 }

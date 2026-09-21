@@ -2,12 +2,12 @@
 
 'use client'
 
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { KioskLoginForm } from '@/components/kiosk/KioskLoginForm'
 import { SecurityView } from '@/components/kiosk/SecurityView'
 
-export default function AdminPosSecurityPage() {
+function AdminPosSecurityContent() {
   const { adminUser, isLoading } = useAuth()
   const [revealView, setRevealView] = useState(false)
   const sawLoginForm = useRef(false)
@@ -23,4 +23,12 @@ export default function AdminPosSecurityPage() {
 
   sawLoginForm.current = true
   return <KioskLoginForm title="Pos Security" subtitle="Login khusus admin Pos Security" onCelebrationDone={() => setRevealView(true)} />
+}
+
+export default function AdminPosSecurityPage() {
+  return (
+    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Memuat...</div>}>
+      <AdminPosSecurityContent />
+    </Suspense>
+  )
 }

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO working_standard_documents (control_no, title, file_path, effective_date)
        VALUES ($1, $2, $3, $4)
        RETURNING id, control_no, title, revision, uploaded_at, file_path, effective_date`,
-      [controlNo.trim(), title.trim(), filePath, effectiveDate]
+      [controlNo.trim().toUpperCase(), title.trim(), filePath, effectiveDate]
     )
     await logActivity(session, 'create', 'working_standard_document', result.rows[0].id, `Menambahkan Working Standard "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] }, { status: 201 })
@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest) {
            effective_date = $6
        WHERE id = $4
        RETURNING id, control_no, title, revision, uploaded_at, file_path, effective_date`,
-      [controlNo.trim(), title.trim(), newFilePath, id, revision, effectiveDate]
+      [controlNo.trim().toUpperCase(), title.trim(), newFilePath, id, revision, effectiveDate]
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)

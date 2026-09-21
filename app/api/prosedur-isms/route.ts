@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       `INSERT INTO procedure_documents (control_no, title, revision, elf_date, file_path)
        VALUES ($1, $2, 1, $3, $4)
        RETURNING id, control_no, title, revision, elf_date, uploaded_at, file_path`,
-      [controlNo.trim(), title.trim(), elfDate, filePath]
+      [controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath]
     )
 
     await logActivity(session, 'create', 'procedure_document', result.rows[0].id, `Menambahkan prosedur ISMS "${result.rows[0].title}"`)
@@ -129,7 +129,7 @@ export async function PUT(request: NextRequest) {
            revision = $6
        WHERE id = $5
        RETURNING id, control_no, title, revision, elf_date, uploaded_at, file_path`,
-      [controlNo.trim(), title.trim(), elfDate, newFilePath, id, revision]
+      [controlNo.trim().toUpperCase(), title.trim(), elfDate, newFilePath, id, revision]
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)

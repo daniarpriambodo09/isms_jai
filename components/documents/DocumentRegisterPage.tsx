@@ -28,6 +28,23 @@ function Highlight({ text, keyword }: { text: string; keyword: string }) {
   return <>{text.split(regex).map((part, i) => regex.test(part) ? <mark key={i} className="rounded-sm bg-accent/35 px-1 text-accent-foreground">{part}</mark> : <span key={i}>{part}</span>)}</>
 }
 
+type TitleGroup = { key: string; title: string; docs: ApiDocument[] }
+
+// Two documents occasionally share the exact same title — grouping by title
+// collapses the repeated title into a single line with every matching
+// revision/date/action listed together.
+function groupByTitle(docs: ApiDocument[]): TitleGroup[] {
+  const map = new Map<string, TitleGroup>()
+  const order: string[] = []
+  for (const doc of docs) {
+    const key = doc.title
+    let group = map.get(key)
+    if (!group) { group = { key, title: doc.title, docs: [] }; map.set(key, group); order.push(key) }
+    group.docs.push(doc)
+  }
+  return order.map((key) => map.get(key)!)
+}
+
 export function DocumentRegisterPage({ department, section }: { department: DepartmentInfo; section: SectionInfo | null }) {
   const { isLoggedIn } = useAuth()
   const [docs, setDocs] = useState<ApiDocument[]>([])
@@ -142,7 +159,46 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
           <tbody className="divide-y divide-border">
             {loading && <tr><td colSpan={5} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
             {!loading && filteredDocs.length === 0 && <tr><td colSpan={5} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{hasFilter ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>{hasFilter && <button onClick={() => setQuery('')} className="mt-2 text-xs font-semibold text-primary hover:underline">Hapus pencarian</button>}</td></tr>}
-            {pageItems.map((doc, index) => <tr key={doc.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>{isLoggedIn && <td className="px-5 py-4"><input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => toggleSelect(doc.id)} aria-label={`Pilih ${doc.title}`} className="size-4 rounded border-border" /></td>}<td className="whitespace-nowrap px-5 py-4 text-muted-foreground max-[560px]:hidden">{formatDate(doc.uploaded_at)}</td><td className="min-w-[260px] px-5 py-4"><div className="flex items-center gap-3 font-medium text-foreground"><span className="grid size-9 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span><Highlight text={doc.title} keyword={query} /></div></td><td className="px-5 py-4"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{doc.revision?.trim() ? doc.revision : '—'}</span></td><td className="px-5 py-4"><div className="flex items-center gap-1"><button type="button" onClick={() => setViewing(doc)} aria-label={`Lihat ${doc.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>{isLoggedIn && <><button type="button" onClick={() => openEdit(doc)} aria-label={`Edit ${doc.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button><button type="button" onClick={() => setPendingDelete(doc)} aria-label={`Hapus ${doc.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button></>}</div></td></tr>)}
+            {groupByTitle(pageItems).map((group, index) => (
+              <tr key={group.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+                {isLoggedIn && (
+                  <td className="px-5 py-4 align-top">
+                    <div className="flex flex-col gap-1.5">
+                      {group.docs.map((doc) => <div key={doc.id} className="py-0.5"><input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => toggleSelect(doc.id)} aria-label={`Pilih ${doc.title}`} className="size-4 rounded border-border" /></div>)}
+                    </div>
+                  </td>
+                )}
+                <td className="px-5 py-4 align-top text-muted-foreground max-[560px]:hidden">
+                  <div className="flex flex-col gap-1.5">
+                    {group.docs.map((doc) => <div key={doc.id} className="whitespace-nowrap py-0.5">{formatDate(doc.uploaded_at)}</div>)}
+                  </div>
+                </td>
+                <td className="min-w-[260px] px-5 py-4 align-top">
+                  <div className="flex items-center gap-3 font-medium text-foreground">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span>
+                    <Highlight text={group.title} keyword={query} />
+                  </div>
+                </td>
+                <td className="px-5 py-4 align-top">
+                  <div className="flex flex-col gap-1.5">
+                    {group.docs.map((doc) => <div key={doc.id} className="py-0.5"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{doc.revision?.trim() ? doc.revision : '—'}</span></div>)}
+                  </div>
+                </td>
+                <td className="px-5 py-4 align-top">
+                  <div className="flex flex-col gap-1.5">
+                    {group.docs.map((doc) => (
+                      <div key={doc.id} className="flex items-center gap-1 py-0.5">
+                        <button type="button" onClick={() => setViewing(doc)} aria-label={`Lihat ${doc.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                        {isLoggedIn && <>
+                          <button type="button" onClick={() => openEdit(doc)} aria-label={`Edit ${doc.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
+                          <button type="button" onClick={() => setPendingDelete(doc)} aria-label={`Hapus ${doc.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
+                        </>}
+                      </div>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table></div>
         {!loading && filteredDocs.length > 0 && (

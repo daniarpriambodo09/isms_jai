@@ -22,7 +22,7 @@ type Slide = {
 const TRANSITION_MS = 1100
 
 // Breaks the hero out of <main>'s centered max-width/padding so it spans the
-// full browser width edge-to-edge, like a real hero banner instead of a card.
+// full browser width edge-to-edge, like a real hero banner instead of a boxed card.
 const FULL_BLEED = 'w-screen ml-[calc(50%-50vw)]'
 
 function slideUrl(slide: Slide) {
@@ -71,30 +71,28 @@ function SlideLayer({
 
       {!isFullscreen && phase === 'in' && (
         <>
-          {/* Top gradient matches the navbar's color so it blends straight into the video below. */}
-          <div className="absolute inset-x-0 top-0 h-12 sm:h-16" style={{ background: 'linear-gradient(180deg, var(--primary) 0%, transparent 100%)' }} />
+          {/* Even dark wash top-to-bottom so centered white text stays legible
+              over whatever the video is showing, not just a bottom band. */}
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(10,26,34,0.55) 0%, rgba(10,26,34,0.15) 30%, rgba(10,26,34,0.35) 60%, rgba(10,26,34,0.82) 100%)' }} />
 
-          {/* Solid enough behind the caption that it stays legible no matter what's
-              playing underneath, instead of letting busy video footage show through. */}
-          <div className="absolute inset-x-0 bottom-0 h-36 sm:h-52" style={{ background: 'linear-gradient(0deg, oklch(0.96 0.025 92 / 99%) 0%, oklch(0.96 0.025 92 / 92%) 45%, oklch(0.96 0.025 92 / 0%) 100%)' }} />
+          {/* Short blend into the navbar's teal right at the top edge, so the video doesn't cut sharply against it. */}
+          <div className="absolute inset-x-0 top-0 h-10 sm:h-14" style={{ background: 'linear-gradient(180deg, var(--primary) 0%, transparent 100%)' }} />
 
-          <div className="relative z-10 flex h-full flex-col justify-end p-6 text-foreground sm:p-10">
-            <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-3">
-              <div className="mb-1 inline-flex w-fit items-center gap-2 rounded-full border border-primary/25 bg-background/60 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary backdrop-blur-sm">
-                <Sparkles className="size-3.5" /> Portal ISMS
-              </div>
-              <h1 className="max-w-2xl text-balance text-2xl font-semibold tracking-tight sm:text-4xl">{slide.title}</h1>
-              {slide.description && <p className="max-w-xl text-sm leading-6 text-foreground/80 sm:text-base">{slide.description}</p>}
-              {slide.cta_label && slide.cta_href && (
-                <Link
-                  href={slide.cta_href}
-                  className="mt-2 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                  style={{ background: 'linear-gradient(135deg, oklch(0.7 0.15 55) 0%, oklch(0.75 0.18 50) 100%)', color: '#1a2f1a' }}
-                >
-                  {slide.cta_label}
-                </Link>
-              )}
+          <div className="relative z-10 flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-white sm:p-10">
+            <div className="mb-1 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] backdrop-blur-sm">
+              <Sparkles className="size-3.5" /> Portal ISMS
             </div>
+            <h1 className="max-w-2xl text-balance text-2xl font-bold tracking-tight sm:text-4xl">{slide.title}</h1>
+            {slide.description && <p className="max-w-xl text-sm leading-6 text-white/75 sm:text-base">{slide.description}</p>}
+            {slide.cta_label && slide.cta_href && (
+              <Link
+                href={slide.cta_href}
+                className="mt-2 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                style={{ background: 'linear-gradient(135deg, oklch(0.7 0.15 55) 0%, oklch(0.75 0.18 50) 100%)', color: '#1a2f1a' }}
+              >
+                {slide.cta_label}
+              </Link>
+            )}
           </div>
         </>
       )}
@@ -151,22 +149,22 @@ export function HeroCarousel() {
   const loopVideo = slides.length <= 1
 
   if (loading) {
-    return <div className={`h-[420px] bg-card sm:h-[520px] ${FULL_BLEED}`} />
+    return <div className={`h-[70vh] max-h-[760px] min-h-[480px] bg-card ${FULL_BLEED}`} />
   }
 
   if (!current) {
     return (
       <section
-        className={`relative overflow-hidden p-6 text-primary-foreground sm:p-10 ${FULL_BLEED}`}
+        className={`relative overflow-hidden p-6 text-center text-primary-foreground sm:p-10 ${FULL_BLEED}`}
         style={{ background: 'linear-gradient(135deg, #1a3a52 0%, #1a5f7a 45%, #278e84 100%)' }}
       >
         <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
-        <div className="relative z-10 mx-auto max-w-2xl">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
+        <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-3">
+          <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
             <Sparkles className="size-3.5" /> Portal ISMS
           </div>
-          <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">Selamat Datang di Portal ISMS</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Pusat informasi kebijakan, prosedur, dan materi keamanan informasi PT. Jatim Autocomp Indonesia.</p>
+          <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">Selamat Datang di Portal ISMS</h1>
+          <p className="max-w-xl text-sm leading-6 text-primary-foreground/72">Pusat informasi kebijakan, prosedur, dan materi keamanan informasi PT. Jatim Autocomp Indonesia.</p>
         </div>
       </section>
     )
@@ -175,7 +173,7 @@ export function HeroCarousel() {
   return (
     <section
       ref={sectionRef}
-      className={`relative overflow-hidden bg-[#1a3a52] ${isFullscreen ? 'h-screen w-screen' : `h-[420px] sm:h-[520px] ${FULL_BLEED}`}`}
+      className={`relative overflow-hidden bg-[#1a3a52] ${isFullscreen ? 'h-screen w-screen' : `h-[70vh] max-h-[760px] min-h-[480px] ${FULL_BLEED}`}`}
     >
       {outgoing && slides[outgoing.index] && (
         <SlideLayer key={`out-${outgoing.key}`} slide={slides[outgoing.index]} phase="out" loop={loopVideo} muted={muted} isFullscreen={isFullscreen} onDone={() => setOutgoing((current) => (current?.key === outgoing.key ? null : current))} />
@@ -225,7 +223,7 @@ export function HeroCarousel() {
       </div>
 
       {slides.length > 1 && (
-        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 sm:bottom-6 sm:right-8">
+        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 sm:bottom-6">
           {slides.map((slide, i) => (
             <button
               key={slide.id}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bell, Camera, X, UserPlus } from 'lucide-react'
+import { Bell, Camera, Check, UserPlus } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -153,11 +153,11 @@ export function NotificationBell() {
                   <button
                     type="button"
                     onClick={() => dismissTaken(req.id)}
-                    aria-label={`Tutup notifikasi ${req.requester_name}`}
-                    title="Tutup notifikasi"
-                    className="mt-0.5 grid size-7 flex-none place-items-center rounded-full text-muted-foreground transition hover:bg-secondary"
+                    aria-label={`Tandai sudah dilihat: ${req.requester_name}`}
+                    title="Sudah dilihat — tandai selesai"
+                    className="mt-0.5 flex flex-none items-center gap-1 rounded-full border border-emerald-600/30 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
                   >
-                    <X className="size-4" />
+                    <Check className="size-3.5" /> OK
                   </button>
                 </div>
               ))}

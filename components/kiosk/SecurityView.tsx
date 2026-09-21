@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ArrowDownUp, Check, Download, KeyRound, LogOut, Plus, RotateCcw, ScanLine, ShieldCheck, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
@@ -183,6 +184,10 @@ function statusOf(r: Registration): { key: string; label: string } {
 
 export function SecurityView() {
   const { adminUser, logout } = useAuth()
+  // A month/year badge elsewhere in the portal (e.g. the Form Aplikasi group
+  // header) can deep-link here as ?month=0-11&year=YYYY to land pre-filtered
+  // on that period instead of the unfiltered full list.
+  const searchParams = useSearchParams()
   const [registrations, setRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -190,8 +195,8 @@ export function SecurityView() {
   const [formOpen, setFormOpen] = useState(false)
   const [scanTarget, setScanTarget] = useState<{ registration: Registration; action: 'approve' | 'close' } | null>(null)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
-  const [filterMonth, setFilterMonth] = useState('')
-  const [filterYear, setFilterYear] = useState('')
+  const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
+  const [filterYear, setFilterYear] = useState(searchParams.get('year') ?? '')
 
   const load = useCallback(async () => {
     setLoading(true)

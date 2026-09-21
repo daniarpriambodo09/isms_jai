@@ -101,7 +101,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
          (category, control_no, title, language, file_path, keterangan_type, keterangan_note, file_variant, file_kind, title_emphasis_from)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING ${SELECT_COLUMNS}`,
-      [category, controlNo.trim(), title.trim(), language.trim(), filePath, keteranganType, keteranganNote, fileVariant, fileKind, titleEmphasisFrom]
+      [category, controlNo.trim().toUpperCase(), title.trim(), language.trim(), filePath, keteranganType, keteranganNote, fileVariant, fileKind, titleEmphasisFrom]
     )
     await logActivity(session, 'create', 'form_cs_document', result.rows[0].id, `Menambahkan ${categoryLabel(category)} "${result.rows[0].title}"`)
     return NextResponse.json({ document: result.rows[0] }, { status: 201 })
@@ -157,7 +157,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
            keterangan_type = $5, keterangan_note = $6, file_variant = $7, file_kind = $8, title_emphasis_from = $9
        WHERE id = $10 AND category = $11
        RETURNING ${SELECT_COLUMNS}`,
-      [controlNo.trim(), title.trim(), language.trim(), newFilePath, keteranganType, keteranganNote, fileVariant, fileKind, titleEmphasisFrom, id, category]
+      [controlNo.trim().toUpperCase(), title.trim(), language.trim(), newFilePath, keteranganType, keteranganNote, fileVariant, fileKind, titleEmphasisFrom, id, category]
     )
 
     if (newFilePath) await deleteDocumentFile(existing.rows[0].file_path)

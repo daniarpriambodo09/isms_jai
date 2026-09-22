@@ -3,8 +3,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowDownUp, Camera, Download, Search } from 'lucide-react'
+import { ArrowDownUp, Camera, Download, Eye, Search } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { useAuth } from '@/context/AuthContext'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
@@ -42,6 +43,8 @@ function formatDateTime(value: string | null) {
 }
 
 export function LedgerFotoVideoPage() {
+  const { adminUser } = useAuth()
+  const isIsmAdmin = adminUser?.role === 'ism_admin'
   const [requests, setRequests] = useState<LedgerRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -152,20 +155,20 @@ export function LedgerFotoVideoPage() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1420px] text-sm">
+          <table className={`w-full text-sm ${isIsmAdmin ? 'min-w-[1480px]' : 'min-w-[1420px]'}`}>
             <thead className="table-head-gradient">
               <tr>
-                {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Section', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Dept. PIC Kamera', 'Kontrol No. Kamera', 'No ID Photography', 'Status', 'PIC Approval'].map((head) => (
+                {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Section', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Dept. PIC Kamera', 'Kontrol No. Kamera', 'No ID Photography', 'Status', 'PIC Approval', ...(isIsmAdmin ? ['Aksi'] : [])].map((head) => (
                   <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && (
-                <tr><td colSpan={14} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat rekap...</p></td></tr>
+                <tr><td colSpan={isIsmAdmin ? 15 : 14} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat rekap...</p></td></tr>
               )}
               {!loading && filteredRequests.length === 0 && (
-                <tr><td colSpan={14} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada yang cocok' : 'Belum ada pengajuan'}</p></td></tr>
+                <tr><td colSpan={isIsmAdmin ? 15 : 14} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada yang cocok' : 'Belum ada pengajuan'}</p></td></tr>
               )}
               {pageItems.map((r, index) => (
                 <tr key={r.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
@@ -186,6 +189,24 @@ export function LedgerFotoVideoPage() {
                     {r.decided_at && <span className="mt-1 block text-[10px] text-muted-foreground">{formatDateTime(r.decided_at)}</span>}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_approve_name ?? '—'}</td>
+                  {isIsmAdmin && (
+                    <td className="whitespace-nowrap px-4 py-3">
+                      {r.request_type === 'visitor' && r.status !== 'pending' ? (
+                        <a
+                          href={`${API_BASE_PATH}/api/photo-video-requests/${r.id}/pdf`}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Lihat sertifikat PDF pengajuan ${r.requester_name}`}
+                          title="Lihat hasil pengajuan (sertifikat PDF)"
+                          className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                        >
+                          <Eye className="size-3.5" />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

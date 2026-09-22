@@ -2,23 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowDownUp, Check, Download, KeyRound, LogOut, Plus, RotateCcw, ScanLine, ShieldCheck, X } from 'lucide-react'
+import { ArrowDownUp, Check, Download, KeyRound, LogOut, Pencil, Plus, RotateCcw, ScanLine, ShieldCheck, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ChangePasswordModal } from '@/components/change-password-modal'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
 import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, type Registration } from '@/components/kiosk/kiosk-shared'
 
-function RegisterModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [fullName, setFullName] = useState('')
-  const [idCard, setIdCard] = useState('')
-  const [picJai, setPicJai] = useState('')
-  const [purpose, setPurpose] = useState('')
-  const [companyRemark, setCompanyRemark] = useState('')
+// Handles both "Pendaftaran" (new) and "Edit Data" (existing) — same fields
+// either way, just POST vs. PUT action=editDetails underneath.
+function RegisterModal({ editing, onClose, onSaved }: { editing?: Registration | null; onClose: () => void; onSaved: () => void }) {
+  const [fullName, setFullName] = useState(editing?.full_name ?? '')
+  const [idCard, setIdCard] = useState(editing?.id_card ?? '')
+  const [picJai, setPicJai] = useState(editing?.pic_jai ?? '')
+  const [purpose, setPurpose] = useState(editing?.purpose ?? '')
+  const [companyRemark, setCompanyRemark] = useState(editing?.company_remark ?? '')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -29,12 +32,19 @@ function RegisterModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     setError(null)
     setSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark }),
-      })
+      const res = editing
+        ? await fetch(`${API_BASE_PATH}/api/vendor-registrations/${editing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'editDetails', fullName, idCard, picJai, purpose, companyRemark }),
+          })
+        : await fetch(`${API_BASE_PATH}/api/vendor-registrations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark }),
+          })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
       onSaved()
@@ -48,9 +58,9 @@ function RegisterModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div role="dialog" aria-modal="true" aria-label="Pendaftaran Supplier / Vendor" className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={editing ? 'Edit Data Pendaftaran' : 'Pendaftaran Supplier / Vendor'} className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between bg-primary px-6 py-5 text-primary-foreground">
-          <h2 className="text-lg font-bold">Pendaftaran Supplier / Vendor</h2>
+          <h2 className="text-lg font-bold">{editing ? 'Edit Data Pendaftaran' : 'Pendaftaran Supplier / Vendor'}</h2>
           <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
             <X className="size-[18px]" />
           </button>
@@ -84,7 +94,7 @@ function RegisterModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               Kembali
             </button>
             <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
-              {submitting ? 'Menyimpan...' : 'Daftar'}
+              {submitting ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Daftar'}
             </button>
           </div>
         </form>
@@ -193,6 +203,10 @@ export function SecurityView() {
   const [error, setError] = useState<string | null>(null)
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
   const [formOpen, setFormOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Registration | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [scanTarget, setScanTarget] = useState<{ registration: Registration; action: 'approve' | 'close' } | null>(null)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
@@ -253,6 +267,26 @@ export function SecurityView() {
     setScanTarget(null)
     load()
     return null
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${pendingDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setDeleteError(data?.message ?? 'Gagal menghapus.'); return }
+      setPendingDelete(null)
+      load()
+    } catch {
+      setDeleteError('Tidak dapat menghubungi server.')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -320,6 +354,7 @@ export function SecurityView() {
         </div>
 
         {error && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+        {deleteError && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{deleteError}</p>}
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <div className="overflow-x-auto">
@@ -362,16 +397,24 @@ export function SecurityView() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        {r.stage === 'pending_approval' && (
-                          <button type="button" onClick={() => setScanTarget({ registration: r, action: 'approve' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
-                            <ScanLine className="size-3.5" />Approve
+                        <div className="flex items-center gap-1.5">
+                          {r.stage === 'pending_approval' && (
+                            <button type="button" onClick={() => setScanTarget({ registration: r, action: 'approve' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                              <ScanLine className="size-3.5" />Approve
+                            </button>
+                          )}
+                          {r.stage === 'active' && r.current_card_type === 'visitor' && (
+                            <button type="button" onClick={() => setScanTarget({ registration: r, action: 'close' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                              <ScanLine className="size-3.5" />Kartu Dikembalikan
+                            </button>
+                          )}
+                          <button type="button" onClick={() => setEditTarget(r)} aria-label={`Edit data ${r.full_name}`} title="Edit data" className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+                            <Pencil className="size-3.5" />
                           </button>
-                        )}
-                        {r.stage === 'active' && r.current_card_type === 'visitor' && (
-                          <button type="button" onClick={() => setScanTarget({ registration: r, action: 'close' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
-                            <ScanLine className="size-3.5" />Kartu Dikembalikan
+                          <button type="button" onClick={() => setPendingDelete(r)} aria-label={`Hapus pendaftaran ${r.full_name}`} title="Hapus pendaftaran" className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 className="size-3.5" />
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -383,7 +426,16 @@ export function SecurityView() {
       </main>
 
       {formOpen && <RegisterModal onClose={() => setFormOpen(false)} onSaved={load} />}
+      {editTarget && <RegisterModal editing={editTarget} onClose={() => setEditTarget(null)} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus pendaftaran?"
+        message={pendingDelete ? `Data pendaftaran "${pendingDelete.full_name}" akan dihapus permanen dan tidak bisa dikembalikan.` : ''}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => { setPendingDelete(null); setDeleteError(null) }}
+      />
       {scanTarget && (
         <ScanPrompt
           title={scanTarget.action === 'approve' ? 'Approve — Scan Kartu Visitor' : 'Scan Kartu Visitor yang Dikembalikan'}

@@ -78,7 +78,7 @@ function SlideLayer({
           {/* Short blend into the navbar's teal right at the top edge, so the video doesn't cut sharply against it. */}
           <div className="absolute inset-x-0 top-0 h-10 sm:h-14" style={{ background: 'linear-gradient(180deg, var(--primary) 0%, transparent 100%)' }} />
 
-          <div className="relative z-10 flex h-full flex-col items-center justify-center gap-4 p-6 text-center text-white sm:p-10">
+          <div className="relative z-10 flex h-full flex-col items-start justify-end gap-4 p-6 text-left text-white sm:p-10">
             <div className="mb-1 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] backdrop-blur-sm">
               <Sparkles className="size-3.5" /> Portal ISMS
             </div>
@@ -223,7 +223,7 @@ export function HeroCarousel() {
       </div>
 
       {slides.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1.5 sm:bottom-6">
+        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 sm:bottom-6 sm:right-8">
           {slides.map((slide, i) => (
             <button
               key={slide.id}

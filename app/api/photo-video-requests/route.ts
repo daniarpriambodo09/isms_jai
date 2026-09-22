@@ -99,12 +99,26 @@ export async function POST(request: NextRequest) {
     let dept: string | null = null
     let cameraSerialNo: string | null = null
     let deptPicKamera: string | null = null
+    let cameraControlNo: string | null = null
     let picApproveId: number
 
     if (requestType === 'internal') {
       nik = typeof body.nik === 'string' && body.nik.trim() ? body.nik.trim() : null
       deptPicKamera = typeof body.deptPicKamera === 'string' ? body.deptPicKamera.trim() : ''
       if (!deptPicKamera) return NextResponse.json({ message: 'Dept. PIC Kamera wajib dipilih.' }, { status: 400 })
+
+      cameraControlNo = typeof body.cameraControlNo === 'string' ? body.cameraControlNo.trim() : ''
+      if (!cameraControlNo) return NextResponse.json({ message: 'No. Kontrol Kamera wajib dipilih.' }, { status: 400 })
+      // Cross-check against the roster (rather than trusting the client's
+      // string outright) — must actually exist and belong to the chosen
+      // Dept. PIC Kamera, or be one of the department-agnostic cameras.
+      const cameraCheck = await query<{ id: number }>(
+        `SELECT ce.id FROM camera_equipment ce
+         LEFT JOIN departments d ON d.id = ce.department_id
+         WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2)`,
+        [cameraControlNo, deptPicKamera]
+      )
+      if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen ini.' }, { status: 400 })
 
       picApproveId = Number(body.picApproveId)
       if (!Number.isInteger(picApproveId) || picApproveId <= 0) {
@@ -136,10 +150,10 @@ export async function POST(request: NextRequest) {
 
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
-         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING id`,
-      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo]
+      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,

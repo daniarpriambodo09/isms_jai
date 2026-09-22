@@ -13,20 +13,23 @@
 // The template's page holds two stacked copies of the same blank form; only
 // the TOP copy is used here.
 //
-// The one intentional deviation from "don't touch the template at all":
-// the template has "TEGUH SUNJOYO (Information Assets Administrator)"
-// printed as static ink in the signature area (baked in when he was the
-// standing approver). Since the actual approver can now be someone else,
-// that name/title is covered with a white rectangle and replaced with
-// whoever is actually recorded as having decided the request — confirmed
-// with the user as the one acceptable change, precisely because leaving
-// stale text there would misrepresent who approved it.
+// Two intentional deviations from "don't touch the template at all":
+// 1. The template has "TEGUH SUNJOYO (Information Assets Administrator)"
+//    printed as static ink in the signature area (baked in when he was the
+//    standing approver). Since the actual approver can now be someone else,
+//    that name/title is covered with a white rectangle and replaced with
+//    whoever is actually recorded as having decided the request.
+// 2. "MENYETUJUI, 撮影・録音許可" ("approving, permission to record") only
+//    reads correctly when the request was actually approved — printing it
+//    unconditionally on a REJECTED certificate makes a rejection look like
+//    an approval, which is worse than a table line being 2pt off. So it's
+//    covered and replaced with an explicit DISETUJUI/DITOLAK line. (An
+//    earlier pass tried this and covered part of the left table's own
+//    column by mistake — that was a wrong x-coordinate for the right
+//    column's border, since fixed; this isn't the same bug recurring.)
 //
-// "MENYETUJUI, 撮影・録音許可" (and every other Kanji line, border, and the
-// logo) is left exactly as printed — per the user, matching the physical
-// template takes priority over surfacing a DISETUJUI/DITOLAK distinction
-// there; the real status is still recorded in the DB and visible on the
-// public /verifikasi/[id] page the QR code points to.
+// Every Kanji line the above two don't touch, every border, and the logo
+// is the template's own embedded page content, untouched.
 
 import 'server-only'
 import path from 'path'
@@ -54,6 +57,8 @@ export type EsignRequestData = {
 
 const TEXT = rgb(0.07, 0.07, 0.07)
 const WHITE = rgb(1, 1, 1)
+const GREEN = rgb(0.1, 0.42, 0.22)
+const CRIMSON = rgb(0.72, 0.13, 0.12)
 
 // Full page is 595.2 x 841.8 with the form printed twice, stacked. Using
 // only the top copy — cropped a bit above the exact midpoint (450.7, the
@@ -198,15 +203,26 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   text(decidedDmy.mm, 502, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
   text(decidedDmy.yy, 538, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
 
-  // "MENYETUJUI, 撮影・録音許可" is left exactly as printed (see file header)
-  // — the QR just goes in the blank signature space below it, between that
-  // label and the pre-printed approver name.
-  const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 300 })
-  const qrImage = await pdf.embedPng(Buffer.from(qrDataUrl.split(',')[1], 'base64'))
-  const qrSize = 44
-  const qrX = RIGHT_COL_X + (RIGHT_COL_W - qrSize) / 2
-  const qrYAbs = 553 // top edge, measured down from here
-  page.drawImage(qrImage, { x: qrX, y: toLocal(qrYAbs) - qrSize, width: qrSize, height: qrSize })
+  // "MENYETUJUI, 撮影・録音許可" reads correctly only for an approval — cover
+  // it and print the actual outcome instead (see file header).
+  coverWhite(RIGHT_COL_X, 595, RIGHT_COL_W, 35)
+  const isApproved = data.status === 'approved'
+  const statusLabel = isApproved ? 'DISETUJUI' : 'DITOLAK'
+  const statusColor = isApproved ? GREEN : CRIMSON
+  const statusWidth = bold.widthOfTextAtSize(statusLabel, 11)
+  text(statusLabel, RIGHT_COL_X + (RIGHT_COL_W - statusWidth) / 2, 578, { f: bold, size: 11, color: statusColor })
+
+  // QR (the "signature") only makes sense for an approval — a rejection
+  // never had anything to sign, so its e-sign area stays blank rather than
+  // printing a barcode that would visually suggest something was approved.
+  if (isApproved) {
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 300 })
+    const qrImage = await pdf.embedPng(Buffer.from(qrDataUrl.split(',')[1], 'base64'))
+    const qrSize = 44
+    const qrX = RIGHT_COL_X + (RIGHT_COL_W - qrSize) / 2
+    const qrYAbs = 553 // top edge, measured down from here
+    page.drawImage(qrImage, { x: qrX, y: toLocal(qrYAbs) - qrSize, width: qrSize, height: qrSize })
+  }
 
   // "TEGUH SUNJOYO" and "(Information Assets Administrator)" are static
   // ink naming the approver at the time this template was printed — cover

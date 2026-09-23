@@ -92,8 +92,19 @@ export async function verifySmtpConnection(settings: SmtpSettings): Promise<void
   await transport.verify()
 }
 
-export async function sendMail(settings: SmtpSettings, options: { to: string; subject: string; html: string }): Promise<void> {
+export type MailAttachment = { filename: string; path: string; cid: string }
+
+export async function sendMail(
+  settings: SmtpSettings,
+  options: { to: string; subject: string; html: string; attachments?: MailAttachment[] }
+): Promise<void> {
   if (!settings.senderEmail) throw new Error('Email pengirim belum dikonfigurasi.')
   const transport = buildTransport(settings)
-  await transport.sendMail({ from: settings.senderEmail, to: options.to, subject: options.subject, html: options.html })
+  await transport.sendMail({
+    from: settings.senderEmail,
+    to: options.to,
+    subject: options.subject,
+    html: options.html,
+    attachments: options.attachments,
+  })
 }

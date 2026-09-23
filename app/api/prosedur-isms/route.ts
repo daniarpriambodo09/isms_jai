@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Nama dokumen wajib diisi.' }, { status: 400 })
     }
     if (!isValidDate(elfDate)) {
-      return NextResponse.json({ message: 'Elf Date wajib diisi.' }, { status: 400 })
+      return NextResponse.json({ message: 'Eff Date wajib diisi.' }, { status: 400 })
     }
     if (!(file instanceof File) || file.size === 0 || file.type !== 'application/pdf') {
       return NextResponse.json({ message: 'File PDF wajib diunggah.' }, { status: 400 })
@@ -99,7 +99,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Nama dokumen wajib diisi.' }, { status: 400 })
     }
     if (!isValidDate(elfDate)) {
-      return NextResponse.json({ message: 'Elf Date wajib diisi.' }, { status: 400 })
+      return NextResponse.json({ message: 'Eff Date wajib diisi.' }, { status: 400 })
     }
     const revision = typeof revisionRaw === 'string' && /^\d+$/.test(revisionRaw) ? Number(revisionRaw) : NaN
     if (!Number.isInteger(revision) || revision < 1) {

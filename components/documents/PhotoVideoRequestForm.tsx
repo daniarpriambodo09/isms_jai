@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
-import { CalendarDays, Camera, CheckCircle2, Clock, History, MapPin, Search, Send, Sparkles, Users } from 'lucide-react'
+import { CalendarDays, Camera, CheckCircle2, Clock, History, MapPin, ScanLine, Search, Send, Sparkles, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
 type Pic = { id: number; name: string; department_id: number | null }
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null }
-type VisitorApprover = { id: number; code: string; fullName: string | null }
+type PhotoIdItem = { id: number; code: string; department_id: number | null; department_name: string | null }
+type VisitorApprover = { id: number; fullName: string | null }
 
 type LookupRequest = {
   id: number
@@ -172,6 +173,8 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [deptId, setDeptId] = useState('')
   const [sectionId, setSectionId] = useState('')
   const [companyName, setCompanyName] = useState('')
+  const [picJai, setPicJai] = useState('')
+  const [photoIdNo, setPhotoIdNo] = useState('')
   const [dept, setDept] = useState('')
   const [cameraSerialNo, setCameraSerialNo] = useState('')
   const [deptPicKameraId, setDeptPicKameraId] = useState('')
@@ -186,6 +189,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [departments, setDepartments] = useState<Department[]>([])
   const [pics, setPics] = useState<Pic[]>([])
   const [cameras, setCameras] = useState<CameraItem[]>([])
+  const [photoIds, setPhotoIds] = useState<PhotoIdItem[]>([])
   const [visitorApprover, setVisitorApprover] = useState<VisitorApprover | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successInfo, setSuccessInfo] = useState<{ id: number; submittedAt: string } | null>(null)
@@ -216,6 +220,14 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   }, [isInternal])
 
   useEffect(() => {
+    if (!isInternal) return
+    fetch(`${API_BASE_PATH}/api/photo-id-equipment`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { photoIds: [] }))
+      .then((data: { photoIds: PhotoIdItem[] }) => setPhotoIds(data.photoIds ?? []))
+      .catch(() => setPhotoIds([]))
+  }, [isInternal])
+
+  useEffect(() => {
     if (isInternal) return
     fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { approver: null }))
@@ -232,9 +244,10 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   // Same convention — a camera with no department is general-purpose and
   // shows up regardless of which Dept. PIC Kamera was picked.
   const availableCameras = cameras.filter((cam) => cam.department_id === null || String(cam.department_id) === deptPicKameraId)
+  const availablePhotoIds = photoIds.filter((p) => p.department_id === null || String(p.department_id) === deptPicKameraId)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
+    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPicJai(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(''); setLocation(''); setObjective('')
   }
 
@@ -260,8 +273,8 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
         // as the Visitor default — the server resolves it and ignores
         // picApproveId entirely for this type (see /api/photo-video-requests).
         ...(isInternal
-          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', cameraControlNo, picApproveId }
-          : { dept, cameraSerialNo }),
+          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', cameraControlNo, photoIdNo, picApproveId }
+          : { dept, cameraSerialNo, picJai, photoIdNo }),
       }
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, {
         method: 'POST',
@@ -315,9 +328,14 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
               <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Nomor Induk Karyawan" className={inputClass} />
             </Field>
           )}
-          <Field label={isInternal ? 'Nama' : 'Full Name'} span={isInternal ? 1 : 2}>
+          <Field label={isInternal ? 'Nama' : 'Full Name'} span={1}>
             <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required className={inputClass} />
           </Field>
+          {!isInternal && (
+            <Field label="PIC JAI">
+              <input value={picJai} onChange={(e) => setPicJai(e.target.value)} required placeholder="Nama PIC JAI yang ditemui" className={inputClass} />
+            </Field>
+          )}
           {isInternal ? (
             <>
               <Field label="Dept.">
@@ -361,7 +379,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
               <Field label="Dept. PIC Kamera" span={2}>
                 <select
                   value={deptPicKameraId}
-                  onChange={(e) => { setDeptPicKameraId(e.target.value); setCameraControlNo('') }}
+                  onChange={(e) => { setDeptPicKameraId(e.target.value); setCameraControlNo(''); setPhotoIdNo('') }}
                   required
                   className={inputClass}
                 >
@@ -388,13 +406,39 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
                   <p className="mt-1 text-[11px] text-destructive">Belum ada kamera terdaftar untuk departemen ini — hubungi Admin ISM.</p>
                 )}
               </Field>
+              <Field label="No. ID Photography" span={2}>
+                <select
+                  value={photoIdNo}
+                  onChange={(e) => setPhotoIdNo(e.target.value)}
+                  required
+                  className={inputClass}
+                  disabled={!deptPicKameraId}
+                >
+                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Pilih no. ID Photography...'}</option>
+                  {availablePhotoIds.map((p) => (
+                    <option key={p.id} value={p.code}>{p.code}</option>
+                  ))}
+                </select>
+                {deptPicKameraId && availablePhotoIds.length === 0 && (
+                  <p className="mt-1 text-[11px] text-destructive">Belum ada ID Photography terdaftar untuk departemen ini — hubungi Admin ISM.</p>
+                )}
+              </Field>
             </>
           )}
           {!isInternal && (
-            <Field label="Serial No. Kamera" span={2}>
-              <input value={cameraSerialNo} onChange={(e) => setCameraSerialNo(e.target.value)} placeholder="Contoh: PRIBADI" className={inputClass} />
-              <p className="mt-1 text-[11px] text-muted-foreground">Opsional — isi &quot;PRIBADI&quot; jika menggunakan kamera/HP milik sendiri.</p>
-            </Field>
+            <>
+              <Field label="Serial No. Kamera" span={2}>
+                <input value={cameraSerialNo} onChange={(e) => setCameraSerialNo(e.target.value)} placeholder="Contoh: PRIBADI" className={inputClass} />
+                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — isi &quot;PRIBADI&quot; jika menggunakan kamera/HP milik sendiri.</p>
+              </Field>
+              <Field label="No ID Photography" span={2}>
+                <div className="relative">
+                  <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input value={photoIdNo} onChange={(e) => setPhotoIdNo(e.target.value)} placeholder="Scan atau ketik ID..." className={`${inputClass} pl-10`} />
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — scan kartu ID Photography atau ketik manual nomornya.</p>
+              </Field>
+            </>
           )}
           {isInternal ? (
             <Field label="PIC Approve" span={2}>
@@ -405,13 +449,13 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                PIC ini hanya dicatat sebagai kontak terkait — keputusan disetujui/ditolak tetap diproses oleh Admin ISM, bukan otomatis oleh PIC yang dipilih.
+                Pengajuan Internal tidak melalui proses approve/tolak admin — memilih PIC di sini sekaligus menjadi persetujuan, dan pengajuan langsung tercatat Disetujui.
               </p>
             </Field>
           ) : (
             <Field label="Approver" span={2}>
               <div className={`${inputClass} flex items-center text-muted-foreground`}>
-                {visitorApprover?.fullName ?? visitorApprover?.code ?? 'Admin ISM'}
+                {visitorApprover?.fullName ?? 'Admin ISM'}
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">
                 This registration will be routed automatically to the approver above — no need to select one.

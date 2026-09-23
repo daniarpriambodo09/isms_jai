@@ -234,7 +234,7 @@ function KelolaPermintaanFotoVideoContent() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
-                        {isIsmAdmin && req.status === 'pending' ? 'Tinjau' : 'Lihat'}
+                        Lihat
                       </button>
                       {isIsmAdmin && req.status === 'approved' && !req.taken_at && (
                         <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
@@ -251,8 +251,8 @@ function KelolaPermintaanFotoVideoContent() {
                           href={`${API_BASE_PATH}/api/photo-video-requests/${req.id}/pdf`}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label={`Lihat sertifikat PDF pengajuan ${req.requester_name}`}
-                          title="Lihat hasil pengajuan (sertifikat PDF)"
+                          aria-label={`Lihat surat pengajuan PDF ${req.requester_name}`}
+                          title="Lihat hasil pengajuan (surat pengajuan PDF)"
                           className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground"
                         >
                           <Eye className="size-3.5" />
@@ -271,7 +271,7 @@ function KelolaPermintaanFotoVideoContent() {
       </div>
 
       {selected && (
-        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} readOnly={!isIsmAdmin} />
+        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} readOnly />
       )}
 
       <ConfirmDialog

@@ -20,6 +20,8 @@ type LedgerRow = {
   pic_approve_name: string | null
   camera_control_no: string | null
   photo_id_no: string | null
+  camera_serial_no: string | null
+  pic_jai: string | null
 }
 
 // Public, read-only — a company-wide ledger of every photo/video request
@@ -33,7 +35,7 @@ export async function GET() {
     const result = await query<LedgerRow>(
       `SELECT r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
               r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at,
-              pic.name AS pic_approve_name, r.camera_control_no, r.photo_id_no
+              pic.name AS pic_approve_name, r.camera_control_no, r.photo_id_no, r.camera_serial_no, r.pic_jai
        FROM photo_video_requests r
        LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
        ORDER BY r.submitted_at ASC`

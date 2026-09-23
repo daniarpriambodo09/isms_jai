@@ -94,7 +94,7 @@ function VerifikasiContent() {
           rel="noreferrer"
           className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
         >
-          <Download className="size-4" /> Unduh Sertifikat PDF
+          <Download className="size-4" /> Unduh Surat Pengajuan PDF
         </a>
       </div>
     </div>

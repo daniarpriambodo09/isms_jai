@@ -27,13 +27,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const requestRow = await query<{ id: number; status: string; pic_approve_id: number | null }>(
-      `SELECT id, status, pic_approve_id FROM photo_video_requests WHERE approval_token = $1 AND request_type = 'visitor'`,
+    const requestRow = await query<{ id: number; status: string; pic_approve_id: number | null; verification_code: string | null }>(
+      `SELECT id, status, pic_approve_id, verification_code FROM photo_video_requests WHERE approval_token = $1 AND request_type = 'visitor'`,
       [token]
     )
     const row = requestRow.rows[0]
     if (!row) return fail('Link tidak ditemukan atau sudah tidak berlaku.')
-    if (row.status !== 'pending') return fail('Pengajuan ini sudah diputuskan sebelumnya — link ini tidak berlaku lagi.')
+
+    // Already decided earlier — the approver re-opening the same email
+    // link (to check the result, or because a mail client prefetches
+    // links) should always land back on the result/PDF page instead of a
+    // dead-end error, so that link stays a permanent way to view the
+    // outcome. The decision itself still can't be flipped either way.
+    if (row.status !== 'pending') {
+      if (row.verification_code) {
+        return NextResponse.redirect(`${origin}${API_BASE_PATH}/verifikasi/${row.id}?code=${row.verification_code}`)
+      }
+      return fail('Pengajuan ini sudah diputuskan sebelumnya — link ini tidak berlaku lagi.')
+    }
 
     const picResult = await query<{ full_name: string | null; name: string; title: string | null }>(
       `SELECT full_name, name, title FROM pic_approvers WHERE id = $1`,
@@ -52,7 +63,18 @@ export async function GET(request: NextRequest) {
        RETURNING id`,
       [status, approverName, approverTitle, 'Diproses langsung dari email (tanpa login)', verificationCode, row.id]
     )
-    if (updated.rows.length === 0) return fail('Pengajuan ini sudah diputuskan sebelumnya — link ini tidak berlaku lagi.')
+    if (updated.rows.length === 0) {
+      // Raced with another decision between the SELECT above and this
+      // UPDATE (e.g. the link opened twice at once) — same idempotent
+      // redirect rather than a hard failure.
+      const raced = await query<{ verification_code: string | null }>(
+        `SELECT verification_code FROM photo_video_requests WHERE id = $1`,
+        [row.id]
+      )
+      const racedCode = raced.rows[0]?.verification_code
+      if (racedCode) return NextResponse.redirect(`${origin}${API_BASE_PATH}/verifikasi/${row.id}?code=${racedCode}`)
+      return fail('Pengajuan ini sudah diputuskan sebelumnya — link ini tidak berlaku lagi.')
+    }
 
     return NextResponse.redirect(`${origin}${API_BASE_PATH}/verifikasi/${row.id}?code=${verificationCode}`)
   } catch (error) {

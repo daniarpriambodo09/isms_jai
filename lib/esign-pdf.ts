@@ -227,18 +227,28 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   // "TEGUH SUNJOYO" and "(Information Assets Administrator)" are static
   // ink naming the approver at the time this template was printed — cover
   // and replace with whoever actually decided this request (see file
-  // header comment).
-  coverWhite(RIGHT_COL_X, 498, RIGHT_COL_W, 20)
-  const nameWidth = bold.widthOfTextAtSize(data.approverFullName, 9)
-  text(data.approverFullName, RIGHT_COL_X + Math.max(2, (RIGHT_COL_W - nameWidth) / 2), 487.9, { f: bold, size: 9 })
+  // header comment). One cover for the whole name+title zone (instead of
+  // two fixed-height ones) since a long name now wraps onto a second
+  // line rather than overflowing past the column's own border — how many
+  // lines it takes shifts where the title starts, so the covered area and
+  // the title's position both need to flex with it.
+  coverWhite(RIGHT_COL_X, 505, RIGHT_COL_W, 52)
 
-  coverWhite(RIGHT_COL_X, 480, RIGHT_COL_W, 34)
+  const centeredAt = (value: string, size: number, yAbs: number, f = font) => {
+    const w = f.widthOfTextAtSize(value, size)
+    text(value, RIGHT_COL_X + Math.max(2, (RIGHT_COL_W - w) / 2), yAbs, { f, size })
+  }
+
+  const NAME_SIZE = 8.5
+  const nameLines = wrapToWidth(bold, data.approverFullName, RIGHT_COL_W - 6, NAME_SIZE).slice(0, 2)
+  nameLines.forEach((line, i) => centeredAt(line, NAME_SIZE, 500 - i * 9, bold))
+
   if (data.approverTitle) {
-    const titleLines = wrapToWidth(font, data.approverTitle, RIGHT_COL_W - 10, 7.5)
-    titleLines.slice(0, 2).forEach((line, i) => {
-      const w = font.widthOfTextAtSize(line, 7.5)
-      text(line, RIGHT_COL_X + Math.max(2, (RIGHT_COL_W - w) / 2), 471.1 - i * 10, { size: 7.5 })
-    })
+    // Matches the template's own convention — "(Information Assets
+    // Administrator)" was printed in parentheses under TEGUH SUNJOYO.
+    const titleTop = 500 - nameLines.length * 9 - 6
+    const titleLines = wrapToWidth(font, `(${data.approverTitle})`, RIGHT_COL_W - 6, 7.5).slice(0, 2)
+    titleLines.forEach((line, i) => centeredAt(line, 7.5, titleTop - i * 9.5))
   }
 
   // ---------- Verification footnote, printed in the margin below the form ----------

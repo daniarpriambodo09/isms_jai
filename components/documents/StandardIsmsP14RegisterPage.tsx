@@ -16,6 +16,7 @@ type StandardIsmsP14Document = {
   control_no: string
   title: string
   revision: number
+  eff_date: string
   uploaded_at: string
   file_path: string
 }
@@ -116,8 +117,8 @@ export function StandardIsmsP14RegisterPage() {
   const handleExportCsv = () => {
     downloadExcel(
       `standard-isms-p14-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Tanggal Upload'],
-      filteredDocuments.map((d) => [d.control_no, d.title, d.revision, formatDate(d.uploaded_at)])
+      ['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload'],
+      filteredDocuments.map((d) => [d.control_no, d.title, d.revision, formatDate(d.eff_date), formatDate(d.uploaded_at)])
     )
   }
 
@@ -146,6 +147,7 @@ export function StandardIsmsP14RegisterPage() {
     controlNo: editing.control_no,
     title: editing.title,
     revision: editing.revision,
+    effDate: editing.eff_date.slice(0, 10),
   } : undefined
 
   return (
@@ -176,9 +178,9 @@ export function StandardIsmsP14RegisterPage() {
       </div>
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Tanggal Upload', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 ? 'max-[680px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
-        {loading && <tr><td colSpan={6} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
-        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={6} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[680px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
+        {loading && <tr><td colSpan={7} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
+        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={7} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
         {groupByTitle(pageItems).map((group, index) => (
           <tr key={group.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
             {isLoggedIn && (
@@ -202,6 +204,11 @@ export function StandardIsmsP14RegisterPage() {
             <td className="px-5 py-4 align-top">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {document.revision}</span></div>)}
+              </div>
+            </td>
+            <td className="px-5 py-4 align-top text-muted-foreground max-[680px]:hidden">
+              <div className="flex flex-col gap-1.5">
+                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{formatDate(document.eff_date)}</div>)}
               </div>
             </td>
             <td className="px-5 py-4 align-top text-muted-foreground max-[680px]:hidden">

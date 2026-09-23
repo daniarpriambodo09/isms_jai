@@ -7,7 +7,7 @@ import { Check, Loader2, Settings2, UserCog, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
-type VisitorApprover = { id: number; code: string; fullName: string | null; title: string | null; email: string | null }
+type VisitorApprover = { id: number; fullName: string | null; title: string | null; email: string | null }
 
 const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
@@ -21,7 +21,6 @@ const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
 export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: VisitorApprover) => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [code, setCode] = useState('')
   const [fullName, setFullName] = useState('')
   const [title, setTitle] = useState('')
   const [email, setEmail] = useState('')
@@ -37,7 +36,6 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
     fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { approver: null }))
       .then((data: { approver: VisitorApprover | null }) => {
-        setCode(data.approver?.code ?? '')
         setFullName(data.approver?.fullName ?? '')
         setTitle(data.approver?.title ?? '')
         setEmail(data.approver?.email ?? '')
@@ -53,7 +51,7 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
       const res = await fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: code.trim(), fullName: fullName.trim(), title: title.trim(), email: email.trim() }),
+        body: JSON.stringify({ fullName: fullName.trim(), title: title.trim(), email: email.trim() }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan approver.')
@@ -98,17 +96,13 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
               ) : (
                 <div className="flex flex-col gap-3.5">
                   <label>
-                    <span className={labelClass}>Kode PIC</span>
-                    <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Contoh: TSU" className={inputClass} />
-                  </label>
-                  <label>
                     <span className={labelClass}>Nama Lengkap</span>
                     <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Contoh: Teguh Sunjoyo" className={inputClass} />
                   </label>
                   <label>
                     <span className={labelClass}>Jabatan</span>
                     <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Information Assets Administrator" className={inputClass} />
-                    <span className="mt-1 block text-[11px] text-muted-foreground">Opsional — dicetak di bawah nama approver pada sertifikat PDF.</span>
+                    <span className="mt-1 block text-[11px] text-muted-foreground">Opsional — dicetak di bawah nama approver pada surat pengajuan PDF.</span>
                   </label>
                   <label>
                     <span className={labelClass}>Email</span>
@@ -125,7 +119,7 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
               <button
                 type="button"
                 onClick={save}
-                disabled={saving || loading || !code.trim() || !fullName.trim() || !email.trim()}
+                disabled={saving || loading || !fullName.trim() || !email.trim()}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}

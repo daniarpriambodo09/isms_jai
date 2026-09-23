@@ -3,10 +3,11 @@
 // Streams the e-sign certificate PDF for one decided Visitor request.
 // Access is the same rule as /verify: the caller needs either the exact
 // verification_code (the "Download PDF" link from /verifikasi/[id], or the
-// QR itself) or an ISM Admin session (so the admin panel can also offer
-// the certificate without the admin having to know the code).
+// QR itself) or a kiosk session (ISM Admin, Lobby, or Security — the same
+// roles that already get read access to the request list) so those panels
+// can also offer the PDF without the viewer having to know the code.
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { getSmtpSettings } from '@/lib/smtp'
 import { buildEsignPdf } from '@/lib/esign-pdf'
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID tidak valid.' }, { status: 400 })
 
   const code = request.nextUrl.searchParams.get('code')
-  const isAdmin = !!getIsmsAdminFromRequest(request)
+  const isAdmin = !!getKioskAdminFromRequest(request)
   if (!isAdmin && !code) return NextResponse.json({ message: 'Kode verifikasi wajib disertakan.' }, { status: 400 })
 
   try {
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const row = result.rows[0]
     if (!row) return NextResponse.json({ message: 'Dokumen tidak ditemukan atau kode verifikasi salah.' }, { status: 404 })
     if (row.status === 'pending' || !row.decided_at || !row.decided_by || !row.verification_code) {
-      return NextResponse.json({ message: 'Pengajuan ini belum diputuskan — sertifikat belum tersedia.' }, { status: 400 })
+      return NextResponse.json({ message: 'Pengajuan ini belum diputuskan — surat pengajuan PDF belum tersedia.' }, { status: 400 })
     }
 
     // Prefer the host:port this very request actually arrived on — it's
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="sertifikat-ijin-foto-video-${row.id}.pdf"`,
+        'Content-Disposition': `inline; filename="surat-pengajuan-ijin-foto-video-${row.id}.pdf"`,
       },
     })
   } catch (error) {

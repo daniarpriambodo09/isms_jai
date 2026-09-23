@@ -28,6 +28,7 @@ export type PhotoVideoRequest = {
   taken_ack_at: string | null
   camera_control_no: string | null
   photo_id_no: string | null
+  pic_jai: string | null
 }
 
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null }
@@ -156,6 +157,7 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
             <dt className="text-muted-foreground">{request.request_type === 'internal' ? 'Dept/Seksi' : 'Company/Organization'}</dt>
             <dd className="text-foreground">{request.dept_or_company}</dd>
             {request.dept && (<><dt className="text-muted-foreground">Department</dt><dd className="text-foreground">{request.dept}</dd></>)}
+            {request.pic_jai && (<><dt className="text-muted-foreground">PIC JAI</dt><dd className="text-foreground">{request.pic_jai}</dd></>)}
             {request.dept_pic_kamera && (<><dt className="text-muted-foreground">Dept. PIC Kamera</dt><dd className="text-foreground">{request.dept_pic_kamera}</dd></>)}
             <dt className="text-muted-foreground">Dari</dt><dd className="text-foreground">{formatDateTime(request.from_at)}</dd>
             <dt className="text-muted-foreground">Sampai</dt><dd className="text-foreground">{formatDateTime(request.to_at)}</dd>

@@ -20,13 +20,15 @@
 //    that name/title is covered with a white rectangle and replaced with
 //    whoever is actually recorded as having decided the request.
 // 2. "MENYETUJUI, 撮影・録音許可" ("approving, permission to record") only
-//    reads correctly when the request was actually approved — printing it
-//    unconditionally on a REJECTED certificate makes a rejection look like
-//    an approval, which is worse than a table line being 2pt off. So it's
-//    covered and replaced with an explicit DISETUJUI/DITOLAK line. (An
-//    earlier pass tried this and covered part of the left table's own
-//    column by mistake — that was a wrong x-coordinate for the right
-//    column's border, since fixed; this isn't the same bug recurring.)
+//    reads correctly when the request was actually approved, so it's left
+//    as the template's own untouched text for an approval. Only a
+//    REJECTED outcome gets that area covered and replaced with an
+//    explicit DITOLAK line — printing "approving" text unchanged on a
+//    rejection would misrepresent it, which is worse than a table line
+//    being 2pt off. (An earlier pass at this covered part of the left
+//    table's own column by mistake — that was a wrong x-coordinate for
+//    the right column's border, since fixed; this isn't the same bug
+//    recurring.)
 //
 // Every Kanji line the above two don't touch, every border, and the logo
 // is the template's own embedded page content, untouched.
@@ -57,7 +59,6 @@ export type EsignRequestData = {
 
 const TEXT = rgb(0.07, 0.07, 0.07)
 const WHITE = rgb(1, 1, 1)
-const GREEN = rgb(0.1, 0.42, 0.22)
 const CRIMSON = rgb(0.72, 0.13, 0.12)
 
 // Full page is 595.2 x 841.8 with the form printed twice, stacked. Using
@@ -203,14 +204,17 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   text(decidedDmy.mm, 502, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
   text(decidedDmy.yy, 538, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
 
-  // "MENYETUJUI, 撮影・録音許可" reads correctly only for an approval — cover
-  // it and print the actual outcome instead (see file header).
-  coverWhite(RIGHT_COL_X, 595, RIGHT_COL_W, 35)
+  // "MENYETUJUI, 撮影・録音許可" already reads correctly for an approval, so
+  // it's left as the template's own untouched content there — only a
+  // REJECTED outcome needs covering and replacing, since printing
+  // "approving" text unchanged on a rejection would misrepresent it.
   const isApproved = data.status === 'approved'
-  const statusLabel = isApproved ? 'DISETUJUI' : 'DITOLAK'
-  const statusColor = isApproved ? GREEN : CRIMSON
-  const statusWidth = bold.widthOfTextAtSize(statusLabel, 11)
-  text(statusLabel, RIGHT_COL_X + (RIGHT_COL_W - statusWidth) / 2, 578, { f: bold, size: 11, color: statusColor })
+  if (!isApproved) {
+    coverWhite(RIGHT_COL_X, 595, RIGHT_COL_W, 35)
+    const statusLabel = 'DITOLAK'
+    const statusWidth = bold.widthOfTextAtSize(statusLabel, 11)
+    text(statusLabel, RIGHT_COL_X + (RIGHT_COL_W - statusWidth) / 2, 578, { f: bold, size: 11, color: CRIMSON })
+  }
 
   // QR (the "signature") only makes sense for an approval — a rejection
   // never had anything to sign, so its e-sign area stays blank rather than

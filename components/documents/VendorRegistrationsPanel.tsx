@@ -119,7 +119,7 @@ export function VendorRegistrationsPanel() {
         r.pic_jai,
         r.purpose,
         r.company_remark,
-        r.entry_path === 'security' ? 'Pos Security' : 'Lobby (Affiliate)',
+        r.entry_path === 'security' ? 'Pos Security' : 'Lobby',
         r.current_card_type ? CARD_LABEL[r.current_card_type] : '',
         STAGE_LABEL[r.stage],
         formatDateTime(r.registered_at),
@@ -235,7 +235,7 @@ export function VendorRegistrationsPanel() {
                         <p className="text-xs text-muted-foreground">{row.id_card}</p>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground max-[760px]:hidden">{row.pic_jai}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground max-[760px]:hidden">{row.entry_path === 'security' ? 'Pos Security' : 'Lobby (Affiliate)'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground max-[760px]:hidden">{row.entry_path === 'security' ? 'Pos Security' : 'Lobby'}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         {row.current_card_type ? (
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${CARD_BADGE[row.current_card_type]}`}>{CARD_LABEL[row.current_card_type]}</span>

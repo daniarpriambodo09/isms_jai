@@ -69,7 +69,7 @@ function VerifikasiContent() {
           <XCircle className="mx-auto size-14 text-destructive" />
         )}
         <h1 className="mt-4 text-xl font-bold text-foreground">
-          Pengajuan #{data.id} {isApproved ? 'Disetujui' : 'Ditolak'}
+          Pengajuan #{data.id} {isApproved ? 'Menyetujui' : 'Ditolak'}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Oleh <strong className="text-foreground">{data.decided_by}</strong> pada {fmt(data.decided_at)}

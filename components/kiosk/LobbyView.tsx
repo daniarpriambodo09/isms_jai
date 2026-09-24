@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Search, Trash2, UserPlus, X } from 'lucide-react'
+import { Briefcase, Camera, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldAlert, ShieldCheck, Search, Sparkles, Trash2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
@@ -26,6 +26,27 @@ const WORK_AREA_COLUMN: Record<WorkAreaCardType, 'vendor_card_barcode' | 'specia
   vendor: 'vendor_card_barcode',
   special_area: 'special_area_card_barcode',
   photography: 'photography_card_barcode',
+}
+
+// The five card types Lobby can issue directly, skipping Security's
+// pending-approval flow entirely — Affiliate was the original one-off;
+// this generalizes the same "register + hand over the card right now"
+// pattern to Visitor, Vendor, Special Area and Photography too.
+type QuickCardType = 'visitor' | 'vendor' | 'special_area' | 'photography' | 'affiliate'
+const QUICK_CARD_TYPES: QuickCardType[] = ['visitor', 'vendor', 'special_area', 'photography', 'affiliate']
+const QUICK_CARD_LABEL: Record<QuickCardType, string> = {
+  visitor: 'Visitor',
+  vendor: 'Vendor',
+  special_area: 'Special Area',
+  photography: 'Photography',
+  affiliate: 'Affiliate',
+}
+const QUICK_CARD_ICON: Record<QuickCardType, typeof UserPlus> = {
+  visitor: UserPlus,
+  vendor: Briefcase,
+  special_area: ShieldAlert,
+  photography: Camera,
+  affiliate: Sparkles,
 }
 
 const STAGE_BADGE: Record<string, string> = {
@@ -52,15 +73,16 @@ function statusOf(r: Registration): { key: string; label: string } {
   return { key: 'visitor', label: 'Kartu Visitor' }
 }
 
-function AffiliateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function QuickCardModal({ cardType, onClose, onSaved }: { cardType: QuickCardType; onClose: () => void; onSaved: () => void }) {
   const [fullName, setFullName] = useState('')
   const [idCard, setIdCard] = useState('')
   const [picJai, setPicJai] = useState('')
   const [purpose, setPurpose] = useState('')
   const [companyRemark, setCompanyRemark] = useState('')
-  const [affiliateBarcode, setAffiliateBarcode] = useState('')
+  const [barcode, setBarcode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const label = QUICK_CARD_LABEL[cardType]
 
   useEscapeClose(true, onClose)
 
@@ -73,7 +95,7 @@ function AffiliateModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, affiliateBarcode }),
+        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, cardType, barcode }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
@@ -88,9 +110,9 @@ function AffiliateModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div role="dialog" aria-modal="true" aria-label="Daftarkan Tamu Affiliate" className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={`Daftarkan Tamu ${label}`} className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between bg-primary px-6 py-5 text-primary-foreground">
-          <h2 className="text-lg font-bold">Daftarkan Tamu Affiliate</h2>
+          <h2 className="text-lg font-bold">Daftarkan Tamu {label}</h2>
           <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
             <X className="size-[18px]" />
           </button>
@@ -117,10 +139,10 @@ function AffiliateModal({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             <input value={companyRemark} onChange={(e) => setCompanyRemark(e.target.value)} required className={inputClass} />
           </label>
           <label>
-            <span className={labelClass}>Barcode Kartu Affiliate</span>
+            <span className={labelClass}>Barcode Kartu {label}</span>
             <div className="relative">
               <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={affiliateBarcode} onChange={(e) => setAffiliateBarcode(e.target.value)} required placeholder="Scan atau ketik barcode..." className={`${inputClass} pl-10`} />
+              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} required placeholder="Scan atau ketik barcode..." className={`${inputClass} pl-10`} />
             </div>
           </label>
 
@@ -153,7 +175,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   const [editSaving, setEditSaving] = useState(false)
   const status = statusOf(registration)
 
-  const runAction = async (action: 'swapToWorkArea' | 'returnWorkArea' | 'returnAffiliate', cardType?: WorkAreaCardType) => {
+  const runAction = async (action: 'swapToWorkArea' | 'returnWorkArea' | 'returnDirect', cardType?: WorkAreaCardType) => {
     if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
     setError(null)
     setSubmitting(true)
@@ -309,6 +331,33 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
             </button>
           </div>
         )}
+        {registration.current_card_type === 'visitor' && registration.entry_path !== 'security' && (() => {
+          const trimmed = barcode.trim()
+          const matches = trimmed ? trimmed === registration.visitor_card_barcode : null
+          return (
+            <div className="mt-4 rounded-xl bg-accent/10 p-4">
+              <p className="mb-2 text-xs font-semibold text-foreground">Kembalikan Kartu VISITOR</p>
+              {registration.visitor_card_barcode && (
+                <div className="mb-3 rounded-xl border border-border bg-card px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Nomor Kartu Terdaftar</p>
+                  <p className="font-mono text-sm font-bold tracking-wide text-foreground">{registration.visitor_card_barcode}</p>
+                </div>
+              )}
+              <div className="relative">
+                <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan barcode kartu Visitor yang dikembalikan..." className={`${inputClass} pl-10`} />
+              </div>
+              {trimmed && (
+                matches
+                  ? <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
+                  : <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
+              )}
+              <button type="button" disabled={submitting} onClick={() => runAction('returnDirect')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+                {submitting ? 'Memproses...' : 'Tutup Pendaftaran'}
+              </button>
+            </div>
+          )
+        })()}
         {registration.current_card_type && WORK_AREA_TYPES.includes(registration.current_card_type as WorkAreaCardType) && (() => {
           const cardType = registration.current_card_type as WorkAreaCardType
           const expected = registration[WORK_AREA_COLUMN[cardType]]
@@ -335,7 +384,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
                   : <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
               )}
               <button type="button" disabled={submitting} onClick={() => runAction('returnWorkArea')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
-                {submitting ? 'Memproses...' : 'Kembalikan ke Kartu Visitor'}
+                {submitting ? 'Memproses...' : registration.entry_path === 'security' ? 'Kembalikan ke Kartu Visitor' : 'Tutup Pendaftaran'}
               </button>
             </div>
           )
@@ -361,7 +410,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
                   ? <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
                   : <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
               )}
-              <button type="button" disabled={submitting} onClick={() => runAction('returnAffiliate')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" disabled={submitting} onClick={() => runAction('returnDirect')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
                 {submitting ? 'Memproses...' : 'Tutup Pendaftaran'}
               </button>
             </div>
@@ -391,7 +440,7 @@ export function LobbyView() {
   const [searchBarcode, setSearchBarcode] = useState('')
   const [searchError, setSearchError] = useState<string | null>(null)
   const [searching, setSearching] = useState(false)
-  const [affiliateOpen, setAffiliateOpen] = useState(false)
+  const [quickCardOpen, setQuickCardOpen] = useState<QuickCardType | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
@@ -444,7 +493,7 @@ export function LobbyView() {
         r.full_name,
         r.pic_jai,
         r.company_remark,
-        r.entry_path === 'security' ? 'Security' : 'Affiliate',
+        r.entry_path === 'security' ? 'Security' : 'Lobby',
         statusOf(r).label,
         r.current_card_type ? (r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '') : '',
         formatDateTime(r.entry_at),
@@ -577,13 +626,23 @@ export function LobbyView() {
             <p className="portal-eyebrow">Semua Pendaftaran</p>
             <p className="mt-1 text-sm text-muted-foreground">{filteredRegistrations.length} data</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
-            <button type="button" onClick={() => setAffiliateOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
-              <UserPlus className="size-4" />Daftarkan Affiliate
-            </button>
+            {QUICK_CARD_TYPES.map((type) => {
+              const Icon = QUICK_CARD_ICON[type]
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setQuickCardOpen(type)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+                >
+                  <Icon className="size-4" />Daftarkan {QUICK_CARD_LABEL[type]}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -674,7 +733,7 @@ export function LobbyView() {
                       <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.entry_path === 'security' ? 'Security' : 'Affiliate'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.entry_path === 'security' ? 'Security' : 'Lobby'}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
                         {r.current_card_type && (
@@ -703,7 +762,7 @@ export function LobbyView() {
         </div>
       </main>
 
-      {affiliateOpen && <AffiliateModal onClose={() => setAffiliateOpen(false)} onSaved={load} />}
+      {quickCardOpen && <QuickCardModal cardType={quickCardOpen} onClose={() => setQuickCardOpen(null)} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
       <ConfirmDialog
         open={!!pendingDelete}

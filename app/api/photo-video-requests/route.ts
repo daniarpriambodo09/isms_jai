@@ -111,29 +111,33 @@ export async function POST(request: NextRequest) {
       nik = typeof body.nik === 'string' && body.nik.trim() ? body.nik.trim() : null
       deptPicKamera = typeof body.deptPicKamera === 'string' ? body.deptPicKamera.trim() : ''
       if (!deptPicKamera) return NextResponse.json({ message: 'Dept. PIC Kamera wajib dipilih.' }, { status: 400 })
+      const deptPicKameraSection = typeof body.deptPicKameraSection === 'string' && body.deptPicKameraSection.trim() ? body.deptPicKameraSection.trim() : null
 
       cameraControlNo = typeof body.cameraControlNo === 'string' ? body.cameraControlNo.trim() : ''
       if (!cameraControlNo) return NextResponse.json({ message: 'No. Kontrol Kamera wajib dipilih.' }, { status: 400 })
       // Cross-check against the roster (rather than trusting the client's
       // string outright) — must actually exist and belong to the chosen
-      // Dept. PIC Kamera, or be one of the department-agnostic cameras.
+      // Dept./Seksi PIC Kamera, or be one of the department-/section-agnostic
+      // entries (NULL on either column applies to everything under it).
       const cameraCheck = await query<{ id: number }>(
         `SELECT ce.id FROM camera_equipment ce
          LEFT JOIN departments d ON d.id = ce.department_id
-         WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2)`,
-        [cameraControlNo, deptPicKamera]
+         LEFT JOIN sections s ON s.id = ce.section_id
+         WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2) AND (ce.section_id IS NULL OR s.name = $3)`,
+        [cameraControlNo, deptPicKamera, deptPicKameraSection]
       )
-      if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen ini.' }, { status: 400 })
+      if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen/section ini.' }, { status: 400 })
 
       photoIdNo = typeof body.photoIdNo === 'string' ? body.photoIdNo.trim() : ''
       if (!photoIdNo) return NextResponse.json({ message: 'No. ID Photography wajib dipilih.' }, { status: 400 })
       const photoIdCheck = await query<{ id: number }>(
         `SELECT p.id FROM photo_id_equipment p
          LEFT JOIN departments d ON d.id = p.department_id
-         WHERE p.code = $1 AND (p.department_id IS NULL OR d.name = $2)`,
-        [photoIdNo, deptPicKamera]
+         LEFT JOIN sections s ON s.id = p.section_id
+         WHERE p.code = $1 AND (p.department_id IS NULL OR d.name = $2) AND (p.section_id IS NULL OR s.name = $3)`,
+        [photoIdNo, deptPicKamera, deptPicKameraSection]
       )
-      if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen ini.' }, { status: 400 })
+      if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen/section ini.' }, { status: 400 })
 
       picApproveId = Number(body.picApproveId)
       if (!Number.isInteger(picApproveId) || picApproveId <= 0) {
@@ -203,8 +207,8 @@ export async function POST(request: NextRequest) {
 // already succeeded (the DB row is the source of truth either way).
 async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approval_token: string | null }) {
   try {
-    const picResult = await query<{ email: string | null }>(
-      `SELECT email FROM pic_approvers WHERE id = $1`,
+    const picResult = await query<{ email: string | null; full_name: string | null; name: string }>(
+      `SELECT email, full_name, name FROM pic_approvers WHERE id = $1`,
       [requestRow.pic_approve_id]
     )
     const pic = picResult.rows[0]
@@ -219,6 +223,7 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
     const rejectUrl = `${base}/isms-jai/api/photo-video-requests/approve?token=${requestRow.approval_token}&action=reject`
 
     const { subject, html } = buildVisitorApprovalEmail({
+      approverName: pic.full_name ?? pic.name,
       requesterName: requestRow.requester_name,
       deptOrCompany: requestRow.dept_or_company,
       dept: requestRow.dept,

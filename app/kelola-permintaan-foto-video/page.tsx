@@ -15,7 +15,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 const STATUS_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Semua' },
   { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Disetujui' },
+  { value: 'approved', label: 'Menyetujui' },
   { value: 'rejected', label: 'Ditolak' },
 ]
 
@@ -192,20 +192,20 @@ function KelolaPermintaanFotoVideoContent() {
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-secondary/55">
               <tr>
-                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'No. ID Photography', 'PIC Approve', 'Status', 'Aksi'].map((head) => (
+                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'No. ID Photography', 'Status', 'Aksi'].map((head) => (
                   <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && (
-                <tr><td colSpan={10} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                <tr><td colSpan={9} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
               )}
               {!loading && requests.length === 0 && (
-                <tr><td colSpan={10} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Tidak ada pengajuan</p></td></tr>
+                <tr><td colSpan={9} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Tidak ada pengajuan</p></td></tr>
               )}
               {!loading && requests.length > 0 && filteredRequests.length === 0 && (
-                <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+                <tr><td colSpan={9} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
               )}
               {filteredRequests.map((req, index) => (
                 <tr key={req.id} className={index % 2 ? 'bg-secondary/20' : ''}>
@@ -216,19 +216,16 @@ function KelolaPermintaanFotoVideoContent() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">{req.location}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.from_at)} &ndash; {formatDateTime(req.to_at)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.photo_id_no ?? '—'}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {req.pic_approve_name ?? '—'}
-                    {req.taken_at && (
-                      <span className="mt-1 block text-[10px] font-semibold text-accent-foreground">
-                        {req.taken_ack_at ? 'Sudah diambil · dikonfirmasi' : 'Sudah diambil · menunggu dikonfirmasi admin'}
-                      </span>
-                    )}
-                  </td>
                   <td className="whitespace-nowrap px-4 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span>
                     {req.status === 'pending' && new Date(req.to_at).getTime() < Date.now() && (
                       <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-destructive" title="Periode yang diajukan sudah lewat tapi belum diputuskan">
                         <AlertTriangle className="size-3" /> Terlewat
+                      </span>
+                    )}
+                    {req.taken_at && (
+                      <span className="mt-1 block text-[10px] font-semibold text-accent-foreground">
+                        {req.taken_ack_at ? 'Sudah diambil · dikonfirmasi' : 'Sudah diambil · menunggu dikonfirmasi admin'}
                       </span>
                     )}
                   </td>

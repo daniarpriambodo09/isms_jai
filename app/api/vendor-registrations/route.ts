@@ -7,6 +7,23 @@ type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
 type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
 
+const CARD_TYPES: CardType[] = ['visitor', 'vendor', 'affiliate', 'special_area', 'photography']
+function isCardType(value: unknown): value is CardType { return typeof value === 'string' && (CARD_TYPES as string[]).includes(value) }
+const CARD_COLUMN: Record<CardType, 'visitor_card_barcode' | 'vendor_card_barcode' | 'affiliate_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'> = {
+  visitor: 'visitor_card_barcode',
+  vendor: 'vendor_card_barcode',
+  affiliate: 'affiliate_card_barcode',
+  special_area: 'special_area_card_barcode',
+  photography: 'photography_card_barcode',
+}
+const CARD_LABEL: Record<CardType, string> = {
+  visitor: 'Visitor',
+  vendor: 'Vendor',
+  affiliate: 'Affiliate',
+  special_area: 'Special Area',
+  photography: 'Photography',
+}
+
 type VendorRegistrationRow = {
   id: number
   full_name: string
@@ -64,13 +81,13 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
-    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'affiliateBarcode', string>>
+    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode', string>>
     const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : ''
     const idCard = typeof body.idCard === 'string' ? body.idCard.trim() : ''
     const picJai = typeof body.picJai === 'string' ? body.picJai.trim() : ''
     const purpose = typeof body.purpose === 'string' ? body.purpose.trim() : ''
     const companyRemark = typeof body.companyRemark === 'string' ? body.companyRemark.trim() : ''
-    const affiliateBarcode = typeof body.affiliateBarcode === 'string' ? body.affiliateBarcode.trim() : ''
+    const barcode = typeof body.barcode === 'string' ? body.barcode.trim() : ''
 
     if (!fullName) return NextResponse.json({ message: 'Nama lengkap wajib diisi.' }, { status: 400 })
     if (!idCard) return NextResponse.json({ message: 'Kartu identitas wajib diisi.' }, { status: 400 })
@@ -78,25 +95,32 @@ export async function POST(request: NextRequest) {
     if (!purpose) return NextResponse.json({ message: 'Tujuan wajib diisi.' }, { status: 400 })
     if (!companyRemark) return NextResponse.json({ message: 'Keterangan (perusahaan) wajib diisi.' }, { status: 400 })
 
-    // Affiliate path: Lobby registers and issues the card in one step.
-    if (affiliateBarcode) {
+    // Direct-issue path: Lobby registers and issues the card in one step,
+    // for any of the five card types (Visitor, Vendor, Special Area,
+    // Photography, Affiliate) — skipping Security's pending-approval flow.
+    if (body.cardType) {
+      if (!isCardType(body.cardType)) return NextResponse.json({ message: 'Jenis kartu tidak valid.' }, { status: 400 })
+      if (!barcode) return NextResponse.json({ message: 'Barcode kartu wajib diisi.' }, { status: 400 })
+      const cardType = body.cardType
+      const column = CARD_COLUMN[cardType]
+
       const collision = await query(
-        `SELECT 1 FROM vendor_registrations WHERE stage = 'active' AND current_card_type = 'affiliate' AND affiliate_card_barcode = $1`,
-        [affiliateBarcode]
+        `SELECT 1 FROM vendor_registrations WHERE stage = 'active' AND current_card_type = $1 AND ${column} = $2`,
+        [cardType, barcode]
       )
       if (collision.rows.length > 0) {
-        return NextResponse.json({ message: 'Barcode kartu Affiliate ini sedang digunakan oleh tamu lain.' }, { status: 409 })
+        return NextResponse.json({ message: `Barcode kartu ${CARD_LABEL[cardType]} ini sedang digunakan oleh tamu lain.` }, { status: 409 })
       }
 
       const result = await query<VendorRegistrationRow>(
         `INSERT INTO vendor_registrations
            (full_name, id_card, pic_jai, purpose, company_remark, created_by,
-            entry_path, stage, current_card_type, affiliate_card_barcode, entry_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'lobby_affiliate', 'active', 'affiliate', $7, now())
+            entry_path, stage, current_card_type, ${column}, entry_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'lobby_affiliate', 'active', $7, $8, now())
          RETURNING ${SELECT_COLUMNS}`,
-        [fullName, idCard, picJai, purpose, companyRemark, session.username, affiliateBarcode]
+        [fullName, idCard, picJai, purpose, companyRemark, session.username, cardType, barcode]
       )
-      await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu Affiliate "${result.rows[0].full_name}"`)
+      await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu ${CARD_LABEL[cardType]} "${result.rows[0].full_name}"`)
       return NextResponse.json({ registration: result.rows[0] }, { status: 201 })
     }
 

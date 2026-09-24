@@ -7,8 +7,8 @@ import { API_BASE_PATH } from '@/lib/config'
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
 type Pic = { id: number; name: string; department_id: number | null }
-type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null }
-type PhotoIdItem = { id: number; code: string; department_id: number | null; department_name: string | null }
+type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
+type PhotoIdItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type VisitorApprover = { id: number; fullName: string | null }
 
 type LookupRequest = {
@@ -178,6 +178,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [dept, setDept] = useState('')
   const [cameraSerialNo, setCameraSerialNo] = useState('')
   const [deptPicKameraId, setDeptPicKameraId] = useState('')
+  const [sectionPicKameraId, setSectionPicKameraId] = useState('')
   const [cameraControlNo, setCameraControlNo] = useState('')
   const [picApproveId, setPicApproveId] = useState('')
   const [fromDate, setFromDate] = useState(todayDateStr)
@@ -237,17 +238,26 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
 
   const selectedDept = departments.find((d) => String(d.id) === deptId)
   const selectedCameraDept = departments.find((d) => String(d.id) === deptPicKameraId)
+  const selectedCameraSection = selectedCameraDept?.sections.find((s) => String(s.id) === sectionPicKameraId)
 
   // A PIC with no department applies everywhere (e.g. a general/HQ approver).
   const availablePics = pics.filter((pic) => pic.department_id === null || String(pic.department_id) === deptId)
 
-  // Same convention — a camera with no department is general-purpose and
-  // shows up regardless of which Dept. PIC Kamera was picked.
-  const availableCameras = cameras.filter((cam) => cam.department_id === null || String(cam.department_id) === deptPicKameraId)
-  const availablePhotoIds = photoIds.filter((p) => p.department_id === null || String(p.department_id) === deptPicKameraId)
+  // Same convention — a camera/ID with no department is general-purpose and
+  // shows up regardless of which Dept./Seksi PIC Kamera was picked; one with
+  // a department but no section applies to every section within it; one
+  // with both set is restricted to that exact section.
+  const matchesCameraScope = (item: CameraItem | PhotoIdItem) => {
+    if (item.department_id === null) return true
+    if (String(item.department_id) !== deptPicKameraId) return false
+    if (item.section_id === null) return true
+    return String(item.section_id) === sectionPicKameraId
+  }
+  const availableCameras = cameras.filter(matchesCameraScope)
+  const availablePhotoIds = photoIds.filter(matchesCameraScope)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPicJai(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
+    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPicJai(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(''); setLocation(''); setObjective('')
   }
 
@@ -273,7 +283,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
         // as the Visitor default — the server resolves it and ignores
         // picApproveId entirely for this type (see /api/photo-video-requests).
         ...(isInternal
-          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', cameraControlNo, photoIdNo, picApproveId }
+          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, picApproveId }
           : { dept, cameraSerialNo, picJai, photoIdNo }),
       }
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, {
@@ -376,16 +386,29 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isInternal && (
             <>
-              <Field label="Dept. PIC Kamera" span={2}>
+              <Field label="Dept. PIC Kamera">
                 <select
                   value={deptPicKameraId}
-                  onChange={(e) => { setDeptPicKameraId(e.target.value); setCameraControlNo(''); setPhotoIdNo('') }}
+                  onChange={(e) => { setDeptPicKameraId(e.target.value); setSectionPicKameraId(''); setCameraControlNo(''); setPhotoIdNo('') }}
                   required
                   className={inputClass}
                 >
-                  <option value="">Pilih Dept./Seksi kamera yang dipinjam...</option>
+                  <option value="">Pilih Dept. kamera yang dipinjam...</option>
                   {departments.map((department) => (
                     <option key={department.id} value={department.id}>{department.name}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Seksi PIC Kamera">
+                <select
+                  value={sectionPicKameraId}
+                  onChange={(e) => { setSectionPicKameraId(e.target.value); setCameraControlNo(''); setPhotoIdNo('') }}
+                  disabled={!selectedCameraDept || selectedCameraDept.sections.length === 0}
+                  className={inputClass}
+                >
+                  <option value="">{selectedCameraDept && selectedCameraDept.sections.length === 0 ? 'Tidak ada section' : 'Pilih section (opsional)...'}</option>
+                  {selectedCameraDept?.sections.map((section) => (
+                    <option key={section.id} value={section.id}>{section.name}</option>
                   ))}
                 </select>
               </Field>

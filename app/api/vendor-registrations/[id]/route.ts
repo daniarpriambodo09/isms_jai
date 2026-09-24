@@ -7,8 +7,9 @@ type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
 type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
 type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
-type Action = 'approve' | 'swapToWorkArea' | 'returnWorkArea' | 'close' | 'returnAffiliate' | 'editDetails'
+type Action = 'approve' | 'swapToWorkArea' | 'returnWorkArea' | 'close' | 'returnDirect' | 'editDetails'
 type WorkAreaColumn = 'vendor_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'
+type CardColumn = WorkAreaColumn | 'visitor_card_barcode' | 'affiliate_card_barcode'
 
 type VendorRegistrationRow = {
   id: number
@@ -36,7 +37,7 @@ const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode`
 
-const ACTIONS: Action[] = ['approve', 'swapToWorkArea', 'returnWorkArea', 'close', 'returnAffiliate', 'editDetails']
+const ACTIONS: Action[] = ['approve', 'swapToWorkArea', 'returnWorkArea', 'close', 'returnDirect', 'editDetails']
 function isAction(value: unknown): value is Action {
   return typeof value === 'string' && (ACTIONS as string[]).includes(value)
 }
@@ -56,6 +57,24 @@ const WORK_AREA_COLUMN: Record<WorkAreaCardType, WorkAreaColumn> = {
 }
 const WORK_AREA_LABEL: Record<WorkAreaCardType, string> = {
   vendor: 'Vendor',
+  special_area: 'Special Area',
+  photography: 'Photography',
+}
+
+// Full mapping (all five card types) used by the direct-issue return/close
+// action below — WORK_AREA_COLUMN/LABEL above only cover the three
+// swap-in-and-out-of types.
+const CARD_COLUMN: Record<CardType, CardColumn> = {
+  visitor: 'visitor_card_barcode',
+  vendor: 'vendor_card_barcode',
+  affiliate: 'affiliate_card_barcode',
+  special_area: 'special_area_card_barcode',
+  photography: 'photography_card_barcode',
+}
+const CARD_LABEL: Record<CardType, string> = {
+  visitor: 'Visitor',
+  vendor: 'Vendor',
+  affiliate: 'Affiliate',
   special_area: 'Special Area',
   photography: 'Photography',
 }
@@ -152,16 +171,26 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         if (row[column] !== barcode) {
           return NextResponse.json({ message: `Barcode tidak cocok dengan kartu ${WORK_AREA_LABEL[cardType]} yang terdaftar.` }, { status: 400 })
         }
-        const result = await query<VendorRegistrationRow>(
-          `UPDATE vendor_registrations SET current_card_type = 'visitor' WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
-          [id]
-        )
+        // Only a registration that went through Security first (and so
+        // still physically holds a Visitor card underneath) reverts to
+        // 'visitor' here — one issued directly at Lobby never had a
+        // Visitor card to fall back to, so returning it closes the
+        // registration entirely instead.
+        const result = row.entry_path === 'security'
+          ? await query<VendorRegistrationRow>(
+              `UPDATE vendor_registrations SET current_card_type = 'visitor' WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
+              [id]
+            )
+          : await query<VendorRegistrationRow>(
+              `UPDATE vendor_registrations SET stage = 'closed', current_card_type = NULL, exit_at = now() WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
+              [id]
+            )
         return NextResponse.json({ registration: result.rows[0] })
       }
 
       case 'close': {
         if (row.entry_path !== 'security') {
-          return NextResponse.json({ message: 'Pendaftaran Affiliate ditutup lewat Lobby, bukan Security.' }, { status: 409 })
+          return NextResponse.json({ message: 'Pendaftaran ini ditutup lewat aksi pengembalian kartu langsung, bukan lewat Security.' }, { status: 409 })
         }
         if (row.stage !== 'active' || row.current_card_type !== 'visitor') {
           return NextResponse.json({ message: 'Tamu ini tidak sedang memegang kartu Visitor.' }, { status: 409 })
@@ -176,12 +205,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         return NextResponse.json({ registration: result.rows[0] })
       }
 
-      case 'returnAffiliate': {
-        if (row.stage !== 'active' || row.current_card_type !== 'affiliate') {
-          return NextResponse.json({ message: 'Tamu ini tidak sedang memegang kartu Affiliate.' }, { status: 409 })
+      // Closes a registration whose CURRENT card (whichever of the five
+      // types it is) was issued directly at Lobby, skipping Security
+      // entirely — the complement of 'close' above, which only handles
+      // Security-registered Visitors.
+      case 'returnDirect': {
+        if (row.stage !== 'active' || !row.current_card_type || row.entry_path === 'security') {
+          return NextResponse.json({ message: 'Tamu ini tidak sedang memegang kartu yang diterbitkan langsung dari Lobby.' }, { status: 409 })
         }
-        if (row.affiliate_card_barcode !== barcode) {
-          return NextResponse.json({ message: 'Barcode tidak cocok dengan kartu Affiliate yang terdaftar.' }, { status: 400 })
+        const cardType = row.current_card_type
+        const column = CARD_COLUMN[cardType]
+        if (row[column] !== barcode) {
+          return NextResponse.json({ message: `Barcode tidak cocok dengan kartu ${CARD_LABEL[cardType]} yang terdaftar.` }, { status: 400 })
         }
         const result = await query<VendorRegistrationRow>(
           `UPDATE vendor_registrations SET stage = 'closed', current_card_type = NULL, exit_at = now() WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,

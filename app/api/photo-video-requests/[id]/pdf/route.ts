@@ -11,6 +11,7 @@ import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { getSmtpSettings } from '@/lib/smtp'
 import { buildEsignPdf } from '@/lib/esign-pdf'
+import { resolveAppBaseUrl } from '@/lib/request-origin'
 
 type Row = {
   id: number
@@ -50,14 +51,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ message: 'Pengajuan ini belum diputuskan — surat pengajuan PDF belum tersedia.' }, { status: 400 })
     }
 
-    // Prefer the host:port this very request actually arrived on — it's
-    // guaranteed reachable (that's how we got this request) — over the
-    // admin-configured App URL, which is easy to leave without a port and
-    // then have every link default to :80, which on a machine also
-    // running XAMPP means every link quietly opens XAMPP's landing page
-    // instead of this app.
     const settings = await getSmtpSettings()
-    const base = request.nextUrl.origin || settings?.appUrl?.replace(/\/$/, '') || ''
+    const base = resolveAppBaseUrl(settings?.appUrl, request.nextUrl.origin)
     const verifyUrl = `${base}/isms-jai/verifikasi/${row.id}?code=${row.verification_code}`
 
     const pdfBytes = await buildEsignPdf(

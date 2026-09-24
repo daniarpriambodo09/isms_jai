@@ -136,7 +136,7 @@ export function PhotoVideoLedgerTable({ canViewPdf }: { canViewPdf: boolean }) {
     } else {
       downloadExcel(
         `rekap-foto-video-visitor-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan', 'PIC Approval'],
+        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.requester_name,
@@ -151,14 +151,13 @@ export function PhotoVideoLedgerTable({ canViewPdf }: { canViewPdf: boolean }) {
           r.objective,
           STATUS_LABEL[r.status],
           formatDateTime(r.decided_at),
-          r.pic_approve_name ?? '',
         ])
       )
     }
   }
 
   const internalColCount = 14
-  const visitorColCount = canViewPdf ? 15 : 14
+  const visitorColCount = canViewPdf ? 14 : 13
 
   return (
     <div className="flex flex-col gap-6">
@@ -238,10 +237,10 @@ export function PhotoVideoLedgerTable({ canViewPdf }: { canViewPdf: boolean }) {
               </tbody>
             </table>
           ) : (
-            <table className={`w-full text-sm ${canViewPdf ? 'min-w-[1560px]' : 'min-w-[1480px]'}`}>
+            <table className={`w-full text-sm ${canViewPdf ? 'min-w-[1440px]' : 'min-w-[1360px]'}`}>
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'PIC Approval', ...(canViewPdf ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canViewPdf ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -268,7 +267,6 @@ export function PhotoVideoLedgerTable({ canViewPdf }: { canViewPdf: boolean }) {
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.location}</td>
                     <td className="min-w-[160px] px-4 py-3 text-xs text-muted-foreground">{r.objective}</td>
                     <StatusCell r={r} />
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_approve_name ?? '—'}</td>
                     {canViewPdf && (
                       <td className="whitespace-nowrap px-4 py-3">
                         {r.status !== 'pending' ? (

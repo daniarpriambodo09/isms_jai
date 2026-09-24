@@ -192,20 +192,20 @@ function KelolaPermintaanFotoVideoContent() {
           <table className="w-full min-w-[900px] text-sm">
             <thead className="bg-secondary/55">
               <tr>
-                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'PIC Approve', 'Status', 'Aksi'].map((head) => (
+                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'No. ID Photography', 'PIC Approve', 'Status', 'Aksi'].map((head) => (
                   <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {loading && (
-                <tr><td colSpan={9} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                <tr><td colSpan={10} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
               )}
               {!loading && requests.length === 0 && (
-                <tr><td colSpan={9} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Tidak ada pengajuan</p></td></tr>
+                <tr><td colSpan={10} className="px-5 py-16 text-center"><Camera className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">Tidak ada pengajuan</p></td></tr>
               )}
               {!loading && requests.length > 0 && filteredRequests.length === 0 && (
-                <tr><td colSpan={9} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+                <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
               )}
               {filteredRequests.map((req, index) => (
                 <tr key={req.id} className={index % 2 ? 'bg-secondary/20' : ''}>
@@ -215,6 +215,7 @@ function KelolaPermintaanFotoVideoContent() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">{req.dept_or_company}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{req.location}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.from_at)} &ndash; {formatDateTime(req.to_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.photo_id_no ?? '—'}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {req.pic_approve_name ?? '—'}
                     {req.taken_at && (

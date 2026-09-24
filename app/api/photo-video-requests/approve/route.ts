@@ -10,6 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import { query } from '@/lib/db'
+import { getSmtpSettings } from '@/lib/smtp'
+import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { API_BASE_PATH } from '@/lib/config'
 
 type Action = 'approve' | 'reject'
@@ -17,7 +19,13 @@ type Action = 'approve' | 'reject'
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token')
   const action = request.nextUrl.searchParams.get('action') as Action | null
-  const origin = request.nextUrl.origin
+
+  // Same App URL the email's own Setujui/Tolak buttons are built from —
+  // keeping every redirect in this flow on one consistent, admin-configured
+  // address instead of whatever host this particular click happened to
+  // arrive on.
+  const settings = await getSmtpSettings()
+  const origin = resolveAppBaseUrl(settings?.appUrl, request.nextUrl.origin)
 
   const fail = (message: string) =>
     NextResponse.redirect(`${origin}${API_BASE_PATH}/verifikasi/gagal?message=${encodeURIComponent(message)}`)

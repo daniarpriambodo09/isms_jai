@@ -5,6 +5,7 @@ import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { getSmtpSettings, sendMail } from '@/lib/smtp'
 import { buildVisitorApprovalEmail, LOGO_CID } from '@/lib/email-templates'
+import { resolveAppBaseUrl } from '@/lib/request-origin'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (requestType === 'visitor') {
-      await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken }, request.nextUrl.origin)
+      await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken })
     }
 
     return NextResponse.json({ request: created.rows[0] }, { status: 201 })
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
 // Best-effort email to the configured Visitor approver — failures are
 // logged, never surfaced to the requester, since the submission itself
 // already succeeded (the DB row is the source of truth either way).
-async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approval_token: string | null }, requestOrigin: string) {
+async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approval_token: string | null }) {
   try {
     const picResult = await query<{ email: string | null }>(
       `SELECT email FROM pic_approvers WHERE id = $1`,
@@ -213,11 +214,7 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
     if (!settings || !settings.host || !settings.port || !settings.senderEmail) return
     if (!requestRow.approval_token) return
 
-    // Prefer the host:port this submission actually came in on (guaranteed
-    // reachable, and includes the right port) over the admin-configured App
-    // URL, which is easy to leave without a port — see the matching note
-    // in [id]/pdf/route.ts.
-    const base = requestOrigin || settings.appUrl?.replace(/\/$/, '') || ''
+    const base = resolveAppBaseUrl(settings.appUrl)
     const approveUrl = `${base}/isms-jai/api/photo-video-requests/approve?token=${requestRow.approval_token}&action=approve`
     const rejectUrl = `${base}/isms-jai/api/photo-video-requests/approve?token=${requestRow.approval_token}&action=reject`
 

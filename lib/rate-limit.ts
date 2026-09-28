@@ -41,3 +41,21 @@ export function recordLoginFailure(key: string): void {
 export function recordLoginSuccess(key: string): void {
   buckets.delete(key)
 }
+
+// Generic sliding-window counter for public endpoints (e.g. the photo/video
+// request form, where every Visitor submission sends an email). Same
+// in-memory tradeoff as the login guard above.
+const hitWindows = new Map<string, number[]>()
+
+/** Records one hit for `key` and returns true if it exceeds `max` hits within `windowMs`. */
+export function isRateLimited(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now()
+  const recent = (hitWindows.get(key) ?? []).filter((t) => now - t < windowMs)
+  if (recent.length >= max) {
+    hitWindows.set(key, recent)
+    return true
+  }
+  recent.push(now)
+  hitWindows.set(key, recent)
+  return false
+}

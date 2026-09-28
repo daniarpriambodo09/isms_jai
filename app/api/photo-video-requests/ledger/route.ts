@@ -1,5 +1,6 @@
 // app/api/photo-video-requests/ledger/route.ts
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 type LedgerRow = {
@@ -30,7 +31,14 @@ type LedgerRow = {
 // so any department can browse it without an admin account. Deciding,
 // editing, deleting etc. all still require the admin panel — this only
 // ever reads.
-export async function GET() {
+// NIK is personal data, so the public copy shows it masked ("12****89"); only a
+// logged-in ISM Admin / Lobby / Security session sees it in full.
+function maskNik(nik: string | null): string | null {
+  if (!nik) return nik
+  return nik.length <= 4 ? '*'.repeat(nik.length) : `${nik.slice(0, 2)}${'*'.repeat(nik.length - 4)}${nik.slice(-2)}`
+}
+
+export async function GET(request: NextRequest) {
   try {
     const result = await query<LedgerRow>(
       `SELECT r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
@@ -40,7 +48,9 @@ export async function GET() {
        LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
        ORDER BY r.submitted_at ASC`
     )
-    return NextResponse.json({ requests: result.rows })
+    const canSeeNik = !!getKioskAdminFromRequest(request)
+    const requests = canSeeNik ? result.rows : result.rows.map((row) => ({ ...row, nik: maskNik(row.nik) }))
+    return NextResponse.json({ requests })
   } catch (error) {
     console.error('[photo-video-requests/ledger/GET]', error)
     return NextResponse.json({ message: 'Gagal memuat rekap pengajuan.' }, { status: 500 })

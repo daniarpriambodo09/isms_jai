@@ -3,13 +3,9 @@
 
 import Link from 'next/link'
 import { Camera } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
 import { PhotoVideoLedgerTable } from '@/components/documents/PhotoVideoLedgerTable'
 
 export function LedgerFotoVideoPage() {
-  const { adminUser } = useAuth()
-  const canViewPdf = adminUser?.role === 'ism_admin' || adminUser?.role === 'lobby' || adminUser?.role === 'security'
-
   return (
     <div className="flex flex-col gap-6">
       <section
@@ -30,7 +26,7 @@ export function LedgerFotoVideoPage() {
         </div>
       </section>
 
-      <PhotoVideoLedgerTable canViewPdf={canViewPdf} />
+      <PhotoVideoLedgerTable canViewPdf />
     </div>
   )
 }

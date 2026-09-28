@@ -1,10 +1,7 @@
 // app/api/files/serve/route.ts
-
-// app/api/files/serve/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile, stat } from 'fs/promises'
 import { createReadStream } from 'fs'
-import { Readable } from 'stream'
 import path from 'path'
 import { STORAGE_ROOT } from '@/lib/storage'
 
@@ -58,7 +55,38 @@ export async function GET(request: NextRequest) {
       const chunkSize = end - start + 1
 
       const stream = createReadStream(fullPath, { start, end })
-      return new NextResponse(Readable.toWeb(stream) as ReadableStream, {
+      const webStream = new ReadableStream({
+        start(controller) {
+          stream.on('data', (chunk) => {
+            try {
+              controller.enqueue(chunk)
+              if (controller.desiredSize !== null && controller.desiredSize <= 0) {
+                stream.pause()
+              }
+            } catch {
+              stream.destroy()
+            }
+          })
+          stream.on('end', () => {
+            try {
+              controller.close()
+            } catch {}
+          })
+          stream.on('error', (err) => { 
+            try {
+              controller.error(err)
+            } catch {}
+          })
+        },
+        pull() {
+          stream.resume()
+        },
+        cancel() {
+          stream.destroy()
+        },
+      })
+
+      return new NextResponse(webStream, {
         status: 206,
         headers: {
           'Content-Type': contentType,

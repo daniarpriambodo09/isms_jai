@@ -56,10 +56,9 @@ function StatusCell({ r }: { r: LedgerRequest }) {
   )
 }
 
-// canViewPdf: who gets the Visitor "Aksi" (view PDF) column — ISM Admin,
-// Lobby and Security all have kiosk-level read access to the underlying
-// data, so all three are allowed to see the resulting PDF too.
-export function PhotoVideoLedgerTable({ canViewPdf }: { canViewPdf: boolean }) {
+// canViewPdf: who gets the Visitor "Aksi" (view PDF) column — enabled
+// by default so all ledger viewers (including general/public) can view the PDF.
+export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: boolean }) {
   const [requests, setRequests] = useState<LedgerRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

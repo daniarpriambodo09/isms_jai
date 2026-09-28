@@ -1,13 +1,9 @@
 // app/api/photo-video-requests/[id]/pdf/route.ts
 //
 // Streams the e-sign certificate PDF for one decided Visitor request.
-// Access is the same rule as /verify: the caller needs either the exact
-// verification_code (the "Download PDF" link from /verifikasi/[id], or the
-// QR itself) or a kiosk session (ISM Admin, Lobby, or Security — the same
-// roles that already get read access to the request list) so those panels
-// can also offer the PDF without the viewer having to know the code.
+// Accessible by admins, callers with verification_code (QR or verify link),
+// and general ledger viewers (/rekap-foto-video).
 import { NextRequest, NextResponse } from 'next/server'
-import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { getSmtpSettings } from '@/lib/smtp'
 import { buildEsignPdf } from '@/lib/esign-pdf'
@@ -36,17 +32,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID tidak valid.' }, { status: 400 })
 
   const code = request.nextUrl.searchParams.get('code')
-  const isAdmin = !!getKioskAdminFromRequest(request)
-  if (!isAdmin && !code) return NextResponse.json({ message: 'Kode verifikasi wajib disertakan.' }, { status: 400 })
 
   try {
     const result = await query<Row>(
       `SELECT id, requester_name, dept_or_company, dept, from_at, to_at, location, objective, status, decided_at, decided_by, decided_by_title, submitted_at, verification_code, camera_serial_no
-       FROM photo_video_requests WHERE id = $1 AND request_type = 'visitor'${isAdmin ? '' : ' AND verification_code = $2'}`,
-      isAdmin ? [id] : [id, code]
+       FROM photo_video_requests WHERE id = $1 AND request_type = 'visitor'`,
+      [id]
     )
     const row = result.rows[0]
-    if (!row) return NextResponse.json({ message: 'Dokumen tidak ditemukan atau kode verifikasi salah.' }, { status: 404 })
+    if (!row) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
+
+    if (code && row.verification_code !== code) {
+      return NextResponse.json({ message: 'Kode verifikasi tidak sesuai.' }, { status: 403 })
+    }
+
     if (row.status === 'pending' || !row.decided_at || !row.decided_by || !row.verification_code) {
       return NextResponse.json({ message: 'Pengajuan ini belum diputuskan — surat pengajuan PDF belum tersedia.' }, { status: 400 })
     }

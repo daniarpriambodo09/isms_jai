@@ -50,9 +50,13 @@ const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode`
 
+function maskIdCard(idCard: string | null): string {
+  if (!idCard) return ''
+  return idCard.length <= 4 ? '*'.repeat(idCard.length) : `${idCard.slice(0, 2)}${'*'.repeat(idCard.length - 4)}${idCard.slice(-2)}`
+}
+
 export async function GET(request: NextRequest) {
   const session = getKioskAdminFromRequest(request)
-  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const stage = request.nextUrl.searchParams.get('stage')
@@ -69,7 +73,11 @@ export async function GET(request: NextRequest) {
       `SELECT ${SELECT_COLUMNS} FROM vendor_registrations ${whereClause} ORDER BY registered_at ${sort}`,
       values
     )
-    return NextResponse.json({ registrations: result.rows })
+    const registrations = session
+      ? result.rows
+      : result.rows.map((row) => ({ ...row, id_card: maskIdCard(row.id_card) }))
+
+    return NextResponse.json({ registrations })
   } catch (error) {
     console.error('[vendor-registrations/GET]', error)
     return NextResponse.json({ message: 'Gagal memuat daftar pendaftaran.' }, { status: 500 })

@@ -66,10 +66,11 @@ function StatusLookup({ isInternal }: { isInternal: boolean }) {
   }
 
   const cancelRequest = async (id: number) => {
+    // Cancelling needs the full secret reference code, not just the id.
     setCancelingId(id)
     setCancelError(null)
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/lookup?ref=${id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/lookup?ref=${encodeURIComponent(ref.trim())}`, { method: 'DELETE' })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setCancelError(data?.message ?? 'Gagal membatalkan pengajuan.'); return }
       setResults((prev) => prev?.filter((r) => r.id !== id) ?? null)
@@ -102,13 +103,13 @@ function StatusLookup({ isInternal }: { isInternal: boolean }) {
             {mode === 'nik' ? (
               <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Masukkan NIK" className={inputClass} />
             ) : (
-              <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Contoh: 42" inputMode="numeric" className={inputClass} />
+              <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Contoh: 42-A1B2C3D4E5" className={inputClass} />
             )}
             <button type="button" onClick={search} disabled={searching || !(mode === 'nik' ? nik.trim() : ref.trim())} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
               <Search className="size-4" /> {searching ? 'Mencari...' : 'Cek'}
             </button>
           </div>
-          {mode === 'ref' && <p className="mt-1.5 text-[11px] text-muted-foreground">Nomor referensi ditampilkan setelah Anda mengirim pengajuan.</p>}
+          {mode === 'ref' && <p className="mt-1.5 text-[11px] text-muted-foreground">Kode referensi ditampilkan setelah Anda mengirim pengajuan.</p>}
           {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
           {cancelError && <p className="mt-2 text-xs text-destructive">{cancelError}</p>}
           {results && results.length === 0 && !error && <p className="mt-3 text-xs text-muted-foreground">Tidak ada pengajuan yang cocok.</p>}
@@ -193,7 +194,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [photoIds, setPhotoIds] = useState<PhotoIdItem[]>([])
   const [visitorApprover, setVisitorApprover] = useState<VisitorApprover | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [successInfo, setSuccessInfo] = useState<{ id: number; submittedAt: string } | null>(null)
+  const [successInfo, setSuccessInfo] = useState<{ id: number; referenceCode: string; submittedAt: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -293,7 +294,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) { setError(data?.message ?? 'Gagal mengirim pengajuan.'); return }
-      setSuccessInfo({ id: data?.request?.id, submittedAt: data?.request?.submitted_at ?? new Date().toISOString() })
+      setSuccessInfo({ id: data?.request?.id, referenceCode: data?.referenceCode ?? `#${data?.request?.id}`, submittedAt: data?.request?.submitted_at ?? new Date().toISOString() })
       resetForm()
     } catch {
       setError('Tidak dapat menghubungi server.')
@@ -543,12 +544,12 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
             </p>
             {successInfo.id != null && (
               <p className="mt-2 pl-6 text-xs">
-                {isInternal ? 'Nomor referensi: ' : 'Reference number: '}
-                <strong className="font-mono text-sm">#{successInfo.id}</strong>
+                {isInternal ? 'Kode referensi: ' : 'Reference code: '}
+                <strong className="font-mono text-sm select-all">{successInfo.referenceCode}</strong>
                 <br />
                 {isInternal
-                  ? 'Simpan nomor ini untuk cek status atau membatalkan pengajuan lewat "Cek status pengajuan saya" di atas.'
-                  : 'Save this number to check the status or cancel your registration via "Cek status pengajuan saya" above.'}
+                  ? 'Simpan kode ini untuk cek status atau membatalkan pengajuan lewat "Cek status pengajuan saya" di atas.'
+                  : 'Save this code to check the status or cancel your registration via "Cek status pengajuan saya" above.'}
               </p>
             )}
           </div>

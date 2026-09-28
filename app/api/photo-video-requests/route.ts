@@ -6,6 +6,7 @@ import { query } from '@/lib/db'
 import { getSmtpSettings, sendMail } from '@/lib/smtp'
 import { buildVisitorApprovalEmail, LOGO_CID } from '@/lib/email-templates'
 import { resolveAppBaseUrl } from '@/lib/request-origin'
+import { isRateLimited } from '@/lib/rate-limit'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -77,6 +78,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Public form — every Visitor submission emails the approver, so cap how
+  // fast one address can submit.
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+  if (isRateLimited(`photo-video-post:${ip}`, 5, 60_000)) {
+    return NextResponse.json({ message: 'Terlalu banyak pengajuan dalam waktu singkat. Coba lagi sebentar.' }, { status: 429 })
+  }
+
   try {
     const body = await request.json()
     const requestType = body.requestType
@@ -179,12 +187,17 @@ export async function POST(request: NextRequest) {
     const decidedAt = requestType === 'internal' ? 'now()' : 'NULL'
     const decisionNote = requestType === 'internal' ? 'Disetujui otomatis saat pengajuan (Internal) — tidak melalui approval admin.' : null
 
+    // Secret half of the reference code shown to the requester ("42-A1B2C3D4E5")
+    // — the bare sequential id alone would let anyone look up or cancel other
+    // people's pending requests just by counting.
+    const refToken = randomBytes(5).toString('hex').toUpperCase()
+
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
-         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, decided_at, decision_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, ${decidedAt}, $18)
+         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, decided_at, decision_note, ref_token)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, ${decidedAt}, $18, $19)
        RETURNING id`,
-      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, decisionNote]
+      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, decisionNote, refToken]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,
@@ -195,7 +208,7 @@ export async function POST(request: NextRequest) {
       await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken })
     }
 
-    return NextResponse.json({ request: created.rows[0] }, { status: 201 })
+    return NextResponse.json({ request: created.rows[0], referenceCode: `${created.rows[0].id}-${refToken}` }, { status: 201 })
   } catch (error) {
     console.error('[photo-video-requests/POST]', error)
     return NextResponse.json({ message: 'Gagal mengirim pengajuan.' }, { status: 500 })
@@ -219,8 +232,8 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
     if (!requestRow.approval_token) return
 
     const base = resolveAppBaseUrl(settings.appUrl)
-    const approveUrl = `${base}/isms-jai/api/photo-video-requests/approve?token=${requestRow.approval_token}&action=approve`
-    const rejectUrl = `${base}/isms-jai/api/photo-video-requests/approve?token=${requestRow.approval_token}&action=reject`
+    const approveUrl = `${base}/isms-jai/konfirmasi-approval?token=${requestRow.approval_token}&action=approve`
+    const rejectUrl = `${base}/isms-jai/konfirmasi-approval?token=${requestRow.approval_token}&action=reject`
 
     const { subject, html } = buildVisitorApprovalEmail({
       approverName: pic.full_name ?? pic.name,

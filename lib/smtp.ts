@@ -3,6 +3,7 @@
 import 'server-only'
 import nodemailer from 'nodemailer'
 import { query } from '@/lib/db'
+import { decryptSecret, encryptSecret } from '@/lib/secret-box'
 
 export type Encryption = 'none' | 'tls' | 'ssl'
 
@@ -37,7 +38,7 @@ export async function getSmtpSettings(): Promise<SmtpSettings | null> {
     port: row.port,
     encryption: row.encryption,
     username: row.username,
-    password: row.password,
+    password: row.password ? decryptSecret(row.password) : null,
     senderEmail: row.sender_email,
     appUrl: row.app_url,
     updatedAt: row.updated_at,
@@ -61,7 +62,7 @@ export async function saveSmtpSettings(settings: {
        username = EXCLUDED.username, password = EXCLUDED.password,
        sender_email = EXCLUDED.sender_email, app_url = EXCLUDED.app_url, updated_at = now()
      RETURNING host, port, encryption, username, password, sender_email, app_url, updated_at`,
-    [settings.host, settings.port, settings.encryption, settings.username, settings.password, settings.senderEmail, settings.appUrl]
+    [settings.host, settings.port, settings.encryption, settings.username, settings.password ? encryptSecret(settings.password) : null, settings.senderEmail, settings.appUrl]
   )
   const row = result.rows[0]
   return {
@@ -69,7 +70,7 @@ export async function saveSmtpSettings(settings: {
     port: row.port,
     encryption: row.encryption,
     username: row.username,
-    password: row.password,
+    password: row.password ? decryptSecret(row.password) : null,
     senderEmail: row.sender_email,
     appUrl: row.app_url,
     updatedAt: row.updated_at,

@@ -179,7 +179,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
         />
       )}
 
-      {category === 'kontrol-cs' && isLoggedIn && <VendorRegistrationsPanel />}
+      {category === 'kontrol-cs' && <VendorRegistrationsPanel isLoggedIn={isLoggedIn} />}
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{documents.length} dokumen terdaftar</p></div>

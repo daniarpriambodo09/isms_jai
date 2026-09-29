@@ -1,6 +1,6 @@
 /* app/globals.css */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@500;600&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -30,8 +30,12 @@
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.5);
+  --font-display: 'Inter Tight', 'Inter', Arial, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* Original portal palette — warm cream, deep teal primary, orange accent. */
 :root {
   color-scheme: light;
   --background: oklch(0.96 0.025 92);
@@ -52,7 +56,29 @@
   --border: oklch(0.82 0.045 92);
   --input: oklch(0.82 0.045 92);
   --ring: oklch(0.58 0.12 180);
-  --radius: 0.65rem;
+  --radius: 0.85rem;
+
+  /* Brand shades components use directly. Defaults are the original
+     colors; lib/theme.ts rotates these (with the tokens above) when an admin
+     picks another palette on /kelola-tema. Keep in sync with THEME_VARS. */
+  --p-950: #0e2235;
+  --p-900: #12293a;
+  --p-850: #1a3a52;
+  --p-800: #20354a;
+  --p-750: #284360;
+  --p-700: #1a5f7a;
+  --p-600: #278e84;
+  --p-550: oklch(0.48 0.12 180);
+  --p-500: oklch(0.58 0.14 165);
+  --p-400: #48beb1;
+  --p-ink2: #3c5369;
+  --p-muted: #7290a5;
+  --p-muted2: #8798a8;
+  --p-border: #dce6ed;
+  --p-surface: #fbfcfd;
+  --p-surface2: #f0f4f7;
+  --p-tint: #d6f8f1;
+  --a-bright: oklch(0.75 0.18 50);
 }
 
 .dark {
@@ -83,16 +109,165 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', Arial, Helvetica, sans-serif;
-    background-image: linear-gradient(to right, color-mix(in oklch, var(--foreground) 3%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 3%, transparent) 1px, transparent 1px);
-    background-size: 32px 32px;
+    font-feature-settings: 'ss01', 'cv11';
+    /* Faint paper grain instead of the old blueprint grid. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.22 0 0 0 0 0.3 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
+  /* Every page title/section heading picks up the tight display grotesk
+     without each page having to opt in. */
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.03em;
+  }
+  ::selection { background: var(--accent); color: var(--accent-foreground); }
 }
 
+/* ─── Type utilities ─── */
+.font-display { font-family: var(--font-display); letter-spacing: -0.04em; }
+.font-serif-accent { font-family: var(--font-serif); font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+.font-mono-label { font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; }
+
 /* ─── Custom scrollbar ─── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: oklch(0.7 0.06 205 / 40%); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: oklch(0.55 0.08 205 / 70%); }
+::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--p-muted) 45%, transparent); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in oklch, var(--p-muted) 85%, transparent); background-clip: padding-box; }
+
+/* ─── Scroll reveal (driven by components/scroll-reveal.tsx) ───
+   Opacity-only while waiting: a transform on an ancestor would turn it into
+   the containing block for any `position: fixed` modal inside it. The rise
+   only runs during the animation itself (no fill-mode), same reasoning as
+   .page-fade-in below. */
+[data-reveal='pending'] { opacity: 0; }
+[data-reveal='shown'] { animation: reveal-rise 760ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes reveal-rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal='pending'] { opacity: 1; }
+  [data-reveal='shown'] { animation: none; }
+}
+
+/* ─── Button press feedback (driven by components/button-press-effects.tsx) ───
+   A short squash-and-bounce on the button itself, plus a ripple spreading
+   from the exact point pressed. `transform` composes with Tailwind v4's own
+   scale/translate utilities (separate properties), so hover lifts and
+   centered-with-translate buttons keep working mid-press. */
+[data-pressing] { animation: btn-press 420ms cubic-bezier(0.2, 0.9, 0.25, 1.2); }
+@keyframes btn-press {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.93); }
+  65% { transform: scale(1.025); }
+  100% { transform: scale(1); }
+}
+[data-pressing]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: currentColor;
+  opacity: 0;
+  animation: btn-ripple 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes btn-ripple {
+  0% { opacity: 0.3; clip-path: circle(0 at var(--press-x, 50%) var(--press-y, 50%)); }
+  100% { opacity: 0; clip-path: circle(150% at var(--press-x, 50%) var(--press-y, 50%)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-pressing], [data-pressing]::after { animation: none; }
+}
+
+/* ─── Marquee ticker ─── */
+@keyframes marquee-x { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-track { animation: marquee-x 38s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+
+/* ─── Home hero, Tundra style (components/home/HeroCarousel.tsx) ─── */
+/* Headline words rise out of a soft blur, one after another. */
+@keyframes hero-word-rise { from { opacity: 0; transform: translateY(0.35em); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+.hero-word { display: inline-block; animation: hero-word-rise 1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* Slow drift on the background video, like mist moving over a landscape. */
+@keyframes hero-drift { from { transform: scale(1.02) translate3d(0, 0, 0); } to { transform: scale(1.09) translate3d(-1%, -1.5%, 0); } }
+.hero-drift { animation: hero-drift 22s ease-in-out infinite alternate; }
+/* Scroll parallax — --hero-p (0→1) is set on the hero section while scrolling. */
+.hero-parallax-text { transform: translateY(calc(var(--hero-p, 0) * -90px)); opacity: calc(1 - var(--hero-p, 0) * 1.5); }
+.hero-parallax-media { transform: scale(calc(1 + var(--hero-p, 0) * 0.08)); }
+@media (prefers-reduced-motion: reduce) {
+  .hero-word, .hero-drift { animation: none; }
+  .hero-parallax-text, .hero-parallax-media { transform: none; opacity: 1; }
+}
+
+/* ─── Home scroll motion (Mariana-inspired) ─── */
+/* Schedule images open like an aperture as they scroll in: --ap goes 0→1
+   (set by components/home/ScrollAperture.tsx); unset means fully open. */
+.scroll-aperture {
+  overflow: hidden;
+  transform-origin: 50% 0%;
+  transform: scale(calc(0.88 + 0.12 * var(--ap, 1)));
+  border-radius: calc((1 - var(--ap, 1)) * 44px);
+  will-change: transform;
+}
+.scroll-aperture img { transform: translateY(calc((1 - var(--ap, 1)) * 36px)); }
+/* Chapter titles wait off-screen, then rise in once visible. */
+.chapter-title-pending { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-aperture, .scroll-aperture img { transform: none; border-radius: 0; }
+  .chapter-title-pending { opacity: 1; }
+}
+
+/* ─── Home chapters (components/home/ChapterHeader.tsx) ─── */
+/* Numbered by CSS counter so sections without content (no gallery images,
+   an empty schedule category) never leave a gap in the numbering. */
+.home-chapters { counter-reset: chapter; }
+.home-chapter { counter-increment: chapter; }
+.chapter-num::before { content: counter(chapter, decimal-leading-zero); }
+@keyframes progress-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes scroll-cue { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+.scroll-cue-line { animation: scroll-cue 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .scroll-cue-line { animation: none; } }
+
+/* ─── Per-menu page hero motifs (components/page-hero.tsx) ─── */
+/* Blueprint grid — Standard TMMIN */
+.hero-blueprint {
+  background-color: var(--p-950);
+  background-image:
+    linear-gradient(color-mix(in oklch, var(--p-400) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--p-400) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in oklch, var(--p-400) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--p-400) 7%, transparent) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 24px 24px, 24px 24px;
+}
+/* Hazard tape — Working Standard */
+.hero-hazard {
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 18px, var(--p-900) 18px 36px);
+}
+/* Ruled paper — Form Aplikasi */
+.hero-paper {
+  background-color: var(--card);
+  background-image: repeating-linear-gradient(180deg, transparent 0 31px, color-mix(in oklch, var(--p-700) 13%, transparent) 31px 32px);
+}
+/* Film sprockets — Rekap Foto/Video */
+.hero-sprockets {
+  background-image: radial-gradient(circle at center, var(--background) 0 5px, transparent 5.5px);
+  background-size: 28px 100%;
+}
+/* Outlined giant text */
+.text-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in oklch, var(--p-700) 22%, transparent);
+}
+/* Blinking indicator (REC / live dot) */
+@keyframes hero-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0.15; } }
+.hero-blink { animation: hero-blink 1.3s steps(1) infinite; }
+/* Viewfinder focus square breathing */
+@keyframes hero-focus { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(0.9); opacity: 0.55; } }
+.hero-focus { animation: hero-focus 2.8s ease-in-out infinite; }
+/* Floating bento chips */
+@keyframes hero-float { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-8px) rotate(var(--r, 0deg)); } }
+.hero-float { animation: hero-float 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .hero-blink, .hero-focus, .hero-float { animation: none; } }
 
 /* ─── Home hero carousel transitions ─── */
 @keyframes hero-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -116,7 +291,17 @@
 
 /* ─── Navbar utilities ─── */
 .portal-surface { box-shadow: 0 12px 30px color-mix(in oklch, var(--primary) 7%, transparent); }
-.portal-eyebrow { letter-spacing: 0.16em; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: var(--muted-foreground); }
+/* Section eyebrow: mono caps with an acid square bullet — used everywhere
+   ("Controlled library", "Direktori departemen", …). */
+.portal-eyebrow {
+  display: inline-flex; align-items: center; gap: 0.5em;
+  font-family: var(--font-mono); letter-spacing: 0.1em; font-size: 0.66rem; font-weight: 600;
+  text-transform: uppercase; color: var(--muted-foreground);
+}
+.portal-eyebrow::before {
+  content: ''; width: 0.55em; height: 0.55em; flex: none;
+  background: var(--accent); box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 25%, transparent);
+}
 .nav-wipe::before { content: ''; position: absolute; inset: 0; z-index: -1; transform: translateY(101%); background: var(--accent); transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1); }
 .nav-wipe:hover::before, .nav-wipe:focus-visible::before { transform: translateY(0); }
 
@@ -130,6 +315,7 @@
 .table-head-gradient {
   background: linear-gradient(90deg, color-mix(in oklch, var(--primary) 10%, var(--secondary)) 0%, color-mix(in oklch, var(--accent) 8%, var(--secondary)) 100%);
 }
+.table-head-gradient th { font-family: var(--font-mono); letter-spacing: 0.1em; }
 /* `position` on <tr> itself is unreliable across browsers, so the accent
    bar is anchored to the first <td> instead — table cells support
    positioning contexts consistently. */
@@ -145,7 +331,7 @@
   top: 0;
   bottom: 0;
   width: 3px;
-  background: linear-gradient(180deg, oklch(0.48 0.12 180), oklch(0.58 0.14 165));
+  background: linear-gradient(180deg, var(--p-550), var(--p-500));
 }
 
 @media (prefers-color-scheme: dark) {

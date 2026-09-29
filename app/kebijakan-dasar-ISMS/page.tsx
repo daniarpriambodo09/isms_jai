@@ -10,11 +10,12 @@ import {
   ChevronRight,
   GalleryHorizontal,
   ShieldCheck,
-  Sparkles,
+  Trash2,
   Upload,
   X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { ManifestoHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 
@@ -36,7 +37,9 @@ export default function PolicyPage() {
   const [isImageOpen, setIsImageOpen] = useState(false)
   const [removingImage, setRemovingImage] = useState<PolicyImage | null>(null)
   const [removePending, setRemovePending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const pointerStart = useRef<number | null>(null)
+  const justSwiped = useRef(false)
   const activeImage = images[activeIndex]
 
   useEffect(() => {
@@ -77,20 +80,28 @@ export default function PolicyPage() {
     const form = new FormData()
     files.forEach((file) => form.append('files', file))
 
-    const response = await fetch(`${API_BASE_PATH}/api/policy-images`, {
-      method: 'POST',
-      body: form,
-    })
+    setError(null)
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/policy-images`, {
+        method: 'POST',
+        body: form,
+      })
 
-    if (response.ok) {
-      const data = await response.json()
-      setImages((current) => [
-        ...current,
-        ...(data.images ?? []).map((image: PolicyImage) => ({
-          ...image,
-          url: `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(image.file_path ?? '')}`,
-        })),
-      ])
+      if (response.ok) {
+        const data = await response.json()
+        setImages((current) => [
+          ...current,
+          ...(data.images ?? []).map((image: PolicyImage) => ({
+            ...image,
+            url: `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(image.file_path ?? '')}`,
+          })),
+        ])
+      } else {
+        const data = await response.json().catch(() => ({}))
+        setError(data.message ?? 'Gagal mengunggah gambar.')
+      }
+    } catch {
+      setError('Tidak dapat menghubungi server.')
     }
 
     event.target.value = ''
@@ -99,45 +110,48 @@ export default function PolicyPage() {
   async function confirmRemoveImage() {
     if (!removingImage) return
     setRemovePending(true)
+    setError(null)
 
-    const response = await fetch(`${API_BASE_PATH}/api/policy-images`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: removingImage.id }),
-    })
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/policy-images`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: removingImage.id }),
+      })
 
-    if (response.ok) {
-      setImages((current) => current.filter((image) => image.id !== removingImage.id))
-      setActiveIndex((current) => Math.max(0, Math.min(current, images.length - 2)))
+      if (response.ok) {
+        setImages((current) => current.filter((image) => image.id !== removingImage.id))
+        setActiveIndex((current) => Math.max(0, Math.min(current, images.length - 2)))
+      } else {
+        const data = await response.json().catch(() => ({}))
+        setError(data.message ?? 'Gagal menghapus gambar.')
+      }
+    } catch {
+      setError('Tidak dapat menghubungi server.')
     }
 
     setRemovePending(false)
     setRemovingImage(null)
   }
 
+  // Swipe to change image. No pointer capture here — capturing the pointer on
+  // the container used to swallow clicks on the buttons inside it (the delete
+  // X never fired).
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     pointerStart.current = event.clientX
-    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
     if (pointerStart.current === null) return
     const distance = event.clientX - pointerStart.current
-    if (Math.abs(distance) > 40) moveImage(distance < 0 ? 1 : -1)
+    justSwiped.current = Math.abs(distance) > 40
+    if (justSwiped.current) moveImage(distance < 0 ? 1 : -1)
     pointerStart.current = null
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="relative overflow-hidden rounded-3xl bg-primary px-6 py-7 text-primary-foreground shadow-xl shadow-primary/15 sm:px-8">
-        <div className="max-w-2xl">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-foreground">
-            <Sparkles className="size-3.5" /> Information security policy
-          </div>
-          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Kebijakan Dasar ISMS</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">Visual kebijakan keamanan informasi PT. Jatim Autocomp Indonesia — dikelola oleh Information Security Committee.</p>
-        </div>
-      </header>
+      <ManifestoHero />
 
       {/* Full-bleed image — spans the full browser width like the Home hero, so nothing
           feels boxed-in. object-contain (never object-cover) keeps the whole image
@@ -153,7 +167,11 @@ export default function PolicyPage() {
         {activeImage && (
           <button
             type="button"
-            onClick={() => setIsImageOpen(true)}
+            onClick={() => {
+              // A swipe ends with a click on this same button — don't open the preview for it.
+              if (justSwiped.current) { justSwiped.current = false; return }
+              setIsImageOpen(true)
+            }}
             className="absolute inset-0 cursor-zoom-in"
             aria-label="Perbesar gambar policy"
           >
@@ -231,13 +249,17 @@ export default function PolicyPage() {
               event.stopPropagation()
               setRemovingImage(activeImage)
             }}
+            onPointerDown={(event) => event.stopPropagation()}
+            onPointerUp={(event) => event.stopPropagation()}
             aria-label="Hapus gambar policy"
-            className="absolute right-3 top-3 z-20 grid size-9 place-items-center rounded-full bg-background/90 text-foreground shadow-md transition hover:scale-105 hover:bg-destructive/10 hover:text-destructive active:scale-95 sm:right-5 sm:top-5"
+            className="absolute right-3 top-3 z-20 inline-flex items-center gap-1.5 rounded-full bg-destructive px-3.5 py-2 text-xs font-semibold text-white shadow-md transition hover:scale-105 hover:opacity-90 active:scale-95 sm:right-5 sm:top-5"
           >
-            <X className="size-4" />
+            <Trash2 className="size-3.5" /> Hapus gambar ini
           </button>
         )}
       </div>
+
+      {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       {/* Slim control bar — one row instead of a separate boxed sidebar */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
@@ -272,6 +294,43 @@ export default function PolicyPage() {
           )}
         </div>
       </div>
+
+      {/* Admin — every uploaded image with its own delete button */}
+      {isLoggedIn && images.length > 0 && (
+        <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="portal-eyebrow">Kelola gambar</p>
+              <p className="mt-1 text-sm text-muted-foreground">Klik gambar untuk menampilkannya di atas, atau hapus yang tidak dipakai lagi.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {images.map((image, i) => (
+              <div
+                key={image.id}
+                className={`group overflow-hidden rounded-lg border bg-background transition ${i === activeIndex ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}
+              >
+                <button type="button" onClick={() => setActiveIndex(i)} className="relative block aspect-[4/3] w-full bg-muted" aria-label={`Tampilkan gambar ${i + 1}`}>
+                  <Image src={image.url} alt={image.file_name} fill unoptimized className="object-contain" />
+                  <span className="absolute left-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[10px] text-white">{String(i + 1).padStart(2, '0')}</span>
+                </button>
+                <div className="flex items-center gap-2 border-t border-border px-2.5 py-2">
+                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={image.file_name}>{image.file_name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRemovingImage(image)}
+                    aria-label={`Hapus ${image.file_name}`}
+                    title="Hapus gambar"
+                    className="grid size-7 flex-none place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {isImageOpen && activeImage && (
         <div

@@ -92,7 +92,29 @@ export async function verifySmtpConnection(settings: SmtpSettings): Promise<void
   await transport.verify()
 }
 
-export type MailAttachment = { filename: string; path: string; cid: string }
+// Turns a nodemailer/SMTP failure into one short, actionable sentence for
+// admins (the raw error still goes to the server log). Gmail in particular
+// answers "535 5.7.8 BadCredentials" when an ordinary account password is
+// used — it only accepts an App Password for SMTP.
+export function describeSmtpError(error: unknown): string {
+  const e = (error ?? {}) as { code?: string; responseCode?: number; message?: string }
+  const msg = e.message ?? ''
+  if (e.code === 'EAUTH' || e.responseCode === 535 || /\b535\b|Invalid login|BadCredentials/i.test(msg)) {
+    return /gmail|gsmtp|google/i.test(msg)
+      ? 'Login SMTP ditolak Gmail: gunakan App Password Google (16 karakter), bukan password akun biasa. Perbaiki di Admin Settings → SMTP Settings.'
+      : 'Login SMTP ditolak: periksa username & password di Admin Settings → SMTP Settings.'
+  }
+  if (['ECONNECTION', 'ETIMEDOUT', 'ECONNREFUSED', 'ESOCKET', 'EDNS'].includes(e.code ?? '') || /ECONNREFUSED|ETIMEDOUT|getaddrinfo/i.test(msg)) {
+    return 'Tidak dapat terhubung ke server SMTP: periksa host, port, dan enkripsi di SMTP Settings.'
+  }
+  if (e.responseCode === 550 || e.responseCode === 553 || /recipient|mailbox unavailable/i.test(msg)) {
+    return 'Alamat email penerima ditolak server email: periksa email approver.'
+  }
+  return msg ? `Gagal mengirim email: ${msg.slice(0, 160)}` : 'Gagal mengirim email.'
+}
+
+// cid = inline image referenced from the HTML; omit it for a regular attachment.
+export type MailAttachment = { filename: string; path: string; cid?: string; contentType?: string }
 
 export async function sendMail(
   settings: SmtpSettings,

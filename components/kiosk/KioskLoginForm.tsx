@@ -92,23 +92,23 @@ export function KioskLoginForm({
         .klf-orb-2 { animation: klf-orb2 9s ease-in-out infinite; }
         .klf-banner-glow { animation: klf-banner-drift 10s ease-in-out infinite; }
         .klf-top-bar {
-          background: linear-gradient(90deg, #278e84 0%, #1a5f7a 40%, #278e84 100%);
+          background: linear-gradient(90deg, var(--p-600) 0%, var(--p-700) 40%, var(--p-600) 100%);
           background-size: 200% auto;
           animation: klf-shimmer 3s linear infinite;
         }
         .klf-btn-submit {
-          background: linear-gradient(135deg, #1a5f7a 0%, #278e84 100%);
-          box-shadow: 0 6px 20px rgba(39,142,132,0.4), 0 2px 6px rgba(14,34,53,0.2);
+          background: linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%);
+          box-shadow: 0 6px 20px color-mix(in oklch, var(--p-600) 40%, transparent), 0 2px 6px color-mix(in oklch, var(--p-950) 20%, transparent);
           transition: background 200ms, box-shadow 200ms, transform 150ms;
         }
         .klf-btn-submit:not(:disabled):hover {
-          background: linear-gradient(135deg, #154e65 0%, #1f7a70 100%);
-          box-shadow: 0 8px 26px rgba(39,142,132,0.52), 0 2px 8px rgba(14,34,53,0.25);
+          background: linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%);
+          box-shadow: 0 8px 26px color-mix(in oklch, var(--p-600) 52%, transparent), 0 2px 8px color-mix(in oklch, var(--p-950) 25%, transparent);
           transform: translateY(-1px) scale(1.01);
         }
         .klf-btn-submit:not(:disabled):active {
           transform: translateY(0) scale(0.99);
-          box-shadow: 0 4px 14px rgba(39,142,132,0.3);
+          box-shadow: 0 4px 14px color-mix(in oklch, var(--p-600) 30%, transparent);
         }
         .klf-btn-submit:disabled { opacity: 0.65; cursor: not-allowed; }
         .klf-shimmer-overlay {
@@ -120,35 +120,35 @@ export function KioskLoginForm({
           height: 48px;
           width: 100%;
           border-radius: 14px;
-          border: 1.5px solid #dce6ed;
-          background: #f8fafc;
-          color: #20354a;
+          border: 1.5px solid var(--p-border);
+          background: var(--p-surface);
+          color: var(--p-800);
           font-size: 14px;
           font-weight: 500;
           outline: none;
-          box-shadow: inset 0 1px 3px rgba(14,34,53,0.06);
+          box-shadow: inset 0 1px 3px color-mix(in oklch, var(--p-950) 6%, transparent);
           transition: border-color 180ms, box-shadow 180ms, background 180ms;
           padding: 0 16px 0 52px;
         }
-        .klf-input::placeholder { color: #a9bac8; font-weight: 400; }
+        .klf-input::placeholder { color: var(--p-muted2); font-weight: 400; }
         .klf-field-wrap:focus-within .klf-input {
-          border-color: #278e84;
-          box-shadow: 0 0 0 3px rgba(39,142,132,0.13), inset 0 1px 3px rgba(14,34,53,0.04);
+          border-color: var(--p-600);
+          box-shadow: 0 0 0 3px color-mix(in oklch, var(--p-600) 13%, transparent), inset 0 1px 3px color-mix(in oklch, var(--p-950) 4%, transparent);
           background: #ffffff;
         }
         .klf-field-icon {
-          background: #eef3f6;
-          color: #6d8598;
+          background: var(--p-surface2);
+          color: var(--p-muted);
           transition: background 180ms, color 180ms;
         }
         .klf-field-wrap:focus-within .klf-field-icon {
-          background: linear-gradient(135deg, #1a5f7a 0%, #278e84 100%);
+          background: linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%);
           color: #ffffff;
         }
         .klf-success-overlay { animation: klf-pop-in 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
         .klf-success-badge { animation: klf-badge-bounce 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
         .klf-success-circle {
-          stroke: #278e84;
+          stroke: var(--p-600);
           stroke-width: 3;
           stroke-linecap: round;
           stroke-dasharray: 152;
@@ -156,7 +156,7 @@ export function KioskLoginForm({
           animation: klf-circle-draw 550ms ease-out 120ms forwards;
         }
         .klf-success-check-path {
-          stroke: #278e84;
+          stroke: var(--p-600);
           stroke-width: 4;
           stroke-linecap: round;
           stroke-linejoin: round;
@@ -165,7 +165,7 @@ export function KioskLoginForm({
           animation: klf-check-draw 320ms ease-out 620ms forwards;
         }
         .klf-success-ring {
-          border: 2px solid rgba(39,142,132,0.5);
+          border: 2px solid color-mix(in oklch, var(--p-600) 50%, transparent);
           animation: klf-ring-pulse 1500ms ease-out infinite;
         }
         .klf-success-ring-delay { animation-delay: 750ms; }
@@ -184,7 +184,7 @@ export function KioskLoginForm({
           <div
             className="absolute inset-0"
             style={{
-              background: 'radial-gradient(ellipse at 60% 40%, rgba(14,34,53,0.72) 0%, rgba(8,18,32,0.88) 100%)',
+              background: 'radial-gradient(ellipse at 60% 40%, color-mix(in oklch, var(--p-950) 72%, transparent) 0%, color-mix(in oklch, var(--p-950) 88%, transparent) 100%)',
               backdropFilter: 'blur(3px)',
               WebkitBackdropFilter: 'blur(3px)',
             }}
@@ -194,11 +194,11 @@ export function KioskLoginForm({
         {/* Glowing orbs */}
         <div
           className="klf-orb-1 pointer-events-none absolute left-1/4 top-1/4 h-64 w-64 rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(39,142,132,0.18) 0%, transparent 70%)', filter: 'blur(40px)' }}
+          style={{ background: 'radial-gradient(circle, color-mix(in oklch, var(--p-600) 18%, transparent) 0%, transparent 70%)', filter: 'blur(40px)' }}
         />
         <div
           className="klf-orb-2 pointer-events-none absolute bottom-1/4 right-1/3 h-48 w-48 rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(90,120,200,0.14) 0%, transparent 70%)', filter: 'blur(32px)' }}
+          style={{ background: 'radial-gradient(circle, color-mix(in oklch, var(--accent) 16%, transparent) 0%, transparent 70%)', filter: 'blur(32px)' }}
         />
 
         {/* Card */}
@@ -206,15 +206,15 @@ export function KioskLoginForm({
           <div
             className="relative overflow-hidden rounded-[1.75rem]"
             style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)',
-              boxShadow: '0 32px 80px rgba(14,34,53,0.38), 0 0 0 1px rgba(255,255,255,0.65), inset 0 1px 0 rgba(255,255,255,0.95)',
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, color-mix(in oklch, var(--p-surface2) 99%, transparent) 100%)',
+              boxShadow: '0 32px 80px color-mix(in oklch, var(--p-950) 38%, transparent), 0 0 0 1px rgba(255,255,255,0.65), inset 0 1px 0 rgba(255,255,255,0.95)',
             }}
           >
             {/* Success takeover */}
             {success && (
               <div
                 className="klf-success-overlay absolute inset-0 z-20 flex flex-col items-center justify-center gap-3"
-                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)' }}
+                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, color-mix(in oklch, var(--p-surface2) 99%, transparent) 100%)' }}
               >
                 <div className="klf-success-badge relative flex h-24 w-24 items-center justify-center">
                   <span className="klf-success-ring absolute inset-0 rounded-full" />
@@ -230,7 +230,7 @@ export function KioskLoginForm({
                         style={{
                           left: '-3px',
                           top: '-3px',
-                          background: i % 2 === 0 ? '#278e84' : '#1a5f7a',
+                          background: i % 2 === 0 ? 'var(--p-600)' : 'var(--p-700)',
                           animationDelay: `${550 + i * 35}ms`,
                         }}
                       />
@@ -241,10 +241,10 @@ export function KioskLoginForm({
                     <path className="klf-success-check-path" fill="none" d="M14 27l7 7 16-16" />
                   </svg>
                 </div>
-                <p className="text-[16px] font-bold" style={{ color: '#12293a' }}>
+                <p className="text-[16px] font-bold" style={{ color: 'var(--p-900)' }}>
                   Login berhasil{username ? `, ${username}` : ''}
                 </p>
-                <p className="text-[12px]" style={{ color: '#7290a5' }}>
+                <p className="text-[12px]" style={{ color: 'var(--p-muted)' }}>
                   Membuka {title}...
                 </p>
               </div>
@@ -253,7 +253,7 @@ export function KioskLoginForm({
             {/* Hero gradient banner */}
             <div
               className="relative h-28 overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, #0e2235 0%, #1a5f7a 55%, #278e84 100%)' }}
+              style={{ background: 'linear-gradient(135deg, var(--p-950) 0%, var(--p-700) 55%, var(--p-600) 100%)' }}
             >
               <div
                 className="absolute inset-0 opacity-[0.14]"
@@ -280,8 +280,8 @@ export function KioskLoginForm({
               <div
                 className="absolute -top-9 flex h-[72px] w-[72px] items-center justify-center rounded-[22px]"
                 style={{
-                  background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
-                  boxShadow: '0 10px 26px rgba(39,142,132,0.4), 0 0 0 5px #ffffff',
+                  background: 'linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%)',
+                  boxShadow: '0 10px 26px color-mix(in oklch, var(--p-600) 40%, transparent), 0 0 0 5px #ffffff',
                 }}
               >
                 <ShieldCheck className="h-8 w-8 text-white" />
@@ -292,21 +292,21 @@ export function KioskLoginForm({
             <div className="klf-top-bar h-[3px] w-full" />
 
             <div className="px-8 pb-8 pt-12">
-              <h2 className="text-[21px] font-bold leading-tight" style={{ color: '#12293a' }}>
+              <h2 className="text-[21px] font-bold leading-tight" style={{ color: 'var(--p-900)' }}>
                 {title}
               </h2>
-              <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: '#7290a5' }}>
+              <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: 'var(--p-muted)' }}>
                 {subtitle}
               </p>
 
               <div
                 className="mb-6 mt-5 h-px w-full"
-                style={{ background: 'linear-gradient(90deg, transparent 0%, #dce6ed 25%, #dce6ed 75%, transparent 100%)' }}
+                style={{ background: 'linear-gradient(90deg, transparent 0%, var(--p-border) 25%, var(--p-border) 75%, transparent 100%)' }}
               />
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="klf-username" className="text-[11.5px] font-bold uppercase tracking-[0.1em]" style={{ color: '#4a6278' }}>
+                  <label htmlFor="klf-username" className="text-[11.5px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--p-ink2)' }}>
                     Username
                   </label>
                   <div className="klf-field-wrap relative">
@@ -327,7 +327,7 @@ export function KioskLoginForm({
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="klf-password" className="text-[11.5px] font-bold uppercase tracking-[0.1em]" style={{ color: '#4a6278' }}>
+                  <label htmlFor="klf-password" className="text-[11.5px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--p-ink2)' }}>
                     Password
                   </label>
                   <div className="klf-field-wrap relative">
@@ -371,7 +371,7 @@ export function KioskLoginForm({
                 </button>
               </form>
 
-              <p className="mt-5 text-center text-[11px] leading-relaxed" style={{ color: '#9ab0be' }}>
+              <p className="mt-5 text-center text-[11px] leading-relaxed" style={{ color: 'var(--p-muted2)' }}>
                 Akses terbatas untuk perangkat kiosk resmi
               </p>
             </div>

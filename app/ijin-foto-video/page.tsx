@@ -9,6 +9,7 @@ import { ClipboardList } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { PhotoVideoRequestForm } from '@/components/documents/PhotoVideoRequestForm'
 import { VisitorApproverSettings } from '@/components/documents/VisitorApproverSettings'
+import { ViewfinderHero } from '@/components/page-hero'
 
 function IjinFotoVideoContent() {
   const searchParams = useSearchParams()
@@ -18,6 +19,7 @@ function IjinFotoVideoContent() {
 
   return (
     <div className="flex flex-col gap-6">
+      <ViewfinderHero />
       <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-center gap-3">
         <div className="inline-flex rounded-full border border-border bg-card p-1 shadow-sm">
           <button

@@ -3,9 +3,10 @@
 'use client'
 
 import { useEffect } from 'react'
-import { ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
+import { ScrollReveal } from '@/components/scroll-reveal'
 import { titleFor } from '@/lib/portal-data'
 import { useAuth } from '@/context/AuthContext'
 
@@ -32,6 +33,13 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
   '/kelola-admin': <Users className="size-5" />,
 }
 
+// Menu pages that render their own themed hero (components/page-hero.tsx);
+// the frame then shows only the breadcrumb row, not a duplicate giant title.
+const OWN_HERO_PREFIXES = [
+  '/kebijakan-dasar-ISMS', '/prosedur-isms', '/standard-isms-p14', '/working-standard', '/education',
+  '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/verifikasi-pengesahan',
+]
+
 export function PortalFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -49,6 +57,7 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
   if (isKioskRoute) return <>{children}</>
 
   const isHome = pathname === '/'
+  const hasOwnHero = OWN_HERO_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 
   const segments = pathname.split('/').filter(Boolean)
   const isSectionPage = segments[0] === 'documents' && segments[1] === 'department' && segments.length === 4
@@ -79,124 +88,69 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
 
       {/* ─── Page Header ─── */}
       {/* Home skips this bar entirely so the hero video sits flush against the navbar. */}
-      {!isHome && <header
-        className="relative border-b border-border backdrop-blur-sm"
-        style={{
-          background: 'linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--secondary) 60%, var(--card)) 100%)',
-        }}
-      >
-        {/* Top gradient accent bar */}
-        <div
-          className="absolute inset-x-0 top-0 h-[3px]"
-          style={{
-            background: 'linear-gradient(90deg, oklch(0.45 0.12 180) 0%, oklch(0.58 0.14 165) 50%, oklch(0.45 0.12 180) 100%)',
-          }}
-        />
-
-        <div className="mx-auto max-w-[1480px] px-10 pb-7 pt-6 max-[900px]:px-6 max-[680px]:px-4 max-[680px]:pb-5 max-[680px]:pt-4">
-          {/* Breadcrumb */}
-          <div className="mb-3 flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-            <span className="font-medium">ISMS Portal</span>
-            <ChevronRight className="size-3 opacity-50" />
-            <strong className="font-semibold text-foreground/80">{pageTitle}</strong>
-          </div>
-
-          {/* Title row */}
-          <div className="flex items-end justify-between gap-6 max-[680px]:items-start">
-            <div className="flex items-center gap-4">
-              {/* Accent bar + icon */}
-              <div
-                className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl max-[680px]:hidden"
-                style={{
-                  background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)',
-                  boxShadow: '0 4px 14px oklch(0.39 0.09 205 / 30%)',
-                  color: 'white',
-                }}
-              >
-                {pageIcon}
+      {!isHome && (
+        <header className={`relative ${hasOwnHero ? '' : 'border-b border-border'}`}>
+          <div className={`mx-auto max-w-[1480px] px-10 pt-8 max-[900px]:px-6 max-[680px]:px-4 max-[680px]:pt-5 ${hasOwnHero ? 'pb-0' : 'pb-8 max-[680px]:pb-6'}`}>
+            {/* Index row — mono breadcrumb left, context right */}
+            <div className={`flex items-center justify-between gap-4 border-b border-border pb-3 font-mono-label text-[10.5px] text-muted-foreground ${hasOwnHero ? '' : 'mb-5 max-[680px]:mb-3'}`}>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="grid size-6 flex-none place-items-center rounded-full bg-primary text-primary-foreground [&>svg]:size-3.5">{pageIcon}</span>
+                <span>ISMS Portal</span>
+                <ChevronRight className="size-3 flex-none opacity-50" />
+                <span className="truncate text-foreground">{pageTitle}</span>
               </div>
-
-              <div>
-                <p className="portal-eyebrow mb-1.5">Information security management system</p>
-                <div className="flex items-center gap-3">
-                  {/* Vertical teal accent */}
-                  <div
-                    className="h-8 w-[3px] flex-shrink-0 rounded-full max-[680px]:hidden"
-                    style={{ background: 'linear-gradient(to bottom, oklch(0.58 0.14 165), oklch(0.45 0.12 180))' }}
-                  />
-                  <h1
-                    className="text-3xl font-bold tracking-tight text-primary max-[680px]:text-2xl"
-                  >
-                    {pageTitle}
-                  </h1>
-                </div>
-              </div>
+              <span className="hidden items-center gap-1.5 sm:flex">
+                <LockKeyhole className="size-3" /> Internal · ISO/IEC 27001
+              </span>
             </div>
 
-            {/* Badge */}
-            <div
-              className="hidden flex-shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider sm:flex"
-              style={{
-                background: 'linear-gradient(135deg, oklch(0.39 0.09 205 / 8%) 0%, oklch(0.48 0.12 180 / 12%) 100%)',
-                borderColor: 'oklch(0.48 0.12 180 / 25%)',
-                color: 'oklch(0.39 0.09 205)',
-              }}
-            >
-              <LockKeyhole className="size-3" />
-            </div>
+            {hasOwnHero ? (
+              <h1 className="sr-only">{pageTitle}</h1>
+            ) : (
+              <h1 className="font-display text-balance text-[clamp(2.3rem,5.4vw,4.75rem)] font-semibold leading-[0.95] text-foreground">
+                {pageTitle}
+                <span className="text-[color:var(--ring)]">.</span>
+              </h1>
+            )}
           </div>
-        </div>
-      </header>}
+        </header>
+      )}
 
       {/* ─── Main content ─── */}
-      <main className={`page-fade-in mx-auto max-w-[1480px] px-10 pb-10 max-[900px]:px-6 max-[900px]:pb-7 max-[680px]:px-4 max-[680px]:pb-6 ${isHome ? 'pt-0 max-[900px]:pt-0 max-[680px]:pt-0' : 'pt-9 max-[900px]:pt-7 max-[680px]:pt-6'}`}>
+      <main id="portal-main" className={`page-fade-in mx-auto max-w-[1480px] px-10 pb-16 max-[900px]:px-6 max-[900px]:pb-10 max-[680px]:px-4 max-[680px]:pb-8 ${isHome ? 'pt-0 max-[900px]:pt-0 max-[680px]:pt-0' : 'pt-9 max-[900px]:pt-7 max-[680px]:pt-6'}`}>
         {children}
       </main>
+      <ScrollReveal rootId="portal-main" />
 
       {/* ─── Footer ─── */}
-      <footer
-        className="relative mt-6 overflow-hidden border-t border-border"
-        style={{
-          background: 'linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--muted) 40%, var(--card)) 100%)',
-        }}
-      >
-        {/* Top gradient accent */}
-        <div
-          className="absolute inset-x-0 top-0 h-[2px]"
-          style={{
-            background: 'linear-gradient(90deg, transparent 0%, oklch(0.48 0.12 180 / 50%) 30%, oklch(0.58 0.14 165 / 70%) 50%, oklch(0.48 0.12 180 / 50%) 70%, transparent 100%)',
-          }}
-        />
-        {/* Dot-grid texture, echoing the hero banners */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.035]"
-          style={{ backgroundImage: 'radial-gradient(circle, oklch(0.39 0.09 205) 1px, transparent 1px)', backgroundSize: '18px 18px' }}
-        />
-
-        <div className="relative mx-auto max-w-[1480px] px-10 py-8 max-[680px]:px-4 max-[680px]:py-6">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
-            {/* Column 1 — Brand */}
-            <div>
-              <div className="flex items-center gap-2.5">
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-lg"
-                  style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205), oklch(0.48 0.12 180))', boxShadow: '0 4px 14px oklch(0.39 0.09 205 / 30%)' }}
-                >
-                  <Shield className="size-4 text-white" />
-                </div>
-                <span className="text-[13px] font-bold text-primary">ISMS Portal</span>
+      <footer className="relative mt-10 overflow-hidden bg-primary text-primary-foreground">
+        {/* Acid ticker band */}
+        <div className="overflow-hidden border-b border-primary-foreground/10 bg-accent py-2.5 text-accent-foreground">
+          <div className="marquee-track flex w-max gap-10 whitespace-nowrap font-mono-label text-[11px] font-semibold">
+            {Array.from({ length: 2 }).map((_, copy) => (
+              <div key={copy} className="flex gap-10" aria-hidden={copy === 1}>
+                {['Confidentiality', 'Integrity', 'Availability', 'ISO/IEC 27001', 'Information Security Committee', 'PT. Jatim Autocomp Indonesia'].map((word) => (
+                  <span key={word} className="flex items-center gap-10">{word}<span className="size-1.5 rounded-full bg-accent-foreground" /></span>
+                ))}
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                Information Security Management System — PT. Jatim Autocomp Indonesia
+            ))}
+          </div>
+        </div>
+
+        <div className="relative mx-auto max-w-[1480px] px-10 pb-8 pt-14 max-[900px]:px-6 max-[680px]:px-4 max-[680px]:pt-10">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
+            {/* Column 1 — Brand statement */}
+            <div>
+              <p className="font-mono-label text-[10.5px] text-primary-foreground/50">(01) — Portal</p>
+              <p className="mt-4 max-w-md font-display text-[clamp(1.6rem,2.6vw,2.2rem)] font-semibold leading-[1.05]">
+                Keamanan informasi adalah <span className="font-serif-accent text-accent">tanggung jawab</span> kita bersama.
               </p>
             </div>
 
             {/* Column 2 — Quick links */}
             <div>
-              <p className="mb-2.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Navigasi Cepat
-              </p>
-              <div className="flex flex-col gap-1.5">
+              <p className="font-mono-label text-[10.5px] text-primary-foreground/50">(02) — Navigasi</p>
+              <div className="mt-4 flex flex-col gap-2">
                 {[
                   ['Kebijakan Dasar ISMS', '/kebijakan-dasar-ISMS'],
                   ['Prosedur ISMS', '/prosedur-isms'],
@@ -206,9 +160,9 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
                   <a
                     key={href}
                     href={href}
-                    className="group flex items-center gap-1.5 text-[11.5px] text-muted-foreground transition-colors hover:text-primary"
+                    className="group flex w-fit items-center gap-2 text-sm text-primary-foreground/75 transition-colors hover:text-accent"
                   >
-                    <ChevronRight className="size-3 flex-none -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
+                    <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                     {label}
                   </a>
                 ))}
@@ -217,35 +171,26 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
 
             {/* Column 3 — Info */}
             <div>
-              <p className="mb-2.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                Informasi Sistem
-              </p>
-              <div className="flex flex-col gap-1.5">
-                <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-                  <span
-                    className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold"
-                    style={{ background: 'oklch(0.58 0.14 165 / 15%)', color: 'oklch(0.45 0.12 180)' }}
-                  >
-                    v
-                  </span>
-                  Versi 1.0 · ISO/IEC 27001
-                </p>
-                <p className="text-[11.5px] text-muted-foreground">
-                  <LockKeyhole className="mr-1 inline size-3 opacity-60" />
-                  Akses terbatas — Internal only
-                </p>
+              <p className="font-mono-label text-[10.5px] text-primary-foreground/50">(03) — Sistem</p>
+              <div className="mt-4 flex flex-col gap-2 text-sm text-primary-foreground/75">
+                <p>Versi 1.0 · ISO/IEC 27001</p>
+                <p className="flex items-center gap-1.5"><LockKeyhole className="size-3.5 opacity-70" /> Akses terbatas — Internal only</p>
               </div>
             </div>
           </div>
 
+          {/* Oversized wordmark */}
+          <p
+            aria-hidden
+            className="mt-14 select-none font-display text-[clamp(4rem,15.5vw,15rem)] font-bold leading-[0.8] tracking-[-0.06em] text-primary-foreground/[0.07] max-[680px]:mt-10"
+          >
+            ISMS PORTAL
+          </p>
+
           {/* Bottom bar */}
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
-            <p className="text-[10.5px] text-muted-foreground">
-              © {new Date().getFullYear()} PT. Jatim Autocomp Indonesia. All rights reserved.
-            </p>
-            <p className="text-[10.5px] text-muted-foreground">
-              ISMS Portal — Confidential & Internal Use Only
-            </p>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-primary-foreground/12 pt-5 font-mono-label text-[10px] text-primary-foreground/50">
+            <p>© {new Date().getFullYear()} PT. Jatim Autocomp Indonesia</p>
+            <p>Confidential & Internal Use Only</p>
           </div>
         </div>
       </footer>

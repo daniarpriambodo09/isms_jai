@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Camera, Download, FileText, Plus, Search, Settings2, Sparkles, Trash2, X } from 'lucide-react'
+import { Camera, Download, FileText, Plus, Search, Settings2, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { ControlPanelHero, PaperHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { FormCsFormModal, type EditableFormCsDocument } from '@/components/documents/FormCsFormModal'
@@ -138,39 +139,45 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
 
   return (
     <div className="flex flex-col gap-6">
-      <section
-        className="relative overflow-hidden rounded-[1.25rem] p-6 text-primary-foreground shadow-xl sm:p-8"
-        style={{ background: 'linear-gradient(135deg, #1a3a52 0%, #1a5f7a 45%, #278e84 100%)' }}
-      >
-        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
-        <div className="pointer-events-none absolute -bottom-14 -left-10 h-52 w-52 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
-        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
-          <div className="max-w-2xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
-              <Sparkles className="size-3.5" /> Document register
-            </div>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Daftar dokumen {title} beserta bahasa dan tanggal upload.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {category === 'form-aplikasi' && (
-              <Link href="/ijin-foto-video" className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+      {category === 'form-aplikasi' ? (
+        <PaperHero
+          title={title}
+          count={documents.length}
+          action={
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              <Link href="/ijin-foto-video" className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
                 <Camera className="size-4" />Ijin Foto/Video
               </Link>
-            )}
-            {isLoggedIn && (
-              <>
-                <button type="button" onClick={() => setGroupHeaderModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/10">
-                  <Settings2 className="size-4" />Kelola Baris Grup
-                </button>
-                <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
-                  <Plus className="size-4" />Tambah Dokumen
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </section>
+              {isLoggedIn && (
+                <>
+                  <button type="button" onClick={() => setGroupHeaderModalOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary">
+                    <Settings2 className="size-4" />Kelola Baris Grup
+                  </button>
+                  <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+                    <Plus className="size-4" />Tambah Dokumen
+                  </button>
+                </>
+              )}
+            </div>
+          }
+        />
+      ) : (
+        <ControlPanelHero
+          title={title}
+          count={documents.length}
+          groups={groupHeaders.length}
+          action={isLoggedIn && (
+            <>
+              <button type="button" onClick={() => setGroupHeaderModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-white/10">
+                <Settings2 className="size-4" />Kelola Baris Grup
+              </button>
+              <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+                <Plus className="size-4" />Tambah Dokumen
+              </button>
+            </>
+          )}
+        />
+      )}
 
       {category === 'kontrol-cs' && isLoggedIn && <VendorRegistrationsPanel />}
 

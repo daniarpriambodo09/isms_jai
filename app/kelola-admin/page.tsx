@@ -234,7 +234,7 @@ export default function KelolaAdminPage() {
               type="button"
               onClick={() => { setShowCreate((v) => !v); setCreateError('') }}
               className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white transition-all hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)', boxShadow: '0 3px 12px oklch(0.39 0.09 205 / 35%)' }}
+              style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)', boxShadow: '0 3px 12px color-mix(in oklch, var(--primary) 35%, transparent)' }}
             >
               {showCreate ? <X className="size-4" /> : <Plus className="size-4" />}
               {showCreate ? 'Batal' : 'Tambah Admin'}
@@ -272,7 +272,7 @@ export default function KelolaAdminPage() {
                   onClick={submitCreate}
                   disabled={creating || !createUsername.trim() || createPassword.length < 6}
                   className="flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)' }}
                 >
                   {creating && <Loader2 className="size-4 animate-spin" />}
                   Buat Akun
@@ -354,7 +354,7 @@ export default function KelolaAdminPage() {
                             onClick={() => submitEdit(admin.id)}
                             disabled={editSaving || (editPassword.length > 0 && editPassword.length < 6)}
                             className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-                            style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' }}
+                            style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)' }}
                           >
                             {editSaving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
                             Simpan

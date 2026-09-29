@@ -17,8 +17,8 @@ export type EditableFormCsDocument = {
   titleEmphasisFrom: number | null
 }
 
-const inputClass = 'h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]'
-const labelText = 'text-[12px] font-medium text-[#3c5369]'
+const inputClass = 'h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]'
+const labelText = 'text-[12px] font-medium text-[color:var(--p-ink2)]'
 
 export function FormCsFormModal({ open, onClose, onSaved, category, title, document }: { open: boolean; onClose: () => void; onSaved: () => void; category: 'form-aplikasi' | 'kontrol-cs'; title: string; document?: EditableFormCsDocument }) {
   const isEdit = Boolean(document)
@@ -89,14 +89,14 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'} className="max-h-[90vh] w-full max-w-[460px] overflow-y-auto rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4">
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'} className="max-h-[90vh] w-full max-w-[460px] overflow-y-auto rounded-2xl bg-white p-6 shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)]">
         <div className="mb-5 flex items-start justify-between">
           <div>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">{title.toUpperCase()}</div>
-            <h2 className="text-[18px] font-bold text-[#20354a]">{isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}</h2>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[color:var(--p-muted)]">{title.toUpperCase()}</div>
+            <h2 className="text-[18px] font-bold text-[color:var(--p-800)]">{isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[#8798a8] hover:bg-[#f0f4f7]"><X className="w-[18px]" /></button>
+          <button type="button" onClick={onClose} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[color:var(--p-muted2)] hover:bg-[color:var(--p-surface2)]"><X className="w-[18px]" /></button>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-[6px]">
@@ -149,14 +149,14 @@ export function FormCsFormModal({ open, onClose, onSaved, category, title, docum
 
           <label className="flex flex-col gap-[6px]">
             <span className={labelText}>{isEdit ? `Upload Ulang ${fileKind === 'xls' ? 'Excel' : 'PDF'} (opsional)` : `File ${fileKind === 'xls' ? 'Excel' : 'PDF'}`}</span>
-            <input type="file" accept={fileKind === 'xls' ? '.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf'} onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#20354a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />
-            {isEdit && <span className="text-[11px] text-[#8798a8]">Kosongkan jika hanya mengubah data dokumen.</span>}
+            <input type="file" accept={fileKind === 'xls' ? '.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf'} onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />
+            {isEdit && <span className="text-[11px] text-[color:var(--p-muted2)]">Kosongkan jika hanya mengubah data dokumen.</span>}
           </label>
 
-          {isEdit && <p className="rounded-[6px] bg-[#f5fafb] px-3 py-2 text-[11px] text-[#7c91a1]">Upload ulang file akan memperbarui tanggal upload.</p>}
+          {isEdit && <p className="rounded-[6px] bg-[color:var(--p-surface)] px-3 py-2 text-[11px] text-[color:var(--p-muted)]">Upload ulang file akan memperbarui tanggal upload.</p>}
           {error && <p className="rounded-[6px] bg-[#fdecec] px-3 py-2 text-[12px] text-[#b3413a]">{error}</p>}
 
-          <button type="submit" disabled={submitting} className="mt-1 inline-flex h-10 items-center justify-center rounded-[7px] bg-[#20354a] text-[13px] font-medium text-white hover:bg-[#284360] disabled:cursor-not-allowed disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="mt-1 inline-flex h-10 items-center justify-center rounded-[7px] bg-[color:var(--p-800)] text-[13px] font-medium text-white hover:bg-[color:var(--p-750)] disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? 'Menyimpan...' : 'Simpan'}
           </button>
         </form>

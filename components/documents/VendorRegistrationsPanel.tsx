@@ -140,7 +140,7 @@ export function VendorRegistrationsPanel() {
         <div className="flex items-center gap-3">
           <span
             className="grid size-9 flex-shrink-0 place-items-center rounded-lg text-white"
-            style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' }}
+            style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)' }}
           >
             <Users className="size-4" />
           </span>
@@ -164,7 +164,7 @@ export function VendorRegistrationsPanel() {
                   className="rounded-full border px-3 py-1.5 text-xs font-semibold transition-all"
                   style={
                     filter === f.value
-                      ? { background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)', color: 'white', borderColor: 'transparent' }
+                      ? { background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)', color: 'white', borderColor: 'transparent' }
                       : { background: 'transparent', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
                   }
                 >

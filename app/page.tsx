@@ -8,9 +8,9 @@ export default function Page() {
   return (
     <div className="flex flex-col">
       <HeroCarousel />
-      {/* No gap against the hero above — both share the same dark backdrop
-          color so the video blends straight into the image strip below it. */}
-      <div className="flex flex-col">
+      {/* Each section below opens with a numbered chapter band
+          (components/home/ChapterHeader.tsx); .home-chapters resets the counter. */}
+      <div className="home-chapters flex flex-col">
         <ImageShowcase />
         <ScheduleSection />
       </div>

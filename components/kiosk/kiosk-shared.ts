@@ -3,7 +3,29 @@
 // both render the same vendor_registrations data, just filtered/labeled
 // differently for their respective kiosk role.
 
+import { useEffect } from 'react'
 import type { CardType } from '@/components/kiosk/ActiveCardsWidget'
+
+// Lobby and Security work the same guests from two different kiosks
+// (Security approves → Lobby swaps cards → Security closes), so each screen
+// re-reads the shared list on an interval and whenever the kiosk window
+// regains focus — otherwise one side only sees the other's changes after a
+// manual "Muat Ulang".
+export const KIOSK_REFRESH_MS = 10_000
+
+export function useKioskAutoRefresh(refresh: () => void, intervalMs = KIOSK_REFRESH_MS) {
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === 'visible') refresh() }
+    const timer = window.setInterval(tick, intervalMs)
+    window.addEventListener('focus', tick)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', tick)
+      document.removeEventListener('visibilitychange', tick)
+    }
+  }, [refresh, intervalMs])
+}
 
 export type Stage = 'pending_approval' | 'active' | 'closed'
 export type EntryPath = 'security' | 'lobby_affiliate'

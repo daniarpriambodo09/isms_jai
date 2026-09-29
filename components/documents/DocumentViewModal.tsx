@@ -47,15 +47,15 @@ export function DocumentViewModal({
   const isCompact = kind === 'video' || kind === 'other'
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-      <div role="dialog" aria-modal="true" aria-label={fileName} className={`flex w-full flex-col rounded-2xl bg-white shadow-[0_20px_50px_rgba(14,34,53,0.25)] ${isCompact ? 'max-w-[960px]' : 'h-[85vh] max-w-[900px]'}`}>
-        <div className="flex items-center justify-between border-b border-[#e4edf2] px-5 py-4">
-          <h2 className="truncate text-[14px] font-semibold text-[#20354a]">{fileName}</h2>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4">
+      <div role="dialog" aria-modal="true" aria-label={fileName} className={`flex w-full flex-col rounded-2xl bg-white shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)] ${isCompact ? 'max-w-[960px]' : 'h-[85vh] max-w-[900px]'}`}>
+        <div className="flex items-center justify-between border-b border-[color:var(--p-border)] px-5 py-4">
+          <h2 className="truncate text-[14px] font-semibold text-[color:var(--p-800)]">{fileName}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup"
-            className="grid h-8 w-8 flex-none place-items-center rounded-full text-[#8798a8] hover:bg-[#f0f4f7]"
+            className="grid h-8 w-8 flex-none place-items-center rounded-full text-[color:var(--p-muted2)] hover:bg-[color:var(--p-surface2)]"
           >
             <X className="w-[18px]" />
           </button>
@@ -74,11 +74,11 @@ export function DocumentViewModal({
         )}
         {kind === 'other' && (
           <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
-            <p className="text-sm text-[#5a6b7d]">Tipe file ini tidak dapat ditampilkan langsung di browser — silakan download untuk membukanya.</p>
+            <p className="text-sm text-[color:var(--p-ink2)]">Tipe file ini tidak dapat ditampilkan langsung di browser — silakan download untuk membukanya.</p>
             <a
               href={serveUrl}
               download={fileName}
-              className="inline-flex items-center gap-2 rounded-lg bg-[#20354a] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#284360]"
+              className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--p-800)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[color:var(--p-750)]"
             >
               <Download className="size-4" /> Download File
             </a>

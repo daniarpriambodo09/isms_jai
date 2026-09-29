@@ -31,7 +31,7 @@ export default function SectionDocumentsPage({
   }, [deptSlug, sectionSlug])
 
   if (state === undefined) {
-    return <p className="p-6 text-center text-[13px] text-[#8599a8]">Memuat section...</p>
+    return <p className="p-6 text-center text-[13px] text-[color:var(--p-muted)]">Memuat section...</p>
   }
 
   if (state === null) notFound()

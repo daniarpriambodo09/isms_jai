@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Download, Eye, FileText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { IndexHero, latestUpload } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
+import { ProcedureApprovalCell, type ApprovalStep } from '@/components/documents/ProcedureApprovalCell'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
@@ -19,6 +21,25 @@ type ProcedureDocument = {
   elf_date: string
   uploaded_at: string
   file_path: string
+  approval_roles: string[]
+  note: string | null
+  approval_status: 'none' | 'pending' | 'approved' | 'rejected'
+  approvals: ApprovalStep[]
+}
+
+type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'none'
+
+const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: 'all', label: 'Semua' },
+  { id: 'pending', label: 'Menunggu' },
+  { id: 'approved', label: 'Disahkan' },
+  { id: 'rejected', label: 'Ditolak' },
+  { id: 'none', label: 'Tanpa pengesahan' },
+]
+
+function approvalSummary(document: ProcedureDocument) {
+  if (document.approval_roles.length === 0) return '-'
+  return document.approvals.map((step) => `${step.role_code}: ${step.approver_name ?? '-'} (${step.status === 'approved' ? `Disetujui ${step.decided_at ? formatDate(step.decided_at) : ''}` : step.status === 'rejected' ? 'Ditolak' : step.status === 'pending' ? 'Menunggu' : 'Antri'})`).join('; ')
 }
 
 function formatDate(value: string) {
@@ -52,8 +73,13 @@ function groupByTitle(docs: ProcedureDocument[]): TitleGroup[] {
 }
 
 export function ProcedureRegisterPage() {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, adminUser } = useAuth()
+  const isIsmsAdmin = adminUser?.role === 'ism_admin'
   const [documents, setDocuments] = useState<ProcedureDocument[]>([])
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [busyId, setBusyId] = useState<number | null>(null)
+  const [verifyBase, setVerifyBase] = useState('')
+  const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [viewing, setViewing] = useState<ProcedureDocument | null>(null)
@@ -73,6 +99,7 @@ export function ProcedureRegisterPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.message)
       setDocuments(data.documents ?? [])
+      setVerifyBase(data.verifyBase ?? `${window.location.origin}${API_BASE_PATH}/verifikasi-pengesahan?code=`)
       setError(null)
     } catch (loadError) {
       setDocuments([])
@@ -86,14 +113,43 @@ export function ProcedureRegisterPage() {
 
   const filteredDocuments = useMemo(() => {
     const keyword = query.trim().toLowerCase()
-    if (!keyword) return documents
-    return documents.filter((document) => `${document.control_no} ${document.title}`.toLowerCase().includes(keyword))
-  }, [documents, query])
+    return documents.filter((document) =>
+      (statusFilter === 'all' || document.approval_status === statusFilter) &&
+      (!keyword || `${document.control_no} ${document.title} ${document.note ?? ''}`.toLowerCase().includes(keyword))
+    )
+  }, [documents, query, statusFilter])
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = { all: documents.length, pending: 0, approved: 0, rejected: 0, none: 0 }
+    for (const document of documents) counts[document.approval_status] = (counts[document.approval_status] ?? 0) + 1
+    return counts
+  }, [documents])
+
+  const approvalAction = async (document: ProcedureDocument, mode: 'resend' | 'restart') => {
+    setBusyId(document.id)
+    setNotice(null)
+    setError(null)
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId: document.id, mode }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (response.ok) setNotice(data.message ?? 'Email pengesahan dikirim.')
+      else setError(data.message ?? 'Gagal mengirim email pengesahan.')
+      await loadDocuments()
+    } catch {
+      setError('Tidak dapat menghubungi server.')
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   const openEdit = (document: ProcedureDocument) => { setEditing(document); setFormOpen(true) }
   const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredDocuments, 20)
-  useEffect(() => { setPage(1) }, [query, setPage])
+  useEffect(() => { setPage(1) }, [query, statusFilter, setPage])
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })
@@ -121,8 +177,8 @@ export function ProcedureRegisterPage() {
   const handleExportCsv = () => {
     downloadExcel(
       `prosedur-isms-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload'],
-      filteredDocuments.map((d) => [d.control_no, d.title, d.revision, formatDate(d.elf_date), formatDate(d.uploaded_at)])
+      ['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Note Dokumen'],
+      filteredDocuments.map((d) => [d.control_no, d.title, d.revision, formatDate(d.elf_date), formatDate(d.uploaded_at), approvalSummary(d), d.note ?? ''])
     )
   }
 
@@ -152,20 +208,37 @@ export function ProcedureRegisterPage() {
     title: editing.title,
     revision: editing.revision,
     elfDate: editing.elf_date.slice(0, 10),
+    approvalRoles: editing.approval_roles,
+    note: editing.note,
   } : undefined
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="relative overflow-hidden rounded-[1.25rem] border border-border bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/10 sm:p-8">
-        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
-          <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-2 text-xs text-primary-foreground/65"><FileText className="size-4" /> Document register</div>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">Prosedur ISMS</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Daftar dokumen prosedur ISMS beserta revisi dan tanggal pengendaliannya.</p>
-          </div>
-          {isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
-        </div>
-      </section>
+      <IndexHero
+        eyebrow="(P) — Procedure register"
+        title="Prosedur ISMS"
+        description="Daftar dokumen prosedur ISMS beserta revisi dan tanggal pengendaliannya."
+        count={documents.length}
+        countLabel="dokumen prosedur terkendali"
+        updatedAt={latestUpload(documents)}
+        action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
+      />
+
+      {/* Approval status filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-1 font-mono-label text-[10px] text-muted-foreground">Pengesahan</span>
+        {STATUS_FILTERS.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => setStatusFilter(filter.id)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${statusFilter === filter.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          >
+            {filter.label}
+            <span className={`rounded-full px-1.5 font-mono text-[10px] ${statusFilter === filter.id ? 'bg-white/20' : 'bg-secondary'}`}>{statusCounts[filter.id]}</span>
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{documents.length} dokumen terdaftar</p></div>
@@ -183,46 +256,73 @@ export function ProcedureRegisterPage() {
       </div>
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+      {notice && <p className="rounded-lg border border-emerald-600/20 bg-emerald-600/10 px-4 py-3 text-sm text-emerald-800">{notice}</p>}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
-        {loading && <tr><td colSpan={7} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
-        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={7} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
+        {loading && <tr><td colSpan={8}className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
+        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={8}className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query || statusFilter !== 'all' ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
         {groupByTitle(pageItems).map((group, index) => (
           <tr key={group.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
             {isLoggedIn && (
-              <td className="px-5 py-4 align-top">
+              <td className="px-4 py-4 align-top">
                 <div className="flex flex-col gap-1.5">
                   {group.docs.map((document) => <div key={document.id} className="py-0.5"><input type="checkbox" checked={selectedIds.has(document.id)} onChange={() => toggleSelect(document.id)} aria-label={`Pilih ${document.title}`} className="size-4 rounded border-border" /></div>)}
                 </div>
               </td>
             )}
-            <td className="px-5 py-4 align-top font-semibold text-accent-foreground">
+            <td className="px-4 py-4 align-top font-semibold text-accent-foreground">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5"><Highlight text={document.control_no} keyword={query} /></div>)}
               </div>
             </td>
-            <td className="min-w-[280px] px-5 py-4 align-top">
-              <div className="flex items-center gap-3 font-medium text-foreground">
+            <td className="min-w-[240px] px-4 py-4 align-top">
+              <div className="flex items-start gap-3 font-medium text-foreground">
                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span>
-                <Highlight text={group.title} keyword={query} />
+                <div className="min-w-0 pt-1.5">
+                  <Highlight text={group.title} keyword={query} />
+                  {group.docs.filter((document) => document.note).map((document) => (
+                    <p key={document.id} className="mt-1.5 text-xs font-normal leading-5 text-muted-foreground">
+                      <span className="font-semibold text-foreground/70">Note:</span> <Highlight text={document.note ?? ''} keyword={query} />
+                    </p>
+                  ))}
+                </div>
               </div>
             </td>
-            <td className="px-5 py-4 align-top">
+            <td className="px-4 py-4 align-top">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {document.revision}</span></div>)}
               </div>
             </td>
-            <td className="px-5 py-4 align-top text-muted-foreground max-[760px]:hidden">
+            <td className="px-4 py-4 align-top text-muted-foreground max-[760px]:hidden">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{formatDate(document.elf_date)}</div>)}
               </div>
             </td>
-            <td className="px-5 py-4 align-top text-muted-foreground max-[760px]:hidden">
+            <td className="px-4 py-4 align-top text-muted-foreground max-[760px]:hidden">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{formatDate(document.uploaded_at)}</div>)}
               </div>
             </td>
-            <td className="px-5 py-4 align-top">
+            <td className="px-4 py-4 align-top">
+              <div className="flex flex-col gap-3">
+                {group.docs.map((document) => (
+                  <ProcedureApprovalCell
+                    key={document.id}
+                    documentId={document.id}
+                    documentLabel={`${document.control_no} — ${document.title} (Rev. ${document.revision})`}
+                    verifyBase={verifyBase}
+                    roles={document.approval_roles}
+                    steps={document.approvals}
+                    status={document.approval_status}
+                    isAdmin={isIsmsAdmin}
+                    busy={busyId === document.id}
+                    onResend={() => approvalAction(document, 'resend')}
+                    onRestart={() => approvalAction(document, 'restart')}
+                  />
+                ))}
+              </div>
+            </td>
+            <td className="px-4 py-4 align-top">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => (
                   <div key={document.id} className="flex items-center gap-1 py-0.5">

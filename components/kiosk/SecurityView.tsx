@@ -12,7 +12,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, useKioskAutoRefresh, type Registration } from '@/components/kiosk/kiosk-shared'
 
 // Handles both "Pendaftaran" (new) and "Edit Data" (existing) — same fields
 // either way, just POST vs. PUT action=editDetails underneath.
@@ -212,8 +212,11 @@ export function SecurityView() {
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
   const [filterYear, setFilterYear] = useState(searchParams.get('year') ?? '')
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // silent = background refresh (no spinner, keeps the current list on a
+  // transient error) — see useKioskAutoRefresh.
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true
+    if (!silent) setLoading(true)
     try {
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations?sort=${sort}&entryPath=security`, { cache: 'no-store', credentials: 'include' })
       const data = await res.json()
@@ -221,14 +224,17 @@ export function SecurityView() {
       setRegistrations(data.registrations ?? [])
       setError(null)
     } catch (e) {
+      if (silent) return
       setRegistrations([])
       setError(e instanceof Error ? e.message : 'Gagal memuat data.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [sort])
 
   useEffect(() => { load() }, [load])
+  const refreshSilently = useCallback(() => { load({ silent: true }) }, [load])
+  useKioskAutoRefresh(refreshSilently)
 
   const years = useMemo(() => availableYears(registrations, (r) => r.registered_at), [registrations])
   const filteredRegistrations = useMemo(
@@ -319,7 +325,7 @@ export function SecurityView() {
             <button type="button" onClick={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <ArrowDownUp className="size-3.5" />{sort === 'newest' ? 'Urutan Terlama' : 'Urutan Terbaru'}
             </button>
-            <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
+            <button type="button" onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
           </div>
@@ -407,6 +413,11 @@ export function SecurityView() {
                             <button type="button" onClick={() => setScanTarget({ registration: r, action: 'close' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
                               <ScanLine className="size-3.5" />Kartu Dikembalikan
                             </button>
+                          )}
+                          {r.stage === 'active' && r.current_card_type && r.current_card_type !== 'visitor' && (
+                            <span className="whitespace-nowrap rounded-md bg-secondary/60 px-2 py-1 text-[11px] font-medium text-muted-foreground" title="Tamu masih memegang kartu area kerja — kartu harus ditukar kembali ke kartu Visitor di Lobby sebelum bisa ditutup di sini">
+                              Tukar kartu di Lobby dulu
+                            </span>
                           )}
                           <button type="button" onClick={() => setEditTarget(r)} aria-label={`Edit data ${r.full_name}`} title="Edit data" className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground">
                             <Pencil className="size-3.5" />

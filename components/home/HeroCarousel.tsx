@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Maximize, Minimize, Sparkles, Volume2, VolumeX } from 'lucide-react'
+import { ArrowUpRight, ChevronLeft, ChevronRight, Maximize, Minimize, Volume2, VolumeX } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 
 type Slide = {
@@ -18,6 +18,11 @@ type Slide = {
 // The hero is video-only — image slides are shown separately in ImageShowcase
 // (see components/home/ImageShowcase.tsx), both reading from the same
 // /api/hero-slides list and just filtering by media_type on their own side.
+//
+// Layout follows the "Tundra" reference: a light, calm hero — centered
+// two-tone headline on a cream mist at the top, the video filling the lower
+// part like a landscape, a small info/CTA card bottom-left and a compact
+// player card bottom-right.
 
 const TRANSITION_MS = 1100
 
@@ -25,11 +30,41 @@ const TRANSITION_MS = 1100
 // full browser width edge-to-edge, like a real hero banner instead of a boxed card.
 const FULL_BLEED = 'w-screen ml-[calc(50%-50vw)]'
 
+// Cream mist over the top of the video (headline area) and a lighter one at
+// the bottom so the glass cards stay legible.
+const TOP_MIST = 'linear-gradient(180deg, var(--background) 0%, var(--background) 20%, color-mix(in oklch, var(--background) 82%, transparent) 32%, color-mix(in oklch, var(--background) 35%, transparent) 44%, transparent 56%)'
+const BOTTOM_MIST = 'linear-gradient(0deg, color-mix(in oklch, var(--background) 70%, transparent) 0%, transparent 26%)'
+
 function slideUrl(slide: Slide) {
   return `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(slide.file_path)}`
 }
 
-// One slide's full visual (backdrop blur + contained media + caption), rendered as
+// Two-tone headline: the first half of the words in deep brand ink, the rest
+// in a lighter tint of the same hue — each word rising in on its own delay.
+function TwoToneHeadline({ text, className = '' }: { text: string; className?: string }) {
+  const words = text.trim().split(/\s+/)
+  const split = Math.ceil(words.length / 2)
+  return (
+    <h1 className={`text-balance font-display font-semibold leading-[0.95] ${className}`}>
+      {words.map((word, i) => (
+        <span key={`${word}-${i}`}>
+          <span
+            className="hero-word"
+            style={{
+              animationDelay: `${120 + i * 90}ms`,
+              color: i < split ? 'var(--p-850)' : 'color-mix(in oklch, var(--p-600) 72%, var(--background))',
+            }}
+          >
+            {word}
+          </span>
+          {i < words.length - 1 && ' '}
+        </span>
+      ))}
+    </h1>
+  )
+}
+
+// One slide's full visual (video + mist + headline + CTA card), rendered as
 // either the incoming (fading in) or outgoing (fading out) layer. Keyed by the
 // caller so each activation restarts the CSS animation from scratch.
 function SlideLayer({
@@ -56,8 +91,9 @@ function SlideLayer({
 
   return (
     <div className="absolute inset-0" style={{ animation: fadeAnimation }} onAnimationEnd={phase === 'out' ? onDone : undefined}>
-      <div className="absolute inset-0 overflow-hidden">
-        {/* Fills the whole frame edge-to-edge, cropping overflow instead of letterboxing. */}
+      {/* The video sits in the lower part of the frame like a landscape; in
+          true fullscreen it takes the whole screen. */}
+      <div className={`absolute inset-x-0 bottom-0 overflow-hidden ${isFullscreen ? 'top-0 bg-black' : 'top-[16%] hero-parallax-media'}`}>
         <video
           src={url}
           autoPlay
@@ -65,32 +101,46 @@ function SlideLayer({
           loop={loop}
           playsInline
           onEnded={phase === 'in' ? onVideoEnded : undefined}
-          className="absolute inset-0 h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full ${isFullscreen ? 'object-contain' : 'hero-drift object-cover'}`}
         />
       </div>
 
+      {!isFullscreen && (
+        <>
+          <div className="pointer-events-none absolute inset-0" style={{ background: TOP_MIST }} />
+          <div className="pointer-events-none absolute inset-0" style={{ background: BOTTOM_MIST }} />
+        </>
+      )}
+
       {!isFullscreen && phase === 'in' && (
         <>
-          {/* Even dark wash top-to-bottom so centered white text stays legible
-              over whatever the video is showing, not just a bottom band. */}
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(10,26,34,0.55) 0%, rgba(10,26,34,0.15) 30%, rgba(10,26,34,0.35) 60%, rgba(10,26,34,0.82) 100%)' }} />
+          {/* Centered headline on the cream mist */}
+          <div className="hero-parallax-text absolute inset-x-0 top-0 z-10 mx-auto max-w-5xl px-6 pt-[clamp(2.2rem,7vh,4.5rem)] text-center">
+            <TwoToneHeadline text={slide.title} className="text-[clamp(2.6rem,7.4vw,6.6rem)]" />
+            {slide.description && (
+              <p className="hero-word mx-auto mt-5 max-w-xl text-sm leading-6 text-[color:var(--p-ink2)] sm:text-base" style={{ animationDelay: '520ms' }}>
+                {slide.description}
+              </p>
+            )}
+          </div>
 
-          {/* Short blend into the navbar's teal right at the top edge, so the video doesn't cut sharply against it. */}
-          <div className="absolute inset-x-0 top-0 h-10 sm:h-14" style={{ background: 'linear-gradient(180deg, var(--primary) 0%, transparent 100%)' }} />
-
-          <div className="relative z-10 flex h-full flex-col items-start justify-end gap-4 p-6 text-left text-white sm:p-10">
-            <div className="mb-1 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] backdrop-blur-sm">
-              <Sparkles className="size-3.5" /> Portal ISMS
+          {/* Bottom-left info + CTA card */}
+          <div className="hero-word absolute bottom-5 left-4 z-20 flex max-w-[calc(100%-8rem)] flex-col items-start gap-3 sm:bottom-9 sm:left-10 sm:max-w-sm" style={{ animationDelay: '700ms' }}>
+            <div className="hidden rounded-2xl bg-background/75 px-4 py-3 shadow-lg ring-1 ring-border/60 backdrop-blur-md sm:block">
+              <p className="flex items-center gap-2 font-mono-label text-[10px] text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-accent" /> Portal ISMS
+              </p>
+              <p className="mt-1.5 text-sm font-medium text-foreground">PT. Jatim Autocomp Indonesia</p>
             </div>
-            <h1 className="max-w-2xl text-balance text-2xl font-bold tracking-tight sm:text-4xl">{slide.title}</h1>
-            {slide.description && <p className="max-w-xl text-sm leading-6 text-white/75 sm:text-base">{slide.description}</p>}
             {slide.cta_label && slide.cta_href && (
               <Link
                 href={slide.cta_href}
-                className="mt-2 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                style={{ background: 'linear-gradient(135deg, oklch(0.7 0.15 55) 0%, oklch(0.75 0.18 50) 100%)', color: '#1a2f1a' }}
+                className="group inline-flex w-fit items-center gap-2.5 rounded-full bg-[color:var(--p-850)] py-2 pl-5 pr-2 text-sm font-semibold text-white shadow-lg transition-transform duration-200 hover:scale-[1.03]"
               >
                 {slide.cta_label}
+                <span className="grid size-7 place-items-center rounded-full bg-accent text-accent-foreground transition-transform duration-300 group-hover:rotate-45">
+                  <ArrowUpRight className="size-4" />
+                </span>
               </Link>
             )}
           </div>
@@ -127,6 +177,26 @@ export function HeroCarousel() {
     return () => document.removeEventListener('fullscreenchange', handleChange)
   }, [])
 
+  // Scroll parallax: headline lifts and fades, video eases forward.
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const section = sectionRef.current
+      if (!section) return
+      const progress = Math.min(1, Math.max(0, window.scrollY / Math.max(1, section.offsetHeight)))
+      section.style.setProperty('--hero-p', progress.toFixed(3))
+    }
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    update()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [loading])
+
   const goTo = (nextIndex: number) => {
     if (nextIndex === activeIndexRef.current) return
     transitionKeyRef.current += 1
@@ -149,65 +219,61 @@ export function HeroCarousel() {
   const loopVideo = slides.length <= 1
 
   if (loading) {
-    return <div className={`h-[70vh] max-h-[760px] min-h-[480px] bg-card ${FULL_BLEED}`} />
+    return <div className={`h-[72vh] max-h-[880px] min-h-[520px] sm:h-[86vh] sm:min-h-[560px] bg-background ${FULL_BLEED}`} />
   }
 
   if (!current) {
     return (
-      <section
-        className={`relative overflow-hidden p-6 text-center text-primary-foreground sm:p-10 ${FULL_BLEED}`}
-        style={{ background: 'linear-gradient(135deg, #1a3a52 0%, #1a5f7a 45%, #278e84 100%)' }}
-      >
-        <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
-        <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center gap-3">
-          <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
-            <Sparkles className="size-3.5" /> Portal ISMS
-          </div>
-          <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">Selamat Datang di Portal ISMS</h1>
-          <p className="max-w-xl text-sm leading-6 text-primary-foreground/72">Pusat informasi kebijakan, prosedur, dan materi keamanan informasi PT. Jatim Autocomp Indonesia.</p>
+      <section ref={sectionRef} className={`relative isolate overflow-hidden bg-background ${FULL_BLEED}`}>
+        {/* Soft brand-tinted "landscape" of glows in place of a video */}
+        <div aria-hidden className="pointer-events-none absolute -bottom-40 left-[8%] -z-10 size-[520px] rounded-full bg-[color:var(--p-600)] opacity-20 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-48 right-[6%] -z-10 size-[560px] rounded-full bg-accent opacity-20 blur-3xl" />
+        <p aria-hidden className="pointer-events-none absolute -bottom-8 left-1/2 -z-10 -translate-x-1/2 select-none font-display text-[clamp(6rem,22vw,20rem)] font-bold leading-none tracking-[-0.06em] text-[color:var(--p-700)] opacity-[0.06]">ISMS</p>
+        <div className="hero-parallax-text mx-auto flex max-w-5xl flex-col items-center px-6 pb-28 pt-[clamp(3rem,10vh,6rem)] text-center sm:pb-36">
+          <p className="hero-word flex items-center gap-2 font-mono-label text-[10.5px] text-muted-foreground"><span className="size-1.5 rounded-full bg-accent" /> Portal ISMS · PT. Jatim Autocomp Indonesia</p>
+          <TwoToneHeadline text="Selamat datang di Portal ISMS." className="mt-6 text-[clamp(2.8rem,7vw,6.2rem)]" />
+          <p className="hero-word mt-6 max-w-xl text-base leading-7 text-[color:var(--p-ink2)]" style={{ animationDelay: '520ms' }}>
+            Pusat informasi kebijakan, prosedur, dan materi keamanan informasi PT. Jatim Autocomp Indonesia.
+          </p>
         </div>
       </section>
     )
   }
 
+  const glassButton = 'grid size-8 place-items-center rounded-full text-foreground transition-colors hover:bg-foreground/10'
+
   return (
     <section
       ref={sectionRef}
-      className={`relative overflow-hidden bg-[#1a3a52] ${isFullscreen ? 'h-screen w-screen' : `h-[70vh] max-h-[760px] min-h-[480px] ${FULL_BLEED}`}`}
+      className={`relative isolate overflow-hidden bg-background ${isFullscreen ? 'h-screen w-screen' : `h-[72vh] max-h-[880px] min-h-[520px] sm:h-[86vh] sm:min-h-[560px] ${FULL_BLEED}`}`}
     >
       {outgoing && slides[outgoing.index] && (
         <SlideLayer key={`out-${outgoing.key}`} slide={slides[outgoing.index]} phase="out" loop={loopVideo} muted={muted} isFullscreen={isFullscreen} onDone={() => setOutgoing((current) => (current?.key === outgoing.key ? null : current))} />
       )}
       <SlideLayer key={`in-${activeIndex}`} slide={current} phase="in" loop={loopVideo} muted={muted} isFullscreen={isFullscreen} onVideoEnded={goNext} />
 
-      {slides.length > 1 && (
-        <>
-          <button
-            type="button"
-            onClick={goPrev}
-            aria-label="Slide sebelumnya"
-            className="absolute left-3 top-1/2 z-20 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25 sm:left-5"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            aria-label="Slide berikutnya"
-            className="absolute right-3 top-1/2 z-20 grid size-10 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25 sm:right-5"
-          >
-            <ChevronRight className="size-5" />
-          </button>
-        </>
-      )}
-
-      <div className="absolute right-3 top-3 z-20 flex items-center gap-2 sm:right-5 sm:top-5">
+      {/* Compact player card — bottom-right, like Tundra's video thumbnail */}
+      <div
+        className={`absolute z-20 flex items-center gap-1 rounded-2xl p-1.5 shadow-lg backdrop-blur-md ${
+          isFullscreen ? 'bottom-5 right-5 bg-black/40 text-white [&_button]:text-white' : 'bottom-5 right-4 bg-background/75 ring-1 ring-border/60 sm:bottom-9 sm:right-10'
+        }`}
+      >
+        {slides.length > 1 && (
+          <>
+            <button type="button" onClick={goPrev} aria-label="Slide sebelumnya" className={glassButton}><ChevronLeft className="size-4" /></button>
+            <span className="px-1 font-mono text-[11px] tabular-nums opacity-70">
+              {String(activeIndex + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+            </span>
+            <button type="button" onClick={goNext} aria-label="Slide berikutnya" className={glassButton}><ChevronRight className="size-4" /></button>
+            <span className="mx-1 h-5 w-px bg-current opacity-15" />
+          </>
+        )}
         <button
           type="button"
           onClick={() => setMuted((current) => !current)}
           aria-label={muted ? 'Nyalakan suara' : 'Matikan suara'}
           title={muted ? 'Nyalakan suara' : 'Matikan suara'}
-          className="grid size-9 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+          className={glassButton}
         >
           {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
         </button>
@@ -216,24 +282,21 @@ export function HeroCarousel() {
           onClick={toggleFullscreen}
           aria-label={isFullscreen ? 'Keluar layar penuh' : 'Tampilkan layar penuh'}
           title={isFullscreen ? 'Keluar layar penuh' : 'Tampilkan layar penuh'}
-          className="grid size-9 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
+          className={glassButton}
         >
           {isFullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />}
         </button>
       </div>
 
-      {slides.length > 1 && (
-        <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 sm:bottom-6 sm:right-8">
-          {slides.map((slide, i) => (
-            <button
-              key={slide.id}
-              type="button"
-              onClick={() => goTo(i)}
-              aria-label={`Slide ${i + 1}`}
-              className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'}`}
-            />
-          ))}
-        </div>
+      {!isFullscreen && (
+        <a
+          href="#gallery"
+          aria-label="Gulir ke konten"
+          className="absolute bottom-6 left-1/2 z-20 hidden -translate-x-1/2 flex-col items-center gap-2 font-mono-label text-[9.5px] text-foreground/60 transition-colors hover:text-foreground lg:flex"
+        >
+          Gulir
+          <span className="relative block h-9 w-px bg-foreground/15"><span className="scroll-cue-line absolute inset-0 bg-accent" /></span>
+        </a>
       )}
     </section>
   )

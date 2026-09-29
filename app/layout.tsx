@@ -5,6 +5,9 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { PortalFrame } from '@/components/portal-frame'
 import { AuthProvider } from '@/context/AuthContext'
+import { ButtonPressEffects } from '@/components/button-press-effects'
+import { ThemeApplier } from '@/components/theme-applier'
+import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 
 export const metadata: Metadata = {
   title: 'ISMS Portal | Information Security Management System',
@@ -42,10 +45,15 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="id" className="bg-background">
+    <html lang="id" className="bg-background" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className="antialiased">
         <AuthProvider>
           <PortalFrame>{children}</PortalFrame>
+          <ButtonPressEffects />
+          <ThemeApplier />
         </AuthProvider>
       </body>
     </html>

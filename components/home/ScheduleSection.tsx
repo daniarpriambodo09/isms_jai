@@ -7,6 +7,9 @@
 import { useEffect, useState } from 'react'
 import { API_BASE_PATH } from '@/lib/config'
 import { ScheduleRow } from '@/components/home/ScheduleRow'
+import type { ChapterTone } from '@/components/home/ChapterHeader'
+
+const CHAPTER_TONES: ChapterTone[] = ['light', 'accent', 'dark']
 
 type Category = { id: number; slug: string; label: string; sort_order: number }
 type ScheduleDocument = {
@@ -39,10 +42,16 @@ export function ScheduleSection() {
       })
   }, [])
 
+  // Only categories that have files get a chapter; tones rotate so neighbouring
+  // chapters never share a background.
+  const visible = categories
+    .map((category) => ({ category, docs: documents.filter((doc) => doc.kind === category.slug) }))
+    .filter(({ docs }) => docs.length > 0)
+
   return (
     <>
-      {categories.map((category) => (
-        <ScheduleRow key={category.id} label={category.label} docs={documents.filter((doc) => doc.kind === category.slug)} />
+      {visible.map(({ category, docs }, i) => (
+        <ScheduleRow key={category.id} label={category.label} docs={docs} tone={CHAPTER_TONES[i % CHAPTER_TONES.length]} />
       ))}
     </>
   )

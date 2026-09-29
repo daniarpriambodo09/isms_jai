@@ -14,13 +14,13 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
 
   return (
     <html lang="id">
-      <body style={{ margin: 0, background: '#f8fafc' }}>
+      <body style={{ margin: 0, background: 'var(--p-surface)' }}>
         <div className="grid min-h-screen place-items-center p-6">
           <section
             className="relative w-full max-w-md overflow-hidden rounded-3xl p-10 text-center sm:p-16"
             style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)',
-              boxShadow: '0 20px 50px rgba(14,34,53,0.12), 0 0 0 1px rgba(160,58,58,0.12)',
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, color-mix(in oklch, var(--p-surface2) 99%, transparent) 100%)',
+              boxShadow: '0 20px 50px color-mix(in oklch, var(--p-950) 12%, transparent), 0 0 0 1px rgba(160,58,58,0.12)',
             }}
           >
             <div
@@ -38,8 +38,8 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
 
               <div>
                 <p className="text-[13px] font-bold uppercase tracking-[0.16em]" style={{ color: '#a03a3a' }}>Kesalahan sistem</p>
-                <h1 className="mt-1 text-[22px] font-bold" style={{ color: '#12293a' }}>Aplikasi gagal dimuat</h1>
-                <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: '#7290a5' }}>
+                <h1 className="mt-1 text-[22px] font-bold" style={{ color: 'var(--p-900)' }}>Aplikasi gagal dimuat</h1>
+                <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: 'var(--p-muted)' }}>
                   Terjadi kesalahan yang tidak terduga. Coba muat ulang halaman — kalau masalah terus berlanjut, hubungi admin sistem ISMS.
                 </p>
               </div>

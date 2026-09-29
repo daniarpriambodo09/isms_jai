@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ChevronDown, LogOut, Menu, Settings, ShieldCheck, X } from 'lucide-react'
+import { ArrowUpRight, ChevronDown, LogOut, Menu, Settings, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -77,17 +77,12 @@ export function Navbar() {
   const departmentHref = (dept: Department) => `/documents/department/${dept.slug}`
   const sectionHref = (dept: Department, section: Section) => `/documents/department/${dept.slug}/${section.slug}`
 
-  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-md px-3 py-2 text-[13px] font-medium uppercase text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring'
+  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-3.5 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
   const navLinkActive = 'bg-accent text-white hover:text-white'
-  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-kamera', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin', '/kelola-smtp'].includes(pathname)
+  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-kamera', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin', '/kelola-smtp', '/kelola-tema', '/kelola-pengesahan'].includes(pathname)
 
-  // Active underline indicator
-  const activeIndicator = (
-    <span
-      className="absolute -bottom-[1px] left-1/2 h-[2px] w-4/5 -translate-x-1/2 rounded-full"
-      style={{ background: 'linear-gradient(90deg, oklch(0.7 0.15 55), oklch(0.75 0.18 50))' }}
-    />
-  )
+  // Active items are already an acid pill — no extra underline needed.
+  const activeIndicator = null
 
   const formCsItems = (
     <>
@@ -140,13 +135,10 @@ export function Navbar() {
   const dropdownPanel = (children: React.ReactNode) => (
     <div
       role="menu"
-      className="absolute left-0 top-[calc(100%+10px)] z-20 w-72 overflow-hidden rounded-2xl text-popover-foreground"
+      className="absolute left-0 top-[calc(100%+14px)] z-20 w-72 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground"
       style={{
-        animation: 'dropdown-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both',
-        background: 'linear-gradient(160deg, rgba(255,255,255,0.97) 0%, rgba(240,247,251,0.98) 100%)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        boxShadow: '0 20px 45px oklch(0.2 0.05 220 / 25%), 0 0 0 1px oklch(0.48 0.12 180 / 12%), inset 0 1px 0 rgba(255,255,255,0.85)',
+        animation: 'dropdown-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
+        boxShadow: '0 20px 45px color-mix(in oklch, var(--p-950) 25%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent)',
       }}
     >
       <div className="nav-dropdown-bar h-[2.5px] w-full" />
@@ -185,44 +177,46 @@ export function Navbar() {
           100% { background-position: 200% center; }
         }
         .nav-dropdown-bar {
-          background: linear-gradient(90deg, #278e84 0%, #1a5f7a 40%, #278e84 100%);
+          background: linear-gradient(90deg, var(--p-600) 0%, var(--p-700) 40%, var(--p-600) 100%);
           background-size: 200% auto;
           animation: nav-bar-shimmer 3s linear infinite;
         }
         .nav-drop-item {
-          text-transform: uppercase;
-          transition: background 160ms, padding-left 160ms, color 160ms;
+          border-radius: 0.8rem;
+          font-weight: 500;
+          transition: background 160ms, padding-left 200ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms;
         }
         .nav-drop-item:hover {
-          background: linear-gradient(90deg, rgba(39,142,132,0.12) 0%, rgba(26,95,122,0.05) 100%);
-          padding-left: 16px;
+          background: linear-gradient(90deg, color-mix(in oklch, var(--p-600) 12%, transparent) 0%, color-mix(in oklch, var(--p-700) 5%, transparent) 100%);
+          padding-left: 18px;
         }
         .nav-drawer-item {
-          text-transform: uppercase;
-          transition: background 160ms, padding-left 160ms;
+          border-radius: 0.8rem;
+          transition: background 160ms, padding-left 200ms cubic-bezier(0.16, 1, 0.3, 1);
         }
         .nav-drawer-item:hover {
-          background: linear-gradient(90deg, rgba(39,142,132,0.1) 0%, transparent 100%);
-          padding-left: 16px;
+          background: linear-gradient(90deg, color-mix(in oklch, var(--p-600) 10%, transparent) 0%, transparent 100%);
+          padding-left: 18px;
         }
       `}</style>
 
+      {/* Floating ink pill — the sticky wrapper itself is click-through so the
+          page behind the gutters stays usable while scrolling. */}
+      <div className="pointer-events-none sticky top-0 z-30 px-4 pt-3 max-[680px]:px-2 max-[680px]:pt-2">
       <nav
-        className="sticky top-0 z-30 border-b border-primary-foreground/10 bg-primary text-primary-foreground transition-all duration-300"
+        className="pointer-events-auto mx-auto max-w-[1480px] rounded-full bg-primary text-primary-foreground transition-all duration-300"
         style={{
           boxShadow: scrolled
-            ? '0 4px 24px oklch(0.39 0.09 205 / 30%), 0 1px 4px oklch(0.39 0.09 205 / 20%)'
-            : '0 1px 8px oklch(0.39 0.09 205 / 15%)',
-          backdropFilter: scrolled ? 'blur(12px)' : 'none',
-          WebkitBackdropFilter: scrolled ? 'blur(12px)' : 'none',
-          background: scrolled
-            ? 'oklch(0.39 0.09 205 / 92%)'
-            : undefined,
+            ? '0 18px 40px -14px color-mix(in oklch, var(--primary) 55%, transparent)'
+            : '0 8px 24px -14px color-mix(in oklch, var(--primary) 45%, transparent)',
+          background: scrolled ? 'color-mix(in oklch, var(--primary) 92%, transparent)' : undefined,
+          backdropFilter: scrolled ? 'blur(14px)' : 'none',
+          WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
         }}
       >
-        <div className="mx-auto flex min-h-16 max-w-[1480px] items-center gap-6 px-10 max-[900px]:px-6 max-[680px]:min-h-14 max-[680px]:px-4">
+        <div className="flex min-h-[60px] items-center gap-5 pl-2.5 pr-3 max-[680px]:min-h-14">
           <Link href="/" className="flex flex-none items-center gap-3" aria-label="ISMS Portal home">
-            <span className="flex h-10 w-[132px] items-center overflow-hidden rounded-md bg-primary-foreground px-2 shadow-sm">
+            <span className="flex h-10 w-[128px] items-center overflow-hidden rounded-full bg-white px-3">
               <img
                 src={`${API_BASE_PATH}/images/yazaki-logo.jpg`}
                 alt="Yazaki PT. Jatim Autocomp Indonesia"
@@ -231,8 +225,6 @@ export function Navbar() {
                 className="h-auto w-full object-contain"
               />
             </span>
-            {/* Vertical separator */}
-            <span className="hidden h-6 w-px bg-primary-foreground/20 md:block" />
           </Link>
 
           <div className="hidden flex-1 items-center gap-1 md:flex">
@@ -382,9 +374,15 @@ export function Navbar() {
                             <Link href="/kelola-admin" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                               Manage Admin Accounts
                             </Link>
+                            <Link href="/kelola-pengesahan" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                              Approver Pengesahan Prosedur
+                            </Link>
                             <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">System</p>
                             <Link href="/kelola-smtp" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                               SMTP Settings
+                            </Link>
+                            <Link href="/kelola-tema" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                              Theme Colors
                             </Link>
                           </>
                         )}
@@ -402,16 +400,13 @@ export function Navbar() {
             {!isLoading && (
               isLoggedIn ? (
                 <div className="hidden items-center gap-2 sm:flex">
-                  <span
-                    className="rounded-full border px-3 py-1.5 text-[11px] font-semibold text-primary-foreground"
-                    style={{ borderColor: 'oklch(0.7 0.15 55 / 35%)', background: 'oklch(0.7 0.15 55 / 14%)' }}
-                  >
-                    <ShieldCheck className="mr-1 inline size-3.5" />
+                  <span className="flex items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-mono-label text-[10.5px] text-primary-foreground/85">
+                    <span className="size-1.5 rounded-full bg-accent" />
                     {adminUser?.username}
                   </span>
                   <button
                     onClick={() => logout()}
-                    className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs transition-colors hover:bg-primary-foreground/10"
+                    className="flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3.5 py-2 text-xs font-medium transition-colors hover:bg-primary-foreground/20"
                   >
                     <LogOut className="size-4" />
                     Logout
@@ -420,13 +415,13 @@ export function Navbar() {
               ) : (
                 <button
                   onClick={() => setLoginOpen(true)}
-                  className="hidden rounded-lg px-4 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:scale-[1.03] sm:block"
-                  style={{
-                    background: 'linear-gradient(135deg, oklch(0.48 0.12 180) 0%, oklch(0.58 0.14 165) 100%)',
-                    boxShadow: '0 3px 12px oklch(0.48 0.12 180 / 40%)',
-                  }}
+                  className="group hidden items-center gap-2 rounded-full py-2 pl-4 pr-2 text-[12.5px] font-semibold text-white transition-transform duration-200 hover:scale-[1.03] sm:flex"
+                  style={{ background: 'linear-gradient(135deg, var(--p-550) 0%, var(--p-500) 100%)', boxShadow: '0 3px 12px color-mix(in oklch, var(--p-550) 40%, transparent)' }}
                 >
                   Admin Login
+                  <span className="grid size-6 place-items-center rounded-full bg-white/20 transition-transform duration-300 group-hover:rotate-45">
+                    <ArrowUpRight className="size-3.5" />
+                  </span>
                 </button>
               )
             )}
@@ -434,17 +429,18 @@ export function Navbar() {
               type="button"
               onClick={() => setMobileOpen(true)}
               aria-label="Open menu"
-              className="grid size-10 place-items-center rounded-md text-primary-foreground/80 transition-colors hover:bg-primary-foreground/10 md:hidden"
+              className="grid size-10 place-items-center rounded-full bg-accent text-white transition-transform hover:scale-105 md:hidden"
             >
               <Menu className="size-5" />
             </button>
           </div>
         </div>
       </nav>
+      </div>
 
       {/* Mobile backdrop */}
       <div
-        className={cn('fixed inset-0 z-40 bg-primary/50 backdrop-blur-sm md:hidden transition-opacity duration-200', mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
+        className={cn('fixed inset-0 z-40 bg-primary/40 backdrop-blur-sm md:hidden transition-opacity duration-200', mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
         onClick={() => setMobileOpen(false)}
       />
 
@@ -455,18 +451,11 @@ export function Navbar() {
         aria-label="Portal navigation"
         aria-hidden={!mobileOpen}
         className={cn('fixed right-0 top-0 z-50 flex h-screen w-80 max-w-[85vw] flex-col shadow-2xl transition-transform duration-200 md:hidden', mobileOpen ? 'translate-x-0' : 'translate-x-full')}
-        style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #eef4f6 100%)' }}
+        style={{ background: 'var(--background)' }}
       >
-        <div
-          className="relative flex items-center justify-between overflow-hidden px-4 py-4 text-primary-foreground"
-          style={{ background: 'linear-gradient(135deg, #0e2235 0%, #1a5f7a 55%, #278e84 100%)' }}
-        >
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.14]"
-            style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '16px 16px' }}
-          />
-          <span className="relative flex items-center gap-2 font-semibold">
-            <ShieldCheck className="size-4" /> Portal navigation
+        <div className="relative flex items-center justify-between overflow-hidden bg-primary px-4 py-4 text-primary-foreground">
+          <span className="relative flex items-center gap-2 font-mono-label text-[11px]">
+            <span className="size-2 rounded-full bg-accent" /> Portal navigation
           </span>
           <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close menu" className="relative grid size-9 place-items-center rounded-full transition-colors hover:bg-white/15">
             <X className="size-5" />
@@ -517,9 +506,15 @@ export function Navbar() {
                   <Link href="/kelola-admin" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                     <Settings className="size-4" />Manage Admin Accounts
                   </Link>
+                  <Link href="/kelola-pengesahan" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                    <Settings className="size-4" />Approver Pengesahan Prosedur
+                  </Link>
                   <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">System</p>
                   <Link href="/kelola-smtp" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                     <Settings className="size-4" />SMTP Settings
+                  </Link>
+                  <Link href="/kelola-tema" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                    <Settings className="size-4" />Theme Colors
                   </Link>
                 </>
               )}
@@ -529,14 +524,13 @@ export function Navbar() {
         <div className="border-t border-border p-4">
           {!isLoading && (
             isLoggedIn ? (
-              <button onClick={() => logout()} className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-3 py-2.5 text-sm transition-colors hover:bg-secondary">
+              <button onClick={() => logout()} className="flex w-full items-center justify-center gap-2 rounded-full border border-border px-3 py-2.5 text-sm transition-colors hover:bg-secondary">
                 <LogOut className="size-4" />Logout ({adminUser?.username})
               </button>
             ) : (
               <button
                 onClick={() => setLoginOpen(true)}
-                className="w-full rounded-lg py-2.5 text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' }}
+                className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
               >
                 Admin Login
               </button>

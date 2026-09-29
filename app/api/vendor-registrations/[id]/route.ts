@@ -114,14 +114,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const picJai = typeof body.picJai === 'string' ? body.picJai.trim() : ''
         const purpose = typeof body.purpose === 'string' ? body.purpose.trim() : ''
         const companyRemark = typeof body.companyRemark === 'string' ? body.companyRemark.trim() : ''
-        if (!fullName || !idCard || !picJai || !purpose || !companyRemark) {
+        // Affiliate registrations carry no identity card / PIC JAI (stored as "-").
+        const isAffiliate = row.current_card_type === 'affiliate' || row.affiliate_card_barcode !== null
+        if (!fullName || !purpose || !companyRemark || (!isAffiliate && (!idCard || !picJai))) {
           return NextResponse.json({ message: 'Semua field data tamu wajib diisi.' }, { status: 400 })
         }
         const result = await query<VendorRegistrationRow>(
           `UPDATE vendor_registrations
            SET full_name = $1, id_card = $2, pic_jai = $3, purpose = $4, company_remark = $5
            WHERE id = $6 RETURNING ${SELECT_COLUMNS}`,
-          [fullName, idCard, picJai, purpose, companyRemark, id]
+          [fullName, idCard || '-', picJai || '-', purpose, companyRemark, id]
         )
         await logActivity(session, 'update', 'vendor_registration', id, `Mengubah data pendaftaran "${row.full_name}"${fullName !== row.full_name ? ` menjadi "${fullName}"` : ''}`)
         return NextResponse.json({ registration: result.rows[0] })

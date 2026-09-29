@@ -31,7 +31,7 @@ export function ConfirmDialog({
 
   const accentGradient = danger
     ? 'linear-gradient(135deg, #a03a3a 0%, #c24f3f 100%)'
-    : 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)'
+    : 'linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%)'
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -54,7 +54,7 @@ export function ConfirmDialog({
 
       <div
         className="confirm-backdrop absolute inset-0"
-        style={{ background: 'rgba(8,18,32,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+        style={{ background: 'color-mix(in oklch, var(--p-950) 55%, transparent)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
         onClick={onCancel}
       />
 
@@ -64,8 +64,8 @@ export function ConfirmDialog({
         aria-label={title}
         className="confirm-card relative z-10 w-full max-w-sm overflow-hidden rounded-2xl"
         style={{
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)',
-          boxShadow: '0 28px 60px rgba(14,34,53,0.35), 0 0 0 1px rgba(255,255,255,0.6)',
+          background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, color-mix(in oklch, var(--p-surface2) 99%, transparent) 100%)',
+          boxShadow: '0 28px 60px color-mix(in oklch, var(--p-950) 35%, transparent), 0 0 0 1px rgba(255,255,255,0.6)',
         }}
       >
         <div className="h-[3px] w-full" style={{ background: accentGradient }} />
@@ -74,13 +74,13 @@ export function ConfirmDialog({
           <div className="flex items-start gap-3.5">
             <div
               className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl"
-              style={{ background: accentGradient, boxShadow: danger ? '0 6px 16px rgba(160,58,58,0.35)' : '0 6px 16px rgba(39,142,132,0.35)' }}
+              style={{ background: accentGradient, boxShadow: danger ? '0 6px 16px rgba(160,58,58,0.35)' : '0 6px 16px color-mix(in oklch, var(--p-600) 35%, transparent)' }}
             >
               {danger ? <AlertTriangle className="h-5 w-5 text-white" /> : <HelpCircle className="h-5 w-5 text-white" />}
             </div>
             <div className="min-w-0 pt-0.5">
-              <h3 className="text-[15px] font-bold leading-tight" style={{ color: '#12293a' }}>{title}</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: '#7290a5' }}>{message}</p>
+              <h3 className="text-[15px] font-bold leading-tight" style={{ color: 'var(--p-900)' }}>{title}</h3>
+              <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--p-muted)' }}>{message}</p>
             </div>
           </div>
 
@@ -90,7 +90,7 @@ export function ConfirmDialog({
               onClick={onCancel}
               disabled={pending}
               className="confirm-btn rounded-lg border px-4 py-2 text-[13px] font-semibold"
-              style={{ borderColor: '#dce6ed', color: '#4a6278', background: '#ffffff' }}
+              style={{ borderColor: 'var(--p-border)', color: 'var(--p-ink2)', background: '#ffffff' }}
             >
               {cancelLabel}
             </button>
@@ -99,7 +99,7 @@ export function ConfirmDialog({
               onClick={onConfirm}
               disabled={pending}
               className="confirm-btn inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-semibold text-white"
-              style={{ background: accentGradient, boxShadow: danger ? '0 4px 14px rgba(160,58,58,0.35)' : '0 4px 14px rgba(39,142,132,0.35)' }}
+              style={{ background: accentGradient, boxShadow: danger ? '0 4px 14px rgba(160,58,58,0.35)' : '0 4px 14px color-mix(in oklch, var(--p-600) 35%, transparent)' }}
             >
               {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {confirmLabel}

@@ -266,7 +266,7 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
                   disabled={submitting}
                   onClick={() => decide('approved')}
                   className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
-                  style={{ background: 'linear-gradient(135deg, oklch(0.48 0.12 180) 0%, oklch(0.58 0.14 165) 100%)' }}
+                  style={{ background: 'linear-gradient(135deg, var(--p-550) 0%, var(--p-500) 100%)' }}
                 >
                   Setujui
                 </button>

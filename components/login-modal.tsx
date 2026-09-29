@@ -76,23 +76,23 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           50% { transform: translate(-15px, 20px) scale(1.08); }
         }
         .lm-top-bar {
-          background: linear-gradient(90deg, #278e84 0%, #1a5f7a 40%, #278e84 100%);
+          background: linear-gradient(90deg, var(--p-600) 0%, var(--p-700) 40%, var(--p-600) 100%);
           background-size: 200% auto;
           animation: lm-shimmer 3s linear infinite;
         }
         .lm-btn-submit {
-          background: linear-gradient(135deg, #1a5f7a 0%, #278e84 100%);
-          box-shadow: 0 6px 20px rgba(39,142,132,0.4), 0 2px 6px rgba(14,34,53,0.2);
+          background: linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%);
+          box-shadow: 0 6px 20px color-mix(in oklch, var(--p-600) 40%, transparent), 0 2px 6px color-mix(in oklch, var(--p-950) 20%, transparent);
           transition: background 200ms, box-shadow 200ms, transform 150ms;
         }
         .lm-btn-submit:not(:disabled):hover {
-          background: linear-gradient(135deg, #154e65 0%, #1f7a70 100%);
-          box-shadow: 0 8px 26px rgba(39,142,132,0.52), 0 2px 8px rgba(14,34,53,0.25);
+          background: linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%);
+          box-shadow: 0 8px 26px color-mix(in oklch, var(--p-600) 52%, transparent), 0 2px 8px color-mix(in oklch, var(--p-950) 25%, transparent);
           transform: translateY(-1px) scale(1.01);
         }
         .lm-btn-submit:not(:disabled):active {
           transform: translateY(0) scale(0.99);
-          box-shadow: 0 4px 14px rgba(39,142,132,0.3);
+          box-shadow: 0 4px 14px color-mix(in oklch, var(--p-600) 30%, transparent);
         }
         .lm-btn-submit:disabled {
           opacity: 0.65;
@@ -107,37 +107,37 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           height: 48px;
           width: 100%;
           border-radius: 14px;
-          border: 1.5px solid #dce6ed;
-          background: #f8fafc;
-          color: #20354a;
+          border: 1.5px solid var(--p-border);
+          background: var(--p-surface);
+          color: var(--p-800);
           font-size: 14px;
           font-weight: 500;
           outline: none;
-          box-shadow: inset 0 1px 3px rgba(14,34,53,0.06);
+          box-shadow: inset 0 1px 3px color-mix(in oklch, var(--p-950) 6%, transparent);
           transition: border-color 180ms, box-shadow 180ms, background 180ms;
           padding: 0 46px 0 52px;
         }
         .lm-input::placeholder {
-          color: #a9bac8;
+          color: var(--p-muted2);
           font-weight: 400;
         }
         .lm-field-wrap:focus-within .lm-input {
-          border-color: #278e84;
-          box-shadow: 0 0 0 3px rgba(39,142,132,0.13), inset 0 1px 3px rgba(14,34,53,0.04);
+          border-color: var(--p-600);
+          box-shadow: 0 0 0 3px color-mix(in oklch, var(--p-600) 13%, transparent), inset 0 1px 3px color-mix(in oklch, var(--p-950) 4%, transparent);
           background: #ffffff;
         }
         .lm-close-btn {
           transition: background 150ms, color 150ms;
         }
         .lm-close-btn:hover {
-          background: #f0f4f7;
-          color: #20354a;
+          background: var(--p-surface2);
+          color: var(--p-800);
         }
         .lm-eye-btn {
           transition: color 150ms;
-          color: #7290a5;
+          color: var(--p-muted);
         }
-        .lm-eye-btn:hover { color: #278e84; }
+        .lm-eye-btn:hover { color: var(--p-600); }
         .lm-orb-1 { animation: lm-orb1 7s ease-in-out infinite; }
         .lm-orb-2 { animation: lm-orb2 9s ease-in-out infinite; }
         @keyframes lm-banner-drift {
@@ -146,12 +146,12 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         }
         .lm-banner-glow { animation: lm-banner-drift 10s ease-in-out infinite; }
         .lm-field-icon {
-          background: #eef3f6;
-          color: #6d8598;
+          background: var(--p-surface2);
+          color: var(--p-muted);
           transition: background 180ms, color 180ms;
         }
         .lm-field-wrap:focus-within .lm-field-icon {
-          background: linear-gradient(135deg, #1a5f7a 0%, #278e84 100%);
+          background: linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%);
           color: #ffffff;
         }
         @keyframes lm-pop-in {
@@ -187,7 +187,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           animation: lm-badge-bounce 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
         }
         .lm-success-circle {
-          stroke: #278e84;
+          stroke: var(--p-600);
           stroke-width: 3;
           stroke-linecap: round;
           stroke-dasharray: 152;
@@ -195,7 +195,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           animation: lm-circle-draw 550ms ease-out 120ms forwards;
         }
         .lm-success-check-path {
-          stroke: #278e84;
+          stroke: var(--p-600);
           stroke-width: 4;
           stroke-linecap: round;
           stroke-linejoin: round;
@@ -204,7 +204,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           animation: lm-check-draw 320ms ease-out 620ms forwards;
         }
         .lm-success-ring {
-          border: 2px solid rgba(39,142,132,0.5);
+          border: 2px solid color-mix(in oklch, var(--p-600) 50%, transparent);
           animation: lm-ring-pulse 1500ms ease-out infinite;
         }
         .lm-success-ring-delay {
@@ -233,7 +233,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           <div
             className="absolute inset-0"
             style={{
-              background: 'radial-gradient(ellipse at 60% 40%, rgba(14,34,53,0.72) 0%, rgba(8,18,32,0.88) 100%)',
+              background: 'radial-gradient(ellipse at 60% 40%, color-mix(in oklch, var(--p-950) 72%, transparent) 0%, color-mix(in oklch, var(--p-950) 88%, transparent) 100%)',
               backdropFilter: 'blur(3px)',
               WebkitBackdropFilter: 'blur(3px)',
             }}
@@ -244,7 +244,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         <div
           className="lm-orb-1 pointer-events-none absolute left-1/4 top-1/4 h-64 w-64 rounded-full"
           style={{
-            background: 'radial-gradient(circle, rgba(39,142,132,0.18) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, color-mix(in oklch, var(--p-600) 18%, transparent) 0%, transparent 70%)',
             filter: 'blur(40px)',
           }}
         />
@@ -271,16 +271,16 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           <div
             className="relative overflow-hidden rounded-3xl"
             style={{
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)',
+              background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, color-mix(in oklch, var(--p-surface2) 99%, transparent) 100%)',
               boxShadow:
-                '0 32px 80px rgba(14,34,53,0.38), 0 0 0 1px rgba(255,255,255,0.65), inset 0 1px 0 rgba(255,255,255,0.95)',
+                '0 32px 80px color-mix(in oklch, var(--p-950) 38%, transparent), 0 0 0 1px rgba(255,255,255,0.65), inset 0 1px 0 rgba(255,255,255,0.95)',
             }}
           >
             {/* Success takeover — celebratory checkmark before the modal auto-closes */}
             {success && (
               <div
                 className="lm-success-overlay absolute inset-0 z-20 flex flex-col items-center justify-center gap-3"
-                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(240,247,251,0.99) 100%)' }}
+                style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, color-mix(in oklch, var(--p-surface2) 99%, transparent) 100%)' }}
               >
                 <div className="lm-success-badge relative flex h-24 w-24 items-center justify-center">
                   <span className="lm-success-ring absolute inset-0 rounded-full" />
@@ -296,7 +296,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                         style={{
                           left: '-3px',
                           top: '-3px',
-                          background: i % 2 === 0 ? '#278e84' : '#1a5f7a',
+                          background: i % 2 === 0 ? 'var(--p-600)' : 'var(--p-700)',
                           animationDelay: `${550 + i * 35}ms`,
                         }}
                       />
@@ -307,10 +307,10 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                     <path className="lm-success-check-path" fill="none" d="M14 27l7 7 16-16" />
                   </svg>
                 </div>
-                <p className="text-[16px] font-bold" style={{ color: '#12293a' }}>
+                <p className="text-[16px] font-bold" style={{ color: 'var(--p-900)' }}>
                   Login berhasil{username ? `, ${username}` : ''}
                 </p>
-                <p className="text-[12px]" style={{ color: '#7290a5' }}>
+                <p className="text-[12px]" style={{ color: 'var(--p-muted)' }}>
                   Mengalihkan ke Portal ISMS...
                 </p>
               </div>
@@ -319,7 +319,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
             {/* Hero gradient banner */}
             <div
               className="relative h-28 overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, #0e2235 0%, #1a5f7a 55%, #278e84 100%)' }}
+              style={{ background: 'linear-gradient(135deg, var(--p-950) 0%, var(--p-700) 55%, var(--p-600) 100%)' }}
             >
               {/* Dot-grid pattern */}
               <div
@@ -361,8 +361,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
               <div
                 className="absolute -top-9 flex h-[72px] w-[72px] items-center justify-center rounded-[22px]"
                 style={{
-                  background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
-                  boxShadow: '0 10px 26px rgba(39,142,132,0.4), 0 0 0 5px #ffffff',
+                  background: 'linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%)',
+                  boxShadow: '0 10px 26px color-mix(in oklch, var(--p-600) 40%, transparent), 0 0 0 5px #ffffff',
                 }}
               >
                 <ShieldCheck className="h-8 w-8 text-white" />
@@ -373,10 +373,10 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
             <div className="lm-top-bar h-[3px] w-full" />
 
             <div className="px-8 pb-8 pt-12">
-              <h2 className="text-[21px] font-bold leading-tight" style={{ color: '#12293a' }}>
+              <h2 className="text-[21px] font-bold leading-tight" style={{ color: 'var(--p-900)' }}>
                 Login Admin
               </h2>
-              <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: '#7290a5' }}>
+              <p className="mt-1 text-[12.5px] leading-relaxed" style={{ color: 'var(--p-muted)' }}>
                 Masuk untuk mengelola konten Portal ISMS
               </p>
 
@@ -385,7 +385,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 className="mb-6 mt-5 h-px w-full"
                 style={{
                   background:
-                    'linear-gradient(90deg, transparent 0%, #dce6ed 25%, #dce6ed 75%, transparent 100%)',
+                    'linear-gradient(90deg, transparent 0%, var(--p-border) 25%, var(--p-border) 75%, transparent 100%)',
                 }}
               />
 
@@ -396,7 +396,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                   <label
                     htmlFor="lm-username"
                     className="text-[11.5px] font-bold uppercase tracking-[0.1em]"
-                    style={{ color: '#4a6278' }}
+                    style={{ color: 'var(--p-ink2)' }}
                   >
                     Username
                   </label>
@@ -423,7 +423,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                   <label
                     htmlFor="lm-password"
                     className="text-[11.5px] font-bold uppercase tracking-[0.1em]"
-                    style={{ color: '#4a6278' }}
+                    style={{ color: 'var(--p-ink2)' }}
                   >
                     Password
                   </label>
@@ -506,7 +506,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
               {/* Footer */}
               <p
                 className="mt-5 text-center text-[11px] leading-relaxed"
-                style={{ color: '#9ab0be' }}
+                style={{ color: 'var(--p-muted2)' }}
               >
                 Akses terbatas untuk administrator sistem ISMS
               </p>

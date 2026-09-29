@@ -44,6 +44,35 @@ function SectionCard({ icon, title, description, children }: { icon: React.React
   )
 }
 
+// Every link in the emails (approve/reject, pengesahan, QR) is built from
+// App URL — so flag the two mistakes that make them time out: no port, or
+// pointing at a different machine than the one serving this portal.
+function AppUrlCheck({ appUrl, onUse }: { appUrl: string; onUse: (value: string) => void }) {
+  const [current, setCurrent] = useState<string | null>(null)
+  useEffect(() => { setCurrent(window.location.origin) }, [])
+  if (!current || !appUrl.trim()) return null
+
+  let parsed: URL | null = null
+  try { parsed = new URL(/^https?:\/\//i.test(appUrl.trim()) ? appUrl.trim() : `http://${appUrl.trim()}`) } catch { parsed = null }
+  const missingPort = parsed !== null && !parsed.port && parsed.protocol === 'http:' && new URL(current).port !== ''
+  const differentHost = parsed !== null && parsed.origin !== current
+  if (!missingPort && !differentHost) return null
+
+  return (
+    <span className="mt-1 flex flex-col gap-2 rounded-lg border border-amber-500/40 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+      {missingPort && <span><strong>Port tidak disertakan</strong> — link di email akan ke port 80 dan kemungkinan tidak bisa dibuka (timeout).</span>}
+      <span>Portal ini sedang Anda buka di <span className="font-mono font-semibold">{current}</span>{differentHost ? <>, sedangkan link di email akan mengarah ke <span className="font-mono">{parsed?.origin}</span>.</> : '.'}</span>
+      {/^https?:\/\/(localhost|127\.0\.0\.1)(:|$)/i.test(current) ? (
+        <span>Buka halaman ini lewat alamat IP LAN (mis. <span className="font-mono">http://192.168.x.x:3009</span>) — <span className="font-mono">localhost</span> tidak bisa dibuka dari komputer/HP penerima email.</span>
+      ) : (
+        <button type="button" onClick={() => onUse(current)} className="w-fit rounded-full bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700">
+          Pakai {current}
+        </button>
+      )}
+    </span>
+  )
+}
+
 export default function KelolaSmtpPage() {
   const { isLoggedIn, isLoading, adminUser } = useAuth()
   const [loading, setLoading] = useState(true)
@@ -63,6 +92,9 @@ export default function KelolaSmtpPage() {
   const [testMessage, setTestMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
+    // Wait for the session check — otherwise the form briefly renders empty
+    // (placeholders only) before the saved settings arrive.
+    if (isLoading) return
     if (!isLoggedIn || adminUser?.role !== 'ism_admin') { setLoading(false); return }
     fetch(`${API_BASE_PATH}/api/smtp-settings`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { settings: null }))
@@ -81,7 +113,7 @@ export default function KelolaSmtpPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [isLoggedIn, adminUser])
+  }, [isLoading, isLoggedIn, adminUser])
 
   const currentPayload = () => ({
     host: host.trim(),
@@ -227,6 +259,16 @@ export default function KelolaSmtpPage() {
             <span className={hintClass}>Opsional — kosongkan jika tanpa autentikasi</span>
           </label>
         </div>
+        {/gmail|google/i.test(`${host} ${username}`) && (
+          <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+            <p className="font-semibold">Memakai Gmail?</p>
+            <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+              <li>Gmail <strong>tidak menerima password akun biasa</strong> untuk SMTP. Aktifkan <em>2-Step Verification</em> pada akun Google pengirim.</li>
+              <li>Buat <strong>App Password</strong> di <span className="font-mono">myaccount.google.com/apppasswords</span>, lalu tempel 16 karakternya (tanpa spasi) di kolom Password SMTP.</li>
+              <li>Username = alamat Gmail lengkap. Host <span className="font-mono">smtp.gmail.com</span>, port <span className="font-mono">587</span> + TLS (atau <span className="font-mono">465</span> + SSL).</li>
+            </ol>
+          </div>
+        )}
       </SectionCard>
 
       <SectionCard icon={<Mail className="size-4" />} title="Email & Aplikasi" description="Alamat pengirim dan URL aplikasi">
@@ -240,6 +282,7 @@ export default function KelolaSmtpPage() {
             <span className={labelClass}>App URL <span className="text-destructive">*</span></span>
             <input value={appUrl} onChange={(e) => setAppUrl(e.target.value)} placeholder="http://192.168.1.39:3009" className={inputClass} />
             <span className={hintClass}>Sertakan http:// dan port aplikasi (bukan cuma IP-nya) — kalau port tidak disertakan, link di email default ke port 80 dan bisa nabrak server lain (mis. XAMPP) yang jalan di port itu.</span>
+            <AppUrlCheck appUrl={appUrl} onUse={setAppUrl} />
           </label>
         </div>
       </SectionCard>

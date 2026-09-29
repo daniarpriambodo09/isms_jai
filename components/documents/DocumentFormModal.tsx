@@ -106,14 +106,14 @@ export function DocumentFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'} className="w-full max-w-[420px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4">
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'} className="w-full max-w-[420px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)]">
         <div className="mb-5 flex items-start justify-between">
           <div>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[color:var(--p-muted)]">
               DOKUMEN
             </div>
-            <h2 className="text-[18px] font-bold text-[#20354a]">
+            <h2 className="text-[18px] font-bold text-[color:var(--p-800)]">
               {isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}
             </h2>
           </div>
@@ -121,7 +121,7 @@ export function DocumentFormModal({
             type="button"
             onClick={onClose}
             aria-label="Tutup"
-            className="grid h-8 w-8 place-items-center rounded-full text-[#8798a8] hover:bg-[#f0f4f7]"
+            className="grid h-8 w-8 place-items-center rounded-full text-[color:var(--p-muted2)] hover:bg-[color:var(--p-surface2)]"
           >
             <X className="w-[18px]" />
           </button>
@@ -129,42 +129,42 @@ export function DocumentFormModal({
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-[6px]">
-            <span className="text-[12px] font-medium text-[#3c5369]">Nama Dokumen</span>
+            <span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Nama Dokumen</span>
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               required
               autoFocus
               placeholder="Contoh: Prosedur Pengendalian Akses"
-              className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]"
+              className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]"
             />
           </label>
 
           {isEdit && (
             <label className="flex flex-col gap-[6px]">
-              <span className="text-[12px] font-medium text-[#3c5369]">Tanggal Upload</span>
+              <span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Tanggal Upload</span>
               <input
                 type="date"
                 value={uploadedAt}
                 onChange={(event) => setUploadedAt(event.target.value)}
-                className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84] [&::-webkit-calendar-picker-indicator]:ml-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-[5px] [&::-webkit-calendar-picker-indicator]:bg-[#20354a] [&::-webkit-calendar-picker-indicator]:p-[3px] [&::-webkit-calendar-picker-indicator]:[filter:invert(1)]"
+                className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)] [&::-webkit-calendar-picker-indicator]:ml-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-[5px] [&::-webkit-calendar-picker-indicator]:bg-[color:var(--p-800)] [&::-webkit-calendar-picker-indicator]:p-[3px] [&::-webkit-calendar-picker-indicator]:[filter:invert(1)]"
               />
             </label>
           )}
 
           <label className="flex flex-col gap-[6px]">
-            <span className="text-[12px] font-medium text-[#3c5369]">Revisi (catatan, opsional)</span>
+            <span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Revisi (catatan, opsional)</span>
             <input
               type="text"
               value={revision}
               onChange={(event) => setRevision(event.target.value)}
               placeholder="Contoh: Rev. 1 atau catatan bebas dari admin"
-              className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]"
+              className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]"
             />
           </label>
 
           <label className="flex flex-col gap-[6px]">
-            <span className="text-[12px] font-medium text-[#3c5369]">
+            <span className="text-[12px] font-medium text-[color:var(--p-ink2)]">
               {isEdit ? 'Ganti File PDF (opsional)' : 'File PDF'}
             </span>
             <input
@@ -172,10 +172,10 @@ export function DocumentFormModal({
               accept="application/pdf"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               required={!isEdit}
-              className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#20354a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white"
+              className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white"
             />
             {isEdit && (
-              <span className="text-[11px] text-[#8798a8]">Kosongkan jika tidak ingin mengganti file.</span>
+              <span className="text-[11px] text-[color:var(--p-muted2)]">Kosongkan jika tidak ingin mengganti file.</span>
             )}
           </label>
 
@@ -187,7 +187,7 @@ export function DocumentFormModal({
           <button
             type="submit"
             disabled={submitting}
-            className="mt-1 inline-flex h-10 items-center justify-center rounded-[7px] bg-[#20354a] text-[13px] font-medium text-white hover:bg-[#284360] disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-1 inline-flex h-10 items-center justify-center rounded-[7px] bg-[color:var(--p-800)] text-[13px] font-medium text-white hover:bg-[color:var(--p-750)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? 'Menyimpan...' : 'Simpan'}
           </button>

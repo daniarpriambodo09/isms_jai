@@ -97,7 +97,7 @@ export function NotificationBell() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={count > 0 ? `Notifikasi, ${count} pengajuan menunggu` : 'Notifikasi'}
-        className="relative grid size-10 place-items-center rounded-md text-primary-foreground/80 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
+        className="relative grid size-10 place-items-center rounded-full text-primary-foreground/80 transition-colors hover:bg-primary-foreground/10 hover:text-primary-foreground"
       >
         <Bell className="size-[18px]" />
         {count > 0 && (
@@ -116,10 +116,10 @@ export function NotificationBell() {
             className="absolute right-0 top-[calc(100%+10px)] z-20 w-80 overflow-hidden rounded-2xl text-popover-foreground"
             style={{
               animation: 'dropdown-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both',
-              background: 'linear-gradient(160deg, rgba(255,255,255,0.97) 0%, rgba(240,247,251,0.98) 100%)',
+              background: 'linear-gradient(160deg, rgba(255,255,255,0.97) 0%, color-mix(in oklch, var(--p-surface2) 98%, transparent) 100%)',
               backdropFilter: 'blur(16px)',
               WebkitBackdropFilter: 'blur(16px)',
-              boxShadow: '0 20px 45px oklch(0.2 0.05 220 / 25%), 0 0 0 1px oklch(0.48 0.12 180 / 12%), inset 0 1px 0 rgba(255,255,255,0.85)',
+              boxShadow: '0 20px 45px color-mix(in oklch, var(--p-950) 25%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent), inset 0 1px 0 rgba(255,255,255,0.85)',
             }}
           >
             <div className="nav-dropdown-bar h-[2.5px] w-full" />

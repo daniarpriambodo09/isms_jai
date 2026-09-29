@@ -364,11 +364,11 @@ export default function KelolaJadwalPage() {
       )}
 
       {renaming && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-          <div role="dialog" aria-modal="true" aria-label="Ubah nama kategori" className="w-full max-w-[420px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4">
+          <div role="dialog" aria-modal="true" aria-label="Ubah nama kategori" className="w-full max-w-[420px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)]">
             <div className="mb-5 flex items-start justify-between">
-              <h2 className="text-[15px] font-bold text-[#20354a]">Ubah nama kategori</h2>
-              <button type="button" onClick={() => setRenaming(null)} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[#8798a8] hover:bg-[#f0f4f7]"><X className="w-[18px]" /></button>
+              <h2 className="text-[15px] font-bold text-[color:var(--p-800)]">Ubah nama kategori</h2>
+              <button type="button" onClick={() => setRenaming(null)} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[color:var(--p-muted2)] hover:bg-[color:var(--p-surface2)]"><X className="w-[18px]" /></button>
             </div>
             <input value={renameLabel} onChange={(e) => setRenameLabel(e.target.value)} autoFocus className={inputClass} onKeyDown={(e) => e.key === 'Enter' && submitRename()} />
             {renameError && <p className="mt-2 text-xs text-destructive">{renameError}</p>}
@@ -376,7 +376,7 @@ export default function KelolaJadwalPage() {
               type="button"
               onClick={submitRename}
               disabled={renaming2 || !renameLabel.trim()}
-              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[7px] bg-[#20354a] text-[13px] font-medium text-white hover:bg-[#284360] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[7px] bg-[color:var(--p-800)] text-[13px] font-medium text-white hover:bg-[color:var(--p-750)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Check className="size-4" />{renaming2 ? 'Menyimpan...' : 'Simpan'}
             </button>

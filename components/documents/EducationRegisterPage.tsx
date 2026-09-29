@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Download, Eye, FileText, GraduationCap, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { BentoHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { EducationFormModal, type EditableEducation } from '@/components/documents/EducationFormModal'
@@ -174,6 +175,12 @@ export function EducationRegisterPage() {
     return ['Semua', ...cats]
   }, [documents])
 
+  const categoryCounts = useMemo(
+    () => allCategories.slice(1).map((name) => ({ name, count: documents.filter((d) => d.category === name).length })),
+    [allCategories, documents]
+  )
+  const languages = useMemo(() => Array.from(new Set(documents.map((d) => d.language).filter(Boolean))), [documents])
+
   const filtered = useMemo(() => {
     const kw = searchQuery.trim().toLowerCase()
     return documents.filter((d) => {
@@ -258,51 +265,21 @@ export function EducationRegisterPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Hero banner */}
-      <section
-        className="relative overflow-hidden rounded-[1.25rem] border border-border p-6 text-primary-foreground shadow-xl sm:p-8"
-        style={{
-          background: 'linear-gradient(135deg, #1a3a52 0%, #1a5f7a 45%, #278e84 100%)',
-        }}
-      >
-        {/* Decorative circles */}
-        <div
-          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }}
-        />
-        <div
-          className="pointer-events-none absolute -bottom-10 right-32 h-36 w-36 rounded-full opacity-[0.07]"
-          style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }}
-        />
-
-        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
-          <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-2 text-xs text-primary-foreground/65">
-              <GraduationCap className="size-4" />
-              Education &amp; Training materials
-            </div>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-              Materi Education
-            </h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">
-              Kumpulan materi edukasi keamanan informasi untuk seluruh karyawan — tersedia dalam Bahasa Indonesia dan Bahasa Inggris.
-            </p>
-          </div>
-          {isLoggedIn && (
-            <button
-              type="button"
-              onClick={openAdd}
-              className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-              style={{
-                background: 'linear-gradient(135deg, oklch(0.7 0.15 55) 0%, oklch(0.75 0.18 50) 100%)',
-                color: '#1a2f1a',
-              }}
-            >
-              <Plus className="size-4" />
-              Tambah Dokumen
-            </button>
-          )}
-        </div>
-      </section>
+      <BentoHero
+        count={documents.length}
+        categories={categoryCounts}
+        languages={languages}
+        action={isLoggedIn && (
+          <button
+            type="button"
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <Plus className="size-4" />
+            Tambah Dokumen
+          </button>
+        )}
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
@@ -331,7 +308,7 @@ export function EducationRegisterPage() {
                 style={
                   categoryFilter === cat
                     ? {
-                        background: 'linear-gradient(135deg, #1a5f7a, #278e84)',
+                        background: 'linear-gradient(135deg, var(--p-700), var(--p-600))',
                         color: 'white',
                         borderColor: 'transparent',
                       }
@@ -424,7 +401,7 @@ export function EducationRegisterPage() {
                         type="button"
                         onClick={openAdd}
                         className="mt-4 inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                        style={{ background: 'linear-gradient(135deg, #1a5f7a, #278e84)' }}
+                        style={{ background: 'linear-gradient(135deg, var(--p-700), var(--p-600))' }}
                       >
                         <Plus className="size-4" /> Tambah Dokumen Pertama
                       </button>
@@ -459,8 +436,8 @@ export function EducationRegisterPage() {
                       <span
                         className="grid size-9 flex-shrink-0 place-items-center rounded-lg"
                         style={{
-                          background: 'linear-gradient(135deg, rgba(26,95,122,0.12), rgba(39,142,132,0.15))',
-                          color: '#278e84',
+                          background: 'linear-gradient(135deg, color-mix(in oklch, var(--p-700) 12%, transparent), color-mix(in oklch, var(--p-600) 15%, transparent))',
+                          color: 'var(--p-600)',
                         }}
                       >
                         <FileText className="size-4" />

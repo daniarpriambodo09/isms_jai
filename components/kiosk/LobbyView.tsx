@@ -12,7 +12,7 @@ import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, useKioskAutoRefresh, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
 
@@ -83,6 +83,8 @@ function QuickCardModal({ cardType, onClose, onSaved }: { cardType: QuickCardTyp
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const label = QUICK_CARD_LABEL[cardType]
+  // Affiliate guests are registered without an identity card or PIC JAI.
+  const isAffiliate = cardType === 'affiliate'
 
   useEscapeClose(true, onClose)
 
@@ -122,14 +124,18 @@ function QuickCardModal({ cardType, onClose, onSaved }: { cardType: QuickCardTyp
             <span className={labelClass}>Nama Lengkap</span>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} required autoFocus className={inputClass} />
           </label>
-          <label>
-            <span className={labelClass}>Kartu Identitas (KTP/SIM/Paspor)</span>
-            <input value={idCard} onChange={(e) => setIdCard(e.target.value)} required className={inputClass} />
-          </label>
-          <label>
-            <span className={labelClass}>PIC JAI yang Ditemui</span>
-            <input value={picJai} onChange={(e) => setPicJai(e.target.value)} required className={inputClass} />
-          </label>
+          {!isAffiliate && (
+            <>
+              <label>
+                <span className={labelClass}>Kartu Identitas (KTP/SIM/Paspor)</span>
+                <input value={idCard} onChange={(e) => setIdCard(e.target.value)} required className={inputClass} />
+              </label>
+              <label>
+                <span className={labelClass}>PIC JAI yang Ditemui</span>
+                <input value={picJai} onChange={(e) => setPicJai(e.target.value)} required className={inputClass} />
+              </label>
+            </>
+          )}
           <label>
             <span className={labelClass}>Tujuan</span>
             <input value={purpose} onChange={(e) => setPurpose(e.target.value)} required className={inputClass} />
@@ -174,6 +180,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   const [editError, setEditError] = useState<string | null>(null)
   const [editSaving, setEditSaving] = useState(false)
   const status = statusOf(registration)
+  const isAffiliate = registration.current_card_type === 'affiliate' || Boolean(registration.affiliate_card_barcode)
 
   const runAction = async (action: 'swapToWorkArea' | 'returnWorkArea' | 'returnDirect', cardType?: WorkAreaCardType) => {
     if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
@@ -208,7 +215,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   }
 
   const saveEdit = async () => {
-    if (!editFullName.trim() || !editIdCard.trim() || !editPicJai.trim() || !editPurpose.trim() || !editCompanyRemark.trim()) {
+    if (!editFullName.trim() || !editPurpose.trim() || !editCompanyRemark.trim() || (!isAffiliate && (!editIdCard.trim() || !editPicJai.trim()))) {
       setEditError('Semua field wajib diisi.')
       return
     }
@@ -268,14 +275,18 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
             <span className={labelClass}>Nama Lengkap</span>
             <input value={editFullName} onChange={(e) => setEditFullName(e.target.value)} autoFocus className={inputClass} />
           </label>
-          <label>
-            <span className={labelClass}>Kartu Identitas</span>
-            <input value={editIdCard} onChange={(e) => setEditIdCard(e.target.value)} className={inputClass} />
-          </label>
-          <label>
-            <span className={labelClass}>PIC JAI</span>
-            <input value={editPicJai} onChange={(e) => setEditPicJai(e.target.value)} className={inputClass} />
-          </label>
+          {!isAffiliate && (
+            <>
+              <label>
+                <span className={labelClass}>Kartu Identitas</span>
+                <input value={editIdCard} onChange={(e) => setEditIdCard(e.target.value)} className={inputClass} />
+              </label>
+              <label>
+                <span className={labelClass}>PIC JAI</span>
+                <input value={editPicJai} onChange={(e) => setEditPicJai(e.target.value)} className={inputClass} />
+              </label>
+            </>
+          )}
           <label>
             <span className={labelClass}>Tujuan</span>
             <input value={editPurpose} onChange={(e) => setEditPurpose(e.target.value)} className={inputClass} />
@@ -294,7 +305,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
         </div>
       ) : (
         <>
-          {row('PIC JAI :', registration.pic_jai)}
+          {!isAffiliate && row('PIC JAI :', registration.pic_jai)}
           {row('Tujuan :', registration.purpose)}
           {row('Keterangan :', registration.company_remark)}
           {row('Status :', status.label)}
@@ -314,7 +325,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
                   className="rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all"
                   style={
                     swapTarget === type
-                      ? { background: 'linear-gradient(135deg, #1a5f7a, #278e84)', color: 'white', borderColor: 'transparent' }
+                      ? { background: 'linear-gradient(135deg, var(--p-700), var(--p-600))', color: 'white', borderColor: 'transparent' }
                       : { background: 'transparent', color: 'var(--muted-foreground)', borderColor: 'var(--border)' }
                   }
                 >
@@ -452,23 +463,32 @@ export function LobbyView() {
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // silent = background refresh (no spinner, keeps the current list on a
+  // transient error) — see useKioskAutoRefresh.
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true
+    if (!silent) setLoading(true)
     try {
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations?sort=newest`, { cache: 'no-store', credentials: 'include' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
-      setRegistrations(data.registrations ?? [])
+      const fresh: Registration[] = data.registrations ?? []
+      setRegistrations(fresh)
+      // Keep an open detail panel in step with changes made at the other kiosk.
+      setSelected((current) => (current ? fresh.find((r) => r.id === current.id) ?? current : current))
       setListError(null)
     } catch (e) {
+      if (silent) return
       setRegistrations([])
       setListError(e instanceof Error ? e.message : 'Gagal memuat data.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => { load() }, [load])
+  const refreshSilently = useCallback(() => { load({ silent: true }) }, [load])
+  useKioskAutoRefresh(refreshSilently)
 
   const years = useMemo(() => availableYears(registrations, (r) => r.registered_at), [registrations])
   const filteredRegistrations = useMemo(() => {
@@ -627,7 +647,7 @@ export function LobbyView() {
             <p className="mt-1 text-sm text-muted-foreground">{filteredRegistrations.length} data</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
+            <button type="button" onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
             {QUICK_CARD_TYPES.map((type) => {

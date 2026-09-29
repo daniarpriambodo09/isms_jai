@@ -5,6 +5,8 @@ import { FileText, Maximize2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { ChapterHeader, type ChapterTone } from '@/components/home/ChapterHeader'
+import { ScrollAperture } from '@/components/home/ScrollAperture'
 
 type ScheduleDocument = {
   id: number
@@ -30,7 +32,7 @@ function fileUrl(doc: ScheduleDocument) {
   return `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(doc.file_path)}`
 }
 
-export function ScheduleRow({ label, docs }: { label: string; docs: ScheduleDocument[] }) {
+export function ScheduleRow({ label, docs, tone = 'light' }: { label: string; docs: ScheduleDocument[]; tone?: ChapterTone }) {
   const [openDoc, setOpenDoc] = useState<ScheduleDocument | null>(null)
 
   useEscapeClose(Boolean(openDoc), () => setOpenDoc(null))
@@ -40,25 +42,40 @@ export function ScheduleRow({ label, docs }: { label: string; docs: ScheduleDocu
 
   if (docs.length === 0) return null
 
+  const latest = docs.reduce((max, doc) => (doc.uploaded_at > max ? doc.uploaded_at : max), docs[0].uploaded_at)
+
   return (
     <section>
+      <ChapterHeader
+        eyebrow="Jadwal"
+        title={label}
+        meta={`${docs.length} file · diperbarui ${formatDate(latest)}`}
+        tone={tone}
+      >
+        {docs.some((doc) => doc.mime_type.startsWith('image/')) && (
+          <p className="flex items-center gap-2 font-mono-label text-[10px] opacity-60">
+            <Maximize2 className="size-3.5" /> Klik gambar untuk memperbesar
+          </p>
+        )}
+      </ChapterHeader>
       <div className="flex flex-col">
         {docs.map((doc) => {
           const isImage = doc.mime_type.startsWith('image/')
           return isImage ? (
-            <button
-              key={doc.id}
-              type="button"
-              onClick={() => setOpenDoc(doc)}
-              className={`group relative block w-full overflow-hidden ${FULL_BLEED}`}
-            >
-              {/* Full width, natural height — no forced box, so no side letterbox
-                  bars and nothing cropped, whatever the image's own proportions. */}
-              <img src={fileUrl(doc)} alt={doc.title ?? label} className="block h-auto w-full" />
-              <span className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                <Maximize2 className="size-4" />
-              </span>
-            </button>
+            <ScrollAperture key={doc.id} className={FULL_BLEED}>
+              <button
+                type="button"
+                onClick={() => setOpenDoc(doc)}
+                className="group relative block w-full overflow-hidden"
+              >
+                {/* Full width, natural height — no forced box, so no side letterbox
+                    bars and nothing cropped, whatever the image's own proportions. */}
+                <img src={fileUrl(doc)} alt={doc.title ?? label} className="block h-auto w-full" />
+                <span className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                  <Maximize2 className="size-4" />
+                </span>
+              </button>
+            </ScrollAperture>
           ) : (
             <button
               key={doc.id}

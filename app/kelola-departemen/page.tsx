@@ -48,6 +48,7 @@ export default function KelolaDepartemenPage() {
   const [addingDept, setAddingDept] = useState(false)
   const [newDeptName, setNewDeptName] = useState('')
   const [savingDept, setSavingDept] = useState(false)
+  const [deptError, setDeptError] = useState('')
 
   const loadDepartments = useCallback(async () => {
     setLoading(true)
@@ -73,14 +74,19 @@ export default function KelolaDepartemenPage() {
   const addDepartment = async () => {
     if (!newDeptName.trim()) return
     setSavingDept(true)
+    setDeptError('')
     try {
       const res = await fetch(`${API_BASE_PATH}/api/departments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newDeptName.trim() }) })
+      const data = await res.json().catch(() => null)
       if (res.ok) {
-        const data = await res.json()
         setAddingDept(false); setNewDeptName('')
         await loadDepartments()
-        setSelectedDeptId(data.department?.id ?? null)
+        setSelectedDeptId(data?.department?.id ?? null)
+      } else {
+        setDeptError(data?.message ?? 'Gagal menambahkan departemen.')
       }
+    } catch {
+      setDeptError('Tidak dapat menghubungi server.')
     } finally {
       setSavingDept(false)
     }
@@ -159,6 +165,7 @@ export default function KelolaDepartemenPage() {
           <p>Belum ada departemen.</p>
           {isAdmin && (
             addingDept ? (
+              <>
               <div className="flex w-full max-w-sm items-center gap-2">
                 <input
                   value={newDeptName}
@@ -169,11 +176,13 @@ export default function KelolaDepartemenPage() {
                   className={inputClass}
                 />
                 <button onClick={addDepartment} disabled={savingDept} className={`${iconButtonClass} text-primary`} aria-label="Simpan departemen"><Check className="size-4" /></button>
-                <button onClick={() => { setAddingDept(false); setNewDeptName('') }} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
+                <button onClick={() => { setAddingDept(false); setNewDeptName(''); setDeptError('') }} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
               </div>
+              {deptError && <p className="w-full max-w-sm text-xs text-destructive">{deptError}</p>}
+              </>
             ) : (
               <button
-                onClick={() => { setAddingDept(true); setNewDeptName('') }}
+                onClick={() => { setAddingDept(true); setNewDeptName(''); setDeptError('') }}
                 className="flex items-center gap-2 rounded-xl border border-dashed border-primary/40 px-4 py-2 text-xs font-semibold text-primary transition hover:bg-primary/5"
               >
                 <Plus className="size-4" /> Tambah dept
@@ -198,6 +207,7 @@ export default function KelolaDepartemenPage() {
               </div>
               {isAdmin && (
                 addingDept ? (
+                  <>
                   <div className="mt-3 flex items-center gap-2">
                     <input
                       value={newDeptName}
@@ -208,11 +218,13 @@ export default function KelolaDepartemenPage() {
                       className={inputClass}
                     />
                     <button onClick={addDepartment} disabled={savingDept} className={`${iconButtonClass} text-primary`} aria-label="Simpan departemen"><Check className="size-4" /></button>
-                    <button onClick={() => { setAddingDept(false); setNewDeptName('') }} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
+                    <button onClick={() => { setAddingDept(false); setNewDeptName(''); setDeptError('') }} className={iconButtonClass} aria-label="Batal"><X className="size-4" /></button>
                   </div>
+                  {deptError && <p className="mt-2 text-xs text-destructive">{deptError}</p>}
+                  </>
                 ) : (
                   <button
-                    onClick={() => { setAddingDept(true); setNewDeptName('') }}
+                    onClick={() => { setAddingDept(true); setNewDeptName(''); setDeptError('') }}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary/40 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/5"
                   >
                     <Plus className="size-4" /> Tambah dept

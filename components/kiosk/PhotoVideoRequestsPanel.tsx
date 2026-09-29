@@ -70,7 +70,7 @@ export function PhotoVideoRequestsPanel() {
         >
           <span
             className="grid size-9 flex-shrink-0 place-items-center rounded-lg text-white"
-            style={{ background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' }}
+            style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)' }}
           >
             <Camera className="size-4" />
           </span>

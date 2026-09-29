@@ -1,7 +1,7 @@
 // app/api/smtp-settings/test/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
-import { getSmtpSettings, verifySmtpConnection, type Encryption } from '@/lib/smtp'
+import { describeSmtpError, getSmtpSettings, verifySmtpConnection, type Encryption } from '@/lib/smtp'
 
 const ENCRYPTIONS: Encryption[] = ['none', 'tls', 'ssl']
 function isEncryption(value: unknown): value is Encryption {
@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Koneksi SMTP berhasil.' })
   } catch (error) {
     console.error('[smtp-settings/test/POST]', error)
-    const message = error instanceof Error ? error.message : 'Gagal terhubung ke server SMTP.'
-    return NextResponse.json({ message: `Koneksi SMTP gagal: ${message}` }, { status: 400 })
+    return NextResponse.json({ message: `Koneksi SMTP gagal. ${describeSmtpError(error)}` }, { status: 400 })
   }
 }

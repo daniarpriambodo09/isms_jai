@@ -3,8 +3,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Download, Eye, FileText, FolderOpen, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { Download, Eye, FileText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { FolderHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { DocumentFormModal, type EditableDocument } from '@/components/documents/DocumentFormModal'
@@ -14,8 +15,8 @@ import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
 
 type ApiDocument = { id: number; title: string; revision: string; file_path: string; uploaded_at: string }
-type DepartmentInfo = { id: number; name: string; slug: string }
 type SectionInfo = { id: number; name: string; slug: string }
+type DepartmentInfo = { id: number; name: string; slug: string; sections: SectionInfo[] }
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -123,16 +124,12 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="relative overflow-hidden rounded-[1.25rem] border border-border bg-primary p-6 text-primary-foreground shadow-xl shadow-primary/10 sm:p-8">
-        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
-          <div className="max-w-2xl">
-            <div className="mb-4 flex items-center gap-2 text-xs text-primary-foreground/65"><FolderOpen className="size-4" /> Document register <span className="text-primary-foreground/35">/</span> {department.name}</div>
-            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{section ? section.name : department.name}</h2>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/72">Kumpulan dokumen terkendali untuk {section ? `section ${section.name}` : `departemen ${department.name}`}.</p>
-          </div>
-          {isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus /> Tambah Dokumen</button>}
-        </div>
-      </section>
+      <FolderHero
+        department={department}
+        section={section}
+        count={docs.length}
+        action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" /> Tambah Dokumen</button>}
+      />
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{docs.length} dokumen terdaftar</p></div>

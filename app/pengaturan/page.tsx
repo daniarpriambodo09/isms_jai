@@ -129,11 +129,11 @@ export default function PengaturanPage() {
             <span
               className="flex size-11 items-center justify-center rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, oklch(0.39 0.09 205 / 18%) 0%, oklch(0.48 0.12 180 / 10%) 100%)',
-                border: '1px solid oklch(0.39 0.09 205 / 22%)',
+                background: 'linear-gradient(135deg, color-mix(in oklch, var(--primary) 18%, transparent) 0%, color-mix(in oklch, var(--p-550) 10%, transparent) 100%)',
+                border: '1px solid color-mix(in oklch, var(--primary) 22%, transparent)',
               }}
             >
-              <Settings className="size-5" style={{ color: 'oklch(0.48 0.12 180)' }} />
+              <Settings className="size-5" style={{ color: 'var(--p-550)' }} />
             </span>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -203,8 +203,8 @@ export default function PengaturanPage() {
                 disabled={status === 'saving'}
                 className="flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
                 style={{
-                  background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)',
-                  boxShadow: '0 3px 12px oklch(0.39 0.09 205 / 35%)',
+                  background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)',
+                  boxShadow: '0 3px 12px color-mix(in oklch, var(--primary) 35%, transparent)',
                 }}
               >
                 {status === 'saving' && <Loader2 className="size-4 animate-spin" />}
@@ -271,8 +271,8 @@ export default function PengaturanPage() {
               disabled={passwordStatus === 'saving'}
               className="flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-60"
               style={{
-                background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)',
-                boxShadow: '0 3px 12px oklch(0.39 0.09 205 / 35%)',
+                background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)',
+                boxShadow: '0 3px 12px color-mix(in oklch, var(--primary) 35%, transparent)',
               }}
             >
               {passwordStatus === 'saving' && <Loader2 className="size-4 animate-spin" />}

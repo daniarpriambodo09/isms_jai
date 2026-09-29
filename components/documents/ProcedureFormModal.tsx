@@ -11,7 +11,11 @@ export type EditableProcedure = {
   title: string
   revision: number
   elfDate: string
+  approvalRoles: string[]
+  note: string | null
 }
+
+type ApproverRole = { code: string; title: string; person_name: string; email: string | null; sort_order: number; is_default: boolean }
 
 function todayAsInputValue() {
   const today = new Date()
@@ -37,6 +41,9 @@ export function ProcedureFormModal({
   const [elfDate, setElfDate] = useState('')
   const [revision, setRevision] = useState('1')
   const [file, setFile] = useState<File | null>(null)
+  const [note, setNote] = useState('')
+  const [roles, setRoles] = useState<ApproverRole[]>([])
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -48,10 +55,33 @@ export function ProcedureFormModal({
       setTitle(document?.title ?? '')
       setElfDate(document?.elfDate ?? todayAsInputValue())
       setRevision(String(document?.revision ?? 1))
+      setNote(document?.note ?? '')
+      setSelectedRoles(document?.approvalRoles ?? [])
       setFile(null)
       setError(null)
     }
   }, [open, document])
+
+  // Approver positions (Kelola Pengesahan). New documents start with the
+  // roles marked "default"; existing ones keep what they had.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch(`${API_BASE_PATH}/api/prosedur-approver-roles`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { roles: [] }))
+      .then((data: { roles?: ApproverRole[] }) => {
+        if (cancelled) return
+        const list = data.roles ?? []
+        setRoles(list)
+        if (!isEdit) setSelectedRoles(list.filter((role) => role.is_default).map((role) => role.code))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [open, isEdit])
+
+  const toggleRole = (code: string) =>
+    setSelectedRoles((current) => (current.includes(code) ? current.filter((c) => c !== code) : [...current, code]))
+  const orderedSelection = roles.filter((role) => selectedRoles.includes(role.code))
 
   if (!open) return null
 
@@ -69,6 +99,8 @@ export function ProcedureFormModal({
       formData.set('controlNo', controlNo)
       formData.set('title', title)
       formData.set('elfDate', elfDate)
+      formData.set('approvalRoles', JSON.stringify(orderedSelection.map((role) => role.code)))
+      formData.set('note', note)
       if (file) formData.set('file', file)
       if (document) {
         formData.set('id', String(document.id))
@@ -95,24 +127,47 @@ export function ProcedureFormModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.5)] p-4">
-      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'} className="w-full max-w-[460px] rounded-2xl bg-white p-6 shadow-[0_20px_50px_rgba(14,34,53,0.25)]">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4">
+      <div role="dialog" aria-modal="true" aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'} className="max-h-[92vh] w-full max-w-[520px] overflow-y-auto rounded-2xl bg-white p-6 shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)]">
         <div className="mb-5 flex items-start justify-between">
           <div>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[#7290a5]">PROSEDUR ISMS</div>
-            <h2 className="text-[18px] font-bold text-[#20354a]">{isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}</h2>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-[color:var(--p-muted)]">PROSEDUR ISMS</div>
+            <h2 className="text-[18px] font-bold text-[color:var(--p-800)]">{isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[#8798a8] hover:bg-[#f0f4f7]"><X className="w-[18px]" /></button>
+          <button type="button" onClick={onClose} aria-label="Tutup" className="grid h-8 w-8 place-items-center rounded-full text-[color:var(--p-muted2)] hover:bg-[color:var(--p-surface2)]"><X className="w-[18px]" /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[#3c5369]">No. Kontrol</span><input value={controlNo} onChange={(event) => setControlNo(event.target.value)} required placeholder="Contoh: P14-001" className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]" /></label>
-          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[#3c5369]">Nama Dokumen</span><input value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus placeholder="Contoh: Prosedur Pengendalian Dokumen" className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]" /></label>
-          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[#3c5369]">Eff Date</span><input type="date" value={elfDate} onChange={(event) => setElfDate(event.target.value)} required aria-label="Pilih Eff Date" className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none [color-scheme:light] focus:border-[#278e84] [&::-webkit-calendar-picker-indicator]:ml-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-[5px] [&::-webkit-calendar-picker-indicator]:bg-[#20354a] [&::-webkit-calendar-picker-indicator]:p-[3px] [&::-webkit-calendar-picker-indicator]:[filter:invert(1)]" /></label>
-          {isEdit && <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[#3c5369]">Revisi</span><input type="number" min={1} step={1} value={revision} onChange={(event) => setRevision(event.target.value)} required className="h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84]" /></label>}
-          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[#3c5369]">{isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}</span><input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#20354a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />{isEdit && <span className="text-[11px] text-[#8798a8]">Kosongkan jika hanya mengubah data dokumen.</span>}</label>
-          {error && <p className="rounded-[6px] bg-[#fdecec] px-3 py-2 text-[12px] text-[#b3413a]">{error}</p>}
-          <button type="submit" disabled={submitting} className="mt-1 inline-flex h-10 items-center justify-center rounded-[7px] bg-[#20354a] text-[13px] font-medium text-white hover:bg-[#284360] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? 'Menyimpan...' : 'Simpan'}</button>
+          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">No. Kontrol</span><input value={controlNo} onChange={(event) => setControlNo(event.target.value)} required placeholder="Contoh: P14-001" className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
+          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Nama Dokumen</span><input value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus placeholder="Contoh: Prosedur Pengendalian Dokumen" className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
+          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Eff Date</span><input type="date" value={elfDate} onChange={(event) => setElfDate(event.target.value)} required aria-label="Pilih Eff Date" className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none [color-scheme:light] focus:border-[color:var(--p-600)] [&::-webkit-calendar-picker-indicator]:ml-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-[5px] [&::-webkit-calendar-picker-indicator]:bg-[color:var(--p-800)] [&::-webkit-calendar-picker-indicator]:p-[3px] [&::-webkit-calendar-picker-indicator]:[filter:invert(1)]" /></label>
+          {isEdit && <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Revisi</span><input type="number" min={1} step={1} value={revision} onChange={(event) => setRevision(event.target.value)} required className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>}
+          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">{isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}</span><input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />{isEdit && <span className="text-[11px] text-[color:var(--p-muted2)]">Kosongkan jika hanya mengubah data dokumen.</span>}</label>
+
+          <fieldset className="flex flex-col gap-2 rounded-[10px] border border-[color:var(--p-border)] p-3">
+            <legend className="px-1 text-[12px] font-medium text-[color:var(--p-ink2)]">Catatan Pengesahan</legend>
+            {roles.length === 0 && <p className="text-[11.5px] text-[color:var(--p-muted2)]">Memuat daftar jabatan…</p>}
+            {roles.map((role) => (
+              <label key={role.code} className="flex cursor-pointer items-start gap-2.5 rounded-[7px] px-1.5 py-1 hover:bg-[color:var(--p-surface2)]">
+                <input type="checkbox" checked={selectedRoles.includes(role.code)} onChange={() => toggleRole(role.code)} className="mt-0.5 size-4 accent-[color:var(--p-700)]" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12.5px] font-medium text-[color:var(--p-800)]">{role.title}</span>
+                  <span className="block text-[11.5px] text-[color:var(--p-muted)]">{role.person_name}{!role.email && <span className="ml-1 text-[#b3413a]">· email belum diisi</span>}</span>
+                </span>
+                <span className="rounded-full bg-[color:var(--p-surface2)] px-2 py-0.5 font-mono text-[10px] text-[color:var(--p-muted)]">{role.code}</span>
+              </label>
+            ))}
+            <p className="px-1 text-[11px] leading-4 text-[color:var(--p-muted2)]">
+              {orderedSelection.length === 0
+                ? 'Tidak dicentang = dokumen tidak memerlukan pengesahan (tampil "–").'
+                : `Email dikirim berurutan: ${orderedSelection.map((role) => role.code).join(' → ')}.${isEdit ? ' Mengganti file, revisi, atau jabatan akan memulai ulang pengesahan.' : ''}`}
+            </p>
+          </fieldset>
+
+          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Note Dokumen (opsional)</span><textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} maxLength={1000} placeholder="Catatan untuk dokumen ini" className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
+
+          {error &&<p className="rounded-[6px] bg-[#fdecec] px-3 py-2 text-[12px] text-[#b3413a]">{error}</p>}
+          <button type="submit" disabled={submitting} className="mt-1 inline-flex h-10 items-center justify-center rounded-[7px] bg-[color:var(--p-800)] text-[13px] font-medium text-white hover:bg-[color:var(--p-750)] disabled:cursor-not-allowed disabled:opacity-60">{submitting ? 'Menyimpan...' : 'Simpan'}</button>
         </form>
       </div>
     </div>

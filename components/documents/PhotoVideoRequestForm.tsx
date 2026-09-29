@@ -309,24 +309,24 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      <section
-        className="relative overflow-hidden rounded-[1.75rem] border border-border p-6 text-primary-foreground shadow-xl sm:p-8"
-        style={{ background: 'linear-gradient(135deg, #1a3a52 0%, #1a5f7a 45%, #278e84 100%)' }}
-      >
-        <div className="pointer-events-none absolute -right-14 -top-16 h-48 w-48 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
-        <div className="pointer-events-none absolute -bottom-10 left-1/4 h-32 w-32 rounded-full opacity-[0.08]" style={{ background: 'radial-gradient(circle, white 0%, transparent 70%)' }} />
-
-        <div className="relative z-10">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]">
-            {isInternal ? <Users className="size-3.5" /> : <Sparkles className="size-3.5" />}
-            {isInternal ? 'Internal / All Dept.' : 'Visitor'}
+      {/* Form slip header — light, so it doesn't compete with the page's viewfinder hero */}
+      <section className="relative overflow-hidden rounded-t-[1.75rem] border border-b-0 border-border bg-card px-6 pb-6 pt-6 sm:px-8">
+        <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-accent" />
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 font-mono-label text-[10px] font-semibold text-primary">
+              {isInternal ? <Users className="size-3.5" /> : <Sparkles className="size-3.5" />}
+              {isInternal ? 'Internal / All Dept.' : 'Visitor'}
+            </div>
+            <h1 className="mt-3 text-balance font-display text-2xl font-semibold text-foreground sm:text-3xl">{heading}</h1>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{subheading}</p>
           </div>
-          <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">{heading}</h1>
-          <p className="mt-2 max-w-md text-sm leading-6 text-primary-foreground/72">{subheading}</p>
+          <span aria-hidden className="font-mono text-[10px] text-muted-foreground max-[520px]:hidden">FORM · {isInternal ? 'INT' : 'VIS'}</span>
         </div>
+        <div aria-hidden className="absolute inset-x-6 bottom-0 border-b-2 border-dashed border-border sm:inset-x-8" />
       </section>
 
-      <form onSubmit={handleSubmit} className="mt-6 rounded-[1.75rem] border border-border bg-card p-6 shadow-md sm:p-8">
+      <form onSubmit={handleSubmit} className="rounded-b-[1.75rem] border border-t-0 border-border bg-card p-6 shadow-md sm:p-8">
         <div className="mb-6 flex items-center gap-2">
           <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary"><Users className="size-4" /></span>
           <p className="portal-eyebrow">{isInternal ? 'Data Pemohon' : 'Requester Details'}</p>
@@ -526,7 +526,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
             type="submit"
             disabled={submitting}
             className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, oklch(0.7 0.15 55) 0%, oklch(0.75 0.18 50) 100%)', color: '#1a2f1a' }}
+            style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--a-bright) 100%)', color: '#1a2f1a' }}
           >
             {submitting ? 'Mengirim...' : <><Send className="size-4" />{submitLabel}</>}
           </button>

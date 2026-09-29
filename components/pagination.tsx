@@ -60,7 +60,7 @@ export function Pagination({
               className={`grid size-7 place-items-center rounded-md text-[11px] font-semibold transition ${
                 p === page ? 'text-white' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
-              style={p === page ? { background: 'linear-gradient(135deg, oklch(0.39 0.09 205) 0%, oklch(0.48 0.12 180) 100%)' } : undefined}
+              style={p === page ? { background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)' } : undefined}
             >
               {p}
             </button>

@@ -95,24 +95,24 @@ export function EducationFormModal({
   }
 
   const inputClass =
-    'h-10 rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 text-[13px] text-[#20354a] outline-none focus:border-[#278e84] focus:ring-2 focus:ring-[#278e84]/20 transition-colors'
+    'h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)] focus:ring-2 focus:ring-[color:var(--p-600)]/20 transition-colors'
   const labelClass = 'flex flex-col gap-[6px]'
-  const labelTextClass = 'text-[12px] font-semibold text-[#3c5369]'
+  const labelTextClass = 'text-[12px] font-semibold text-[color:var(--p-ink2)]'
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(14,34,53,0.55)] p-4 backdrop-blur-[2px]">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_55%,_transparent)] p-4 backdrop-blur-[2px]">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={isEdit ? 'Edit Dokumen' : 'Tambah Dokumen'}
-        className="w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgba(14,34,53,0.28)]"
+        className="w-full max-w-[480px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_color-mix(in_oklch,_var(--p-950)_28%,_transparent)]"
         style={{ animation: 'dropdown-in 200ms cubic-bezier(0.22,1,0.36,1) both' }}
       >
         {/* Modal header */}
         <div
           className="flex items-center justify-between px-6 py-5"
           style={{
-            background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
+            background: 'linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%)',
           }}
         >
           <div className="flex items-center gap-3">
@@ -188,9 +188,9 @@ export function EducationFormModal({
               type="file"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               required={!isEdit}
-              className="rounded-[7px] border border-[#dce6ed] bg-[#fbfcfd] px-3 py-2 text-[12px] text-[#40566a] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[#1a5f7a] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white hover:file:bg-[#278e84]"
+              className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-700)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white hover:file:bg-[color:var(--p-600)]"
             />
-            <span className="text-[11px] text-[#8798a8]">
+            <span className="text-[11px] text-[color:var(--p-muted2)]">
               {isEdit ? 'Kosongkan jika hanya mengubah data dokumen.' : 'Sesuaikan file dengan kategori — PDF, video, PPT, dokumen, dll.'}
             </span>
           </label>
@@ -205,7 +205,7 @@ export function EducationFormModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-[7px] border border-[#dce6ed] bg-white py-2.5 text-[13px] font-medium text-[#3c5369] transition-colors hover:bg-[#f5f8fa]"
+              className="flex-1 rounded-[7px] border border-[color:var(--p-border)] bg-white py-2.5 text-[13px] font-medium text-[color:var(--p-ink2)] transition-colors hover:bg-[color:var(--p-surface2)]"
             >
               Batal
             </button>
@@ -214,7 +214,7 @@ export function EducationFormModal({
               disabled={submitting}
               className="flex-1 rounded-[7px] py-2.5 text-[13px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
               style={{
-                background: 'linear-gradient(135deg, #1a5f7a 0%, #278e84 100%)',
+                background: 'linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%)',
               }}
             >
               {submitting ? 'Menyimpan...' : 'Simpan'}

@@ -89,9 +89,13 @@ export async function POST(request: NextRequest) {
     const companyRemark = typeof body.companyRemark === 'string' ? body.companyRemark.trim() : ''
     const barcode = typeof body.barcode === 'string' ? body.barcode.trim() : ''
 
+    // Affiliate guests (Yazaki group colleagues) are registered without an
+    // identity card or a PIC JAI to meet — both stored as "-" (NOT NULL columns).
+    const isAffiliate = body.cardType === 'affiliate'
+
     if (!fullName) return NextResponse.json({ message: 'Nama lengkap wajib diisi.' }, { status: 400 })
-    if (!idCard) return NextResponse.json({ message: 'Kartu identitas wajib diisi.' }, { status: 400 })
-    if (!picJai) return NextResponse.json({ message: 'PIC JAI yang ditemui wajib diisi.' }, { status: 400 })
+    if (!idCard && !isAffiliate) return NextResponse.json({ message: 'Kartu identitas wajib diisi.' }, { status: 400 })
+    if (!picJai && !isAffiliate) return NextResponse.json({ message: 'PIC JAI yang ditemui wajib diisi.' }, { status: 400 })
     if (!purpose) return NextResponse.json({ message: 'Tujuan wajib diisi.' }, { status: 400 })
     if (!companyRemark) return NextResponse.json({ message: 'Keterangan (perusahaan) wajib diisi.' }, { status: 400 })
 
@@ -118,7 +122,7 @@ export async function POST(request: NextRequest) {
             entry_path, stage, current_card_type, ${column}, entry_at)
          VALUES ($1, $2, $3, $4, $5, $6, 'lobby_affiliate', 'active', $7, $8, now())
          RETURNING ${SELECT_COLUMNS}`,
-        [fullName, idCard, picJai, purpose, companyRemark, session.username, cardType, barcode]
+        [fullName, idCard || '-', picJai || '-', purpose, companyRemark, session.username, cardType, barcode]
       )
       await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu ${CARD_LABEL[cardType]} "${result.rows[0].full_name}"`)
       return NextResponse.json({ registration: result.rows[0] }, { status: 201 })

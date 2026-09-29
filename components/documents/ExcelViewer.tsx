@@ -71,7 +71,7 @@ export default function ExcelViewer({ filePath, fileName }: { filePath: string; 
         <a
           href={serveUrl}
           download={downloadName}
-          className="inline-flex items-center gap-1.5 rounded-md bg-[#20354a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#284360]"
+          className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--p-800)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[color:var(--p-750)]"
         >
           <Download className="size-4" /> Download File
         </a>
@@ -81,7 +81,7 @@ export default function ExcelViewer({ filePath, fileName }: { filePath: string; 
 
   return (
     <div className="flex h-full w-full flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#e4edf2] bg-slate-50 px-3 py-2">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[color:var(--p-border)] bg-slate-50 px-3 py-2">
         {sheetNames.length > 1 ? (
           <div className="flex gap-1 overflow-x-auto">
             {sheetNames.map((name, index) => (
@@ -89,7 +89,7 @@ export default function ExcelViewer({ filePath, fileName }: { filePath: string; 
                 key={name}
                 type="button"
                 onClick={() => setActiveSheet(index)}
-                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition ${index === activeSheet ? 'bg-[#20354a] text-white' : 'text-[#3c5369] hover:bg-slate-200'}`}
+                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition ${index === activeSheet ? 'bg-[color:var(--p-800)] text-white' : 'text-[color:var(--p-ink2)] hover:bg-slate-200'}`}
               >
                 {name}
               </button>
@@ -99,7 +99,7 @@ export default function ExcelViewer({ filePath, fileName }: { filePath: string; 
         <a
           href={serveUrl}
           download={downloadName}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#20354a] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#284360]"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--p-800)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[color:var(--p-750)]"
         >
           <Download className="size-3.5" /> Download
         </a>
@@ -112,7 +112,7 @@ export default function ExcelViewer({ filePath, fileName }: { filePath: string; 
       />
       <style jsx global>{`
         .excel-viewer-table table { border-collapse: collapse; font-size: 12px; }
-        .excel-viewer-table td, .excel-viewer-table th { border: 1px solid #e4edf2; padding: 4px 8px; white-space: nowrap; }
+        .excel-viewer-table td, .excel-viewer-table th { border: 1px solid var(--p-border); padding: 4px 8px; white-space: nowrap; }
       `}</style>
     </div>
   )

@@ -473,7 +473,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Pengajuan Internal tidak melalui proses approve/tolak admin — memilih PIC di sini sekaligus menjadi persetujuan, dan pengajuan langsung tercatat Disetujui.
+                Pengajuan akan berstatus Menunggu sampai disetujui atau ditolak oleh Admin ISM. Cek statusnya dengan nomor referensi setelah mengirim.
               </p>
             </Field>
           ) : (

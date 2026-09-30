@@ -10,6 +10,7 @@ import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
+import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
 import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, useKioskAutoRefresh, type Registration } from '@/components/kiosk/kiosk-shared'
@@ -619,7 +620,8 @@ export function LobbyView() {
 
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography', 'affiliate']} />
-        <PhotoVideoRequestsPanel />
+        <PhotoVideoRequestsPanel canSubmit={false} />
+        <SpecialAreaRequestsPanel />
 
         <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
           <p className="portal-eyebrow mb-2">Scan Kartu Tamu</p>

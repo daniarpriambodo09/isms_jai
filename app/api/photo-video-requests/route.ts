@@ -178,14 +178,11 @@ export async function POST(request: NextRequest) {
     // approve/reject route).
     const approvalToken = requestType === 'visitor' ? randomBytes(24).toString('hex') : null
 
-    // Internal requests skip the admin decision step entirely — picking a
-    // real PIC Approve, camera, and ID Photography at submission time IS
-    // the approval, so the row is inserted already 'approved' instead of
-    // 'pending'. Visitor keeps the normal pending -> approved/rejected flow,
-    // decided externally via the emailed approve/reject link.
-    const status = requestType === 'internal' ? 'approved' : 'pending'
-    const decidedAt = requestType === 'internal' ? 'now()' : 'NULL'
-    const decisionNote = requestType === 'internal' ? 'Disetujui otomatis saat pengajuan (Internal) — tidak melalui approval admin.' : null
+    // Every request starts 'pending'. Internal ones are decided by an ISM
+    // Admin in /kelola-permintaan-foto-video (they used to be inserted
+    // already 'approved', which skipped the admin entirely); Visitor ones
+    // are decided via the emailed approve/reject link (or by the admin).
+    const status = 'pending'
 
     // Secret half of the reference code shown to the requester ("42-A1B2C3D4E5")
     // — the bare sequential id alone would let anyone look up or cancel other
@@ -194,10 +191,10 @@ export async function POST(request: NextRequest) {
 
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
-         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, decided_at, decision_note, ref_token)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, ${decidedAt}, $18, $19)
+         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING id`,
-      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, decisionNote, refToken]
+      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,

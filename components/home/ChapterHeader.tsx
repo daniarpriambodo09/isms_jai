@@ -5,7 +5,8 @@
 // full-bleed media strips read as distinct sections instead of one long run
 // of images. Numbers come from a CSS counter (.home-chapters in globals.css),
 // so a section that renders nothing never leaves a hole in the numbering.
-// The title rises in (same blur-rise as the hero words) once it scrolls into view.
+// The title rises out of a line mask (.line-mask in globals.css) once it
+// scrolls into view.
 
 'use client'
 
@@ -50,10 +51,14 @@ export function ChapterHeader({ eyebrow, title, meta, tone = 'light', children }
           {meta && <span className="text-right">{meta}</span>}
         </div>
         <div className="mt-6 flex flex-wrap items-end justify-between gap-6">
-          <h2 className={`font-display text-[clamp(2.2rem,5vw,4.4rem)] font-semibold leading-[0.95] ${inView ? 'hero-word' : 'chapter-title-pending'}`}>
-            <span className="flex items-baseline gap-4">
-              <span aria-hidden className={`chapter-num font-mono text-[0.32em] font-semibold tracking-normal ${t.number}`} />
-              <span>{title}</span>
+          <h2 className={`font-display text-[clamp(2.2rem,5vw,4.4rem)] font-semibold leading-[0.95] ${inView ? 'is-in' : ''}`}>
+            <span className="line-mask">
+              <span>
+                <span className="flex items-baseline gap-4">
+                  <span aria-hidden className={`chapter-num font-mono text-[0.32em] font-semibold tracking-normal ${t.number}`} />
+                  <span>{title}</span>
+                </span>
+              </span>
             </span>
           </h2>
           {children}

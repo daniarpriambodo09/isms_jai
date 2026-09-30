@@ -34,12 +34,46 @@ function useNow(intervalMs = 60_000) {
   return now
 }
 
+// Terminal-style line under the manifesto eyebrow (motionsites "Sentinel"):
+// types each phrase, holds, erases, moves on. Reduced motion shows the first
+// phrase statically.
+const TYPED_PHRASES = ['lindungi_informasi', 'kendalikan_akses', 'klasifikasikan_dokumen', 'laporkan_insiden']
+
+function TypedLine() {
+  const [text, setText] = useState('')
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setText(TYPED_PHRASES[0]); return }
+    let phrase = 0
+    let length = 0
+    let deleting = false
+    let timer = 0
+    const step = () => {
+      const target = TYPED_PHRASES[phrase]
+      length += deleting ? -1 : 1
+      setText(target.slice(0, length))
+      let delay = deleting ? 35 : 70
+      if (!deleting && length === target.length) { deleting = true; delay = 1800 }
+      else if (deleting && length === 0) { deleting = false; phrase = (phrase + 1) % TYPED_PHRASES.length; delay = 350 }
+      timer = window.setTimeout(step, delay)
+    }
+    timer = window.setTimeout(step, 600)
+    return () => window.clearTimeout(timer)
+  }, [])
+  return (
+    <p className="mt-3 font-mono text-[12.5px] text-muted-foreground" aria-hidden>
+      <span className="text-[color:var(--p-600)]">isms@jai:~$</span> {text}
+      <span className="typed-caret ml-0.5 inline-block h-[1.05em] w-[0.55em] translate-y-[0.15em] bg-[color:var(--p-600)]" />
+    </p>
+  )
+}
+
 // ─── Kebijakan Dasar ISMS — manifesto ───
 export function ManifestoHero({ action }: WithAction) {
   return (
     <section className="relative isolate overflow-hidden pb-2 pt-4 text-center">
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-6 -z-10 size-[460px] -translate-x-1/2 rounded-full bg-accent/20 blur-3xl" />
       <p className="portal-eyebrow">Information Security Policy</p>
+      <TypedLine />
       <h2 className="mx-auto mt-5 max-w-4xl text-balance font-display text-[clamp(2.5rem,6.2vw,5.4rem)] font-semibold leading-[0.95] text-foreground">
         Satu kebijakan, <span className="font-serif-accent text-[color:var(--p-600)]">dijaga</span> bersama.
       </h2>

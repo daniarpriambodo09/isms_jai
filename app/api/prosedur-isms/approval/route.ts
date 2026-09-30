@@ -6,7 +6,7 @@
 // approve anything) and single-use (a step can only leave 'pending' once).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { decideByToken, getByToken, verifyBaseUrl } from '@/lib/procedure-approval'
+import { decideByToken, getByToken, latestRevisionRequest, parseRevisionNotes, verifyBaseUrl } from '@/lib/procedure-approval'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
   try {
     const view = await getByToken(token)
     if (!view) return NextResponse.json({ message: 'Link tidak ditemukan atau sudah tidak berlaku.' }, { status: 404 })
+    // The last "Minta Revisi" on this document — its notes, whichever cycle
+    // it came from (the page shows it as "what was asked to be fixed").
+    const revisionRequest = await latestRevisionRequest(view.document.id)
     return NextResponse.json({
+      revisionRequest,
       step: view.step,
       document: {
         control_no: view.document.control_no,
@@ -42,10 +46,14 @@ export async function POST(request: NextRequest) {
     const token = typeof body.token === 'string' ? body.token : ''
     const action = body.action === 'approve' || body.action === 'reject' ? body.action : null
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim().slice(0, 1000) : null
+    // "Minta Revisi": notes pinned on the document, plus the general note above.
+    const notes = action === 'reject' ? parseRevisionNotes(body.notes) : []
     if (!token || !action) return NextResponse.json({ message: 'Permintaan tidak valid.' }, { status: 400 })
-    if (action === 'reject' && !note) return NextResponse.json({ message: 'Alasan penolakan wajib diisi.' }, { status: 400 })
+    if (action === 'reject' && !note && !notes.some((n) => n.page !== null)) {
+      return NextResponse.json({ message: 'Tuliskan minimal satu catatan revisi.' }, { status: 400 })
+    }
 
-    const result = await decideByToken(token, action, note)
+    const result = await decideByToken(token, action, note, notes)
     return NextResponse.json({ message: result.message }, { status: result.ok ? 200 : 409 })
   } catch (error) {
     console.error('[prosedur-isms/approval/POST]', error)

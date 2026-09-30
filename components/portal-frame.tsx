@@ -3,9 +3,10 @@
 'use client'
 
 import { useEffect } from 'react'
-import { ArrowUpRight, ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
+import { ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
+import { PortalFooter } from '@/components/portal-footer'
 import { ScrollReveal } from '@/components/scroll-reveal'
 import { titleFor } from '@/lib/portal-data'
 import { useAuth } from '@/context/AuthContext'
@@ -37,7 +38,7 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
 // the frame then shows only the breadcrumb row, not a duplicate giant title.
 const OWN_HERO_PREFIXES = [
   '/kebijakan-dasar-ISMS', '/prosedur-isms', '/standard-isms-p14', '/working-standard', '/education',
-  '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/verifikasi-pengesahan',
+  '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/verifikasi-pengesahan', '/persetujuan-area-special', '/verifikasi-area-special',
 ]
 
 export function PortalFrame({ children }: { children: React.ReactNode }) {
@@ -122,78 +123,7 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
       </main>
       <ScrollReveal rootId="portal-main" />
 
-      {/* ─── Footer ─── */}
-      <footer className="relative mt-10 overflow-hidden bg-primary text-primary-foreground">
-        {/* Acid ticker band */}
-        <div className="overflow-hidden border-b border-primary-foreground/10 bg-accent py-2.5 text-accent-foreground">
-          <div className="marquee-track flex w-max gap-10 whitespace-nowrap font-mono-label text-[11px] font-semibold">
-            {Array.from({ length: 2 }).map((_, copy) => (
-              <div key={copy} className="flex gap-10" aria-hidden={copy === 1}>
-                {['Confidentiality', 'Integrity', 'Availability', 'ISO/IEC 27001', 'Information Security Committee', 'PT. Jatim Autocomp Indonesia'].map((word) => (
-                  <span key={word} className="flex items-center gap-10">{word}<span className="size-1.5 rounded-full bg-accent-foreground" /></span>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative mx-auto max-w-[1480px] px-10 pb-8 pt-14 max-[900px]:px-6 max-[680px]:px-4 max-[680px]:pt-10">
-          <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
-            {/* Column 1 — Brand statement */}
-            <div>
-              <p className="font-mono-label text-[10.5px] text-primary-foreground/50">(01) — Portal</p>
-              <p className="mt-4 max-w-md font-display text-[clamp(1.6rem,2.6vw,2.2rem)] font-semibold leading-[1.05]">
-                Keamanan informasi adalah <span className="font-serif-accent text-accent">tanggung jawab</span> kita bersama.
-              </p>
-            </div>
-
-            {/* Column 2 — Quick links */}
-            <div>
-              <p className="font-mono-label text-[10.5px] text-primary-foreground/50">(02) — Navigasi</p>
-              <div className="mt-4 flex flex-col gap-2">
-                {[
-                  ['Kebijakan Dasar ISMS', '/kebijakan-dasar-ISMS'],
-                  ['Prosedur ISMS', '/prosedur-isms'],
-                  ['Jadwal Audit', '/audits'],
-                  ['Working Standard', '/working-standard'],
-                ].map(([label, href]) => (
-                  <a
-                    key={href}
-                    href={href}
-                    className="group flex w-fit items-center gap-2 text-sm text-primary-foreground/75 transition-colors hover:text-accent"
-                  >
-                    <ArrowUpRight className="size-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                    {label}
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {/* Column 3 — Info */}
-            <div>
-              <p className="font-mono-label text-[10.5px] text-primary-foreground/50">(03) — Sistem</p>
-              <div className="mt-4 flex flex-col gap-2 text-sm text-primary-foreground/75">
-                <p>Versi 1.0 · ISO/IEC 27001</p>
-                <p className="flex items-center gap-1.5"><LockKeyhole className="size-3.5 opacity-70" /> Akses terbatas — Internal only</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Oversized wordmark */}
-          <p
-            aria-hidden
-            className="mt-14 select-none font-display text-[clamp(4rem,15.5vw,15rem)] font-bold leading-[0.8] tracking-[-0.06em] text-primary-foreground/[0.07] max-[680px]:mt-10"
-          >
-            ISMS PORTAL
-          </p>
-
-          {/* Bottom bar */}
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-primary-foreground/12 pt-5 font-mono-label text-[10px] text-primary-foreground/50">
-            <p>© {new Date().getFullYear()} PT. Jatim Autocomp Indonesia</p>
-            <p>Confidential & Internal Use Only</p>
-          </div>
-        </div>
-      </footer>
+      <PortalFooter />
     </div>
   )
 }

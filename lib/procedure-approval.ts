@@ -116,6 +116,48 @@ export function ensureApprovalSchema() {
       await query('CREATE INDEX IF NOT EXISTS procedure_approvals_document_idx ON procedure_approvals (document_id, revision)')
       // Per-person e-signature: issued when someone approves, encoded in their QR.
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS verification_code varchar(40) UNIQUE')
+      // Where each role's QR goes on the document itself (its own signature
+      // column). Coordinates are fractions (0–1) of the displayed page, top-left
+      // origin; tied to file_path so a re-uploaded file never reuses old spots.
+      await query(`
+        CREATE TABLE IF NOT EXISTS procedure_signature_slots (
+          document_id integer NOT NULL REFERENCES procedure_documents(id) ON DELETE CASCADE,
+          role_code varchar(20) NOT NULL,
+          file_path text NOT NULL,
+          page integer NOT NULL,
+          x real NOT NULL,
+          y real NOT NULL,
+          w real NOT NULL,
+          h real NOT NULL,
+          updated_at timestamptz NOT NULL DEFAULT now(),
+          PRIMARY KEY (document_id, role_code)
+        )`)
+      // Optional box in the TANGGAL column of the same row, where the approval
+      // date is printed (same coordinate system as the QR box).
+      await query(`ALTER TABLE procedure_signature_slots
+        ADD COLUMN IF NOT EXISTS date_x real, ADD COLUMN IF NOT EXISTS date_y real,
+        ADD COLUMN IF NOT EXISTS date_w real, ADD COLUMN IF NOT EXISTS date_h real`)
+      // A role may sign in more than one place (copies of the same QR, e.g. a
+      // signature table on two pages): seq numbers them per role.
+      await query('ALTER TABLE procedure_signature_slots ADD COLUMN IF NOT EXISTS seq integer NOT NULL DEFAULT 0')
+      await query('ALTER TABLE procedure_signature_slots DROP CONSTRAINT IF EXISTS procedure_signature_slots_pkey')
+      await query('CREATE UNIQUE INDEX IF NOT EXISTS procedure_signature_slots_role_seq ON procedure_signature_slots (document_id, role_code, seq)')
+      // "Minta Revisi": the approver's notes, each optionally pinned to a spot
+      // on the document (page + fractions, top-left origin). page NULL = the
+      // general note. decision_note on the step keeps a plain-text summary.
+      await query(`
+        CREATE TABLE IF NOT EXISTS procedure_revision_notes (
+          id serial PRIMARY KEY,
+          approval_id integer NOT NULL REFERENCES procedure_approvals(id) ON DELETE CASCADE,
+          document_id integer NOT NULL REFERENCES procedure_documents(id) ON DELETE CASCADE,
+          revision integer NOT NULL,
+          seq integer NOT NULL,
+          page integer,
+          x real,
+          y real,
+          note text NOT NULL,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )`)
     })().catch((error) => {
       schemaReady = null
       throw error
@@ -289,7 +331,12 @@ async function emailStep(stepId: number, token: string): Promise<string | null> 
       note: doc.note,
       stepNumber: step.step,
       stepTotal: cycle.rows.length,
-      previous: cycle.rows.filter((row) => row.status === 'approved').map((row) => ({ roleTitle: row.role_title, name: row.approver_name ?? '-', decidedAt: row.decided_at })),
+      chain: cycle.rows.map((row) => ({
+        roleTitle: row.role_title,
+        name: row.approver_name ?? '-',
+        state: row.id === step.id ? 'current' as const : row.status === 'approved' ? 'done' as const : 'waiting' as const,
+        decidedAt: row.decided_at,
+      })),
       reviewUrl: `${base}${API_BASE_PATH}/pengesahan?token=${token}`,
     })
     // The procedure itself travels with the email ("telah saya lampirkan pada
@@ -334,11 +381,97 @@ export async function getByToken(token: string): Promise<TokenView | null> {
   return { step, document: doc, cycle: cycle.rows }
 }
 
-export async function decideByToken(token: string, action: 'approve' | 'reject', note: string | null): Promise<{ ok: boolean; message: string }> {
+// ─── "Minta Revisi" notes ───
+
+// A revision note: pinned to a spot on the document (page + fractions,
+// top-left origin), or page null for the general note.
+export type RevisionNote = { page: number | null; x: number | null; y: number | null; note: string }
+
+const MAX_REVISION_NOTES = 30
+
+// Validates notes sent from the /pengesahan page; drops anything malformed.
+export function parseRevisionNotes(raw: unknown): RevisionNote[] {
+  const list: unknown[] = Array.isArray(raw) ? raw : []
+  const frac = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1
+  const notes: RevisionNote[] = []
+  for (const item of list) {
+    const n = item as Record<string, unknown>
+    const text = typeof n.note === 'string' ? n.note.trim().slice(0, 500) : ''
+    if (!text) continue
+    const pinned = Number.isInteger(n.page) && (n.page as number) >= 0 && (n.page as number) <= 500 && frac(n.x) && frac(n.y)
+    notes.push(pinned ? { page: n.page as number, x: n.x as number, y: n.y as number, note: text } : { page: null, x: null, y: null, note: text })
+    if (notes.length >= MAX_REVISION_NOTES) break
+  }
+  return notes
+}
+
+// Plain-text summary kept in decision_note (register, emails): the general
+// note first, then "1) Hal. 2: …" per pinned note.
+export function summarizeRevisionNotes(general: string | null, notes: RevisionNote[]) {
+  const lines: string[] = []
+  if (general) lines.push(general)
+  notes.filter((n) => n.page !== null).forEach((n, i) => lines.push(`${i + 1}) Hal. ${(n.page as number) + 1}: ${n.note}`))
+  return lines.join('\n').slice(0, 4000)
+}
+
+export type RevisionRequest = {
+  approvalId: number
+  approverName: string | null
+  roleTitle: string
+  revision: number
+  decidedAt: string
+  general: string | null
+  pins: { page: number; x: number; y: number; note: string }[]
+}
+
+// The most recent "Minta Revisi" on a document (in any cycle — a restart
+// cancels the step but keeps its decision and notes).
+export async function latestRevisionRequest(documentId: number): Promise<RevisionRequest | null> {
+  await ensureApprovalSchema()
+  const step = (await query<{ id: number; approver_name: string | null; role_title: string; revision: number; decided_at: string; decision_note: string | null }>(
+    `SELECT id, approver_name, role_title, revision, decided_at, decision_note FROM procedure_approvals
+     WHERE document_id = $1 AND decided_at IS NOT NULL AND verification_code IS NULL AND decision_note IS NOT NULL
+     ORDER BY decided_at DESC LIMIT 1`,
+    [documentId]
+  )).rows[0]
+  if (!step) return null
+  const rows = (await query<{ page: number | null; x: number | null; y: number | null; note: string }>(
+    'SELECT page, x, y, note FROM procedure_revision_notes WHERE approval_id = $1 ORDER BY seq',
+    [step.id]
+  )).rows
+  const general = rows.find((r) => r.page === null)?.note ?? null
+  const pins = rows.filter((r) => r.page !== null).map((r) => ({ page: r.page as number, x: r.x ?? 0, y: r.y ?? 0, note: r.note }))
+  return {
+    approvalId: step.id,
+    approverName: step.approver_name,
+    roleTitle: step.role_title,
+    revision: step.revision,
+    decidedAt: step.decided_at,
+    // Requests made before pinned notes existed only have the summary text.
+    general: rows.length ? general : step.decision_note,
+    pins,
+  }
+}
+
+export async function decideByToken(
+  token: string,
+  action: 'approve' | 'reject',
+  note: string | null,
+  revisionNotes: RevisionNote[] = []
+): Promise<{ ok: boolean; message: string }> {
   const view = await getByToken(token)
   if (!view) return { ok: false, message: 'Link tidak ditemukan atau sudah tidak berlaku.' }
   if (view.step.status !== 'pending') return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
   if (view.step.revision !== view.document.revision) return { ok: false, message: 'Dokumen sudah direvisi — link ini tidak berlaku lagi.' }
+
+  // Revision request: rows to store = the general note (page null) + the
+  // pinned ones; decision_note gets the plain-text summary of all of them.
+  const general = action === 'reject' ? note : null
+  const pinned = action === 'reject' ? revisionNotes.filter((n) => n.page !== null) : []
+  if (action === 'reject') {
+    note = summarizeRevisionNotes(general, pinned) || null
+    if (!note) return { ok: false, message: 'Tuliskan minimal satu catatan revisi.' }
+  }
 
   const status = action === 'approve' ? 'approved' : 'rejected'
   // An approval is this person's e-signature: it gets its own verification
@@ -354,6 +487,14 @@ export async function decideByToken(token: string, action: 'approve' | 'reject',
   if (updated.rows.length === 0) return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
 
   if (action === 'reject') {
+    const rows: RevisionNote[] = [...(general ? [{ page: null, x: null, y: null, note: general }] : []), ...pinned]
+    for (const [seq, n] of rows.entries()) {
+      await query(
+        `INSERT INTO procedure_revision_notes (approval_id, document_id, revision, seq, page, x, y, note)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [view.step.id, view.document.id, view.document.revision, seq, n.page, n.x, n.y, n.note]
+      )
+    }
     await query(
       `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
        WHERE document_id = $1 AND revision = $2 AND status = 'waiting'`,
@@ -361,7 +502,7 @@ export async function decideByToken(token: string, action: 'approve' | 'reject',
     )
     await setDocumentStatus(view.document.id, 'rejected')
     await notifyAdmins(view.document.id, 'rejected')
-    return { ok: true, message: 'Dokumen ditolak. Admin ISM akan menerima pemberitahuan.' }
+    return { ok: true, message: 'Permintaan revisi terkirim. Admin ISM menerima pemberitahuan beserta catatan Anda.' }
   }
 
   const hasNext = await activateNextStep(view.document.id)
@@ -468,6 +609,105 @@ export async function getSignature(code: string): Promise<SignatureView | null> 
 export async function verifyBaseUrl(fallbackOrigin?: string) {
   const settings = await getSmtpSettings()
   return `${resolveAppBaseUrl(settings?.appUrl, fallbackOrigin)}${API_BASE_PATH}/verifikasi-pengesahan?code=`
+}
+
+// ─── signature slots (QR placement on the document itself) ───
+
+export type DateBox = { x: number; y: number; w: number; h: number }
+// One QR placement; a role can have several (seq 0, 1, …).
+export type SignatureSlot = { role_code: string; seq?: number; page: number; x: number; y: number; w: number; h: number; date?: DateBox | null }
+
+// Most placements one role may have on a document.
+export const MAX_SLOTS_PER_ROLE = 8
+
+// Slots for the document's CURRENT file only.
+export async function slotsFor(documentId: number, filePath: string): Promise<SignatureSlot[]> {
+  await ensureApprovalSchema()
+  const result = await query<Omit<SignatureSlot, 'date'> & { date_x: number | null; date_y: number | null; date_w: number | null; date_h: number | null }>(
+    `SELECT role_code, seq, page, x, y, w, h, date_x, date_y, date_w, date_h
+     FROM procedure_signature_slots WHERE document_id = $1 AND file_path = $2
+     ORDER BY role_code, seq`,
+    [documentId, filePath]
+  )
+  return result.rows.map(({ date_x, date_y, date_w, date_h, ...slot }) => ({
+    ...slot,
+    date: date_x !== null && date_y !== null && date_w !== null && date_h !== null ? { x: date_x, y: date_y, w: date_w, h: date_h } : null,
+  }))
+}
+
+export async function slotCounts(documentIds: number[]): Promise<Map<number, number>> {
+  await ensureApprovalSchema()
+  const map = new Map<number, number>()
+  if (documentIds.length === 0) return map
+  const result = await query<{ document_id: number; count: string }>(
+    `SELECT s.document_id, COUNT(DISTINCT s.role_code) AS count FROM procedure_signature_slots s
+     JOIN procedure_documents d ON d.id = s.document_id AND d.file_path = s.file_path
+     WHERE s.document_id = ANY($1) GROUP BY s.document_id`,
+    [documentIds]
+  )
+  for (const row of result.rows) map.set(row.document_id, Number(row.count))
+  return map
+}
+
+// Validates placements sent by an editor: known roles only, fractions in
+// 0–1, sane sizes, at most MAX_SLOTS_PER_ROLE per role. Invalid entries are
+// dropped; an invalid date box is just cleared.
+export function parseSlots(raw: unknown, allowedRoles: string[]): SignatureSlot[] {
+  const list: unknown[] = Array.isArray(raw) ? raw : []
+  const frac = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1
+  const perRole = new Map<string, number>()
+  const slots: SignatureSlot[] = []
+  for (const item of list) {
+    const s = item as Record<string, unknown>
+    if (typeof s.role_code !== 'string' || !allowedRoles.includes(s.role_code)) continue
+    if (!Number.isInteger(s.page) || (s.page as number) < 0 || (s.page as number) > 500) continue
+    if (![s.x, s.y, s.w, s.h].every(frac) || (s.w as number) < 0.005 || (s.h as number) < 0.005) continue
+    const count = perRole.get(s.role_code) ?? 0
+    if (count >= MAX_SLOTS_PER_ROLE) continue
+    perRole.set(s.role_code, count + 1)
+    const d = s.date as Record<string, unknown> | null | undefined
+    const date = d && [d.x, d.y, d.w, d.h].every(frac) && (d.w as number) >= 0.005 && (d.h as number) >= 0.005
+      ? { x: d.x as number, y: d.y as number, w: d.w as number, h: d.h as number }
+      : null
+    slots.push({ role_code: s.role_code, page: s.page as number, x: s.x as number, y: s.y as number, w: s.w as number, h: s.h as number, date })
+  }
+  return slots
+}
+
+async function insertSlots(documentId: number, filePath: string, slots: SignatureSlot[]) {
+  // seq is (re)numbered per role in the order given.
+  const next = new Map<string, number>()
+  for (const s of slots) {
+    const seq = next.get(s.role_code) ?? 0
+    next.set(s.role_code, seq + 1)
+    await query(
+      `INSERT INTO procedure_signature_slots (document_id, role_code, seq, file_path, page, x, y, w, h, date_x, date_y, date_w, date_h)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [documentId, s.role_code, seq, filePath, s.page, s.x, s.y, s.w, s.h, s.date?.x ?? null, s.date?.y ?? null, s.date?.w ?? null, s.date?.h ?? null]
+    )
+  }
+}
+
+// ISM Admin: replaces every role's placements on the document.
+export async function saveSlots(documentId: number, filePath: string, slots: SignatureSlot[]) {
+  await ensureApprovalSchema()
+  await query('DELETE FROM procedure_signature_slots WHERE document_id = $1', [documentId])
+  await insertSlots(documentId, filePath, slots)
+}
+
+// Approver (via their email link): replaces only their own role's placements.
+export async function saveRoleSlots(documentId: number, filePath: string, roleCode: string, slots: SignatureSlot[]) {
+  await ensureApprovalSchema()
+  await query('DELETE FROM procedure_signature_slots WHERE document_id = $1 AND role_code = $2', [documentId, roleCode])
+  // Placements for an older file of this document are stale — drop them too.
+  await query('DELETE FROM procedure_signature_slots WHERE document_id = $1 AND file_path <> $2', [documentId, filePath])
+  await insertSlots(documentId, filePath, slots.filter((s) => s.role_code === roleCode))
+}
+
+// Whether the holder of this link may (still) place their own QR: their step
+// belongs to the current revision and hasn't been rejected or cancelled.
+export function canPlaceOwnSlots(view: TokenView) {
+  return view.step.revision === view.document.revision && (view.step.status === 'pending' || view.step.status === 'approved')
 }
 
 // Documents currently waiting on someone — for the admin monitoring list.

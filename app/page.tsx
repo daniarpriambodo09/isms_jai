@@ -2,6 +2,7 @@
 
 import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { ImageShowcase } from '@/components/home/ImageShowcase'
+import { IsmsPulse } from '@/components/home/IsmsPulse'
 import { ScheduleSection } from '@/components/home/ScheduleSection'
 
 export default function Page() {
@@ -11,6 +12,7 @@ export default function Page() {
       {/* Each section below opens with a numbered chapter band
           (components/home/ChapterHeader.tsx); .home-chapters resets the counter. */}
       <div className="home-chapters flex flex-col">
+        <IsmsPulse />
         <ImageShowcase />
         <ScheduleSection />
       </div>

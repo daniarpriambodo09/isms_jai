@@ -3,7 +3,7 @@ import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
-import { currentStepsFor, ensureApprovalSchema, normalizeRoleCodes, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
+import { currentStepsFor, ensureApprovalSchema, normalizeRoleCodes, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
 
 type ProcedureRow = {
   id: number
@@ -37,7 +37,8 @@ function parseNote(raw: FormDataEntryValue | null) {
 
 async function withApprovals(rows: ProcedureRow[]) {
   const steps = await currentStepsFor(rows.map((row) => row.id))
-  return rows.map((row) => ({ ...row, approvals: steps.get(row.id) ?? [] }))
+  const counts = await slotCounts(rows.map((row) => row.id))
+  return rows.map((row) => ({ ...row, approvals: steps.get(row.id) ?? [], slots_count: counts.get(row.id) ?? 0 }))
 }
 
 export async function GET(request: NextRequest) {

@@ -1,13 +1,14 @@
 // app/api/prosedur-isms/[id]/pdf/route.ts
 //
-// "PDF bertanda tangan": the original procedure PDF plus a Lembar Pengesahan
-// page with each approver's QR signature (lib/procedure-esign-pdf.ts). Public,
+// "PDF bertanda tangan": the original procedure PDF with each approver's QR
+// signature stamped into its own signature column (lib/procedure-esign-pdf.ts). Public,
 // like the procedure files themselves — built on the fly, so it always shows
 // the current state of the approval.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
-import { currentStepsFor, ensureApprovalSchema, verifyBaseUrl } from '@/lib/procedure-approval'
+import { currentStepsFor, ensureApprovalSchema, slotsFor, verifyBaseUrl } from '@/lib/procedure-approval'
+import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
 
 export const dynamic = 'force-dynamic'
@@ -28,15 +29,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!doc) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
 
     const steps = (await currentStepsFor([doc.id])).get(doc.id) ?? []
+    // ?preview=1 (ISM Admin only): every role shown as signed with a sample QR,
+    // to check the QR placement before anyone has actually approved.
+    const preview = request.nextUrl.searchParams.get('preview') === '1' && !!getIsmsAdminFromRequest(request)
     const bytes = await buildProcedureSignedPdf({
       controlNo: doc.control_no,
       title: doc.title,
       revision: doc.revision,
       effDate: doc.elf_date,
       filePath: doc.file_path,
-      status: doc.approval_status,
-      steps: steps.map((s) => ({ roleTitle: s.role_title, name: s.approver_name ?? '-', status: s.status, decidedAt: s.decided_at, verificationCode: s.verification_code, note: s.decision_note })),
+      status: preview ? 'approved' : doc.approval_status,
+      steps: steps.map((s) => preview
+        ? { roleCode: s.role_code, roleTitle: s.role_title, name: s.approver_name ?? '-', status: 'approved' as const, decidedAt: new Date().toISOString(), verificationCode: 'PRATINJAU', note: null }
+        : { roleCode: s.role_code, roleTitle: s.role_title, name: s.approver_name ?? '-', status: s.status, decidedAt: s.decided_at, verificationCode: s.verification_code, note: s.decision_note }),
       verifyBase: await verifyBaseUrl(request.nextUrl.origin),
+      slots: await slotsFor(doc.id, doc.file_path),
     })
 
     const filename = `pengesahan-${doc.control_no}-rev${doc.revision}.pdf`.replace(/[^A-Za-z0-9._-]/g, '_')

@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const updated = await query<{ id: number }>(
       `UPDATE photo_video_requests
        SET status = $1, decided_at = now(), decided_by = $2, decision_note = $3,
-           camera_control_no = $5, photo_id_no = $6,
+           camera_control_no = COALESCE($5, camera_control_no), photo_id_no = COALESCE($6, photo_id_no),
            verification_code = CASE WHEN request_type = 'visitor' THEN $7 ELSE verification_code END
        WHERE id = $4 AND status = 'pending'
        RETURNING id`,

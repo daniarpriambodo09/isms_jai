@@ -2,6 +2,9 @@
 //
 // Where an approver lands from the "Buka & Proses Pengesahan" email button:
 // the document (PDF inline), the signing chain so far, and Setujui / Tolak.
+// Setujui first opens the QR placement editor so the approver puts their own
+// QR (one or more copies) on the document's signature column, then approves;
+// once approved they can reopen it via "Atur posisi QR saya".
 // No login — the ?token= from the email is the credential (see
 // app/api/prosedur-isms/approval/route.ts).
 
@@ -9,9 +12,11 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Check, Clock, ExternalLink, FileSignature, FileText, Loader2, ShieldCheck, X } from 'lucide-react'
+import { Check, Clock, Crosshair, ExternalLink, FileSignature, FileText, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { SignatureCard } from '@/components/documents/SignatureQr'
+import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
+import { RevisionNotesDialog, type RevisionPin } from '@/components/documents/RevisionNotes'
 
 type Step = {
   id: number
@@ -32,6 +37,16 @@ type View = {
   superseded: boolean
   documentId: number
   verifyBase: string
+  // Last 'Minta Revisi' on this document (any cycle), if any.
+  revisionRequest: {
+    approvalId: number
+    approverName: string | null
+    roleTitle: string
+    revision: number
+    decidedAt: string
+    general: string | null
+    pins: RevisionPin[]
+  } | null
 }
 
 function formatDate(value: string, withTime = false) {
@@ -41,14 +56,14 @@ function formatDate(value: string, withTime = false) {
 const STEP_LABEL: Record<Step['status'], string> = {
   approved: 'Disetujui',
   pending: 'Menunggu',
-  rejected: 'Ditolak',
+  rejected: 'Minta revisi',
   waiting: 'Antri',
   cancelled: 'Dibatalkan',
 }
 
 function StepIcon({ status }: { status: Step['status'] }) {
   if (status === 'approved') return <span className="grid size-8 place-items-center rounded-full bg-emerald-600 text-white"><Check className="size-4" strokeWidth={3} /></span>
-  if (status === 'rejected') return <span className="grid size-8 place-items-center rounded-full bg-red-600 text-white"><X className="size-4" strokeWidth={3} /></span>
+  if (status === 'rejected') return <span className="grid size-8 place-items-center rounded-full bg-[#c2412c] text-white"><PencilLine className="size-4" /></span>
   if (status === 'pending') return <span className="grid size-8 animate-pulse place-items-center rounded-full bg-amber-400 text-amber-950"><Clock className="size-4" /></span>
   return <span className="grid size-8 place-items-center rounded-full border-2 border-dashed border-border text-muted-foreground"><span className="size-1.5 rounded-full bg-current" /></span>
 }
@@ -57,10 +72,13 @@ function PengesahanContent() {
   const token = useSearchParams().get('token') ?? ''
   const [view, setView] = useState<View | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [rejecting, setRejecting] = useState(false)
-  const [reason, setReason] = useState('')
+  // Minta Revisi dialog: 'edit' writes a new request, 'view' shows the last one
+  const [notesMode, setNotesMode] = useState<'edit' | 'view' | null>(null)
   const [submitting, setSubmitting] = useState<'approve' | 'reject' | null>(null)
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+  // 'approve': place QR then approve · 'adjust': move QR after approving
+  const [placing, setPlacing] = useState<'approve' | 'adjust' | null>(null)
+  const [pdfStamp, setPdfStamp] = useState(0) // busts the signed-PDF link after moving QR
 
   const load = useCallback(async () => {
     if (!token) { setLoadError('Link tidak lengkap — buka kembali tombol di email Anda.'); return }
@@ -77,21 +95,22 @@ function PengesahanContent() {
 
   useEffect(() => { load() }, [load])
 
-  const decide = async (action: 'approve' | 'reject') => {
+  const decide = async (action: 'approve' | 'reject', revision?: { general: string; pins: RevisionPin[] }) => {
     setSubmitting(action)
     setResult(null)
     try {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, action, note: action === 'reject' ? reason : null }),
+        body: JSON.stringify({ token, action, note: revision?.general || null, notes: revision?.pins ?? [] }),
       })
       const data = await res.json().catch(() => ({}))
       setResult({ ok: res.ok, message: data.message ?? (res.ok ? 'Tersimpan.' : 'Gagal memproses.') })
-      setRejecting(false)
       await load()
+      return res.ok ? null : (data.message ?? 'Gagal memproses.')
     } catch {
       setResult({ ok: false, message: 'Tidak dapat menghubungi server.' })
+      return 'Tidak dapat menghubungi server.'
     } finally {
       setSubmitting(null)
     }
@@ -112,6 +131,8 @@ function PengesahanContent() {
   }
 
   const { step, document, cycle } = view
+  // The revision request came from an earlier (restarted) cycle, not this one.
+  const previousCycle = !!view.revisionRequest && !cycle.some((item) => item.id === view.revisionRequest!.approvalId)
   const canDecide = step.status === 'pending' && !view.superseded
   const pdfUrl = `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(document.file_path)}`
 
@@ -168,7 +189,7 @@ function PengesahanContent() {
                     <p className="mt-0.5 text-xs font-medium text-foreground/80">
                       {STEP_LABEL[item.status]}{item.decided_at ? ` · ${formatDate(item.decided_at, true)}` : ''}
                     </p>
-                    {item.decision_note && <p className="mt-1 text-xs text-red-700">Alasan: {item.decision_note}</p>}
+                    {item.decision_note && <p className="mt-1 whitespace-pre-line text-xs text-[#a83522]">Catatan revisi: {item.decision_note}</p>}
                   </div>
                 </li>
               ))}
@@ -179,32 +200,54 @@ function PengesahanContent() {
             <p className={`rounded-xl border px-4 py-3 text-sm ${result.ok ? 'border-emerald-600/20 bg-emerald-600/10 text-emerald-800' : 'border-red-600/20 bg-red-600/10 text-red-800'}`}>{result.message}</p>
           )}
 
+          {/* What was asked to be fixed last time — shown to approvers of the
+              resubmitted document (and to whoever just asked for it). */}
+          {view.revisionRequest && (
+            <section className="rounded-2xl border border-[#c2412c]/30 bg-[#fdf6f3] p-5 shadow-sm">
+              <p className="flex items-center gap-1.5 font-mono-label text-[10px] text-[#a83522]"><PencilLine className="size-3.5" /> {previousCycle ? 'Catatan revisi sebelumnya' : 'Catatan revisi'}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Dari <strong className="text-foreground">{view.revisionRequest.approverName ?? '-'}</strong> ({view.revisionRequest.roleTitle}) · Rev. {view.revisionRequest.revision} · {formatDate(view.revisionRequest.decidedAt, true)}
+              </p>
+              {view.revisionRequest.general && <p className="mt-3 whitespace-pre-line text-sm text-foreground">{view.revisionRequest.general}</p>}
+              {view.revisionRequest.pins.length > 0 && (
+                <ol className="mt-3 flex flex-col gap-1.5">
+                  {view.revisionRequest.pins.map((pin, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-foreground">
+                      <span className="mt-0.5 grid size-5 flex-none place-items-center rounded-full bg-[#d6452f] text-[10px] font-bold text-white">{i + 1}</span>
+                      <span><span className="text-xs text-muted-foreground">Hal. {pin.page + 1} — </span>{pin.note}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {view.revisionRequest.pins.length > 0 && (
+                <button type="button" onClick={() => setNotesMode('view')} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#c2412c]/40 bg-card px-3.5 py-2 text-xs font-semibold text-[#a83522] transition hover:bg-[#fdf0ec]">
+                  <MapPin className="size-3.5" /> Lihat penanda di dokumen
+                </button>
+              )}
+            </section>
+          )}
+
           {canDecide ? (
             <section className="rounded-2xl border-2 border-accent/40 bg-card p-5 shadow-sm">
               <p className="text-sm leading-6 text-foreground">
                 Dengan menekan <strong>Setujui</strong>, saya <strong>{step.approver_name}</strong> selaku <strong>{step.role_title}</strong> menyatakan telah memeriksa dan mengesahkan dokumen ini.
               </p>
-              {rejecting ? (
-                <div className="mt-4 flex flex-col gap-2">
-                  <label className="text-xs font-semibold text-foreground" htmlFor="reject-reason">Alasan penolakan</label>
-                  <textarea id="reject-reason" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={1000} autoFocus placeholder="Jelaskan apa yang perlu diperbaiki" className="rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/25" />
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => decide('reject')} disabled={!reason.trim() || submitting !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50">
-                      {submitting === 'reject' ? <Loader2 className="size-4 animate-spin" /> : <X className="size-4" />} Kirim penolakan
-                    </button>
-                    <button type="button" onClick={() => setRejecting(false)} className="rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary">Batal</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-4 flex gap-2">
-                  <button type="button" onClick={() => decide('approve')} disabled={submitting !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50">
-                    {submitting === 'approve' ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" strokeWidth={3} />} Setujui
-                  </button>
-                  <button type="button" onClick={() => setRejecting(true)} disabled={submitting !== null} className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-red-600/60 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:opacity-50">
-                    <X className="size-4" strokeWidth={3} /> Tolak
-                  </button>
-                </div>
-              )}
+              <p className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                <Crosshair className="mt-0.5 size-3.5 flex-none text-[color:var(--p-600)]" />
+                Setelah menekan Setujui, Anda dapat menempatkan QR tanda tangan Anda langsung di kolom tanda tangan dokumen (bisa lebih dari satu tempat).
+              </p>
+              <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                <PencilLine className="mt-0.5 size-3.5 flex-none text-[#c2412c]" />
+                Masih ada yang perlu diperbaiki? Pilih <strong className="text-foreground">Minta Revisi</strong> — tandai langsung bagian dokumennya dan tulis catatannya. QR tidak diberikan.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setPlacing('approve')} disabled={submitting !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50">
+                  {submitting === 'approve' ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" strokeWidth={3} />} Setujui
+                </button>
+                <button type="button" onClick={() => setNotesMode('edit')} disabled={submitting !== null} className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#c2412c]/60 px-5 py-3 text-sm font-bold text-[#a83522] transition hover:bg-[#fdf0ec] disabled:opacity-50">
+                  {submitting === 'reject' ? <Loader2 className="size-4 animate-spin" /> : <PencilLine className="size-4" />} Minta Revisi
+                </button>
+              </div>
             </section>
           ) : step.status === 'approved' && step.verification_code && step.decided_at && !view.superseded ? (
             <section className="flex flex-col gap-3">
@@ -212,8 +255,15 @@ function PengesahanContent() {
                 verifyBase={view.verifyBase}
                 info={{ code: step.verification_code, name: step.approver_name ?? '-', roleTitle: step.role_title, decidedAt: step.decided_at, documentLabel: `${document.control_no} — ${document.title}` }}
               />
+              <button
+                type="button"
+                onClick={() => setPlacing('adjust')}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+              >
+                <Crosshair className="size-4" /> Atur posisi QR saya
+              </button>
               <a
-                href={`${API_BASE_PATH}/api/prosedur-isms/${view.documentId}/pdf`}
+                href={`${API_BASE_PATH}/api/prosedur-isms/${view.documentId}/pdf?t=${pdfStamp}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
@@ -228,12 +278,63 @@ function PengesahanContent() {
                 : step.status === 'approved'
                   ? `Anda telah menyetujui dokumen ini pada ${step.decided_at ? formatDate(step.decided_at, true) : '-'}.`
                   : step.status === 'rejected'
-                    ? 'Anda telah menolak dokumen ini. Admin ISM akan memperbaikinya dan mengajukan ulang.'
+                    ? 'Anda telah meminta revisi dokumen ini. Admin ISM akan memperbaikinya dan mengajukan ulang — Anda akan menerima email baru.'
                     : 'Tahap ini tidak lagi menunggu keputusan Anda.'}
             </section>
           )}
         </aside>
       </div>
+
+      {notesMode === 'edit' && (
+        <RevisionNotesDialog
+          mode="edit"
+          filePath={document.file_path}
+          heading={`${document.control_no} — ${document.title}`}
+          subheading={`Rev. ${document.revision} · ${step.approver_name ?? ''} (${step.role_title})`}
+          onClose={() => setNotesMode(null)}
+          onSubmit={async (general, pins) => {
+            const error = await decide('reject', { general, pins })
+            if (!error) setNotesMode(null)
+            return error
+          }}
+        />
+      )}
+      {notesMode === 'view' && view.revisionRequest && (
+        <RevisionNotesDialog
+          mode="view"
+          filePath={document.file_path}
+          heading={`${document.control_no} — ${document.title}`}
+          subheading={`Catatan dari ${view.revisionRequest.approverName ?? '-'} · Rev. ${view.revisionRequest.revision}`}
+          hint={view.revisionRequest.revision !== document.revision || previousCycle
+            ? 'Penanda dibuat pada file sebelum diperbaiki — posisinya ditampilkan di file terbaru, bisa sedikit bergeser bila tata letaknya berubah.'
+            : undefined}
+          initialGeneral={view.revisionRequest.general}
+          initialPins={view.revisionRequest.pins}
+          onClose={() => setNotesMode(null)}
+        />
+      )}
+
+      {/* Place own QR: right before approving, or later to adjust. */}
+      {placing && (
+        <SignatureSlotEditor
+          token={token}
+          onClose={() => setPlacing(null)}
+          saveLabel={placing === 'approve' ? 'Simpan posisi & Setujui' : 'Simpan posisi'}
+          onSaved={async () => {
+            if (placing === 'approve') {
+              setPlacing(null)
+              await decide('approve')
+            } else {
+              setPdfStamp(Date.now())
+              setResult({ ok: true, message: 'Posisi QR tanda tangan Anda disimpan.' })
+              setPlacing(null)
+            }
+          }}
+          secondaryAction={placing === 'approve'
+            ? { label: 'Setujui tanpa mengubah posisi QR', run: () => { setPlacing(null); decide('approve') } }
+            : undefined}
+        />
+      )}
     </div>
   )
 }

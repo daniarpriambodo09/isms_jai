@@ -231,9 +231,15 @@ function KelolaPermintaanFotoVideoContent() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
-                        Lihat
-                      </button>
+                      {isIsmAdmin && req.status === 'pending' ? (
+                        <button type="button" onClick={() => setSelected(req)} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90">
+                          Tinjau
+                        </button>
+                      ) : (
+                        <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                          Lihat
+                        </button>
+                      )}
                       {isIsmAdmin && req.status === 'approved' && !req.taken_at && (
                         <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
                           Sudah Diambil
@@ -269,7 +275,7 @@ function KelolaPermintaanFotoVideoContent() {
       </div>
 
       {selected && (
-        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} readOnly />
+        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} readOnly={!isIsmAdmin} />
       )}
 
       <ConfirmDialog

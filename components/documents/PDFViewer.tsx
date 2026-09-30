@@ -6,6 +6,8 @@ import { useState, useEffect, useRef } from 'react';
 interface PDFViewerProps {
   filePath: string;
   fileName: string;
+  /** Fetch this URL instead of the stored file (e.g. a generated signed PDF). */
+  sourceUrl?: string;
 }
 
 /**
@@ -17,7 +19,7 @@ interface PDFViewerProps {
  * - Juga berfungsi di halaman tanpa auth cookie (misal /review-page-owner)
  *   karena fetch dilakukan oleh Next.js API route (/api/files/serve) di server side
  */
-export default function PDFViewer({ filePath, fileName }: PDFViewerProps) {
+export default function PDFViewer({ filePath, fileName, sourceUrl }: PDFViewerProps) {
   const [blobUrl, setBlobUrl]   = useState<string | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
@@ -35,7 +37,7 @@ export default function PDFViewer({ filePath, fileName }: PDFViewerProps) {
         const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
         const encodedPath = encodeURIComponent(cleanPath);
 
-        const res = await fetch(`/isms-jai/api/files/serve?path=${encodedPath}`);
+        const res = await fetch(sourceUrl ?? `/isms-jai/api/files/serve?path=${encodedPath}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const blob = await res.blob();
@@ -65,7 +67,7 @@ export default function PDFViewer({ filePath, fileName }: PDFViewerProps) {
         blobRef.current = null;
       }
     };
-  }, [filePath]);
+  }, [filePath, sourceUrl]);
 
   if (loading) {
     return (

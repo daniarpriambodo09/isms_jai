@@ -55,7 +55,9 @@ function PhotoVideoFormModal({ onClose }: { onClose: () => void }) {
 // kiosk-level read access to every request (and, via the PDF route's
 // kiosk-gated check, to the resulting Visitor PDF), so the recap here is
 // the exact same Internal/Visitor table as the full /rekap-foto-video page.
-export function PhotoVideoRequestsPanel() {
+// canSubmit=false hides "Ajukan Izin Foto/Video" (Lobby registers photo
+// guests through "Daftarkan Photography" instead); the recap stays.
+export function PhotoVideoRequestsPanel({ canSubmit = true }: { canSubmit?: boolean }) {
   const [open, setOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
 
@@ -79,13 +81,15 @@ export function PhotoVideoRequestsPanel() {
             <p className="text-xs text-muted-foreground">Rekap pengajuan izin foto/video, Internal &amp; Visitor — persetujuan hanya diproses oleh Admin ISM</p>
           </div>
         </button>
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
-        >
-          <UserPlus className="size-3.5" />Ajukan Izin Foto/Video
-        </button>
+        {canSubmit && (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+          >
+            <UserPlus className="size-3.5" />Ajukan Izin Foto/Video
+          </button>
+        )}
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? 'Tutup rekap' : 'Buka rekap'} className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary">
           <ChevronDown className={`size-5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </button>

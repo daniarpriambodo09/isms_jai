@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Download, Eye, FileText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { Download, Eye, FileText, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { IndexHero, latestUpload } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
@@ -25,6 +25,7 @@ type ProcedureDocument = {
   note: string | null
   approval_status: 'none' | 'pending' | 'approved' | 'rejected'
   approvals: ApprovalStep[]
+  slots_count: number
 }
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'none'
@@ -33,13 +34,13 @@ const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
   { id: 'all', label: 'Semua' },
   { id: 'pending', label: 'Menunggu' },
   { id: 'approved', label: 'Disahkan' },
-  { id: 'rejected', label: 'Ditolak' },
+  { id: 'rejected', label: 'Perlu Revisi' },
   { id: 'none', label: 'Tanpa pengesahan' },
 ]
 
 function approvalSummary(document: ProcedureDocument) {
   if (document.approval_roles.length === 0) return '-'
-  return document.approvals.map((step) => `${step.role_code}: ${step.approver_name ?? '-'} (${step.status === 'approved' ? `Disetujui ${step.decided_at ? formatDate(step.decided_at) : ''}` : step.status === 'rejected' ? 'Ditolak' : step.status === 'pending' ? 'Menunggu' : 'Antri'})`).join('; ')
+  return document.approvals.map((step) => `${step.role_code}: ${step.approver_name ?? '-'} (${step.status === 'approved' ? `Disetujui ${step.decided_at ? formatDate(step.decided_at) : ''}` : step.status === 'rejected' ? 'Minta revisi' : step.status === 'pending' ? 'Menunggu' : 'Antri'})`).join('; ')
 }
 
 function formatDate(value: string) {
@@ -83,6 +84,9 @@ export function ProcedureRegisterPage() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [viewing, setViewing] = useState<ProcedureDocument | null>(null)
+  // true = show the generated signed PDF (QRs stamped), false = the uploaded original
+  const [viewingSigned, setViewingSigned] = useState(false)
+  const hasSignature = (document: ProcedureDocument) => document.approvals.some((step) => step.status === 'approved' && step.verification_code)
   const [editing, setEditing] = useState<ProcedureDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -318,6 +322,8 @@ export function ProcedureRegisterPage() {
                     busy={busyId === document.id}
                     onResend={() => approvalAction(document, 'resend')}
                     onRestart={() => approvalAction(document, 'restart')}
+                    slotsCount={document.slots_count}
+                    onSlotsChanged={() => loadDocuments()}
                   />
                 ))}
               </div>
@@ -326,7 +332,14 @@ export function ProcedureRegisterPage() {
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => (
                   <div key={document.id} className="flex items-center gap-1 py-0.5">
-                    <button type="button" onClick={() => setViewing(document)} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                    {hasSignature(document) ? (
+                      <>
+                        <button type="button" onClick={() => { setViewingSigned(true); setViewing(document) }} aria-label={`Lihat ${document.title} bertanda tangan`} title="Lihat dokumen bertanda tangan (QR)" className="relative grid size-8 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10"><Eye className="size-4" /><QrCode className="absolute -right-0.5 -top-0.5 size-3 rounded-sm bg-card" /></button>
+                        <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat file asli ${document.title}`} title="Lihat file asli (tanpa QR)" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><FileText className="size-4" /></button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                    )}
                     {isLoggedIn && <>
                       <button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
                       <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
@@ -343,7 +356,18 @@ export function ProcedureRegisterPage() {
         )}
       </div>
 
-      {viewing && <DocumentViewModal open={Boolean(viewing)} onClose={() => setViewing(null)} filePath={viewing.file_path} fileName={viewing.title} />}
+      {viewing && (
+        <DocumentViewModal
+          open={Boolean(viewing)}
+          onClose={() => setViewing(null)}
+          filePath={viewing.file_path}
+          fileName={viewing.title}
+          sourceUrl={viewingSigned ? `${API_BASE_PATH}/api/prosedur-isms/${viewing.id}/pdf` : undefined}
+          badge={viewingSigned
+            ? <span className="flex-none rounded-full bg-emerald-600/10 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700">Bertanda tangan (QR)</span>
+            : hasSignature(viewing) ? <span className="flex-none rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">File asli</span> : null}
+        />
+      )}
       <ProcedureFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />
       <ConfirmDialog
         open={!!pendingDelete}

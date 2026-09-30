@@ -23,6 +23,16 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 // full browser width edge-to-edge, matching the Home hero's full-bleed treatment.
 const FULL_BLEED = 'w-screen ml-[calc(50%-50vw)]'
 
+// "kebijakan_keamanan-informasi.png" → "kebijakan keamanan informasi". Names
+// that are really upload IDs (UUID/hash runs like "b44b6ce3-6ae2-…") or
+// camera defaults ("IMG_2031") fall back to "Visual Kebijakan 01".
+function policyTitle(fileName: string, index: number) {
+  const base = fileName.replace(/\.[a-z0-9]+$/i, '').replace(/\s*\(\d+\)$/, '')
+  const title = base.replace(/[-_]+/g, ' ').trim()
+  const meaningless = !title || /[0-9a-f]{8}/i.test(base) || /^(img|dsc|image|screenshot|whatsapp image)\b/i.test(title)
+  return meaningless ? `Visual Kebijakan ${String(index + 1).padStart(2, '0')}` : title
+}
+
 type PolicyImage = {
   id: number
   url: string
@@ -38,8 +48,10 @@ export default function PolicyPage() {
   const [removingImage, setRemovingImage] = useState<PolicyImage | null>(null)
   const [removePending, setRemovePending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dragPx, setDragPx] = useState(0)
   const pointerStart = useRef<number | null>(null)
   const justSwiped = useRef(false)
+  const stageRef = useRef<HTMLDivElement>(null)
   const activeImage = images[activeIndex]
 
   useEffect(() => {
@@ -52,6 +64,7 @@ export default function PolicyPage() {
   useEffect(() => {
     if (images.length < 2) return
     const timer = window.setInterval(() => {
+      if (pointerStart.current !== null) return // mid-drag
       setActiveIndex((current) => (current + 1) % images.length)
     }, 5000)
     return () => window.clearInterval(timer)
@@ -134,11 +147,17 @@ export default function PolicyPage() {
     setRemovingImage(null)
   }
 
-  // Swipe to change image. No pointer capture here — capturing the pointer on
-  // the container used to swallow clicks on the buttons inside it (the delete
-  // X never fired).
+  // Drag to change image (motionsites "Lunar Carousel"): the slides follow the
+  // pointer live, tilting in 3D, and settle on release. No pointer capture
+  // here — capturing the pointer on the container used to swallow clicks on
+  // the buttons inside it (the delete X never fired).
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
     pointerStart.current = event.clientX
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (pointerStart.current === null || images.length < 2) return
+    setDragPx(event.clientX - pointerStart.current)
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
@@ -147,6 +166,20 @@ export default function PolicyPage() {
     justSwiped.current = Math.abs(distance) > 40
     if (justSwiped.current) moveImage(distance < 0 ? 1 : -1)
     pointerStart.current = null
+    setDragPx(0)
+  }
+
+  // Slide i's position relative to the active one, wrapped so the carousel
+  // is circular, plus the live drag as a fraction of the stage width.
+  function slideOffset(i: number) {
+    const count = images.length
+    let d = i - activeIndex
+    if (count > 2) {
+      if (d > count / 2) d -= count
+      if (d < -count / 2) d += count
+    }
+    const width = stageRef.current?.offsetWidth || 1
+    return d + dragPx / width
   }
 
   return (
@@ -159,30 +192,59 @@ export default function PolicyPage() {
           the page's own background tokens (not a colored blur or flat white) so any
           letterboxing blends with the page instead of standing out as its own box. */}
       <div
-        className={`relative overflow-hidden ${FULL_BLEED} h-[70vh] min-h-[420px] max-h-[780px]`}
+        ref={stageRef}
+        className={`relative touch-pan-y select-none overflow-hidden [perspective:1600px] ${FULL_BLEED} h-[70vh] min-h-[420px] max-h-[780px] ${images.length > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{ background: 'linear-gradient(180deg, var(--card) 0%, var(--background) 55%, var(--muted) 100%)' }}
         onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerLeave={(event) => { if (pointerStart.current !== null) handlePointerUp(event) }}
       >
-        {activeImage && (
-          <button
-            type="button"
-            onClick={() => {
-              // A swipe ends with a click on this same button — don't open the preview for it.
-              if (justSwiped.current) { justSwiped.current = false; return }
-              setIsImageOpen(true)
-            }}
-            className="absolute inset-0 cursor-zoom-in"
-            aria-label="Perbesar gambar policy"
-          >
-            <Image
-              src={activeImage.url}
-              alt="Policy visual"
-              fill
-              unoptimized
-              className="object-contain"
-            />
-          </button>
+        {images.map((image, i) => {
+          const f = slideOffset(i)
+          const distance = Math.abs(f)
+          if (distance >= 1.9) return null
+          const isActive = i === activeIndex
+          return (
+            <div
+              key={image.id}
+              className={`absolute inset-x-0 top-0 ${images.length > 1 ? "bottom-[76px]" : "bottom-0"}`}
+              style={{
+                transform: `translateX(${f * 100}%) rotateY(${f * -24}deg) scale(${1 - Math.min(1, distance) * 0.18})`,
+                opacity: Math.max(0, 1 - distance * 0.7),
+                zIndex: 10 - Math.round(distance * 5),
+                transition: dragPx !== 0 ? 'none' : 'transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.9s ease',
+                pointerEvents: isActive ? 'auto' : 'none',
+              }}
+              aria-hidden={!isActive}
+            >
+              <button
+                type="button"
+                tabIndex={isActive ? 0 : -1}
+                onClick={() => {
+                  // A swipe ends with a click on this same button — don't open the preview for it.
+                  if (justSwiped.current) { justSwiped.current = false; return }
+                  setIsImageOpen(true)
+                }}
+                className="absolute inset-0 cursor-zoom-in"
+                aria-label="Perbesar gambar policy"
+              >
+                <Image src={image.url} alt="Policy visual" fill unoptimized draggable={false} className="object-contain" />
+              </button>
+            </div>
+          )
+        })}
+
+        {activeImage && images.length > 1 && (
+          <div className="pointer-events-none absolute bottom-0 left-0 z-20 flex h-[76px] max-w-[55%] flex-col justify-center px-4 sm:px-8">
+            <p className="font-mono-label text-[10px] text-muted-foreground">
+              <span className="text-[color:var(--p-600)]">P/{String(activeIndex + 1).padStart(2, '0')}</span> <span className="text-border">/</span> {String(images.length).padStart(2, '0')}
+            </p>
+            <p key={activeImage.id} className="lunar-title mt-1 truncate font-display text-[clamp(1rem,1.6vw,1.35rem)] font-semibold leading-tight text-foreground">
+              {policyTitle(activeImage.file_name, activeIndex)}
+            </p>
+          </div>
         )}
 
         {!activeImage && (
@@ -228,14 +290,35 @@ export default function PolicyPage() {
             >
               <ChevronRight className="size-5" />
             </button>
-            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 sm:bottom-6 sm:right-8">
+            {/* Thumbnail strip (dots on phones) */}
+            <div
+              className="absolute bottom-[14px] right-4 z-20 flex max-w-[40%] items-center gap-2 overflow-x-auto p-1 max-[680px]:hidden sm:right-8"
+              onPointerDown={(event) => event.stopPropagation()}
+              onPointerUp={(event) => event.stopPropagation()}
+            >
               {images.map((image, i) => (
                 <button
                   key={image.id}
                   type="button"
                   onClick={(event) => { event.stopPropagation(); setActiveIndex(i) }}
                   aria-label={`Gambar ${i + 1}`}
-                  className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${i === activeIndex ? 'w-6 bg-primary' : 'w-1.5 bg-foreground/25 hover:bg-foreground/50'}`}
+                  aria-current={i === activeIndex}
+                  className={`relative h-10 w-14 flex-none overflow-hidden rounded-md transition-all duration-300 ${i === activeIndex ? 'ring-2 ring-[color:var(--p-600)] ring-offset-1 ring-offset-background' : 'opacity-55 grayscale hover:opacity-100 hover:grayscale-0'}`}
+                >
+                  <Image src={image.url} alt="" fill unoptimized draggable={false} className="object-cover" />
+                </button>
+              ))}
+            </div>
+            <div className="absolute bottom-[34px] right-4 z-20 hidden items-center gap-1.5 max-[680px]:flex">
+              {images.map((image, i) => (
+                <button
+                  key={image.id}
+                  type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                  onClick={(event) => { event.stopPropagation(); setActiveIndex(i) }}
+                  aria-label={`Gambar ${i + 1}`}
+                  className={`h-1.5 rounded-full shadow-sm transition-all duration-300 ${i === activeIndex ? 'w-6 bg-primary' : 'w-1.5 bg-foreground/25'}`}
                 />
               ))}
             </div>
@@ -261,76 +344,73 @@ export default function PolicyPage() {
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
-      {/* Slim control bar — one row instead of a separate boxed sidebar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="grid size-10 flex-shrink-0 place-items-center rounded-lg bg-accent/15 text-accent-foreground">
-            <ShieldCheck className="size-5" />
-          </div>
-          <div>
-            <strong className="block text-sm text-foreground">Information Security Committee</strong>
-            <span className="text-xs text-muted-foreground">{images.length} gambar kebijakan</span>
+      {/* Policy index (motionsites "Sentinel"): mono header row, then one
+          numbered card per policy visual. Thumbnails sit in a halftone
+          monochrome (.sentinel-thumb in globals.css) and come to full colour
+          on hover or when shown above. Admins also get a delete per card. */}
+      <section className="border-t border-foreground/80 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 font-mono-label text-[10.5px] text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <ShieldCheck className="size-3.5 text-[color:var(--p-600)]" />
+            Information Security Committee <span className="text-border">/</span>
+            <span className="text-foreground">{String(images.length).padStart(2, '0')} visual kebijakan</span>
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/#gallery"
+              className="inline-flex items-center gap-2 rounded-full border border-border px-3.5 py-2 text-[10.5px] text-foreground transition-colors hover:bg-secondary"
+            >
+              <GalleryHorizontal className="size-3.5" /> Gallery di Home
+            </Link>
+            {isLoggedIn && (
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-3.5 py-2 text-[10.5px] text-primary-foreground transition-opacity hover:opacity-90">
+                <Upload className="size-3.5" /> Tambah gambar
+                <input type="file" accept="image/*" multiple onChange={handleImages} className="sr-only" />
+              </label>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/#gallery"
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-          >
-            <GalleryHorizontal className="size-4" /> Lihat Gallery di Home
-          </Link>
-          {isLoggedIn && (
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground">
-              <Upload className="size-4" /> Tambah gambar
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImages}
-                className="sr-only"
-              />
-            </label>
-          )}
-        </div>
-      </div>
-
-      {/* Admin — every uploaded image with its own delete button */}
-      {isLoggedIn && images.length > 0 && (
-        <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="portal-eyebrow">Kelola gambar</p>
-              <p className="mt-1 text-sm text-muted-foreground">Klik gambar untuk menampilkannya di atas, atau hapus yang tidak dipakai lagi.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {images.map((image, i) => (
-              <div
-                key={image.id}
-                className={`group overflow-hidden rounded-lg border bg-background transition ${i === activeIndex ? 'border-primary ring-2 ring-primary/20' : 'border-border'}`}
-              >
-                <button type="button" onClick={() => setActiveIndex(i)} className="relative block aspect-[4/3] w-full bg-muted" aria-label={`Tampilkan gambar ${i + 1}`}>
-                  <Image src={image.url} alt={image.file_name} fill unoptimized className="object-contain" />
-                  <span className="absolute left-2 top-2 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[10px] text-white">{String(i + 1).padStart(2, '0')}</span>
-                </button>
-                <div className="flex items-center gap-2 border-t border-border px-2.5 py-2">
-                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={image.file_name}>{image.file_name}</span>
+        {images.length > 0 && (
+          <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden border border-border bg-border sm:grid-cols-3 lg:grid-cols-4">
+            {images.map((image, i) => {
+              const active = i === activeIndex
+              return (
+                <div key={image.id} className={`sentinel-card group relative flex flex-col bg-card ${active ? 'is-active' : ''}`}>
                   <button
                     type="button"
-                    onClick={() => setRemovingImage(image)}
-                    aria-label={`Hapus ${image.file_name}`}
-                    title="Hapus gambar"
-                    className="grid size-7 flex-none place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setActiveIndex(i)}
+                    aria-label={`Tampilkan ${policyTitle(image.file_name, i)}`}
+                    aria-pressed={active}
+                    className="flex flex-1 flex-col p-4 text-left"
                   >
-                    <Trash2 className="size-4" />
+                    <span className="flex items-center justify-between font-mono-label text-[10px]">
+                      <span className={active ? 'text-[color:var(--p-600)]' : 'text-muted-foreground'}>P/{String(i + 1).padStart(2, '0')}</span>
+                      <span className={`size-1.5 rounded-full transition-colors ${active ? 'bg-[color:var(--p-600)]' : 'bg-border'}`} />
+                    </span>
+                    <span className="sentinel-thumb relative mt-3 block aspect-[4/3] w-full overflow-hidden bg-muted">
+                      <Image src={image.url} alt="" fill unoptimized className="object-cover" />
+                    </span>
+                    <span className="mt-3 line-clamp-2 text-[13px] font-semibold leading-snug text-foreground">{policyTitle(image.file_name, i)}</span>
                   </button>
+                  {isLoggedIn && (
+                    <button
+                      type="button"
+                      onClick={() => setRemovingImage(image)}
+                      aria-label={`Hapus ${image.file_name}`}
+                      title="Hapus gambar"
+                      className="absolute right-3 top-[3.1rem] z-10 grid size-8 place-items-center rounded-full bg-card/90 text-muted-foreground shadow-sm transition hover:bg-destructive hover:text-white"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  )}
+                  <span aria-hidden className={`absolute inset-x-0 bottom-0 h-[3px] origin-left bg-[color:var(--p-600)] transition-transform duration-500 ${active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'}`} />
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {isImageOpen && activeImage && (
         <div

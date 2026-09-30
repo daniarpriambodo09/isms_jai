@@ -27,6 +27,8 @@ export function DocumentViewModal({
   filePath,
   fileName,
   mimeType = 'application/pdf',
+  sourceUrl,
+  badge,
 }: {
   open: boolean
   onClose: () => void
@@ -37,6 +39,10 @@ export function DocumentViewModal({
       preview — video, image, Excel, or a plain "open file" fallback for
       anything else (PPT, DOC, ...) that can't be rendered inline. */
   mimeType?: string
+  /** PDF only: show this URL instead of the stored file (e.g. the signed PDF). */
+  sourceUrl?: string
+  /** Optional label next to the title, e.g. "Bertanda tangan (QR)". */
+  badge?: React.ReactNode
 }) {
   useEscapeClose(open, onClose)
 
@@ -50,7 +56,10 @@ export function DocumentViewModal({
     <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4">
       <div role="dialog" aria-modal="true" aria-label={fileName} className={`flex w-full flex-col rounded-2xl bg-white shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)] ${isCompact ? 'max-w-[960px]' : 'h-[85vh] max-w-[900px]'}`}>
         <div className="flex items-center justify-between border-b border-[color:var(--p-border)] px-5 py-4">
-          <h2 className="truncate text-[14px] font-semibold text-[color:var(--p-800)]">{fileName}</h2>
+          <div className="flex min-w-0 items-center gap-2">
+            <h2 className="truncate text-[14px] font-semibold text-[color:var(--p-800)]">{fileName}</h2>
+            {badge}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -67,7 +76,7 @@ export function DocumentViewModal({
           <div className="flex-1 overflow-auto bg-slate-50 p-4"><img src={serveUrl} alt={fileName} className="mx-auto max-w-full" /></div>
         )}
         {kind === 'pdf' && (
-          <div className="flex-1 overflow-auto"><PDFViewer filePath={filePath} fileName={fileName} /></div>
+          <div className="flex-1 overflow-auto"><PDFViewer filePath={filePath} fileName={fileName} sourceUrl={sourceUrl} /></div>
         )}
         {kind === 'excel' && (
           <div className="flex-1 overflow-auto"><ExcelViewer filePath={filePath} fileName={fileName} /></div>

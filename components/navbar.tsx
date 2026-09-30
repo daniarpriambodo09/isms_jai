@@ -79,7 +79,7 @@ export function Navbar() {
 
   const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-3.5 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
   const navLinkActive = 'bg-accent text-white hover:text-white'
-  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-kamera', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin', '/kelola-smtp', '/kelola-tema', '/kelola-pengesahan'].includes(pathname)
+  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-kamera', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin', '/kelola-smtp', '/kelola-tema', '/kelola-pengesahan', '/kelola-izin-area-special'].includes(pathname)
 
   // Active items are already an acid pill — no extra underline needed.
   const activeIndicator = null
@@ -361,6 +361,9 @@ export function Navbar() {
                         <Link href="/kelola-permintaan-foto-video" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                           Photo/Video Requests
                         </Link>
+                        <Link href="/kelola-izin-area-special" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
+                          Special Area Access Requests
+                        </Link>
                         <Link href="/kelola-kamera" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
                           Manage Camera Equipment
                         </Link>
@@ -492,6 +495,9 @@ export function Navbar() {
               </Link>
               <Link href="/kelola-permintaan-foto-video" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                 <Settings className="size-4" />Photo/Video Requests
+              </Link>
+              <Link href="/kelola-izin-area-special" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
+                <Settings className="size-4" />Special Area Access Requests
               </Link>
               <Link href="/kelola-kamera" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
                 <Settings className="size-4" />Manage Camera Equipment

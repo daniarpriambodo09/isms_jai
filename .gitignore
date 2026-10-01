@@ -15,4 +15,10 @@ node_modules
 .DS_Store
 # Database backups (contain password hashes and SMTP settings)
 backup*.sql
+*.sql.gz
+*.dump
 *.bak
+
+# Uploaded files (confidential documents, photos, medical letters) — they
+# live on the server's disk only, never in git. Folders are created at runtime.
+storage/

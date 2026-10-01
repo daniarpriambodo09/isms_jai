@@ -41,10 +41,20 @@ commit "Stop tracking DB backup and uploaded files"), pasang hook-nya dulu lalu 
 
 ```bash
 git fetch origin
-git show origin/main:.githooks/post-merge > .git/hooks/post-merge
+cmd /c "git show origin/main:.githooks/post-merge > .git\hooks\post-merge"   # PowerShell / cmd
+# (Git Bash: git show origin/main:.githooks/post-merge > .git/hooks/post-merge)
 git pull                 # file storage/ dikembalikan otomatis, lalu build + restart
 npm run setup:server     # selanjutnya pakai hook dari repo
 ```
+
+> **Jangan** pakai `>` langsung di PowerShell untuk membuat hook — PowerShell
+> menyimpannya sebagai UTF-16/BOM + CRLF sehingga Git gagal menjalankannya
+> (`cannot spawn .git/hooks/post-merge`). Kalau terlanjur: pull tetap berhasil,
+> tapi file `storage/` yang dulu dilacak git terhapus dari disk. Pulihkan dengan
+> `git restore --source=<commit-sebelum-pull> --worktree -- storage backup_isms.sql`
+> (commit sebelum pull terlihat di baris `Updating <lama>..<baru>`), lalu
+> `Remove-Item .git\hooks\post-merge`, `npm run setup:server`, `npm install`,
+> `npm run build`, `pm2 restart isms-jai`.
 
 Update manual (tanpa hook) tetap bisa: `git pull && npm install && npm run build && pm2 restart isms-jai`.
 

@@ -37,7 +37,7 @@ function useNow(intervalMs = 60_000) {
 // Terminal-style line under the manifesto eyebrow (motionsites "Sentinel"):
 // types each phrase, holds, erases, moves on. Reduced motion shows the first
 // phrase statically.
-const TYPED_PHRASES = ['lindungi_informasi', 'kendalikan_akses', 'klasifikasikan_dokumen', 'laporkan_insiden']
+const TYPED_PHRASES = ['lindungi_informasi', 'kendalikan_akses', 'klasifikasikan_dokumen', 'patuhi_kebijakan']
 
 function TypedLine() {
   const [text, setText] = useState('')

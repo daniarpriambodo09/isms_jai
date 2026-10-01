@@ -1,0 +1,57 @@
+#!/bin/sh
+# .githooks/post-merge — runs automatically after every successful `git pull`
+# on a machine that ran `npm run setup:server` once. It turns a pull into a
+# full update, so nobody has to work out what changed:
+#
+#   1. puts back files that are no longer tracked in git but must stay on disk
+#      (uploaded files in storage/, DB backups) if the pull removed them
+#   2. npm install — only when package.json / package-lock.json changed
+#   3. npm run build
+#   4. pm2 restart — the app applies pending database migrations itself on
+#      start (instrumentation.ts), before serving any request
+#
+# Env: PM2_APP (default isms-jai); ISMS_SKIP_DEPLOY=1 skips steps 2–4.
+
+cd "$(git rev-parse --show-toplevel)" || exit 0
+PREV=ORIG_HEAD
+log() { printf '\n[post-merge] %s\n' "$*"; }
+
+if ! git rev-parse -q --verify "$PREV" >/dev/null; then
+  log "no previous commit recorded — skipping"
+  exit 0
+fi
+
+# 1) Restore untracked-on-purpose files the pull deleted from disk.
+git diff --name-only --diff-filter=D "$PREV" HEAD -- storage 'backup*.sql' | while IFS= read -r file; do
+  if [ -n "$file" ] && [ ! -e "$file" ]; then
+    mkdir -p "$(dirname "$file")"
+    git show "$PREV:$file" > "$file" && echo "  restored $file"
+  fi
+done
+
+if [ "${ISMS_SKIP_DEPLOY:-0}" = "1" ]; then
+  log "ISMS_SKIP_DEPLOY=1 — not installing/building/restarting"
+  exit 0
+fi
+
+# 2) Dependencies, only when they changed.
+if git diff --name-only "$PREV" HEAD | grep -qE '^(package\.json|package-lock\.json)$'; then
+  log "package.json changed — npm install"
+  npm install || { log "✗ npm install failed — fix it, then run: npm run build && pm2 restart ${PM2_APP:-isms-jai}"; exit 1; }
+fi
+
+# 3) Build.
+log "npm run build"
+if ! npm run build; then
+  log "✗ build failed — the app was NOT restarted. Fix the error, then run: npm run build && pm2 restart ${PM2_APP:-isms-jai}"
+  exit 1
+fi
+
+# 4) Restart (database migrations run automatically on start).
+if command -v pm2 >/dev/null 2>&1; then
+  log "pm2 restart ${PM2_APP:-isms-jai}"
+  pm2 restart "${PM2_APP:-isms-jai}" --update-env || log "✗ pm2 restart failed — restart the app manually"
+else
+  log "pm2 not found — restart the app manually (migrations run on start)"
+fi
+log "update finished"

@@ -22,3 +22,6 @@ backup*.sql
 # Uploaded files (confidential documents, photos, medical letters) — they
 # live on the server's disk only, never in git. Folders are created at runtime.
 storage/
+
+# TypeScript incremental build cache (rewritten by every build)
+*.tsbuildinfo

@@ -1,0 +1,4 @@
+# Git hooks are shell scripts: keep LF line endings on every OS
+# (a CRLF checkout on Windows would break them).
+.githooks/* text eol=lf
+*.sh text eol=lf

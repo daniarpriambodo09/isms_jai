@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { getIsmsAdminFromRequest, type AdminRole } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
 const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security']
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
     if (!username) return NextResponse.json({ message: 'Username wajib diisi.' }, { status: 400 })
     if (password.length < 6) return NextResponse.json({ message: 'Password minimal 6 karakter.' }, { status: 400 })
     if (!role || !ROLES.includes(role as AdminRole)) return NextResponse.json({ message: 'Role tidak valid.' }, { status: 400 })
+    if (email && !isDeliverableEmail(email)) return NextResponse.json({ message: `Email tidak valid. ${EMAIL_HINT}` }, { status: 400 })
 
     const existing = await query('SELECT 1 FROM admins WHERE username = $1', [username])
     if (existing.rows.length > 0) return NextResponse.json({ message: 'Username sudah dipakai.' }, { status: 409 })

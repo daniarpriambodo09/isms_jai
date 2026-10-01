@@ -7,8 +7,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowDownUp, Camera, Download, Eye, Search, Sparkles, Users } from 'lucide-react'
+import { ArrowDownUp, Camera, Download, Eye, Search, Sparkles, Trash2, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { useAuth } from '@/context/AuthContext'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
@@ -65,6 +67,13 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   const [locale, setLocale] = useState<'internal' | 'visitor'>('internal')
   const [query, setQuery] = useState('')
   const [sortDesc, setSortDesc] = useState(true)
+  // Deleting is ISM Admin only (the DELETE API enforces it too) — kiosk
+  // staff and the public see the ledger read-only.
+  const { adminUser } = useAuth()
+  const canDelete = adminUser?.role === 'ism_admin'
+  const [deleteTarget, setDeleteTarget] = useState<LedgerRequest | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -83,6 +92,36 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${deleteTarget.id}`, { method: 'DELETE', credentials: 'include' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Gagal menghapus pengajuan.')
+      setRequests((current) => current.filter((r) => r.id !== deleteTarget.id))
+      setNotice(`Pengajuan ${deleteTarget.requester_name} dihapus.`)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menghapus pengajuan.')
+    } finally {
+      setDeleting(false)
+      setDeleteTarget(null)
+    }
+  }
+
+  const deleteButton = (r: LedgerRequest) => (
+    <button
+      type="button"
+      onClick={() => { setNotice(null); setDeleteTarget(r) }}
+      aria-label={`Hapus pengajuan ${r.requester_name}`}
+      title="Hapus pengajuan"
+      className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+    >
+      <Trash2 className="size-3.5" />
+    </button>
+  )
 
   const typedRequests = useMemo(() => requests.filter((r) => r.request_type === locale), [requests, locale])
 
@@ -155,8 +194,9 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     }
   }
 
-  const internalColCount = 14
-  const visitorColCount = canViewPdf ? 14 : 13
+  const visitorActions = canViewPdf || canDelete
+  const internalColCount = canDelete ? 15 : 14
+  const visitorColCount = visitorActions ? 14 : 13
 
   return (
     <div className="flex flex-col gap-6">
@@ -196,6 +236,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
       </div>
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+      {notice && <p className="rounded-lg border border-emerald-600/20 bg-emerald-600/10 px-4 py-3 text-sm text-emerald-800">{notice}</p>}
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
@@ -203,7 +244,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
             <table className="w-full min-w-[1480px] text-sm">
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status'].map((head) => (
+                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -231,15 +272,16 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.location}</td>
                     <td className="min-w-[160px] px-4 py-3 text-xs text-muted-foreground">{r.objective}</td>
                     <StatusCell r={r} />
+                    {canDelete && <td className="whitespace-nowrap px-4 py-3">{deleteButton(r)}</td>}
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <table className={`w-full text-sm ${canViewPdf ? 'min-w-[1440px]' : 'min-w-[1360px]'}`}>
+            <table className={`w-full text-sm ${visitorActions ? 'min-w-[1440px]' : 'min-w-[1360px]'}`}>
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canViewPdf ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(visitorActions ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -266,22 +308,25 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.location}</td>
                     <td className="min-w-[160px] px-4 py-3 text-xs text-muted-foreground">{r.objective}</td>
                     <StatusCell r={r} />
-                    {canViewPdf && (
+                    {visitorActions && (
                       <td className="whitespace-nowrap px-4 py-3">
-                        {r.status !== 'pending' ? (
-                          <a
-                            href={`${API_BASE_PATH}/api/photo-video-requests/${r.id}/pdf`}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Lihat surat pengajuan PDF ${r.requester_name}`}
-                            title="Lihat hasil pengajuan (surat pengajuan PDF)"
-                            className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground"
-                          >
-                            <Eye className="size-3.5" />
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {canViewPdf && (r.status !== 'pending' ? (
+                            <a
+                              href={`${API_BASE_PATH}/api/photo-video-requests/${r.id}/pdf`}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label={`Lihat surat pengajuan PDF ${r.requester_name}`}
+                              title="Lihat hasil pengajuan (surat pengajuan PDF)"
+                              className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                            >
+                              <Eye className="size-3.5" />
+                            </a>
+                          ) : (
+                            <span className="grid size-8 place-items-center text-muted-foreground/40">—</span>
+                          ))}
+                          {canDelete && deleteButton(r)}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -294,6 +339,15 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredRequests.length} pageSize={pageSize} />
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Hapus pengajuan foto/video?"
+        message={deleteTarget ? `Pengajuan ${deleteTarget.request_type === 'internal' ? 'Internal' : 'Visitor'} atas nama "${deleteTarget.requester_name}" (${formatDateTime(deleteTarget.submitted_at)}) akan dihapus permanen dari rekap, termasuk surat pengajuan PDF-nya. Tindakan ini tidak dapat dibatalkan.` : ''}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

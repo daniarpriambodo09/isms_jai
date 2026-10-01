@@ -213,13 +213,14 @@ const MEMO_INK = '#1d2a36'
 const MEMO_SEAL = '#a8741a'
 const MEMO_SEAL_TINT = '#fbf3e2'
 
-function procedureEmailFrame(opts: { kicker: string; heading: string; subheading: string; controlNo: string; revision: number; seal: string; sealColor?: string }, body: string) {
+function procedureEmailFrame(opts: { kicker: string; heading: string; subheading: string; controlNo: string; revision: number; seal: string; sealColor?: string; preheader?: string }, body: string) {
   const sealColor = opts.sealColor ?? MEMO_SEAL
   return `
 <!doctype html>
 <html lang="id">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="margin:0;padding:0;background:${MEMO_PAPER};font-family:Georgia,'Times New Roman',serif;">
+  ${opts.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</div>` : ''}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${MEMO_PAPER};padding:28px 12px;">
     <tr>
       <td align="center">
@@ -391,55 +392,192 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   }
 }
 
+// Admin notification when a procedure's approval cycle ends — either every
+// approver signed (Disahkan) or one asked for changes (Perlu Revisi). Built
+// to be acted on from the inbox: a status banner saying who/when/what, the
+// document details, the revision notes numbered with their page, the whole
+// signing chain, and the concrete next steps with a direct link.
 export type ProcedureResultEmailData = {
   outcome: 'approved' | 'rejected'
   controlNo: string
   title: string
   revision: number
-  steps: { roleTitle: string; name: string; status: string; decidedAt: string | null; note: string | null }[]
+  effDate: string | null
+  docNote: string | null
+  steps: { step: number; roleCode: string; roleTitle: string; name: string; status: string; decidedAt: string | null }[]
+  // outcome 'rejected': the request itself
+  revisionRequest?: { by: string; roleTitle: string; at: string; general: string | null; pins: { page: number; note: string }[] } | null
+  // outcome 'approved': how many approvers' QR land on the document itself
+  placements?: { placed: number; total: number }
   registerUrl: string
+  signedPdfUrl?: string
 }
 
+const STEP_STATUS: Record<string, { label: string; color: string; bg: string }> = {
+  approved: { label: 'Disetujui', color: '#1a6e3a', bg: '#e3f3e8' },
+  rejected: { label: 'Minta revisi', color: '#b3361f', bg: '#fbe6e0' },
+  pending: { label: 'Menunggu', color: '#8a6100', bg: '#fff3d6' },
+  waiting: { label: 'Antri', color: '#5b6b76', bg: '#eef1f3' },
+  cancelled: { label: 'Tidak diproses', color: '#5b6b76', bg: '#eef1f3' },
+}
+
+const REV_RED = '#b3361f'
+const REV_TINT = '#fdf3ef'
+const OK_TINT = '#eef7f1'
+
+function fmtStamp(value: string) {
+  return new Date(value).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const SANS = 'Arial,Helvetica,sans-serif'
+const sectionTitle = (text: string) =>
+  `<p style="margin:0 0 10px;font-family:${SANS};font-size:10.5px;font-weight:bold;color:${NAVY_MID};letter-spacing:0.14em;text-transform:uppercase;">${text}</p>`
+
 export function buildProcedureResultEmail(data: ProcedureResultEmailData): { subject: string; html: string } {
-  const label = data.outcome === 'approved' ? 'Disahkan' : 'Perlu Revisi'
-  const color = data.outcome === 'approved' ? GREEN : RED
-  const stepsHtml = data.steps.map((s) => {
-    const mark = s.status === 'approved'
-      ? `<span style="color:${GREEN};font-weight:700;">&#10003; Disetujui</span>`
-      : s.status === 'rejected'
-        ? `<span style="color:${RED};font-weight:700;">&#9998; Minta revisi</span>`
-        : `<span style="color:${MUTED};">&ndash;</span>`
-    return `<p style="margin:0 0 6px;font-size:13px;color:${TEXT};"><strong>${escapeHtml(s.roleTitle)}</strong> &middot; ${escapeHtml(s.name)} &middot; ${mark}${s.decidedAt ? ` <span style="color:${MUTED};">(${fmtDate(s.decidedAt)})</span>` : ''}${s.note ? `<br><span style="display:inline-block;margin-top:6px;padding:10px 12px;border-left:3px solid ${s.status === 'rejected' ? RED : MUTED};background:#fbf6f2;color:${TEXT};line-height:1.7;"><strong>Catatan revisi:</strong><br>${escapeHtml(s.note).replace(/\n/g, '<br>')}</span>` : ''}</p>`
-  }).join('')
+  const approved = data.outcome === 'approved'
+  const label = approved ? 'Disahkan' : 'Perlu Revisi'
+  const color = approved ? GREEN : REV_RED
+  const total = data.steps.length
+  const approvedCount = data.steps.filter((s) => s.status === 'approved').length
+  const req = data.revisionRequest ?? null
+  const noteCount = req ? (req.general ? 1 : 0) + req.pins.length : 0
+  const lastDecision = data.steps.filter((s) => s.decidedAt).map((s) => s.decidedAt as string).sort().pop() ?? null
+  const skipped = data.steps.filter((s) => s.status === 'cancelled' || s.status === 'waiting').length
+
+  // 1) Status banner — the whole story in two lines.
+  const banner = approved
+    ? `<p style="margin:0;font-family:${SANS};font-size:16px;font-weight:bold;color:${GREEN};">&#10003;&nbsp; Disahkan oleh seluruh approver (${approvedCount}/${total})</p>
+       <p style="margin:6px 0 0;font-family:${SANS};font-size:13px;color:${TEXT};line-height:1.6;">Tanda tangan terakhir ${lastDecision ? `pada <strong>${escapeHtml(fmtStamp(lastDecision))}</strong>` : ''}. Dokumen kini berstatus <strong>Disahkan</strong> di register Prosedur ISMS.</p>`
+    : `<p style="margin:0;font-family:${SANS};font-size:16px;font-weight:bold;color:${REV_RED};">&#9888;&nbsp; Revisi diminta oleh ${escapeHtml(req?.by ?? '-')}</p>
+       <p style="margin:6px 0 0;font-family:${SANS};font-size:13px;color:${TEXT};line-height:1.6;">${escapeHtml(req?.roleTitle ?? '')}${req ? ` &middot; ${escapeHtml(fmtStamp(req.at))}` : ''} &middot; <strong>${noteCount} catatan</strong>${req && req.pins.length ? ` (${req.pins.length} ditandai di halaman dokumen)` : ''}.<br>Pengesahan dihentikan${skipped ? ` &mdash; ${skipped} approver berikutnya belum dimintai persetujuan` : ''}.</p>`
+
+  // 2) Document details.
+  const detailRows: [string, string][] = [
+    ['No. Kontrol', `<span style="font-family:'Courier New',Courier,monospace;font-weight:bold;">${escapeHtml(data.controlNo)}</span>`],
+    ['Nama Dokumen', `<strong>${escapeHtml(data.title)}</strong>`],
+    ['Revisi', `Rev. ${data.revision}`],
+    ...(data.effDate ? [['Eff Date', escapeHtml(fmtDate(data.effDate))] as [string, string]] : []),
+    ...(data.docNote ? [['Catatan pengajuan', escapeHtml(data.docNote)] as [string, string]] : []),
+  ]
+  const details = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${MEMO_LINE};border-radius:4px;border-collapse:separate;">
+      ${detailRows.map(([k, v], i) => `
+      <tr>
+        <td style="width:150px;padding:9px 14px;font-family:${SANS};font-size:12px;color:${MUTED};background:${MEMO_PAPER};${i ? `border-top:1px solid ${MEMO_LINE};` : ''}vertical-align:top;">${k}</td>
+        <td style="padding:9px 14px;font-family:${SANS};font-size:13px;color:${MEMO_INK};${i ? `border-top:1px solid ${MEMO_LINE};` : ''}line-height:1.5;">${v}</td>
+      </tr>`).join('')}
+    </table>`
+
+  // 3) Revision notes, numbered with their page.
+  const notes = !approved && req ? `
+    <tr><td style="padding:22px 32px 0;">
+      ${sectionTitle(`Catatan revisi (${noteCount})`)}
+      ${req.general ? `<div style="padding:12px 14px;border-left:3px solid ${REV_RED};background:${REV_TINT};font-family:${SANS};font-size:13.5px;color:${MEMO_INK};line-height:1.65;"><span style="display:block;font-size:10.5px;font-weight:bold;color:${REV_RED};letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px;">Catatan umum</span>${escapeHtml(req.general).replace(/\n/g, '<br>')}</div>` : ''}
+      ${req.pins.length ? `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:${req.general ? '10px' : '0'};border:1px solid #f0d9d1;border-radius:4px;border-collapse:separate;">
+        ${req.pins.map((pin, i) => `
+        <tr>
+          <td style="width:34px;padding:10px 0 10px 12px;vertical-align:top;${i ? 'border-top:1px solid #f0d9d1;' : ''}">
+            <table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="width:22px;height:22px;border-radius:50%;background:#d6452f;font-family:${SANS};font-size:11px;font-weight:bold;color:#ffffff;">${i + 1}</td></tr></table>
+          </td>
+          <td style="padding:10px 14px 10px 6px;vertical-align:top;${i ? 'border-top:1px solid #f0d9d1;' : ''}">
+            <span style="display:inline-block;padding:1px 7px;border-radius:3px;background:#f6e4de;font-family:${SANS};font-size:10.5px;font-weight:bold;color:${REV_RED};">Halaman ${pin.page + 1}</span>
+            <p style="margin:4px 0 0;font-family:${SANS};font-size:13.5px;color:${MEMO_INK};line-height:1.55;">${escapeHtml(pin.note)}</p>
+          </td>
+        </tr>`).join('')}
+      </table>
+      <p style="margin:8px 0 0;font-family:${SANS};font-size:11.5px;color:${MUTED};">Nomor di atas sama dengan penanda merah pada halaman dokumen &mdash; buka <em>Lihat catatan di dokumen</em> di register untuk melihat letaknya.</p>` : ''}
+    </td></tr>` : ''
+
+  // 4) The whole signing chain.
+  const chain = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${MEMO_LINE};border-radius:4px;border-collapse:separate;">
+      <tr>
+        <td style="padding:8px 12px;font-family:${SANS};font-size:10px;font-weight:bold;color:${MUTED};letter-spacing:0.1em;text-transform:uppercase;background:${MEMO_PAPER};width:28px;">#</td>
+        <td style="padding:8px 12px;font-family:${SANS};font-size:10px;font-weight:bold;color:${MUTED};letter-spacing:0.1em;text-transform:uppercase;background:${MEMO_PAPER};">Approver</td>
+        <td style="padding:8px 12px;font-family:${SANS};font-size:10px;font-weight:bold;color:${MUTED};letter-spacing:0.1em;text-transform:uppercase;background:${MEMO_PAPER};">Status</td>
+        <td style="padding:8px 12px;font-family:${SANS};font-size:10px;font-weight:bold;color:${MUTED};letter-spacing:0.1em;text-transform:uppercase;background:${MEMO_PAPER};text-align:right;">Waktu</td>
+      </tr>
+      ${data.steps.map((s) => {
+        const st = STEP_STATUS[s.status] ?? STEP_STATUS.waiting
+        return `
+      <tr>
+        <td style="padding:10px 12px;border-top:1px solid ${MEMO_LINE};font-family:${SANS};font-size:12px;color:${MUTED};vertical-align:top;">${s.step}</td>
+        <td style="padding:10px 12px;border-top:1px solid ${MEMO_LINE};font-family:${SANS};vertical-align:top;">
+          <span style="font-size:13px;font-weight:bold;color:${MEMO_INK};">${escapeHtml(s.name)}</span>
+          <span style="font-family:'Courier New',Courier,monospace;font-size:10px;color:${MUTED};">&nbsp;${escapeHtml(s.roleCode)}</span><br>
+          <span style="font-size:11.5px;color:${MUTED};">${escapeHtml(s.roleTitle)}</span>
+        </td>
+        <td style="padding:10px 12px;border-top:1px solid ${MEMO_LINE};vertical-align:top;">
+          <span style="display:inline-block;padding:3px 9px;border-radius:999px;background:${st.bg};font-family:${SANS};font-size:11px;font-weight:bold;color:${st.color};white-space:nowrap;">${st.label}</span>
+        </td>
+        <td style="padding:10px 12px;border-top:1px solid ${MEMO_LINE};font-family:${SANS};font-size:11.5px;color:${MUTED};text-align:right;vertical-align:top;white-space:nowrap;">${s.decidedAt ? escapeHtml(fmtStamp(s.decidedAt)) : '&ndash;'}</td>
+      </tr>`
+      }).join('')}
+    </table>`
+
+  // 5) Next steps.
+  const stepsList = (items: string[]) => items.map((item, i) => `
+      <tr>
+        <td style="width:26px;vertical-align:top;padding:0 0 9px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="width:20px;height:20px;border-radius:50%;background:${NAVY};font-family:${SANS};font-size:10.5px;font-weight:bold;color:#ffffff;">${i + 1}</td></tr></table></td>
+        <td style="padding:1px 0 9px 6px;font-family:${SANS};font-size:13px;color:${MEMO_INK};line-height:1.55;">${item}</td>
+      </tr>`).join('')
+  const placements = data.placements
+  const nextSteps = approved
+    ? [
+        placements && placements.total > 0 && placements.placed < placements.total
+          ? `<strong style="color:${REV_RED};">Periksa posisi QR:</strong> baru ${placements.placed} dari ${placements.total} approver yang QR-nya tercetak di kolom tanda tangan dokumen. Atur lewat tombol <em>Posisi QR</em> di register agar semua tanda tangan tampil.`
+          : 'Semua QR tanda tangan tercetak di kolom tanda tangan dokumen beserta tanggalnya.',
+        'Unduh <strong>PDF bertanda tangan</strong> untuk arsip atau distribusi &mdash; setiap QR dapat dipindai untuk memverifikasi penyetuju dan tanggalnya.',
+        'Dokumen otomatis tampil sebagai <strong>Disahkan</strong> di register Prosedur ISMS.',
+      ]
+    : [
+        'Buka dokumen di register Prosedur ISMS, lalu klik <strong>Lihat catatan di dokumen</strong> untuk melihat letak setiap catatan.',
+        'Perbaiki dokumen sesuai catatan di atas.',
+        'Klik <strong>Edit</strong> pada dokumen dan unggah file perbaikan (naikkan nomor revisi bila perlu). Pengesahan otomatis dimulai ulang dari tahap 1.',
+        'Approver akan melihat catatan ini di samping dokumen baru, sehingga bisa langsung memeriksa perbaikannya.',
+      ]
+
+  const button = (href: string, text: string, bg: string) =>
+    `<a href="${href}" style="display:inline-block;margin:0 4px 8px;padding:12px 24px;background:${bg};color:#ffffff;border-radius:999px;text-decoration:none;font-family:${SANS};font-weight:bold;font-size:13px;">${text}</a>`
+  const ghost = (href: string, text: string) =>
+    `<a href="${href}" style="display:inline-block;margin:0 4px 8px;padding:11px 22px;border:1.5px solid ${NAVY};color:${NAVY};border-radius:999px;text-decoration:none;font-family:${SANS};font-weight:bold;font-size:13px;">${text}</a>`
+  const buttons = approved
+    ? `${data.signedPdfUrl ? button(data.signedPdfUrl, 'Unduh PDF bertanda tangan', GREEN) : ''}${ghost(data.registerUrl, 'Buka di register')}`
+    : `${button(data.registerUrl, 'Lihat catatan &amp; perbaiki dokumen', REV_RED)}`
 
   const body = `
-    <tr>
-      <td style="padding:30px 32px 10px;">
-        <p style="margin:0 0 16px;font-size:13.5px;color:${TEXT};line-height:1.75;">Proses pengesahan dokumen <strong>${escapeHtml(data.controlNo)} &mdash; ${escapeHtml(data.title)}</strong> (Rev. ${data.revision}) ${data.outcome === 'approved'
-          ? `telah selesai dengan hasil <strong style="color:${color};">${label}</strong>.`
-          : `<strong style="color:${color};">perlu direvisi</strong> sesuai catatan approver di bawah. Buka dokumen di Portal ISMS untuk melihat catatan yang ditandai langsung di halamannya, perbaiki, lalu unggah ulang (Edit) untuk memulai pengesahan kembali.`}</p>
-        ${stepsHtml}
-      </td>
-    </tr>
-    <tr>
-      <td align="center" style="padding:20px 32px 28px;">
-        <a href="${data.registerUrl}" style="display:inline-block;padding:12px 26px;background:${NAVY};color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13px;">Lihat di Portal ISMS</a>
-      </td>
-    </tr>`
+    <tr><td style="padding:22px 32px 0;">
+      <div style="padding:14px 16px;border-radius:4px;border-left:4px solid ${color};background:${approved ? OK_TINT : REV_TINT};">${banner}</div>
+    </td></tr>
+    <tr><td style="padding:22px 32px 0;">${sectionTitle('Detail dokumen')}${details}</td></tr>
+    ${notes}
+    <tr><td style="padding:22px 32px 0;">${sectionTitle(`Status pengesahan &middot; ${approvedCount}/${total} disetujui`)}${chain}</td></tr>
+    <tr><td style="padding:22px 32px 0;">${sectionTitle('Langkah selanjutnya')}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${stepsList(nextSteps)}</table></td></tr>
+    <tr><td align="center" style="padding:14px 32px 24px;">${buttons}</td></tr>`
+
+  const firstNote = req ? (req.pins[0] ? `Hal. ${req.pins[0].page + 1}: ${req.pins[0].note}` : req.general ?? '') : ''
+  const preheader = approved
+    ? `${data.controlNo} Rev. ${data.revision} disahkan oleh ${approvedCount}/${total} approver.`
+    : `${req?.by ?? 'Approver'} meminta revisi (${noteCount} catatan) — ${firstNote}`.slice(0, 160)
 
   return {
-    subject: `[${label}] Prosedur ISMS ${data.controlNo} — ${data.title} (Rev. ${data.revision})`,
+    subject: approved
+      ? `[Disahkan] ${data.controlNo} — ${data.title} (Rev. ${data.revision}) · ${approvedCount}/${total} approver`
+      : `[Perlu Revisi] ${data.controlNo} — ${data.title} (Rev. ${data.revision}) · ${noteCount} catatan dari ${req?.by ?? 'approver'}`,
     html: procedureEmailFrame({
-      kicker: 'Hasil Pengesahan &middot; Prosedur ISMS',
-      heading: `Pengesahan ${label}`,
+      kicker: 'Notifikasi Admin &middot; Pengesahan Prosedur ISMS',
+      heading: approved ? 'Dokumen Disahkan' : 'Dokumen Perlu Revisi',
       subheading: escapeHtml(data.title),
       controlNo: data.controlNo,
       revision: data.revision,
-      seal: data.outcome === 'approved' ? '&#10003;<br>Disahkan' : 'Perlu<br>Revisi',
+      seal: approved ? '&#10003;<br>Disahkan' : 'Perlu<br>Revisi',
       sealColor: color,
+      preheader,
     }, body),
   }
 }
+
 
 // ─── Ijin Masuk Area Special Security (ISMS-F-006-001) ───
 // Same structure and wording pattern as the Visitor Ijin Foto/Video email,

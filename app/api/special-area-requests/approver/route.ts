@@ -9,8 +9,7 @@ import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { logActivity } from '@/lib/activity-log'
 import { listRoles } from '@/lib/procedure-approval'
 import { ensureSpecialAreaSchema, getApproverSetting, resendAllPending, resolveApprover, saveApproverSetting, type ApproverSetting } from '@/lib/special-area'
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 
 async function payload() {
   const [{ setting, updatedAt, updatedBy }, approver, roles] = await Promise.all([getApproverSetting(), resolveApprover(), listRoles()])
@@ -52,7 +51,7 @@ export async function PUT(request: NextRequest) {
       const email = typeof body.email === 'string' && body.email.trim() ? body.email.trim() : null
       if (!name) return NextResponse.json({ message: 'Nama approver wajib diisi.' }, { status: 400 })
       if (!title) return NextResponse.json({ message: 'Jabatan approver wajib diisi.' }, { status: 400 })
-      if (email && !EMAIL_RE.test(email)) return NextResponse.json({ message: 'Format email tidak valid.' }, { status: 400 })
+      if (email && !isDeliverableEmail(email)) return NextResponse.json({ message: `Email tidak valid. ${EMAIL_HINT}` }, { status: 400 })
       setting = { mode: 'custom', name, title, email }
     } else {
       return NextResponse.json({ message: 'Mode tidak valid.' }, { status: 400 })

@@ -4,25 +4,39 @@ import bcrypt from 'bcryptjs'
 import { getIsmsAdminFromRequest, type AdminRole } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
 const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security']
 
-// Self-service (changing your own password) goes through /api/auth/change-password
-// instead — these routes only ever touch OTHER accounts, so an ism_admin can never
-// accidentally lock themselves out or demote themselves via this admin-management UI.
+// Role and password of YOUR OWN account can't be changed here (self-service
+// password goes through /api/auth/change-password), so an ism_admin can never
+// accidentally lock themselves out or demote themselves via this UI. The
+// email — where admin notifications go — can be edited on any account.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID tidak valid.' }, { status: 400 })
   const session = getIsmsAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
-  if (session.sub === Number(id)) return NextResponse.json({ message: 'Gunakan halaman Pengaturan untuk mengubah akun Anda sendiri.' }, { status: 403 })
 
   try {
-    const body = await request.json() as { role?: string; newPassword?: string }
+    const body = await request.json() as { role?: string; newPassword?: string; email?: string | null }
+    const isSelf = session.sub === Number(id)
+    if (isSelf && (body.role !== undefined || body.newPassword !== undefined)) {
+      return NextResponse.json({ message: 'Gunakan halaman Pengaturan untuk mengubah password akun Anda sendiri.' }, { status: 403 })
+    }
     const existing = await query<AdminRow>('SELECT id, username, email, role, created_at FROM admins WHERE id = $1', [id])
     const target = existing.rows[0]
     if (!target) return NextResponse.json({ message: 'Akun admin tidak ditemukan.' }, { status: 404 })
+
+    if (body.email !== undefined) {
+      const email = typeof body.email === 'string' && body.email.trim() ? body.email.trim() : null
+      if (email && !isDeliverableEmail(email)) return NextResponse.json({ message: `Email tidak valid. ${EMAIL_HINT}` }, { status: 400 })
+      if (email !== target.email) {
+        await query('UPDATE admins SET email = $1 WHERE id = $2', [email, id])
+        await logActivity(session, 'update', 'admin', id, `Mengubah email akun "${target.username}" menjadi ${email ?? '(kosong)'}`)
+      }
+    }
 
     if (body.role !== undefined) {
       if (!ROLES.includes(body.role as AdminRole)) return NextResponse.json({ message: 'Role tidak valid.' }, { status: 400 })

@@ -16,6 +16,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type P
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ChevronLeft, ChevronRight, Loader2, MapPin, MessageSquareText, Send, Trash2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { PdfPages, loadPageRatios, scrollToPage, scrollToSpot } from '@/components/documents/PdfPages'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 export type RevisionPin = { page: number; x: number; y: number; note: string }
@@ -50,15 +51,17 @@ export function RevisionNotesDialog({
   const editing = mode === 'edit'
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [pageIndex, setPageIndex] = useState(initialPins[0]?.page ?? 0)
-  const [ratio, setRatio] = useState(1.414)
+  // The page currently in view (all pages are shown in one scrolling column).
+  const [pageIndex, setPageIndex] = useState(0)
+  const [ratios, setRatios] = useState<number[]>([])
   const [pins, setPins] = useState<Pin[]>(() => initialPins.map((p) => ({ ...p, key: newKey() })))
   const [general, setGeneral] = useState(initialGeneral ?? '')
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
-  const stageRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([])
+  const initialPage = useRef<number | null>(initialPins[0]?.page ?? 0)
   const itemRefs = useRef<Record<string, HTMLElement | null>>({})
   const drag = useRef<{ key: string; startX: number; startY: number; orig: Pin; moved: boolean } | null>(null)
 
@@ -73,9 +76,10 @@ export function RevisionNotesDialog({
         const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}`)
         if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')
         const loaded = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
+        const pageRatios = await loadPageRatios(loaded)
         if (cancelled) return
         setPdf(loaded)
-        setPageIndex((p) => Math.min(p, loaded.numPages - 1))
+        setRatios(pageRatios)
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : 'Gagal memuat dokumen.')
       }
@@ -83,38 +87,30 @@ export function RevisionNotesDialog({
     return () => { cancelled = true }
   }, [filePath])
 
+  const goToPage = (index: number) => scrollToPage(scrollRef, pageRefs, index)
+
+  // Once the pages are laid out, jump to the first marker's page.
   useEffect(() => {
-    if (!pdf || !canvasRef.current || !stageRef.current) return
-    let cancelled = false
-    let task: { cancel: () => void; promise: Promise<unknown> } | null = null
-    ;(async () => {
-      const page = await pdf.getPage(pageIndex + 1)
-      const base = page.getViewport({ scale: 1 })
-      const viewport = page.getViewport({ scale: (stageRef.current!.clientWidth / base.width) * (window.devicePixelRatio || 1) })
-      if (cancelled) return
-      setRatio(base.height / base.width)
-      const canvas = canvasRef.current!
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      task = page.render({ canvasContext: canvas.getContext('2d')!, viewport })
-      await task.promise.catch(() => {})
-    })()
-    return () => { cancelled = true; task?.cancel() }
-  }, [pdf, pageIndex])
+    if (!ratios.length || initialPage.current === null) return
+    const target = Math.min(initialPage.current, ratios.length - 1)
+    initialPage.current = null
+    if (target > 0) requestAnimationFrame(() => scrollToPage(scrollRef, pageRefs, target, false))
+  }, [ratios])
 
   const select = (key: string) => {
     setSelected(key)
     requestAnimationFrame(() => itemRefs.current[key]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
 
-  const addPin = (e: ReactMouseEvent<HTMLDivElement>) => {
-    if (!editing || !stageRef.current) return
-    const rect = stageRef.current.getBoundingClientRect()
+  const addPin = (page: number, e: ReactMouseEvent<HTMLDivElement>) => {
+    const el = pageRefs.current[page]
+    if (!editing || !el) return
+    const rect = el.getBoundingClientRect()
     const x = (e.clientX - rect.left) / rect.width
     const y = (e.clientY - rect.top) / rect.height
     if (x < 0 || x > 1 || y < 0 || y > 1) return
     if (pins.length >= 30) { setError('Maksimal 30 penanda.'); return }
-    const pin: Pin = { key: newKey(), page: pageIndex, x, y, note: '' }
+    const pin: Pin = { key: newKey(), page, x, y, note: '' }
     setPins((c) => [...c, pin])
     select(pin.key)
     // Let the new note's textarea take focus.
@@ -131,7 +127,7 @@ export function RevisionNotesDialog({
 
   const onPinMove = (e: ReactPointerEvent) => {
     const d = drag.current
-    const stage = stageRef.current
+    const stage = d ? pageRefs.current[d.orig.page] : null
     if (!d || !stage) return
     const rect = stage.getBoundingClientRect()
     if (Math.abs(e.clientX - d.startX) + Math.abs(e.clientY - d.startY) > 3) d.moved = true
@@ -148,7 +144,7 @@ export function RevisionNotesDialog({
     const empty = pins.findIndex((p) => !p.note.trim())
     if (empty >= 0) {
       setError(`Isi catatan untuk penanda ${empty + 1}, atau hapus penandanya.`)
-      setPageIndex(pins[empty].page)
+      scrollToSpot(scrollRef, pageRefs, pins[empty].page, pins[empty].y)
       select(pins[empty].key)
       return
     }
@@ -164,7 +160,6 @@ export function RevisionNotesDialog({
   }
 
   const numberOf = (key: string) => pins.findIndex((p) => p.key === key) + 1
-  const onThisPage = pins.filter((p) => p.page === pageIndex)
 
   return (
     <div className="fixed inset-0 z-[60] flex bg-[color-mix(in_oklch,_var(--p-950)_70%,_transparent)] p-0 sm:p-6">
@@ -182,26 +177,30 @@ export function RevisionNotesDialog({
           {/* Page */}
           <div className="flex min-h-0 flex-col bg-muted/40">
             <div className="flex items-center justify-center gap-3 border-b border-border bg-card/60 px-4 py-2 text-sm">
-              <button type="button" disabled={pageIndex === 0} onClick={() => setPageIndex((p) => p - 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman sebelumnya"><ChevronLeft className="size-4" /></button>
+              <button type="button" disabled={pageIndex === 0} onClick={() => goToPage(pageIndex - 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman sebelumnya"><ChevronLeft className="size-4" /></button>
               <span className="font-mono text-xs text-muted-foreground">Halaman {pageIndex + 1} / {pdf?.numPages ?? '–'}</span>
-              <button type="button" disabled={!pdf || pageIndex >= pdf.numPages - 1} onClick={() => setPageIndex((p) => p + 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman berikutnya"><ChevronRight className="size-4" /></button>
+              <button type="button" disabled={!pdf || pageIndex >= pdf.numPages - 1} onClick={() => goToPage(pageIndex + 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman berikutnya"><ChevronRight className="size-4" /></button>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+            <div
+              ref={scrollRef}
+              className="min-h-0 flex-1 overflow-auto p-3 sm:p-4"
+              onPointerMove={onPinMove}
+              onPointerUp={() => { drag.current = null }}
+              onPointerCancel={() => { drag.current = null }}
+            >
               {loadError ? (
                 <p className="mx-auto mt-10 max-w-md rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-center text-sm text-destructive">{loadError}</p>
+              ) : !pdf || !ratios.length ? (
+                <div className="grid h-full place-items-center text-muted-foreground"><Loader2 className="size-7 animate-spin" /></div>
               ) : (
-                <div
-                  ref={stageRef}
-                  className={`relative mx-auto w-full max-w-[760px] select-none bg-white shadow-lg ${editing ? 'cursor-crosshair' : ''}`}
-                  style={{ aspectRatio: `1 / ${ratio}` }}
-                  onClick={addPin}
-                  onPointerMove={onPinMove}
-                  onPointerUp={() => { drag.current = null }}
-                  onPointerCancel={() => { drag.current = null }}
-                >
-                  <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-                  {!pdf && <div className="absolute inset-0 grid place-items-center text-muted-foreground"><Loader2 className="size-7 animate-spin" /></div>}
-                  {onThisPage.map((pin) => {
+                <PdfPages
+                  pdf={pdf}
+                  ratios={ratios}
+                  scrollRef={scrollRef}
+                  pageRefs={pageRefs}
+                  onCurrentPage={setPageIndex}
+                  pageProps={(page) => ({ className: editing ? 'cursor-crosshair' : '', onClick: (e) => addPin(page, e) })}
+                  renderOverlay={(page) => pins.filter((p) => p.page === page).map((pin) => {
                     const active = selected === pin.key
                     return (
                       <button
@@ -218,7 +217,7 @@ export function RevisionNotesDialog({
                       </button>
                     )
                   })}
-                </div>
+                />
               )}
             </div>
           </div>
@@ -262,12 +261,12 @@ export function RevisionNotesDialog({
                 <div
                   key={pin.key}
                   ref={(el) => { itemRefs.current[pin.key] = el }}
-                  onClick={() => { setPageIndex(pin.page); setSelected(pin.key) }}
+                  onClick={() => setSelected(pin.key)}
                   className={`rounded-xl border p-2.5 transition-colors ${selected === pin.key ? 'border-[#d6452f] bg-[#fdf0ec]' : 'border-border'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span className="grid size-6 flex-none place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: PIN_COLOR }}>{i + 1}</span>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setPageIndex(pin.page); setSelected(pin.key) }} className="flex-1 text-left text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">
+                    <button type="button" onClick={(e) => { e.stopPropagation(); scrollToSpot(scrollRef, pageRefs, pin.page, pin.y); setSelected(pin.key) }} className="flex-1 text-left text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">
                       Halaman {pin.page + 1}
                     </button>
                     {editing && (
@@ -280,7 +279,7 @@ export function RevisionNotesDialog({
                     <textarea
                       value={pin.note}
                       onChange={(e) => setPins((c) => c.map((p) => (p.key === pin.key ? { ...p, note: e.target.value } : p)))}
-                      onFocus={() => { setPageIndex(pin.page); setSelected(pin.key) }}
+                      onFocus={() => setSelected(pin.key)}
                       rows={2}
                       maxLength={500}
                       placeholder="Apa yang perlu direvisi di sini?"

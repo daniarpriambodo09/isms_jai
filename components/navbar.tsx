@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, ChevronDown, LogOut, Menu, Settings, X } from 'lucide-react'
+import { Aperture, ArrowUpRight, Building2, CalendarDays, Camera, ChevronDown, FileSignature, Images, LayoutList, LogOut, Mail, Menu, Palette, Settings, ShieldAlert, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -16,6 +16,45 @@ import { NotificationBell } from '@/components/documents/NotificationBell'
 
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
+
+// Admin Settings mega-menu, one column per group. ismOnly groups are shown
+// to ISM Admin accounts only.
+const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; label: string; hint: string; icon: typeof Settings }[] }[] = [
+  {
+    title: 'Content',
+    items: [
+      { href: '/pengaturan', label: 'Manage Menu Content', hint: 'Isi & label menu portal', icon: LayoutList },
+      { href: '/kelola-hero-slides', label: 'Manage Hero Slides', hint: 'Video & gambar di Home', icon: Images },
+      { href: '/kelola-jadwal', label: 'Manage Schedules', hint: 'Jadwal audit & training', icon: CalendarDays },
+    ],
+  },
+  {
+    title: 'Organization & Requests',
+    items: [
+      { href: '/kelola-departemen', label: 'Manage Departments', hint: 'Departemen & section', icon: Building2 },
+      { href: '/kelola-permintaan-foto-video', label: 'Photo/Video Requests', hint: 'Tinjau izin foto/video', icon: Camera },
+      { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk area special', icon: ShieldAlert },
+      { href: '/kelola-kamera', label: 'Camera Equipment', hint: 'Kamera & ID photography', icon: Aperture },
+      { href: '/kelola-pic-approve', label: 'PIC Approvers', hint: 'Penyetuju izin foto', icon: UserCheck },
+    ],
+  },
+  {
+    title: 'Accounts',
+    ismOnly: true,
+    items: [
+      { href: '/kelola-admin', label: 'Manage Admin Accounts', hint: 'Akun, role & log aktivitas', icon: Users },
+      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Penyetuju prosedur ISMS', icon: FileSignature },
+    ],
+  },
+  {
+    title: 'System',
+    ismOnly: true,
+    items: [
+      { href: '/kelola-smtp', label: 'SMTP Settings', hint: 'Email notifikasi & App URL', icon: Mail },
+      { href: '/kelola-tema', label: 'Theme Colors', hint: 'Warna tema portal', icon: Palette },
+    ],
+  },
+]
 
 export function Navbar() {
   const pathname = usePathname()
@@ -204,7 +243,7 @@ export function Navbar() {
           page behind the gutters stays usable while scrolling. */}
       <div className="pointer-events-none sticky top-0 z-30 px-4 pt-3 max-[680px]:px-2 max-[680px]:pt-2">
       <nav
-        className="pointer-events-auto mx-auto max-w-[1480px] rounded-full bg-primary text-primary-foreground transition-all duration-300"
+        className="pointer-events-auto relative mx-auto max-w-[1480px] rounded-full bg-primary text-primary-foreground transition-all duration-300"
         style={{
           boxShadow: scrolled
             ? '0 18px 40px -14px color-mix(in oklch, var(--primary) 55%, transparent)'
@@ -318,7 +357,7 @@ export function Navbar() {
             </div>
 
             {isLoggedIn && (
-              <div className="relative">
+              <div>
                 <button
                   type="button"
                   onClick={() => setSettingsMenuOpen((v) => !v)}
@@ -336,61 +375,52 @@ export function Navbar() {
                 {settingsMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setSettingsMenuOpen(false)} />
-                    {dropdownPanel(
-                      <>
-                        <div className="border-b border-border px-3 pb-2 pt-1">
+                    {/* Mega-menu: the groups side by side instead of one long column. */}
+                    <div
+                      role="menu"
+                      aria-label="Admin Settings"
+                      className="absolute left-1/2 top-[calc(100%+12px)] z-20 w-[min(980px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground"
+                      style={{
+                        animation: 'dropdown-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
+                        boxShadow: '0 24px 60px color-mix(in oklch, var(--p-950) 28%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent)',
+                      }}
+                    >
+                      <div className="nav-dropdown-bar h-[2.5px] w-full" />
+                      <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                        <div>
                           <p className="portal-eyebrow">Admin Panel</p>
-                          <p className="mt-1 text-xs text-muted-foreground">Choose a feature to manage</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">Pilih fitur yang ingin dikelola</p>
                         </div>
-
-                        <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Content</p>
-                        <Link href="/pengaturan" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Manage Menu Content
-                        </Link>
-                        <Link href="/kelola-hero-slides" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Manage Hero Slides
-                        </Link>
-                        <Link href="/kelola-jadwal" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Manage Schedules
-                        </Link>
-
-                        <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Organization &amp; Requests</p>
-                        <Link href="/kelola-departemen" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Manage Departments
-                        </Link>
-                        <Link href="/kelola-permintaan-foto-video" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Photo/Video Requests
-                        </Link>
-                        <Link href="/kelola-izin-area-special" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Special Area Access Requests
-                        </Link>
-                        <Link href="/kelola-kamera" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Manage Camera Equipment
-                        </Link>
-                        <Link href="/kelola-pic-approve" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                          Manage PIC Approvers
-                        </Link>
-
-                        {adminUser?.role === 'ism_admin' && (
-                          <>
-                            <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Accounts</p>
-                            <Link href="/kelola-admin" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                              Manage Admin Accounts
-                            </Link>
-                            <Link href="/kelola-pengesahan" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                              Approver Pengesahan Prosedur
-                            </Link>
-                            <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">System</p>
-                            <Link href="/kelola-smtp" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                              SMTP Settings
-                            </Link>
-                            <Link href="/kelola-tema" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">
-                              Theme Colors
-                            </Link>
-                          </>
-                        )}
-                      </>
-                    )}
+                        <span className="rounded-full bg-secondary px-2.5 py-1 font-mono-label text-[10px] text-muted-foreground">{adminUser?.username}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-4 p-3 xl:grid-cols-4">
+                        {ADMIN_GROUPS.filter((group) => !group.ismOnly || adminUser?.role === 'ism_admin').map((group) => (
+                          <div key={group.title}>
+                            <p className="px-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">{group.title}</p>
+                            <div className="flex flex-col">
+                              {group.items.map(({ href, label, hint, icon: Icon }) => {
+                                const active = pathname === href
+                                return (
+                                  <Link
+                                    key={href}
+                                    href={href}
+                                    className={cn('nav-drop-item group flex items-center gap-2.5 rounded-xl px-2.5 py-2', active && 'bg-secondary')}
+                                  >
+                                    <span className={cn('grid size-8 flex-none place-items-center rounded-lg transition-colors', active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-[color:var(--p-600)] group-hover:bg-primary group-hover:text-primary-foreground')}>
+                                      <Icon className="size-4" />
+                                    </span>
+                                    <span className="min-w-0">
+                                      <span className="block truncate text-[13px] font-medium leading-tight text-foreground">{label}</span>
+                                      <span className="block truncate text-[11px] leading-tight text-muted-foreground">{hint}</span>
+                                    </span>
+                                  </Link>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -403,7 +433,7 @@ export function Navbar() {
             {!isLoading && (
               isLoggedIn ? (
                 <div className="hidden items-center gap-2 sm:flex">
-                  <span className="flex items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-mono-label text-[10.5px] text-primary-foreground/85">
+                  <span className="hidden items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-mono-label text-[10.5px] text-primary-foreground/85 xl:flex">
                     <span className="size-1.5 rounded-full bg-accent" />
                     {adminUser?.username}
                   </span>

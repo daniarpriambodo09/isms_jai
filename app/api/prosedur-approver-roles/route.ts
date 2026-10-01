@@ -8,11 +8,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 import { logActivity } from '@/lib/activity-log'
 import { getSmtpSettings } from '@/lib/smtp'
 import { ensureApprovalSchema, listPendingSteps, listRoles, reassignRole } from '@/lib/procedure-approval'
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 type RoleInput = { title: string; personName: string; email: string | null; sortOrder: number; isDefault: boolean }
 
@@ -25,7 +25,7 @@ function parseRole(body: Record<string, unknown>): RoleInput | string {
   if (title.length > 150) return 'Unit Kerja (Jabatan) maksimal 150 karakter.'
   if (!personName) return 'Nama wajib diisi.'
   if (personName.length > 150) return 'Nama maksimal 150 karakter.'
-  if (email && !EMAIL_RE.test(email)) return 'Format email tidak valid.'
+  if (email && !isDeliverableEmail(email)) return `Email tidak valid. ${EMAIL_HINT}`
   if (!Number.isInteger(sortOrder) || sortOrder < 1 || sortOrder > 99) return 'Urutan harus angka 1–99.'
   return { title, personName, email, sortOrder, isDefault: body.isDefault === true }
 }

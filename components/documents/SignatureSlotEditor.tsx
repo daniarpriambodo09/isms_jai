@@ -28,6 +28,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ChevronLeft, ChevronRight, Copy, Crosshair, Eye, Loader2, Lock, MousePointerClick, Save, Trash2, Wand2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { PdfPages, loadPageRatios, scrollToPage, scrollToSpot } from '@/components/documents/PdfPages'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type Box = { x: number; y: number; w: number; h: number }
@@ -202,8 +203,9 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   const [slots, setSlots] = useState<Slot[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
+  // The page currently in view (all pages are shown in one scrolling column).
   const [pageIndex, setPageIndex] = useState(0)
-  const [ratio, setRatio] = useState(1.414)
+  const [ratios, setRatios] = useState<number[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState<'detect' | 'save' | null>(null)
@@ -215,9 +217,12 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   // column and only follows the QR's row.
   const manualDate = useRef<Set<string>>(new Set())
   const clipboard = useRef<Slot | null>(null)
-  const stageRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([])
+  const initialPage = useRef<number | null>(null)
   const drag = useRef<{ key: string; target: 'qr' | 'date'; mode: 'move' | 'resize'; startX: number; startY: number; orig: Slot } | null>(null)
+
+  const goToPage = (index: number) => scrollToPage(scrollRef, pageRefs, index)
 
   useEscapeClose(true, onClose)
 
@@ -248,11 +253,14 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')
         const loaded = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
         if (cancelled) return
+        const pageRatios = await loadPageRatios(loaded)
+        if (cancelled) return
         setPdf(loaded)
-        // Start on the page holding one of my spots (else any spot), else the
-        // last page — where signature tables usually are.
+        setRatios(pageRatios)
+        // Open scrolled to a page holding one of my spots (else any spot);
+        // otherwise at the top, so the whole document reads from page 1.
         const mine = saved.find((s) => editable.includes(s.role_code)) ?? saved[0]
-        setPageIndex(mine?.page ?? loaded.numPages - 1)
+        initialPage.current = mine?.page ?? 0
 
         // Find the TANGGAL column on every page, then give QR spots saved
         // before dates existed a date box in their row.
@@ -276,26 +284,13 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
     return () => { cancelled = true }
   }, [documentId, token, approverMode])
 
-  // Render the current page to the canvas.
+  // Once the pages are laid out, jump to the starting page.
   useEffect(() => {
-    if (!pdf || !canvasRef.current || !stageRef.current) return
-    let cancelled = false
-    let task: { cancel: () => void; promise: Promise<unknown> } | null = null
-    ;(async () => {
-      const page = await pdf.getPage(pageIndex + 1)
-      const base = page.getViewport({ scale: 1 })
-      const cssWidth = stageRef.current!.clientWidth
-      const viewport = page.getViewport({ scale: (cssWidth / base.width) * (window.devicePixelRatio || 1) })
-      if (cancelled) return
-      setRatio(base.height / base.width)
-      const canvas = canvasRef.current!
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      task = page.render({ canvasContext: canvas.getContext('2d')!, viewport })
-      await task.promise.catch(() => {})
-    })()
-    return () => { cancelled = true; task?.cancel() }
-  }, [pdf, pageIndex])
+    if (!ratios.length || initialPage.current === null) return
+    const target = initialPage.current
+    initialPage.current = null
+    if (target > 0) requestAnimationFrame(() => scrollToPage(scrollRef, pageRefs, target, false))
+  }, [ratios])
 
   // Where the date box goes after the QR box changed from `prev` to `next`:
   // snapped into the page's TANGGAL column on the QR's row, or — without a
@@ -355,7 +350,18 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       } else base.date = null
     } else {
       const size = 0.14
-      base = { role_code: role, page: pageIndex, x: 0.5 - size / 2, y: 0.5 - (size / ratio) / 2, w: size, h: size / ratio }
+      const ratio = ratios[pageIndex] ?? 1.414
+      // Centred in the part of the page that's on screen right now.
+      const pageEl = pageRefs.current[pageIndex]
+      const view = scrollRef.current?.getBoundingClientRect()
+      let cy = 0.5
+      if (pageEl && view) {
+        const r = pageEl.getBoundingClientRect()
+        const top = Math.max(r.top, view.top), bottom = Math.min(r.bottom, view.bottom)
+        if (bottom > top) cy = ((top + bottom) / 2 - r.top) / r.height
+      }
+      const h = size / ratio
+      base = { role_code: role, page: pageIndex, x: 0.5 - size / 2, y: Math.min(Math.max(cy - h / 2, 0), 1 - h), w: size, h }
       base.date = defaultDate(base)
     }
     const slot: Slot = { ...base, key: newKey(role) }
@@ -386,7 +392,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key.toLowerCase() === 'c' && current) {
         clipboard.current = current
-        setMessage({ ok: true, text: `QR ${current.role_code} disalin — buka halaman tujuan lalu tekan Ctrl+V.` })
+        setMessage({ ok: true, text: `QR ${current.role_code} disalin — gulir ke halaman tujuan lalu tekan Ctrl+V.` })
         e.preventDefault()
       } else if (mod && e.key.toLowerCase() === 'v' && clipboard.current) {
         addPlacement(clipboard.current.role_code, clipboard.current)
@@ -412,7 +418,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
 
   const onPointerMove = useCallback((e: ReactPointerEvent) => {
     const d = drag.current
-    const stage = stageRef.current
+    const stage = d ? pageRefs.current[d.orig.page] : null
     if (!d || !stage) return
     const rect = stage.getBoundingClientRect()
     const dx = (e.clientX - d.startX) / rect.width
@@ -457,7 +463,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       const fresh = detected.map((d) => ({ ...d, key: newKey(d.role_code) }))
       manualDate.current.clear()
       setSlots((current) => [...current.filter((s) => !foundRoles.has(s.role_code)), ...fresh])
-      setPageIndex(fresh[0].page)
+      goToPage(fresh[0].page)
       setSelected(null)
       setDirty(true)
       const missing = targets.filter((r) => !foundRoles.has(r.code)).map((r) => r.code)
@@ -504,7 +510,6 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   }
 
   const colorOf = (code: string) => COLORS[Math.max(0, roles.findIndex((r) => r.code === code)) % COLORS.length]
-  const onThisPage = slots.filter((s) => s.page === pageIndex)
   const sampleDate = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
   const indexOf = (slot: Slot) => slots.filter((s) => s.role_code === slot.role_code).indexOf(slot) + 1
   const myRoles = roles.filter((r) => canEdit(r.code))
@@ -528,27 +533,32 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
           {/* Page */}
           <div className="flex min-h-0 flex-col bg-muted/40">
             <div className="flex items-center justify-center gap-3 border-b border-border bg-card/60 px-4 py-2 text-sm">
-              <button type="button" disabled={pageIndex === 0} onClick={() => setPageIndex((p) => p - 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman sebelumnya"><ChevronLeft className="size-4" /></button>
+              <button type="button" disabled={pageIndex === 0} onClick={() => goToPage(pageIndex - 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman sebelumnya"><ChevronLeft className="size-4" /></button>
               <span className="font-mono text-xs text-muted-foreground">Halaman {pageIndex + 1} / {pdf?.numPages ?? '–'}</span>
-              <button type="button" disabled={!pdf || pageIndex >= pdf.numPages - 1} onClick={() => setPageIndex((p) => p + 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman berikutnya"><ChevronRight className="size-4" /></button>
+              <button type="button" disabled={!pdf || pageIndex >= pdf.numPages - 1} onClick={() => goToPage(pageIndex + 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman berikutnya"><ChevronRight className="size-4" /></button>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4" onPointerDown={() => setSelected(null)}>
+            <div
+              ref={scrollRef}
+              className="min-h-0 flex-1 overflow-auto p-3 sm:p-4"
+              onPointerDown={() => setSelected(null)}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
+            >
               {loadError ? (
                 <p className="mx-auto mt-10 max-w-md rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-center text-sm text-destructive">{loadError}</p>
+              ) : !pdf || !ratios.length ? (
+                <div className="grid h-full place-items-center text-muted-foreground"><Loader2 className="size-7 animate-spin" /></div>
               ) : (
-                <div
-                  ref={stageRef}
-                  className="relative mx-auto w-full max-w-[760px] select-none bg-white shadow-lg"
-                  style={{ aspectRatio: `1 / ${ratio}` }}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  onPointerCancel={onPointerUp}
-                >
-                  <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
-                  {!pdf && <div className="absolute inset-0 grid place-items-center text-muted-foreground"><Loader2 className="size-7 animate-spin" /></div>}
-
+                <PdfPages
+                  pdf={pdf}
+                  ratios={ratios}
+                  scrollRef={scrollRef}
+                  pageRefs={pageRefs}
+                  onCurrentPage={setPageIndex}
+                  renderOverlay={(page) => (<>
                   {/* Date boxes */}
-                  {onThisPage.filter((s) => s.date).map((s) => {
+                  {slots.filter((s) => s.page === page && s.date).map((s) => {
                     const color = colorOf(s.role_code)
                     const editable = canEdit(s.role_code)
                     const b = s.date!
@@ -577,7 +587,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                   })}
 
                   {/* QR boxes */}
-                  {onThisPage.map((s) => {
+                  {slots.filter((s) => s.page === page).map((s) => {
                     const role = roles.find((r) => r.code === s.role_code)
                     const color = colorOf(s.role_code)
                     const editable = canEdit(s.role_code)
@@ -639,7 +649,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                       </div>
                     )
                   })}
-                </div>
+                </>)}
+                />
               )}
             </div>
           </div>
@@ -653,7 +664,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
             )}
             <p className="text-xs leading-5 text-muted-foreground">
               Geser kotak <strong>QR</strong> ke kolom tanda tangan, tarik sudutnya untuk ukuran. Kotak <strong>TGL</strong> (putus-putus) ikut ke kolom <strong>TANGGAL</strong> di baris yang sama.
-              {' '}Perlu tanda tangan di lebih dari satu tempat? Klik kotak, tekan <kbd className="rounded border border-border px-1 font-mono text-[10px]">Ctrl</kbd>+<kbd className="rounded border border-border px-1 font-mono text-[10px]">C</kbd>, buka halamannya, lalu <kbd className="rounded border border-border px-1 font-mono text-[10px]">Ctrl</kbd>+<kbd className="rounded border border-border px-1 font-mono text-[10px]">V</kbd> — atau pakai tombol salin.
+              {' '}Perlu tanda tangan di lebih dari satu tempat? Klik kotak, tekan <kbd className="rounded border border-border px-1 font-mono text-[10px]">Ctrl</kbd>+<kbd className="rounded border border-border px-1 font-mono text-[10px]">C</kbd>, gulir ke halaman tujuan, lalu <kbd className="rounded border border-border px-1 font-mono text-[10px]">Ctrl</kbd>+<kbd className="rounded border border-border px-1 font-mono text-[10px]">V</kbd> — atau pakai tombol salin.
             </p>
 
             {message && <p className={`rounded-xl border px-3 py-2.5 text-xs leading-5 ${message.ok ? 'border-emerald-600/25 bg-emerald-600/10 text-emerald-800' : 'border-amber-500/40 bg-amber-50 text-amber-900'}`}>{message.text}</p>}
@@ -679,7 +690,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                         {mine.map((s, i) => (
                           <li key={s.key} className={`rounded-lg border px-2.5 py-2 ${selected === s.key ? 'border-[color:var(--p-600)] bg-[color:var(--p-600)]/5' : 'border-border'}`}>
                             <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => { setPageIndex(s.page); setSelected(s.key) }} className="min-w-0 flex-1 text-left text-xs font-semibold text-foreground hover:underline">
+                              <button type="button" onClick={() => { scrollToSpot(scrollRef, pageRefs, s.page, s.y + s.h / 2); setSelected(s.key) }} className="min-w-0 flex-1 text-left text-xs font-semibold text-foreground hover:underline">
                                 QR {i + 1} · Halaman {s.page + 1}
                               </button>
                               <button type="button" onClick={() => removeSlot(s.key)} aria-label={`Hapus QR ${i + 1}`} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>

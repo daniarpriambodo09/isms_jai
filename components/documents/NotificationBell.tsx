@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Bell, Camera, Check, UserPlus } from 'lucide-react'
+import { AlertTriangle, Bell, Camera, Check, FileCheck2, PencilLine, UserPlus } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -30,6 +30,23 @@ type TakenRequest = {
   pic_approve_name: string | null
 }
 
+// Procedure approvals that need the ISM Admin (see /api/prosedur-isms/notifications).
+type ProcedureNotice = {
+  kind: 'revision' | 'approved'
+  documentId: number
+  controlNo: string
+  title: string
+  revision: number
+  at: string
+  by?: string | null
+  roleTitle?: string
+  noteCount?: number
+  pinCount?: number
+  firstNote?: string | null
+  placed?: number
+  total?: number
+}
+
 const POLL_MS = 30000
 
 function formatRelative(value: string) {
@@ -45,6 +62,7 @@ export function NotificationBell() {
   const [requests, setRequests] = useState<PendingRequest[]>([])
   const [registrations, setRegistrations] = useState<PendingRegistration[]>([])
   const [awaitingAck, setAwaitingAck] = useState<TakenRequest[]>([])
+  const [notices, setNotices] = useState<ProcedureNotice[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -52,21 +70,25 @@ export function NotificationBell() {
 
   const load = useCallback(async () => {
     try {
-      const [reqRes, regRes, ackRes] = await Promise.all([
+      const [reqRes, regRes, ackRes, noticeRes] = await Promise.all([
         fetch(`${API_BASE_PATH}/api/photo-video-requests?status=pending`, { cache: 'no-store', credentials: 'include' }),
         fetch(`${API_BASE_PATH}/api/vendor-registrations?stage=pending_approval`, { cache: 'no-store', credentials: 'include' }),
         fetch(`${API_BASE_PATH}/api/photo-video-requests?awaitingAck=1`, { cache: 'no-store', credentials: 'include' }),
+        fetch(`${API_BASE_PATH}/api/prosedur-isms/notifications`, { cache: 'no-store', credentials: 'include' }),
       ])
       const reqData = reqRes.ok ? await reqRes.json() : { requests: [] }
       const regData = regRes.ok ? await regRes.json() : { registrations: [] }
       const ackData = ackRes.ok ? await ackRes.json() : { requests: [] }
+      const noticeData = noticeRes.ok ? await noticeRes.json() : { notices: [] }
       setRequests(reqData.requests ?? [])
       setRegistrations(regData.registrations ?? [])
       setAwaitingAck(ackData.requests ?? [])
+      setNotices(noticeData.notices ?? [])
     } catch {
       setRequests([])
       setRegistrations([])
       setAwaitingAck([])
+      setNotices([])
     } finally {
       setLoading(false)
     }
@@ -89,7 +111,18 @@ export function NotificationBell() {
     } catch { /* no-op — leave it in the list so the user can retry */ }
   }
 
-  const count = requests.length + registrations.length + awaitingAck.length
+  const dismissNotice = async (documentId: number) => {
+    try {
+      await fetch(`${API_BASE_PATH}/api/prosedur-isms/notifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentId }),
+      })
+      setNotices((prev) => prev.filter((n) => n.documentId !== documentId))
+    } catch { /* keep it so the user can retry */ }
+  }
+
+  const count = requests.length + registrations.length + awaitingAck.length + notices.length
 
   return (
     <div className="relative">
@@ -113,7 +146,7 @@ export function NotificationBell() {
           <div
             role="menu"
             aria-label="Notifications"
-            className="absolute right-0 top-[calc(100%+10px)] z-20 w-80 overflow-hidden rounded-2xl text-popover-foreground"
+            className="absolute right-0 top-[calc(100%+10px)] z-20 w-[22rem] overflow-hidden rounded-2xl text-popover-foreground max-[640px]:fixed max-[640px]:inset-x-3 max-[640px]:top-[84px] max-[640px]:w-auto"
             style={{
               animation: 'dropdown-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both',
               background: 'linear-gradient(160deg, rgba(255,255,255,0.97) 0%, color-mix(in oklch, var(--p-surface2) 98%, transparent) 100%)',
@@ -138,6 +171,57 @@ export function NotificationBell() {
                   <p className="text-xs text-muted-foreground">Belum ada notifikasi baru.</p>
                 </div>
               )}
+              {notices.map((notice) => {
+                const revision = notice.kind === 'revision'
+                const missingQr = !revision && (notice.placed ?? 0) < (notice.total ?? 0)
+                return (
+                  <div key={`proc-${notice.kind}-${notice.documentId}`} className="flex items-start gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0">
+                    <span className={`mt-0.5 grid size-8 flex-none place-items-center rounded-full ${revision ? 'bg-[#fbe6e0] text-[#b3361f]' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {revision ? <PencilLine className="size-4" /> : <FileCheck2 className="size-4" />}
+                    </span>
+                    <Link
+                      href={`/prosedur-isms?q=${encodeURIComponent(notice.controlNo)}`}
+                      onClick={() => setOpen(false)}
+                      className="min-w-0 flex-1"
+                    >
+                      <span className={`block text-[10px] font-bold uppercase tracking-wide ${revision ? 'text-[#b3361f]' : 'text-emerald-700'}`}>
+                        {revision ? 'Prosedur perlu revisi' : 'Prosedur disahkan'}
+                      </span>
+                      <span className="block truncate font-medium text-foreground" title={notice.title}>{notice.controlNo} &middot; {notice.title}</span>
+                      {revision ? (
+                        <>
+                          <span className="block text-xs text-muted-foreground">
+                            {notice.by ?? '-'} &middot; {notice.noteCount} catatan{notice.pinCount ? `, ${notice.pinCount} ditandai di dokumen` : ''}
+                          </span>
+                          {notice.firstNote && <span className="mt-0.5 line-clamp-2 block text-xs text-foreground/80">&ldquo;{notice.firstNote}&rdquo;</span>}
+                        </>
+                      ) : (
+                        <>
+                          <span className="block text-xs text-muted-foreground">
+                            Rev. {notice.revision} &middot; disetujui {notice.total}/{notice.total} approver{missingQr ? '' : ' · QR lengkap di dokumen'}
+                          </span>
+                          {missingQr && (
+                            <span className="mt-0.5 flex items-start gap-1 text-xs text-amber-700">
+                              <AlertTriangle className="mt-px size-3 flex-none" />
+                              QR baru tercetak {notice.placed}/{notice.total} — atur Posisi QR
+                            </span>
+                          )}
+                        </>
+                      )}
+                      <span className="mt-0.5 block text-[10px] text-muted-foreground/70">{formatRelative(notice.at)}</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => dismissNotice(notice.documentId)}
+                      aria-label={`Tandai sudah dilihat: ${notice.controlNo}`}
+                      title="Sudah dilihat — sembunyikan"
+                      className="mt-0.5 flex flex-none items-center gap-1 rounded-full border border-emerald-600/30 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    >
+                      <Check className="size-3.5" /> OK
+                    </button>
+                  </div>
+                )
+              })}
               {awaitingAck.map((req) => (
                 <div key={`ack-${req.id}`} className="flex items-start gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0">
                   <span className="mt-0.5 grid size-8 flex-none place-items-center rounded-full bg-accent/15 text-accent-foreground">
@@ -202,7 +286,14 @@ export function NotificationBell() {
             </div>
 
             {count > 0 && (
-              <div className="grid grid-cols-2 divide-x divide-border/60 border-t border-border/60">
+              <div className="grid grid-cols-3 divide-x divide-border/60 border-t border-border/60">
+                <Link
+                  href="/prosedur-isms"
+                  onClick={() => setOpen(false)}
+                  className="nav-drop-item block px-3 py-2.5 text-center text-xs font-semibold text-primary"
+                >
+                  Prosedur
+                </Link>
                 <Link
                   href="/kelola-permintaan-foto-video?status=pending"
                   onClick={() => setOpen(false)}

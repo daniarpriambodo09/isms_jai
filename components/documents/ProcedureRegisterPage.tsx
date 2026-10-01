@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Download, Eye, FileText, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { IndexHero, latestUpload } from '@/components/page-hero'
@@ -83,6 +84,12 @@ export function ProcedureRegisterPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  // ?q= prefills the search (links in the admin emails and the bell open the
+  // register already filtered to their document) — also when already here.
+  const qParam = useSearchParams().get('q')
+  useEffect(() => {
+    if (qParam) setQuery(qParam)
+  }, [qParam])
   const [viewing, setViewing] = useState<ProcedureDocument | null>(null)
   // true = show the generated signed PDF (QRs stamped), false = the uploaded original
   const [viewingSigned, setViewingSigned] = useState(false)

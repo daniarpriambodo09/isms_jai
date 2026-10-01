@@ -2,12 +2,13 @@
 
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
 import { PortalFooter } from '@/components/portal-footer'
 import { ScrollReveal } from '@/components/scroll-reveal'
+import { RouteCurtain } from '@/components/route-transition'
 import { titleFor } from '@/lib/portal-data'
 import { useAuth } from '@/context/AuthContext'
 
@@ -46,6 +47,11 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { adminUser, isLoading } = useAuth()
   const isKioskRoute = pathname === KIOSK_ROUTES.lobby || pathname === KIOSK_ROUTES.security
+  // First page of the visit gets a short rise; every later route change gets
+  // the full curtain + rise (see components/route-transition.tsx).
+  const initialPath = useRef(pathname)
+  const navigated = useRef(false)
+  if (pathname !== initialPath.current) navigated.current = true
 
   // Confine the lobby/security kiosk roles to their one page, regardless of
   // what URL they navigate to — the actual guarantee, not just a hidden menu.
@@ -86,7 +92,11 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
+      <RouteCurtain pathname={pathname} label={pageTitle} />
 
+      {/* Keyed by route so the header + content replay their entrance on
+          every menu change (rising in as the curtain lifts). */}
+      <div key={pathname} className={navigated.current ? 'route-enter' : 'route-enter-first'}>
       {/* ─── Page Header ─── */}
       {/* Home skips this bar entirely so the hero video sits flush against the navbar. */}
       {!isHome && (
@@ -118,9 +128,10 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
       )}
 
       {/* ─── Main content ─── */}
-      <main id="portal-main" className={`page-fade-in mx-auto max-w-[1480px] px-10 pb-16 max-[900px]:px-6 max-[900px]:pb-10 max-[680px]:px-4 max-[680px]:pb-8 ${isHome ? 'pt-0 max-[900px]:pt-0 max-[680px]:pt-0' : 'pt-9 max-[900px]:pt-7 max-[680px]:pt-6'}`}>
+      <main id="portal-main" className={`mx-auto max-w-[1480px] px-10 pb-16 max-[900px]:px-6 max-[900px]:pb-10 max-[680px]:px-4 max-[680px]:pb-8 ${isHome ? 'pt-0 max-[900px]:pt-0 max-[680px]:pt-0' : 'pt-9 max-[900px]:pt-7 max-[680px]:pt-6'}`}>
         {children}
       </main>
+      </div>
       <ScrollReveal rootId="portal-main" />
 
       <PortalFooter />

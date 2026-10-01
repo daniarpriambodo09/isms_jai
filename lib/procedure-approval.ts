@@ -29,6 +29,7 @@ import { describeSmtpError, getSmtpSettings, sendMail, type MailAttachment } fro
 import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { buildProcedureApprovalEmail, buildProcedureResultEmail, LOGO_CID } from '@/lib/email-templates'
 import { API_BASE_PATH } from '@/lib/config'
+import { isDeliverableEmail } from '@/lib/email-address'
 
 export type ApproverRole = {
   code: string
@@ -66,7 +67,7 @@ const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 
 const STEP_COLUMNS ='id, document_id, revision, role_code, role_title, step, status, approver_name, notified_at, email_error, decided_at, decision_note, verification_code'
 
-// ─── schema (idempotent, created on first use — see also prosedur-pengesahan.sql) ───
+// ─── schema (idempotent, created on first use — see also db/legacy/prosedur-pengesahan.sql) ───
 
 let schemaReady: Promise<void> | null = null
 
@@ -142,6 +143,9 @@ export function ensureApprovalSchema() {
       await query('ALTER TABLE procedure_signature_slots ADD COLUMN IF NOT EXISTS seq integer NOT NULL DEFAULT 0')
       await query('ALTER TABLE procedure_signature_slots DROP CONSTRAINT IF EXISTS procedure_signature_slots_pkey')
       await query('CREATE UNIQUE INDEX IF NOT EXISTS procedure_signature_slots_role_seq ON procedure_signature_slots (document_id, role_code, seq)')
+      // When an ISM Admin last dismissed this document's bell notification
+      // (Disahkan / Perlu Revisi); a newer decision brings it back.
+      await query('ALTER TABLE procedure_documents ADD COLUMN IF NOT EXISTS notice_ack_at timestamptz')
       // "Minta Revisi": the approver's notes, each optionally pinned to a spot
       // on the document (page + fractions, top-left origin). page NULL = the
       // general note. decision_note on the step keeps a plain-text summary.
@@ -519,21 +523,50 @@ async function notifyAdmins(documentId: number, outcome: 'approved' | 'rejected'
   try {
     const settings = await getSmtpSettings()
     if (!settings?.host || !settings.port || !settings.senderEmail) return
+    // Only addresses that can actually receive mail (a placeholder like
+    // admin@jai.local just bounces back); with none, fall back to the SMTP
+    // sender mailbox so the notification still lands somewhere.
     const admins = await query<{ email: string }>("SELECT email FROM admins WHERE role = 'ism_admin' AND email IS NOT NULL AND email <> ''")
-    if (admins.rows.length === 0) return
+    const deliverable = admins.rows.map((row) => row.email.trim()).filter(isDeliverableEmail)
+    const recipients = deliverable.length ? deliverable : [settings.senderEmail]
+    if (deliverable.length < admins.rows.length) {
+      console.warn('[procedure-approval/notifyAdmins] skipped undeliverable admin email(s):', admins.rows.map((r) => r.email).filter((e) => !isDeliverableEmail(e)).join(', '))
+    }
     const doc = await getDocument(documentId)
     if (!doc) return
-    const cycle = (await currentStepsFor([documentId])).get(documentId) ?? []
+    // Every step of the cycle that just ended — including the ones a revision
+    // request skipped (cancelled), so the email shows the whole chain.
+    const cycle = (await query<ApprovalStep>(
+      `SELECT ${STEP_COLUMNS} FROM procedure_approvals
+       WHERE document_id = $1 AND revision = $2
+         AND created_at >= (SELECT max(created_at) FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND step = 1)
+       ORDER BY step`,
+      [documentId, doc.revision]
+    )).rows
+    const base = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
+    const request = outcome === 'rejected' ? await latestRevisionRequest(documentId) : null
+    // Approved: how many approvers have a QR spot on the document itself.
+    const placedRoles = outcome === 'approved'
+      ? new Set((await slotsFor(documentId, doc.file_path)).map((s) => s.role_code))
+      : new Set<string>()
     const { subject, html } = buildProcedureResultEmail({
       outcome,
       controlNo: doc.control_no,
       title: doc.title,
       revision: doc.revision,
-      steps: cycle.map((row) => ({ roleTitle: row.role_title, name: row.approver_name ?? '-', status: row.status, decidedAt: row.decided_at, note: row.decision_note })),
-      registerUrl: `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}/prosedur-isms`,
+      effDate: doc.elf_date,
+      docNote: doc.note,
+      steps: cycle.map((row) => ({ step: row.step, roleCode: row.role_code, roleTitle: row.role_title, name: row.approver_name ?? '-', status: row.status, decidedAt: row.decided_at })),
+      revisionRequest: request
+        ? { by: request.approverName ?? '-', roleTitle: request.roleTitle, at: request.decidedAt, general: request.general, pins: request.pins.map((p) => ({ page: p.page, note: p.note })) }
+        : null,
+      placements: outcome === 'approved' ? { placed: cycle.filter((s) => placedRoles.has(s.role_code)).length, total: cycle.length } : undefined,
+      // Opens the register already filtered to this document.
+      registerUrl: `${base}/prosedur-isms?q=${encodeURIComponent(doc.control_no)}`,
+      signedPdfUrl: outcome === 'approved' ? `${base}/api/prosedur-isms/${documentId}/pdf` : undefined,
     })
     await sendMail(settings, {
-      to: admins.rows.map((row) => row.email).join(', '),
+      to: recipients.join(', '),
       subject,
       html,
       attachments: [{ filename: 'yazaki-logo.jpg', path: path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'), cid: LOGO_CID }],
@@ -708,6 +741,80 @@ export async function saveRoleSlots(documentId: number, filePath: string, roleCo
 // belongs to the current revision and hasn't been rejected or cancelled.
 export function canPlaceOwnSlots(view: TokenView) {
   return view.step.revision === view.document.revision && (view.step.status === 'pending' || view.step.status === 'approved')
+}
+
+// ─── admin bell notifications ───
+
+export type ProcedureNotice = {
+  kind: 'revision' | 'approved'
+  documentId: number
+  controlNo: string
+  title: string
+  revision: number
+  at: string
+  // revision: who asked and what
+  by?: string | null
+  roleTitle?: string
+  noteCount?: number
+  pinCount?: number
+  firstNote?: string | null
+  // approved: approvers whose QR lands on the document itself
+  placed?: number
+  total?: number
+}
+
+// Decisions an ISM Admin hasn't dismissed yet: documents waiting for a
+// revision, and documents approved in the last 30 days. Dismissing
+// (notice_ack_at) hides one until a newer decision comes in.
+export async function listProcedureNotices(): Promise<ProcedureNotice[]> {
+  await ensureApprovalSchema()
+  const notices: ProcedureNotice[] = []
+
+  const revisions = (await query<{ id: number; control_no: string; title: string; revision: number }>(
+    `SELECT id, control_no, title, revision FROM procedure_documents
+     WHERE approval_status = 'rejected' ORDER BY id DESC LIMIT 20`
+  )).rows
+  for (const doc of revisions) {
+    const req = await latestRevisionRequest(doc.id)
+    if (!req) continue
+    const ack = (await query<{ notice_ack_at: string | null }>('SELECT notice_ack_at FROM procedure_documents WHERE id = $1', [doc.id])).rows[0]?.notice_ack_at
+    if (ack && new Date(ack) >= new Date(req.decidedAt)) continue
+    const first = req.pins[0] ? `Hal. ${req.pins[0].page + 1}: ${req.pins[0].note}` : req.general
+    notices.push({
+      kind: 'revision', documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision,
+      at: req.decidedAt, by: req.approverName, roleTitle: req.roleTitle,
+      noteCount: (req.general ? 1 : 0) + req.pins.length, pinCount: req.pins.length,
+      firstNote: first ? first.split('\n')[0].slice(0, 140) : null,
+    })
+  }
+
+  const approved = (await query<{ id: number; control_no: string; title: string; revision: number; file_path: string; at: string; total: number }>(
+    `SELECT d.id, d.control_no, d.title, d.revision, d.file_path, max(a.decided_at) AS at, count(*)::int AS total
+     FROM procedure_documents d
+     JOIN procedure_approvals a ON a.document_id = d.id AND a.revision = d.revision AND a.status = 'approved'
+     WHERE d.approval_status = 'approved'
+     GROUP BY d.id
+     HAVING max(a.decided_at) > now() - interval '30 days' AND (d.notice_ack_at IS NULL OR d.notice_ack_at < max(a.decided_at))
+     ORDER BY at DESC LIMIT 20`
+  )).rows
+  for (const doc of approved) {
+    const approvedRoles = (await query<{ role_code: string }>(
+      `SELECT role_code FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'approved'`,
+      [doc.id, doc.revision]
+    )).rows.map((r) => r.role_code)
+    const placedRoles = new Set((await slotsFor(doc.id, doc.file_path)).map((s) => s.role_code))
+    notices.push({
+      kind: 'approved', documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision, at: doc.at,
+      placed: approvedRoles.filter((r) => placedRoles.has(r)).length, total: doc.total,
+    })
+  }
+
+  return notices.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+}
+
+export async function dismissProcedureNotice(documentId: number) {
+  await ensureApprovalSchema()
+  await query('UPDATE procedure_documents SET notice_ack_at = now() WHERE id = $1', [documentId])
 }
 
 // Documents currently waiting on someone — for the admin monitoring list.

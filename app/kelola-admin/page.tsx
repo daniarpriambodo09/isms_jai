@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Check, History, Loader2, Plus, Shield, ShieldCheck, Trash2, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
+import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
@@ -67,6 +68,7 @@ export default function KelolaAdminPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editRole, setEditRole] = useState<AdminRole>('lobby')
   const [editPassword, setEditPassword] = useState('')
+  const [editEmail, setEditEmail] = useState('')
   const [editError, setEditError] = useState('')
   const [editSaving, setEditSaving] = useState(false)
 
@@ -123,15 +125,18 @@ export default function KelolaAdminPage() {
     setEditingId(admin.id)
     setEditRole(admin.role)
     setEditPassword('')
+    setEditEmail(admin.email ?? '')
     setEditError('')
   }
 
-  const submitEdit = async (id: number) => {
+  // Your own account: only the email (role/password go through Pengaturan).
+  const submitEdit = async (id: number, self = false) => {
     setEditError('')
     setEditSaving(true)
     try {
-      const body: { role?: AdminRole; newPassword?: string } = { role: editRole }
-      if (editPassword) body.newPassword = editPassword
+      const body: { role?: AdminRole; newPassword?: string; email: string | null } = { email: editEmail.trim() || null }
+      if (!self) body.role = editRole
+      if (!self && editPassword) body.newPassword = editPassword
       const res = await fetch(`${API_BASE_PATH}/api/admins/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -302,7 +307,13 @@ export default function KelolaAdminPage() {
                             <span className="text-sm font-semibold text-foreground">{admin.username}</span>
                             {isSelf && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Anda</span>}
                           </div>
-                          <div className="text-xs text-muted-foreground">{admin.email ?? '—'} · Dibuat {formatDate(admin.created_at)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {admin.email ? (
+                              isDeliverableEmail(admin.email)
+                                ? admin.email
+                                : <span className="font-semibold text-amber-700" title={EMAIL_HINT}>⚠ {admin.email} (tidak bisa menerima email)</span>
+                            ) : '—'} · Dibuat {formatDate(admin.created_at)}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -326,33 +337,52 @@ export default function KelolaAdminPage() {
                             </button>
                           </>
                         )}
-                        {isSelf && <span className="text-xs text-muted-foreground">Gunakan Pengaturan untuk ubah password sendiri</span>}
+                        {isSelf && !isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => startEdit(admin)}
+                            title="Password akun sendiri diubah lewat Pengaturan"
+                            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                          >
+                            Ubah email
+                          </button>
+                        )}
                       </div>
                     </div>
 
                     {isEditing && (
                       <div className="mt-4 rounded-xl border border-border bg-secondary/30 p-4">
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <div>
-                            <label className="mb-1 block text-xs text-muted-foreground">Role</label>
-                            <select value={editRole} onChange={(e) => setEditRole(e.target.value as AdminRole)} className={inputClass}>
-                              <option value="lobby">Lobby</option>
-                              <option value="security">Security</option>
-                              <option value="ism_admin">ISM Admin</option>
-                            </select>
+                          <div className="sm:col-span-2">
+                            <label className="mb-1 block text-xs text-muted-foreground">Email (tujuan notifikasi admin)</label>
+                            <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className={inputClass} placeholder="nama@jai.co.id" />
+                            {editEmail.trim() && !isDeliverableEmail(editEmail) && <p className="mt-1 text-[11px] text-amber-700">{EMAIL_HINT}</p>}
                           </div>
-                          <div>
-                            <label className="mb-1 block text-xs text-muted-foreground">Reset password (opsional)</label>
-                            <input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} className={inputClass} placeholder="kosongkan jika tidak diubah" />
-                          </div>
+                          {!isSelf && (
+                            <>
+                              <div>
+                                <label className="mb-1 block text-xs text-muted-foreground">Role</label>
+                                <select value={editRole} onChange={(e) => setEditRole(e.target.value as AdminRole)} className={inputClass}>
+                                  <option value="lobby">Lobby</option>
+                                  <option value="security">Security</option>
+                                  <option value="ism_admin">ISM Admin</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs text-muted-foreground">Reset password (opsional)</label>
+                                <input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} className={inputClass} placeholder="kosongkan jika tidak diubah" />
+                              </div>
+                            </>
+                          )}
                         </div>
+                        {isSelf && <p className="mt-2 text-[11px] text-muted-foreground">Password akun Anda sendiri diubah lewat halaman Pengaturan.</p>}
                         {editError && <p className="mt-3 text-sm text-destructive">{editError}</p>}
                         <div className="mt-4 flex justify-end gap-2">
                           <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">Batal</button>
                           <button
                             type="button"
-                            onClick={() => submitEdit(admin.id)}
-                            disabled={editSaving || (editPassword.length > 0 && editPassword.length < 6)}
+                            onClick={() => submitEdit(admin.id, isSelf)}
+                            disabled={editSaving || (editPassword.length > 0 && editPassword.length < 6) || (!!editEmail.trim() && !isDeliverableEmail(editEmail))}
                             className="flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
                             style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)' }}
                           >

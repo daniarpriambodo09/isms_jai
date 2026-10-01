@@ -317,6 +317,26 @@
    for every `position: fixed` modal nested in page content, clipping them
    to <main>'s box instead of the real viewport. No `backwards` needed
    either since there's no animation-delay for it to matter. */
+/* ─── Route transition (components/route-transition.tsx) ─── */
+/* Two curtain layers start covering the screen, hold briefly with the
+   destination's name, then wipe upward one after the other. */
+@keyframes route-wipe { 0%, 30% { transform: translateY(0); } 100% { transform: translateY(-101%); } }
+@keyframes route-label { 0% { opacity: 0; transform: translateY(18px); } 22% { opacity: 1; transform: none; } 45% { opacity: 1; transform: none; } 70%, 100% { opacity: 0; transform: translateY(-24px); } }
+@keyframes route-line { 0% { transform: scaleX(0); } 40% { transform: scaleX(1); } 100% { transform: scaleX(1); } }
+.route-curtain-front { animation: route-wipe 950ms cubic-bezier(0.76, 0, 0.24, 1) both; }
+.route-curtain-back { animation: route-wipe 1100ms cubic-bezier(0.76, 0, 0.24, 1) both; }
+.route-curtain-label { animation: route-label 950ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.route-curtain-line { animation: route-line 950ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* New page content rises in as the curtain lifts. "backwards" (not "both"):
+   the wrapper must not keep a transform afterwards, or every position:fixed
+   dialog inside the page would be positioned against it instead of the screen. */
+@keyframes route-enter { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+.route-enter { animation: route-enter 750ms cubic-bezier(0.16, 1, 0.3, 1) 380ms backwards; }
+.route-enter-first { animation: route-enter 600ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .route-enter, .route-enter-first { animation: page-fade-in 200ms ease backwards; }
+}
+
 @keyframes page-fade-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

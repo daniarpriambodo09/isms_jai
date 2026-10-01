@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
+import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
 
 type EducationDocument = {
   id: number
@@ -141,6 +142,7 @@ export function EducationRegisterPage() {
   const [documents, setDocuments] = useState<EducationDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  useSearchQueryParam(setSearchQuery)
   const [categoryFilter, setCategoryFilter] = useState('Semua')
   const [viewing, setViewing] = useState<EducationDocument | null>(null)
   const [editing, setEditing] = useState<EducationDocument | null>(null)

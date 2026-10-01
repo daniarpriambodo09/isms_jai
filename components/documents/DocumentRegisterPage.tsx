@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
+import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
 
 type ApiDocument = { id: number; title: string; revision: string; file_path: string; uploaded_at: string }
 type SectionInfo = { id: number; name: string; slug: string }
@@ -51,6 +52,7 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
   const [docs, setDocs] = useState<ApiDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  useSearchQueryParam(setQuery)
   const [viewing, setViewing] = useState<ApiDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<ApiDocument | null>(null)

@@ -25,3 +25,6 @@ storage/
 
 # TypeScript incremental build cache (rewritten by every build)
 *.tsbuildinfo
+
+# Local backups (npm run backup) — database dumps and copies of storage/
+backups/

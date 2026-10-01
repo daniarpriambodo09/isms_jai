@@ -58,6 +58,58 @@ npm run setup:server     # selanjutnya pakai hook dari repo
 
 Update manual (tanpa hook) tetap bisa: `git pull && npm install && npm run build && pm2 restart isms-jai`.
 
+## Backup (wajib di server)
+
+Database dan file upload (`storage/`) **hanya ada di server** — tidak ada di
+GitHub. Satu perintah membuat backup lengkap:
+
+```bash
+npm run backup            # sekali jalan, sekarang
+npm run backup:schedule   # Windows: daftarkan Task Scheduler "ISMS Portal Backup" tiap hari 02:00
+npm run backup:schedule -- 23:30   # jam lain
+```
+
+Hasilnya `backups/isms-YYYYMMDD-HHMMSS/` berisi `database.dump` (pg_dump format
+custom), salinan `storage/`, dan `manifest.json`. Hanya 14 backup terbaru yang
+disimpan (`BACKUP_KEEP`). Log jadwal: `backups/backup.log`.
+
+**Simpan di disk lain / share jaringan** — kalau disk server rusak, backup di
+disk yang sama ikut hilang. Atur di `.env.local`:
+
+```
+BACKUP_DIR=E:\isms-backups        # atau \\nas\backup\isms
+BACKUP_KEEP=30
+PG_DUMP_PATH=C:\Program Files\PostgreSQL\16\bin\pg_dump.exe   # hanya kalau pg_dump tidak ditemukan otomatis
+```
+
+### Restore
+
+```bash
+# 1. hentikan aplikasi
+pm2 stop isms-jai
+# 2. database (menimpa isi database isms_jai dengan isi backup)
+pg_restore --clean --if-exists --no-owner -h localhost -U postgres -d isms_jai backups/isms-YYYYMMDD-HHMMSS/database.dump
+# 3. file upload
+#    PowerShell: Copy-Item -Recurse -Force backups\isms-YYYYMMDD-HHMMSS\storage\* storage\
+# 4. jalankan lagi (migrasi yang belum ada di backup diterapkan otomatis)
+pm2 start isms-jai
+```
+
+Uji restore sesekali ke database lain (`createdb isms_restore_test` lalu
+`pg_restore -d isms_restore_test …`) supaya yakin backup-nya bisa dipakai.
+
+## Tugas otomatis di server
+
+Saat aplikasi berjalan (`lib/jobs.ts`), setiap jam dicek:
+
+- **Review dokumen berkala** — Prosedur, Standard TMMIN, dan Working Standard
+  jatuh tempo review 12 bulan setelah Eff. Date. Daftar yang terlambat / jatuh
+  tempo ≤ 30 hari tampil di Dashboard Admin dan lonceng notifikasi, dan dikirim
+  ke email Admin ISM **sekali per minggu** (pertama kali setelah 07:00 WIB di
+  minggu itu). Butuh SMTP + App URL di Kelola SMTP.
+
+Matikan dengan env `ISMS_JOBS=false` (mis. kalau ada lebih dari satu instance).
+
 ## Menambah perubahan database
 
 1. Buat file baru dengan nomor berikutnya, mis. `db/migrations/0002_tambah_kolom_x.sql`.

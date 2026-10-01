@@ -1,5 +1,6 @@
 // app/education/page.tsx
 
+import { Suspense } from 'react'
 import { EducationRegisterPage } from '@/components/documents/EducationRegisterPage'
 
 export const metadata = {
@@ -8,5 +9,10 @@ export const metadata = {
 }
 
 export default function EducationPage() {
-  return <EducationRegisterPage />
+  // Suspense: the register reads ?q= (useSearchParams) to open pre-filtered.
+  return (
+    <Suspense fallback={null}>
+      <EducationRegisterPage />
+    </Suspense>
+  )
 }

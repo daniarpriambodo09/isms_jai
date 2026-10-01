@@ -23,7 +23,7 @@ import 'server-only'
 import path from 'path'
 import { stat } from 'fs/promises'
 import { randomBytes } from 'crypto'
-import { query } from '@/lib/db'
+import { query, withTransaction } from '@/lib/db'
 import { STORAGE_ROOT } from '@/lib/storage'
 import { describeSmtpError, getSmtpSettings, sendMail, type MailAttachment } from '@/lib/smtp'
 import { resolveAppBaseUrl } from '@/lib/request-origin'
@@ -60,12 +60,15 @@ export type ApprovalStep = {
   decided_at: string | null
   decision_note: string | null
   verification_code: string | null
+  // When the current link (token) was issued — it stops working for decisions
+  // APPROVAL_LINK_DAYS later (an admin resend issues a fresh one).
+  token_issued_at: string | null
 }
 
 // Gmail/Outlook cap a whole message at ~20–25 MB; stay safely under it.
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 
-const STEP_COLUMNS ='id, document_id, revision, role_code, role_title, step, status, approver_name, notified_at, email_error, decided_at, decision_note, verification_code'
+const STEP_COLUMNS ='id, document_id, revision, role_code, role_title, step, status, approver_name, notified_at, email_error, decided_at, decision_note, verification_code, token_issued_at'
 
 // ─── schema (idempotent, created on first use — see also db/legacy/prosedur-pengesahan.sql) ───
 
@@ -117,6 +120,7 @@ export function ensureApprovalSchema() {
       await query('CREATE INDEX IF NOT EXISTS procedure_approvals_document_idx ON procedure_approvals (document_id, revision)')
       // Per-person e-signature: issued when someone approves, encoded in their QR.
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS verification_code varchar(40) UNIQUE')
+      await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS token_issued_at timestamptz')
       // Where each role's QR goes on the document itself (its own signature
       // column). Coordinates are fractions (0–1) of the displayed page, top-left
       // origin; tied to file_path so a re-uploaded file never reuses old spots.
@@ -232,32 +236,38 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
   const doc = await getDocument(documentId)
   if (!doc) return
 
-  await query(
-    `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
-     WHERE document_id = $1 AND status IN ('waiting', 'pending', 'rejected', 'approved') AND revision = $2`,
-    [documentId, doc.revision]
-  )
-  await query(
-    `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
-     WHERE document_id = $1 AND status IN ('waiting', 'pending')`,
-    [documentId]
-  )
-
-  if (roleCodes.length === 0) {
-    await setDocumentStatus(documentId, 'none')
-    return
-  }
-
-  const roles = (await listRoles()).filter((role) => roleCodes.includes(role.code))
-  for (const [index, role] of roles.entries()) {
+  // Cancel the old cycle and create the new one atomically — never a
+  // document with its old steps gone and no new ones.
+  const started = await withTransaction(async () => {
     await query(
-      `INSERT INTO procedure_approvals (document_id, revision, role_code, role_title, step, status, approver_name)
-       VALUES ($1, $2, $3, $4, $5, 'waiting', $6)`,
-      [documentId, doc.revision, role.code, role.title, index + 1, role.person_name]
+      `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
+       WHERE document_id = $1 AND status IN ('waiting', 'pending', 'rejected', 'approved') AND revision = $2`,
+      [documentId, doc.revision]
     )
-  }
-  await setDocumentStatus(documentId, 'pending')
-  await activateNextStep(documentId)
+    await query(
+      `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
+       WHERE document_id = $1 AND status IN ('waiting', 'pending')`,
+      [documentId]
+    )
+
+    if (roleCodes.length === 0) {
+      await setDocumentStatus(documentId, 'none')
+      return false
+    }
+
+    const roles = (await listRoles()).filter((role) => roleCodes.includes(role.code))
+    for (const [index, role] of roles.entries()) {
+      await query(
+        `INSERT INTO procedure_approvals (document_id, revision, role_code, role_title, step, status, approver_name)
+         VALUES ($1, $2, $3, $4, $5, 'waiting', $6)`,
+        [documentId, doc.revision, role.code, role.title, index + 1, role.person_name]
+      )
+    }
+    await setDocumentStatus(documentId, 'pending')
+    return true
+  })
+  // Emailing the first approver happens after the commit.
+  if (started) await activateNextStep(documentId)
 }
 
 // Marks the lowest waiting step of the current cycle as pending and emails
@@ -294,7 +304,7 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
 
   await query(
     `UPDATE procedure_approvals
-     SET status = 'pending', token = $1, approver_name = $2, approver_email = $3, role_title = COALESCE($4, role_title), notified_at = NULL, email_error = NULL
+     SET status = 'pending', token = $1, token_issued_at = now(), approver_name = $2, approver_email = $3, role_title = COALESCE($4, role_title), notified_at = NULL, email_error = NULL
      WHERE id = $5`,
     [token, approverName, approverEmail, role?.title ?? null, stepId]
   )
@@ -467,6 +477,7 @@ export async function decideByToken(
   if (!view) return { ok: false, message: 'Link tidak ditemukan atau sudah tidak berlaku.' }
   if (view.step.status !== 'pending') return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
   if (view.step.revision !== view.document.revision) return { ok: false, message: 'Dokumen sudah direvisi — link ini tidak berlaku lagi.' }
+  if (linkExpired(view.step)) return { ok: false, message: `Link ini sudah kedaluwarsa (lebih dari ${APPROVAL_LINK_DAYS} hari). Minta Admin ISM mengirim ulang email pengesahan.` }
 
   // Revision request: rows to store = the general note (page null) + the
   // pinned ones; decision_note gets the plain-text summary of all of them.
@@ -481,40 +492,56 @@ export async function decideByToken(
   // An approval is this person's e-signature: it gets its own verification
   // code, which their QR (register, PDF sheet) points at.
   const verificationCode = action === 'approve' ? `PRS-${view.step.id}-${randomBytes(4).toString('hex').toUpperCase()}` : null
-  // Token stays on the row so the approver can reopen the link to see the result;
-  // the status guard makes the decision single-use.
-  const updated = await query<{ id: number }>(
-    `UPDATE procedure_approvals SET status = $1, decided_at = now(), decision_note = $2, verification_code = $3
-     WHERE id = $4 AND status = 'pending' RETURNING id`,
-    [status, note, verificationCode, view.step.id]
-  )
-  if (updated.rows.length === 0) return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
+  // All database effects of the decision commit together (the decision,
+  // revision notes, cancelled later steps, the document status); emails go
+  // out only after the commit.
+  const outcome = await withTransaction(async () => {
+    // Token stays on the row so the approver can reopen the link to see the result;
+    // the status guard makes the decision single-use.
+    const updated = await query<{ id: number }>(
+      `UPDATE procedure_approvals SET status = $1, decided_at = now(), decision_note = $2, verification_code = $3
+       WHERE id = $4 AND status = 'pending' RETURNING id`,
+      [status, note, verificationCode, view.step.id]
+    )
+    if (updated.rows.length === 0) return 'already' as const
 
-  if (action === 'reject') {
-    const rows: RevisionNote[] = [...(general ? [{ page: null, x: null, y: null, note: general }] : []), ...pinned]
-    for (const [seq, n] of rows.entries()) {
+    if (action === 'reject') {
+      const rows: RevisionNote[] = [...(general ? [{ page: null, x: null, y: null, note: general }] : []), ...pinned]
+      for (const [seq, n] of rows.entries()) {
+        await query(
+          `INSERT INTO procedure_revision_notes (approval_id, document_id, revision, seq, page, x, y, note)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [view.step.id, view.document.id, view.document.revision, seq, n.page, n.x, n.y, n.note]
+        )
+      }
       await query(
-        `INSERT INTO procedure_revision_notes (approval_id, document_id, revision, seq, page, x, y, note)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [view.step.id, view.document.id, view.document.revision, seq, n.page, n.x, n.y, n.note]
+        `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
+         WHERE document_id = $1 AND revision = $2 AND status = 'waiting'`,
+        [view.document.id, view.document.revision]
       )
+      await setDocumentStatus(view.document.id, 'rejected')
+      return 'rejected' as const
     }
-    await query(
-      `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
-       WHERE document_id = $1 AND revision = $2 AND status = 'waiting'`,
+
+    const next = await query<{ id: number }>(
+      `SELECT id FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'waiting' LIMIT 1`,
       [view.document.id, view.document.revision]
     )
-    await setDocumentStatus(view.document.id, 'rejected')
+    if (next.rows.length) return 'next' as const
+    await setDocumentStatus(view.document.id, 'approved')
+    return 'approved' as const
+  })
+
+  if (outcome === 'already') return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
+  if (outcome === 'rejected') {
     await notifyAdmins(view.document.id, 'rejected')
     return { ok: true, message: 'Permintaan revisi terkirim. Admin ISM menerima pemberitahuan beserta catatan Anda.' }
   }
-
-  const hasNext = await activateNextStep(view.document.id)
-  if (!hasNext) {
-    await setDocumentStatus(view.document.id, 'approved')
+  if (outcome === 'approved') {
     await notifyAdmins(view.document.id, 'approved')
     return { ok: true, message: 'Terima kasih — dokumen telah disahkan oleh seluruh approver.' }
   }
+  await activateNextStep(view.document.id)
   return { ok: true, message: 'Terima kasih — persetujuan tersimpan dan diteruskan ke approver berikutnya.' }
 }
 
@@ -724,23 +751,51 @@ async function insertSlots(documentId: number, filePath: string, slots: Signatur
 // ISM Admin: replaces every role's placements on the document.
 export async function saveSlots(documentId: number, filePath: string, slots: SignatureSlot[]) {
   await ensureApprovalSchema()
-  await query('DELETE FROM procedure_signature_slots WHERE document_id = $1', [documentId])
-  await insertSlots(documentId, filePath, slots)
+  // Delete + re-insert as one unit: a failed insert never leaves the
+  // document with no QR spots.
+  await withTransaction(async () => {
+    await query('DELETE FROM procedure_signature_slots WHERE document_id = $1', [documentId])
+    await insertSlots(documentId, filePath, slots)
+  })
 }
 
 // Approver (via their email link): replaces only their own role's placements.
 export async function saveRoleSlots(documentId: number, filePath: string, roleCode: string, slots: SignatureSlot[]) {
   await ensureApprovalSchema()
-  await query('DELETE FROM procedure_signature_slots WHERE document_id = $1 AND role_code = $2', [documentId, roleCode])
-  // Placements for an older file of this document are stale — drop them too.
-  await query('DELETE FROM procedure_signature_slots WHERE document_id = $1 AND file_path <> $2', [documentId, filePath])
-  await insertSlots(documentId, filePath, slots.filter((s) => s.role_code === roleCode))
+  await withTransaction(async () => {
+    await query('DELETE FROM procedure_signature_slots WHERE document_id = $1 AND role_code = $2', [documentId, roleCode])
+    // Placements for an older file of this document are stale — drop them too.
+    await query('DELETE FROM procedure_signature_slots WHERE document_id = $1 AND file_path <> $2', [documentId, filePath])
+    await insertSlots(documentId, filePath, slots.filter((s) => s.role_code === roleCode))
+  })
+}
+
+// A pending approval link works for this many days after it was issued.
+export const APPROVAL_LINK_DAYS = 30
+// After approving, the approver may still move their own QR for this long;
+// later only an ISM Admin can (so a forwarded email can't move a signature).
+export const QR_ADJUST_HOURS = 24
+
+export function linkExpired(step: Pick<ApprovalStep, 'status' | 'token_issued_at'>, now = Date.now()) {
+  if (step.status !== 'pending' || !step.token_issued_at) return false
+  return now - new Date(step.token_issued_at).getTime() > APPROVAL_LINK_DAYS * 86_400_000
+}
+
+// After approving: until when the approver may still adjust their own QR
+// (null once the window has passed, or for any other status).
+export function qrAdjustableUntil(step: Pick<ApprovalStep, 'status' | 'decided_at'>, now = Date.now()): Date | null {
+  if (step.status !== 'approved' || !step.decided_at) return null
+  const until = new Date(new Date(step.decided_at).getTime() + QR_ADJUST_HOURS * 3_600_000)
+  return until.getTime() > now ? until : null
 }
 
 // Whether the holder of this link may (still) place their own QR: their step
-// belongs to the current revision and hasn't been rejected or cancelled.
-export function canPlaceOwnSlots(view: TokenView) {
-  return view.step.revision === view.document.revision && (view.step.status === 'pending' || view.step.status === 'approved')
+// belongs to the current revision, and it's pending on a live link or was
+// approved less than QR_ADJUST_HOURS ago.
+export function canPlaceOwnSlots(view: TokenView, now = Date.now()) {
+  if (view.step.revision !== view.document.revision) return false
+  if (view.step.status === 'pending') return !linkExpired(view.step, now)
+  return qrAdjustableUntil(view.step, now) !== null
 }
 
 // ─── admin bell notifications ───

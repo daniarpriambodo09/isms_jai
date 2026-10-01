@@ -6,7 +6,7 @@
 // approve anything) and single-use (a step can only leave 'pending' once).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { decideByToken, getByToken, latestRevisionRequest, parseRevisionNotes, verifyBaseUrl } from '@/lib/procedure-approval'
+import { APPROVAL_LINK_DAYS, canPlaceOwnSlots, decideByToken, getByToken, latestRevisionRequest, linkExpired, parseRevisionNotes, qrAdjustableUntil, verifyBaseUrl } from '@/lib/procedure-approval'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +31,12 @@ export async function GET(request: NextRequest) {
       },
       cycle: view.cycle,
       superseded: view.step.revision !== view.document.revision,
+      // Pending link older than APPROVAL_LINK_DAYS: can't decide any more.
+      linkExpired: linkExpired(view.step),
+      linkValidDays: APPROVAL_LINK_DAYS,
+      // Whether (and until when) the approver may still move their own QR.
+      canPlaceQr: canPlaceOwnSlots(view),
+      qrAdjustableUntil: qrAdjustableUntil(view.step)?.toISOString() ?? null,
       documentId: view.document.id,
       verifyBase: await verifyBaseUrl(request.nextUrl.origin),
     })

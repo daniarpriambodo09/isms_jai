@@ -13,6 +13,7 @@ import { FormCsGroupHeaderModal } from '@/components/documents/FormCsGroupHeader
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { VendorRegistrationsPanel } from '@/components/documents/VendorRegistrationsPanel'
 import { downloadExcel } from '@/lib/excel-export'
+import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 
@@ -22,6 +23,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
   const [groupHeaders, setGroupHeaders] = useState<FormCsGroupHeader[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  useSearchQueryParam(setQuery)
   const [viewing, setViewing] = useState<FormCsDocument | null>(null)
   const [editing, setEditing] = useState<FormCsDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)

@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
+import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
 
 type StandardIsmsP14Document = {
   id: number
@@ -55,6 +56,7 @@ export function StandardIsmsP14RegisterPage() {
   const [documents, setDocuments] = useState<StandardIsmsP14Document[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  useSearchQueryParam(setQuery)
   const [viewing, setViewing] = useState<StandardIsmsP14Document | null>(null)
   const [editing, setEditing] = useState<StandardIsmsP14Document | null>(null)
   const [formOpen, setFormOpen] = useState(false)

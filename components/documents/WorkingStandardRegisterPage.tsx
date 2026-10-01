@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
+import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
 
 type WorkingStandardDocument = {
   id: number
@@ -60,6 +61,7 @@ export function WorkingStandardRegisterPage() {
   const [documents, setDocuments] = useState<WorkingStandardDocument[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
+  useSearchQueryParam(setQuery)
   const [viewing, setViewing] = useState<WorkingStandardDocument | null>(null)
   const [editing, setEditing] = useState<WorkingStandardDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)

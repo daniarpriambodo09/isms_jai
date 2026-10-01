@@ -34,6 +34,7 @@
 // is the template's own embedded page content, untouched.
 
 import 'server-only'
+import { APP_TIME_ZONE } from '@/lib/config'
 import path from 'path'
 import { readFile } from 'fs/promises'
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from 'pdf-lib'
@@ -78,11 +79,11 @@ function toLocal(y: number) {
 }
 
 function fmtFreeDate(value: string) {
-  return new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date(value).toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE, day: 'numeric', month: 'long', year: 'numeric' })
 }
 
 function fmtTime(value: string) {
-  return new Date(value).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  return new Date(value).toLocaleTimeString('id-ID', { timeZone: APP_TIME_ZONE, hour: '2-digit', minute: '2-digit' })
 }
 
 function dmy(value: string) {

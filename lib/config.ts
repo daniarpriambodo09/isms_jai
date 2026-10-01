@@ -6,3 +6,8 @@
 // from a client component does NOT, so every manual fetch to our own
 // API routes must be prefixed with this constant.
 export const API_BASE_PATH = '/isms-jai'
+
+// Every date the server formats (emails, PDFs) is shown in WIB, whatever
+// timezone the host machine runs in — otherwise a UTC server prints an
+// approval made at 00:00–06:59 WIB on the previous day.
+export const APP_TIME_ZONE = 'Asia/Jakarta'

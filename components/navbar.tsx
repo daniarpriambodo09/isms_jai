@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Aperture, ArrowUpRight, Building2, CalendarDays, Camera, ChevronDown, FileSignature, Images, LayoutList, LogOut, Mail, Menu, Palette, Settings, ShieldAlert, UserCheck, Users, X } from 'lucide-react'
+import { Aperture, ArrowUpRight, Building2, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, Images, LayoutList, LogOut, Mail, Menu, Palette, Search, Settings, ShieldAlert, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -13,6 +13,7 @@ import { API_BASE_PATH } from '@/lib/config'
 import { cn } from '@/lib/utils'
 import { LoginModal } from '@/components/login-modal'
 import { NotificationBell } from '@/components/documents/NotificationBell'
+import { SearchPalette } from '@/components/search-palette'
 
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -20,6 +21,14 @@ type Department = { id: number; name: string; slug: string; sections: Section[] 
 // Admin Settings mega-menu, one column per group. ismOnly groups are shown
 // to ISM Admin accounts only.
 const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; label: string; hint: string; icon: typeof Settings }[] }[] = [
+  {
+    title: 'Monitoring',
+    ismOnly: true,
+    items: [
+      { href: '/dashboard-admin', label: 'Dashboard', hint: 'Yang perlu ditindaklanjuti', icon: Gauge },
+      { href: '/kelola-pernyataan-kebijakan', label: 'Policy Read Log', hint: 'Rekap baca kebijakan ISMS', icon: ClipboardCheck },
+    ],
+  },
   {
     title: 'Content',
     items: [
@@ -69,6 +78,7 @@ export function Navbar() {
   const [navLabels, setNavLabels] = useState<Record<string, string>>(DEFAULT_NAV_LABELS)
   const [loginOpen, setLoginOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
@@ -93,6 +103,46 @@ export function Navbar() {
 
   useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setIsmsStandardMenuOpen(false); setFormCsMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
 
+  // Close the desktop dropdowns on a click outside the menu that was clicked,
+  // or on Escape. A full-screen click-catcher can't do this: once the page is
+  // scrolled, the navbar's backdrop-filter traps position:fixed children
+  // inside the bar, so clicks on the page never reached it.
+  const anyMenuOpen = deptMenuOpen || ismsStandardMenuOpen || formCsMenuOpen || settingsMenuOpen
+  useEffect(() => {
+    if (!anyMenuOpen) return
+    const closeExcept = (key: string | null) => {
+      if (key !== 'isms') setIsmsStandardMenuOpen(false)
+      if (key !== 'formcs') setFormCsMenuOpen(false)
+      if (key !== 'dept') setDeptMenuOpen(false)
+      if (key !== 'settings') setSettingsMenuOpen(false)
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Element | null
+      closeExcept(target?.closest?.('[data-nav-menu]')?.getAttribute('data-nav-menu') ?? null)
+    }
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') closeExcept(null) }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [anyMenuOpen])
+
+  // Ctrl/⌘+K (or "/" outside a text field) opens the global search.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const typing = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      if ((event.key.toLowerCase() === 'k' && (event.ctrlKey || event.metaKey)) || (event.key === '/' && !typing)) {
+        event.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   // Lets any page (e.g. the AdminGate empty-state) open the login modal without lifting its state.
   useEffect(() => {
     const handler = () => setLoginOpen(true)
@@ -116,9 +166,10 @@ export function Navbar() {
   const departmentHref = (dept: Department) => `/documents/department/${dept.slug}`
   const sectionHref = (dept: Department, section: Section) => `/documents/department/${dept.slug}/${section.slug}`
 
-  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-3.5 py-2 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
+  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-2.5 py-2 2xl:px-3.5 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
   const navLinkActive = 'bg-accent text-white hover:text-white'
-  const isAdminSectionActive = ['/pengaturan', '/kelola-departemen', '/kelola-permintaan-foto-video', '/kelola-pic-approve', '/kelola-kamera', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-admin', '/kelola-smtp', '/kelola-tema', '/kelola-pengesahan', '/kelola-izin-area-special'].includes(pathname)
+  const adminGroups = ADMIN_GROUPS.filter((group) => !group.ismOnly || adminUser?.role === 'ism_admin')
+  const isAdminSectionActive = ADMIN_GROUPS.some((group) => group.items.some((item) => item.href === pathname))
 
   // Active items are already an acid pill — no extra underline needed.
   const activeIndicator = null
@@ -253,7 +304,7 @@ export function Navbar() {
           WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
         }}
       >
-        <div className="flex min-h-[60px] items-center gap-5 pl-2.5 pr-3 max-[680px]:min-h-14">
+        <div className="flex min-h-[60px] items-center gap-3 pl-2.5 pr-3 max-[680px]:min-h-14 2xl:gap-5">
           <Link href="/" className="flex flex-none items-center gap-3" aria-label="ISMS Portal home">
             <span className="flex h-10 w-[128px] items-center overflow-hidden rounded-full bg-white px-3">
               <img
@@ -272,7 +323,7 @@ export function Navbar() {
               .map(renderMainNavItem)}
 
             {/* ISMS Standard dropdown */}
-            <div className="relative">
+            <div data-nav-menu="isms" className="relative">
               <button
                 type="button"
                 onClick={() => setIsmsStandardMenuOpen((v) => !v)}
@@ -284,7 +335,6 @@ export function Navbar() {
               </button>
               {ismsStandardMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setIsmsStandardMenuOpen(false)} />
                   {dropdownPanel(
                     <>
                       <div className="border-b border-border px-3 pb-2 pt-1">
@@ -303,7 +353,7 @@ export function Navbar() {
               .map(renderMainNavItem)}
 
             {/* Form CS dropdown */}
-            <div className="relative">
+            <div data-nav-menu="formcs" className="relative">
               <button
                 type="button"
                 onClick={() => setFormCsMenuOpen((v) => !v)}
@@ -315,7 +365,6 @@ export function Navbar() {
               </button>
               {formCsMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setFormCsMenuOpen(false)} />
                   {dropdownPanel(
                     <>
                       <div className="border-b border-border px-3 pb-2 pt-1">
@@ -330,7 +379,7 @@ export function Navbar() {
             </div>
 
             {/* Department dropdown */}
-            <div className="relative">
+            <div data-nav-menu="dept" className="relative">
               <button
                 type="button"
                 onClick={() => setDeptMenuOpen((v) => !v)}
@@ -342,7 +391,6 @@ export function Navbar() {
               </button>
               {deptMenuOpen && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setDeptMenuOpen(false)} />
                   {dropdownPanel(
                     <>
                       <div className="border-b border-border px-3 pb-2 pt-1">
@@ -357,7 +405,7 @@ export function Navbar() {
             </div>
 
             {isLoggedIn && (
-              <div>
+              <div data-nav-menu="settings">
                 <button
                   type="button"
                   onClick={() => setSettingsMenuOpen((v) => !v)}
@@ -374,12 +422,11 @@ export function Navbar() {
                 </button>
                 {settingsMenuOpen && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setSettingsMenuOpen(false)} />
                     {/* Mega-menu: the groups side by side instead of one long column. */}
                     <div
                       role="menu"
                       aria-label="Admin Settings"
-                      className="absolute left-1/2 top-[calc(100%+12px)] z-20 w-[min(980px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground"
+                      className="absolute left-1/2 top-[calc(100%+12px)] z-20 w-[min(1180px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground"
                       style={{
                         animation: 'dropdown-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
                         boxShadow: '0 24px 60px color-mix(in oklch, var(--p-950) 28%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent)',
@@ -393,8 +440,8 @@ export function Navbar() {
                         </div>
                         <span className="rounded-full bg-secondary px-2.5 py-1 font-mono-label text-[10px] text-muted-foreground">{adminUser?.username}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-2 gap-y-4 p-3 xl:grid-cols-4">
-                        {ADMIN_GROUPS.filter((group) => !group.ismOnly || adminUser?.role === 'ism_admin').map((group) => (
+                      <div className={cn('grid grid-cols-2 gap-x-2 gap-y-4 p-3 lg:grid-cols-3', adminGroups.length > 4 ? 'xl:grid-cols-5' : 'xl:grid-cols-4')}>
+                        {adminGroups.map((group) => (
                           <div key={group.title}>
                             <p className="px-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">{group.title}</p>
                             <div className="flex flex-col">
@@ -429,20 +476,31 @@ export function Navbar() {
 
           {/* Right side actions */}
           <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Cari dokumen (Ctrl+K)"
+              title="Cari dokumen (Ctrl+K)"
+              className="grid size-10 flex-none place-items-center rounded-full bg-primary-foreground/10 text-primary-foreground/80 transition-colors hover:bg-primary-foreground/20 hover:text-primary-foreground"
+            >
+              <Search className="size-4" />
+            </button>
             {!isLoading && isLoggedIn && <NotificationBell />}
             {!isLoading && (
               isLoggedIn ? (
                 <div className="hidden items-center gap-2 sm:flex">
-                  <span className="hidden items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-mono-label text-[10.5px] text-primary-foreground/85 xl:flex">
+                  <span className="hidden items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-mono-label text-[10.5px] text-primary-foreground/85 2xl:flex">
                     <span className="size-1.5 rounded-full bg-accent" />
                     {adminUser?.username}
                   </span>
                   <button
                     onClick={() => logout()}
-                    className="flex items-center gap-1.5 rounded-full bg-primary-foreground/10 px-3.5 py-2 text-xs font-medium transition-colors hover:bg-primary-foreground/20"
+                    aria-label="Logout"
+                    title="Logout"
+                    className="flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 text-xs font-medium transition-colors hover:bg-primary-foreground/20"
                   >
                     <LogOut className="size-4" />
-                    Logout
+                    <span className="hidden 2xl:inline">Logout</span>
                   </button>
                 </div>
               ) : (
@@ -507,53 +565,16 @@ export function Navbar() {
           {isLoggedIn && (
             <>
               <div className="portal-eyebrow px-3 pb-2 pt-5">Admin Settings</div>
-
-              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Content</p>
-              <Link href="/pengaturan" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Manage Menu Content
-              </Link>
-              <Link href="/kelola-hero-slides" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Manage Hero Slides
-              </Link>
-              <Link href="/kelola-jadwal" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Manage Schedules
-              </Link>
-
-              <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Organization &amp; Requests</p>
-              <Link href="/kelola-departemen" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Manage Departments
-              </Link>
-              <Link href="/kelola-permintaan-foto-video" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Photo/Video Requests
-              </Link>
-              <Link href="/kelola-izin-area-special" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Special Area Access Requests
-              </Link>
-              <Link href="/kelola-kamera" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Manage Camera Equipment
-              </Link>
-              <Link href="/kelola-pic-approve" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                <Settings className="size-4" />Manage PIC Approvers
-              </Link>
-
-              {adminUser?.role === 'ism_admin' && (
-                <>
-                  <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">Accounts</p>
-                  <Link href="/kelola-admin" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                    <Settings className="size-4" />Manage Admin Accounts
-                  </Link>
-                  <Link href="/kelola-pengesahan" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                    <Settings className="size-4" />Approver Pengesahan Prosedur
-                  </Link>
-                  <p className="px-3 pb-1 pt-2.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">System</p>
-                  <Link href="/kelola-smtp" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                    <Settings className="size-4" />SMTP Settings
-                  </Link>
-                  <Link href="/kelola-tema" className="nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground">
-                    <Settings className="size-4" />Theme Colors
-                  </Link>
-                </>
-              )}
+              {adminGroups.map((group, gi) => (
+                <div key={group.title}>
+                  <p className={cn('px-3 pb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70', gi > 0 && 'pt-2.5')}>{group.title}</p>
+                  {group.items.map(({ href, label, icon: Icon }) => (
+                    <Link key={href} href={href} className={cn('nav-drawer-item flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-foreground', pathname === href && 'bg-secondary font-semibold text-primary')}>
+                      <Icon className="size-4" />{label}
+                    </Link>
+                  ))}
+                </div>
+              ))}
             </>
           )}
         </div>
@@ -576,6 +597,7 @@ export function Navbar() {
       </aside>
 
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   )
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
@@ -41,10 +41,17 @@ async function withApprovals(rows: ProcedureRow[]) {
   return rows.map((row) => ({ ...row, approvals: steps.get(row.id) ?? [], slots_count: counts.get(row.id) ?? 0 }))
 }
 
+// Visitors see a procedure only once it is final: every approver approved it,
+// or it needs no approval. Waiting / sent-back documents are admin-only.
 export async function GET(request: NextRequest) {
   try {
     await ensureApprovalSchema()
-    const result = await query<ProcedureRow>(`SELECT ${COLUMNS} FROM procedure_documents ORDER BY control_no ASC, id ASC`)
+    const onlyPublished = !getAdminFromRequest(request)
+    const result = await query<ProcedureRow>(
+      `SELECT ${COLUMNS} FROM procedure_documents
+       ${onlyPublished ? "WHERE approval_status IN ('approved', 'none')" : ''}
+       ORDER BY control_no ASC, id ASC`
+    )
     return NextResponse.json({ documents: await withApprovals(result.rows), verifyBase: await verifyBaseUrl(request.nextUrl.origin) })
   } catch (error) {
     console.error('[prosedur-isms/GET]', error)

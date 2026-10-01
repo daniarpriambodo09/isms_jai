@@ -8,7 +8,9 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ButtonPressEffects } from '@/components/button-press-effects'
 import { ThemeApplier } from '@/components/theme-applier'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
+import { API_BASE_PATH } from '@/lib/config'
 
+// Metadata URLs don't get the basePath automatically.
 export const metadata: Metadata = {
   title: 'ISMS Portal | Information Security Management System',
   description: 'Internal information security policies, documents, and audit schedules.',
@@ -16,19 +18,19 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
+        url: `${API_BASE_PATH}/icon-light-32x32.png`,
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: `${API_BASE_PATH}/icon-dark-32x32.png`,
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/icon.svg',
+        url: `${API_BASE_PATH}/icon.svg`,
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: `${API_BASE_PATH}/apple-icon.png`,
   },
 }
 

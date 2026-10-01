@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { StandardIsmsP14RegisterPage } from '@/components/documents/StandardIsmsP14RegisterPage'
 
 export const metadata = {
@@ -6,5 +7,10 @@ export const metadata = {
 }
 
 export default function StandardIsmsP14Page() {
-  return <StandardIsmsP14RegisterPage />
+  // Suspense: the register reads ?q= (useSearchParams) to open pre-filtered.
+  return (
+    <Suspense fallback={null}>
+      <StandardIsmsP14RegisterPage />
+    </Suspense>
+  )
 }

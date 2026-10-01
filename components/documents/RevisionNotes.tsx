@@ -29,6 +29,7 @@ const newKey = () => `pin-${Date.now().toString(36)}-${(keySeq++).toString(36)}`
 export function RevisionNotesDialog({
   mode,
   filePath,
+  token,
   heading,
   subheading,
   hint,
@@ -39,6 +40,8 @@ export function RevisionNotesDialog({
 }: {
   mode: 'edit' | 'view'
   filePath: string
+  /** Approver's link token — opens the file before it is published. */
+  token?: string
   heading: string
   subheading?: string
   hint?: string
@@ -73,7 +76,7 @@ export function RevisionNotesDialog({
       try {
         const pdfjs = await import('pdfjs-dist')
         pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`
-        const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}`)
+        const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
         if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')
         const loaded = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
         const pageRatios = await loadPageRatios(loaded)
@@ -85,7 +88,7 @@ export function RevisionNotesDialog({
       }
     })()
     return () => { cancelled = true }
-  }, [filePath])
+  }, [filePath, token])
 
   const goToPage = (index: number) => scrollToPage(scrollRef, pageRefs, index)
 

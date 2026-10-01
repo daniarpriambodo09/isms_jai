@@ -1,14 +1,15 @@
 // app/api/prosedur-isms/[id]/pdf/route.ts
 //
 // "PDF bertanda tangan": the original procedure PDF with each approver's QR
-// signature stamped into its own signature column (lib/procedure-esign-pdf.ts). Public,
-// like the procedure files themselves — built on the fly, so it always shows
-// the current state of the approval.
+// signature stamped into its own signature column (lib/procedure-esign-pdf.ts).
+// Built on the fly, so it always shows the current state of the approval:
+// approver 2 sees approver 1's QR already in place, and so on. Public once
+// final, like the procedure files themselves.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { currentStepsFor, ensureApprovalSchema, slotsFor, verifyBaseUrl } from '@/lib/procedure-approval'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     )
     const doc = result.rows[0]
     if (!doc) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
+    // Not final yet (waiting / sent back): admins, or an approver of this
+    // document with the token from their email link — same 404 otherwise.
+    if (doc.approval_status !== 'approved' && doc.approval_status !== 'none' && !getAdminFromRequest(request)) {
+      const token = request.nextUrl.searchParams.get('token') ?? ''
+      const allowed = token && (await query('SELECT 1 FROM procedure_approvals WHERE document_id = $1 AND token = $2', [doc.id, token.slice(0, 100)])).rowCount
+      if (!allowed) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
+    }
 
     const steps = (await currentStepsFor([doc.id])).get(doc.id) ?? []
     // ?preview=1 (ISM Admin only): every role shown as signed with a sample QR,

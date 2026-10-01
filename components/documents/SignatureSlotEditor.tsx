@@ -249,7 +249,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         if (approverMode && !data.editable) setMessage({ ok: false, text: 'Posisi tanda tangan tidak dapat diubah lagi untuk link ini.' })
         const pdfjs = await import('pdfjs-dist')
         pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`
-        const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(data.document.file_path)}`)
+        // Approvers have no session: their token opens the not-yet-published file.
+        const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(data.document.file_path)}${approverMode ? `&token=${encodeURIComponent(token!)}` : ''}`)
         if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')
         const loaded = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
         if (cancelled) return

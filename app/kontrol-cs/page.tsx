@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { FormCsRegisterPage } from '@/components/documents/FormCsRegisterPage'
 
 export const metadata = {
@@ -6,5 +7,10 @@ export const metadata = {
 }
 
 export default function KontrolCsPage() {
-  return <FormCsRegisterPage category="kontrol-cs" title="Kontrol CS" />
+  // Suspense: the register reads ?q= (useSearchParams) to open pre-filtered.
+  return (
+    <Suspense fallback={null}>
+      <FormCsRegisterPage category="kontrol-cs" title="Kontrol CS" />
+    </Suspense>
+  )
 }

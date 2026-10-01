@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Bell, Camera, Check, FileCheck2, PencilLine, UserPlus } from 'lucide-react'
+import { AlertTriangle, Bell, CalendarClock, Camera, Check, FileCheck2, PencilLine, UserPlus } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -47,6 +47,9 @@ type ProcedureNotice = {
   total?: number
 }
 
+// ISM Admin only (see /api/admin/alerts): documents due for periodic review.
+type ReviewAlert = { overdue: number; soon: number }
+
 const POLL_MS = 30000
 
 function formatRelative(value: string) {
@@ -63,32 +66,49 @@ export function NotificationBell() {
   const [registrations, setRegistrations] = useState<PendingRegistration[]>([])
   const [awaitingAck, setAwaitingAck] = useState<TakenRequest[]>([])
   const [notices, setNotices] = useState<ProcedureNotice[]>([])
+  const [review, setReview] = useState<ReviewAlert>({ overdue: 0, soon: 0 })
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   useEscapeClose(open, () => setOpen(false))
 
+  // Close on a click outside. Not a full-screen overlay: inside the scrolled
+  // navbar (backdrop-filter) a position:fixed overlay is trapped in the bar.
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
+
   const load = useCallback(async () => {
     try {
-      const [reqRes, regRes, ackRes, noticeRes] = await Promise.all([
+      const [reqRes, regRes, ackRes, noticeRes, alertRes] = await Promise.all([
         fetch(`${API_BASE_PATH}/api/photo-video-requests?status=pending`, { cache: 'no-store', credentials: 'include' }),
         fetch(`${API_BASE_PATH}/api/vendor-registrations?stage=pending_approval`, { cache: 'no-store', credentials: 'include' }),
         fetch(`${API_BASE_PATH}/api/photo-video-requests?awaitingAck=1`, { cache: 'no-store', credentials: 'include' }),
         fetch(`${API_BASE_PATH}/api/prosedur-isms/notifications`, { cache: 'no-store', credentials: 'include' }),
+        fetch(`${API_BASE_PATH}/api/admin/alerts`, { cache: 'no-store', credentials: 'include' }),
       ])
       const reqData = reqRes.ok ? await reqRes.json() : { requests: [] }
       const regData = regRes.ok ? await regRes.json() : { registrations: [] }
       const ackData = ackRes.ok ? await ackRes.json() : { requests: [] }
       const noticeData = noticeRes.ok ? await noticeRes.json() : { notices: [] }
+      const alertData = alertRes.ok ? await alertRes.json() : { review: { overdue: 0, soon: 0 } }
       setRequests(reqData.requests ?? [])
       setRegistrations(regData.registrations ?? [])
       setAwaitingAck(ackData.requests ?? [])
       setNotices(noticeData.notices ?? [])
+      setReview(alertData.review ?? { overdue: 0, soon: 0 })
     } catch {
       setRequests([])
       setRegistrations([])
       setAwaitingAck([])
       setNotices([])
+      setReview({ overdue: 0, soon: 0 })
     } finally {
       setLoading(false)
     }
@@ -122,10 +142,11 @@ export function NotificationBell() {
     } catch { /* keep it so the user can retry */ }
   }
 
-  const count = requests.length + registrations.length + awaitingAck.length + notices.length
+  const hasReview = review.overdue > 0 || review.soon > 0
+  const count = requests.length + registrations.length + awaitingAck.length + notices.length + (hasReview ? 1 : 0)
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -142,7 +163,6 @@ export function NotificationBell() {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
             role="menu"
             aria-label="Notifications"
@@ -170,6 +190,24 @@ export function NotificationBell() {
                   <Camera className="mx-auto mb-2 size-7 text-muted-foreground/40" />
                   <p className="text-xs text-muted-foreground">Belum ada notifikasi baru.</p>
                 </div>
+              )}
+              {hasReview && (
+                <Link
+                  href="/dashboard-admin"
+                  onClick={() => setOpen(false)}
+                  className="nav-drop-item flex items-start gap-3 border-b border-border/60 px-4 py-3 text-sm last:border-0"
+                >
+                  <span className={`mt-0.5 grid size-8 flex-none place-items-center rounded-full ${review.overdue ? 'bg-amber-100 text-amber-800' : 'bg-secondary text-[color:var(--p-600)]'}`}>
+                    <CalendarClock className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-amber-700">Review dokumen berkala</span>
+                    <span className="block font-medium text-foreground">
+                      {review.overdue ? `${review.overdue} dokumen lewat jatuh tempo review` : `${review.soon} dokumen jatuh tempo ≤ 30 hari`}
+                    </span>
+                    {review.overdue > 0 && review.soon > 0 && <span className="block text-xs text-muted-foreground">+ {review.soon} jatuh tempo ≤ 30 hari</span>}
+                  </span>
+                </Link>
               )}
               {notices.map((notice) => {
                 const revision = notice.kind === 'revision'

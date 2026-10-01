@@ -29,15 +29,20 @@ type ProcedureDocument = {
   slots_count: number
 }
 
-type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'none'
+type StatusFilter = 'all' | 'published' | 'pending' | 'approved' | 'rejected' | 'none'
 
-const STATUS_FILTERS: { id: StatusFilter; label: string }[] = [
+// Admin only — visitors get just the published documents from the API.
+// "published" = what visitors see: fully approved, or needs no approval.
+const STATUS_FILTERS: { id: StatusFilter; label: string; hint?: string }[] = [
   { id: 'all', label: 'Semua' },
+  { id: 'published', label: 'Tampil ke pengunjung', hint: 'Sudah disahkan semua approver, atau tanpa pengesahan' },
+  { id: 'approved', label: 'Disahkan semua' },
   { id: 'pending', label: 'Menunggu' },
-  { id: 'approved', label: 'Disahkan' },
   { id: 'rejected', label: 'Perlu Revisi' },
   { id: 'none', label: 'Tanpa pengesahan' },
 ]
+
+const isPublished = (document: { approval_status: string }) => document.approval_status === 'approved' || document.approval_status === 'none'
 
 function approvalSummary(document: ProcedureDocument) {
   if (document.approval_roles.length === 0) return '-'
@@ -120,19 +125,23 @@ export function ProcedureRegisterPage() {
     }
   }, [])
 
-  useEffect(() => { loadDocuments() }, [loadDocuments])
+  // Reload on login/logout: admins also get the documents that aren't published yet.
+  useEffect(() => { loadDocuments() }, [loadDocuments, isLoggedIn])
 
   const filteredDocuments = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return documents.filter((document) =>
-      (statusFilter === 'all' || document.approval_status === statusFilter) &&
+      (statusFilter === 'all' || (statusFilter === 'published' ? isPublished(document) : document.approval_status === statusFilter)) &&
       (!keyword || `${document.control_no} ${document.title} ${document.note ?? ''}`.toLowerCase().includes(keyword))
     )
   }, [documents, query, statusFilter])
 
   const statusCounts = useMemo(() => {
-    const counts: Record<StatusFilter, number> = { all: documents.length, pending: 0, approved: 0, rejected: 0, none: 0 }
-    for (const document of documents) counts[document.approval_status] = (counts[document.approval_status] ?? 0) + 1
+    const counts: Record<StatusFilter, number> = { all: documents.length, published: 0, pending: 0, approved: 0, rejected: 0, none: 0 }
+    for (const document of documents) {
+      counts[document.approval_status] = (counts[document.approval_status] ?? 0) + 1
+      if (isPublished(document)) counts.published++
+    }
     return counts
   }, [documents])
 
@@ -235,21 +244,30 @@ export function ProcedureRegisterPage() {
         action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
       />
 
-      {/* Approval status filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 font-mono-label text-[10px] text-muted-foreground">Pengesahan</span>
-        {STATUS_FILTERS.map((filter) => (
-          <button
-            key={filter.id}
-            type="button"
-            onClick={() => setStatusFilter(filter.id)}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${statusFilter === filter.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}
-          >
-            {filter.label}
-            <span className={`rounded-full px-1.5 font-mono text-[10px] ${statusFilter === filter.id ? 'bg-white/20' : 'bg-secondary'}`}>{statusCounts[filter.id]}</span>
-          </button>
-        ))}
-      </div>
+      {/* Approval status filter — admins only; visitors see published documents only. */}
+      {isLoggedIn && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 font-mono-label text-[10px] text-muted-foreground">Pengesahan</span>
+            {STATUS_FILTERS.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                title={filter.hint}
+                onClick={() => setStatusFilter(filter.id)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${statusFilter === filter.id ? 'border-primary bg-primary text-primary-foreground' : filter.id === 'published' ? 'border-emerald-600/40 text-emerald-700 hover:bg-emerald-600/10' : 'border-border text-muted-foreground hover:text-foreground'}`}
+              >
+                {filter.label}
+                <span className={`rounded-full px-1.5 font-mono text-[10px] ${statusFilter === filter.id ? 'bg-white/20' : 'bg-secondary'}`}>{statusCounts[filter.id]}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Pengunjung hanya melihat dokumen yang <strong className="text-foreground">sudah disahkan semua approver</strong> (atau tanpa pengesahan).
+            Dokumen yang masih menunggu atau perlu revisi hanya terlihat oleh admin dan approver-nya.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{documents.length} dokumen terdaftar</p></div>
@@ -283,7 +301,14 @@ export function ProcedureRegisterPage() {
             )}
             <td className="px-4 py-4 align-top font-semibold text-accent-foreground">
               <div className="flex flex-col gap-1.5">
-                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5"><Highlight text={document.control_no} keyword={query} /></div>)}
+                {group.docs.map((document) => (
+                  <div key={document.id} className="whitespace-nowrap py-0.5">
+                    <Highlight text={document.control_no} keyword={query} />
+                    {isLoggedIn && !isPublished(document) && (
+                      <span title="Belum disahkan semua approver — tidak tampil ke pengunjung" className="ml-2 inline-block rounded-full bg-amber-100 align-middle px-2 py-0.5 text-[10px] font-semibold text-amber-800">Belum tampil publik</span>
+                    )}
+                  </div>
+                ))}
               </div>
             </td>
             <td className="min-w-[240px] px-4 py-4 align-top">
@@ -339,7 +364,10 @@ export function ProcedureRegisterPage() {
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => (
                   <div key={document.id} className="flex items-center gap-1 py-0.5">
-                    {hasSignature(document) ? (
+                    {hasSignature(document) && !isLoggedIn ? (
+                      // Visitors: the final document, QR signatures in place.
+                      <button type="button" onClick={() => { setViewingSigned(true); setViewing(document) }} aria-label={`Lihat ${document.title}`} title="Lihat dokumen (bertanda tangan QR)" className="relative grid size-8 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10"><Eye className="size-4" /><QrCode className="absolute -right-0.5 -top-0.5 size-3 rounded-sm bg-card" /></button>
+                    ) : hasSignature(document) ? (
                       <>
                         <button type="button" onClick={() => { setViewingSigned(true); setViewing(document) }} aria-label={`Lihat ${document.title} bertanda tangan`} title="Lihat dokumen bertanda tangan (QR)" className="relative grid size-8 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10"><Eye className="size-4" /><QrCode className="absolute -right-0.5 -top-0.5 size-3 rounded-sm bg-card" /></button>
                         <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat file asli ${document.title}`} title="Lihat file asli (tanpa QR)" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><FileText className="size-4" /></button>

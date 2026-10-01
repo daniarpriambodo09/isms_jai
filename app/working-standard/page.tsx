@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { WorkingStandardRegisterPage } from '@/components/documents/WorkingStandardRegisterPage'
 
 export const metadata = {
@@ -6,5 +7,10 @@ export const metadata = {
 }
 
 export default function WorkingStandardPage() {
-  return <WorkingStandardRegisterPage />
+  // Suspense: the register reads ?q= (useSearchParams) to open pre-filtered.
+  return (
+    <Suspense fallback={null}>
+      <WorkingStandardRegisterPage />
+    </Suspense>
+  )
 }

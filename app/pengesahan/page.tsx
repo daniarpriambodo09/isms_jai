@@ -35,6 +35,10 @@ type View = {
   document: { control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
   cycle: Step[]
   superseded: boolean
+  linkExpired: boolean
+  linkValidDays: number
+  canPlaceQr: boolean
+  qrAdjustableUntil: string | null
   documentId: number
   verifyBase: string
   // Last 'Minta Revisi' on this document (any cycle), if any.
@@ -107,6 +111,7 @@ function PengesahanContent() {
       const data = await res.json().catch(() => ({}))
       setResult({ ok: res.ok, message: data.message ?? (res.ok ? 'Tersimpan.' : 'Gagal memproses.') })
       await load()
+      setPdfStamp(Date.now()) // the document view now carries this decision's QR
       return res.ok ? null : (data.message ?? 'Gagal memproses.')
     } catch {
       setResult({ ok: false, message: 'Tidak dapat menghubungi server.' })
@@ -133,8 +138,14 @@ function PengesahanContent() {
   const { step, document, cycle } = view
   // The revision request came from an earlier (restarted) cycle, not this one.
   const previousCycle = !!view.revisionRequest && !cycle.some((item) => item.id === view.revisionRequest!.approvalId)
-  const canDecide = step.status === 'pending' && !view.superseded
-  const pdfUrl = `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(document.file_path)}`
+  const canDecide = step.status === 'pending' && !view.superseded && !view.linkExpired
+  // The document as it stands now: the original with the QR of every approver
+  // who has already approved (approver 2 sees approver 1's QR, and so on).
+  // The token lets this approver open it before it is published.
+  const tokenParam = `token=${encodeURIComponent(token)}`
+  const signedUrl = `${API_BASE_PATH}/api/prosedur-isms/${view.documentId}/pdf?${tokenParam}&t=${pdfStamp}`
+  const originalUrl = `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(document.file_path)}&${tokenParam}`
+  const approvedSoFar = cycle.filter((item) => item.status === 'approved').length
 
   return (
     <div className="flex flex-col gap-6">
@@ -164,11 +175,21 @@ function PengesahanContent() {
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         {/* PDF */}
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
-            <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><FileText className="size-4 text-[color:var(--p-600)]" /> Dokumen</p>
-            <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--p-600)] hover:underline">Buka di tab baru <ExternalLink className="size-3.5" /></a>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><FileText className="size-4 text-[color:var(--p-600)]" /> Dokumen</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {approvedSoFar > 0
+                  ? `Sudah memuat QR ${approvedSoFar} dari ${cycle.length} approver yang menyetujui`
+                  : 'Belum ada approver yang menyetujui — QR muncul di sini setelah disetujui'}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <a href={originalUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">File asli</a>
+              <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--p-600)] hover:underline">Buka di tab baru <ExternalLink className="size-3.5" /></a>
+            </div>
           </div>
-          <iframe src={pdfUrl} title={document.title} className="h-[70vh] w-full bg-muted" />
+          <iframe key={pdfStamp} src={signedUrl} title={document.title} className="h-[70vh] w-full bg-muted" />
         </section>
 
         {/* Chain + decision */}
@@ -238,7 +259,7 @@ function PengesahanContent() {
               </p>
               <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                 <PencilLine className="mt-0.5 size-3.5 flex-none text-[#c2412c]" />
-                Masih ada yang perlu diperbaiki? Pilih <strong className="text-foreground">Minta Revisi</strong> — tandai langsung bagian dokumennya dan tulis catatannya. QR tidak diberikan.
+                <span>Masih ada yang perlu diperbaiki? Pilih <strong className="text-foreground">Minta Revisi</strong> — tandai langsung bagian dokumennya dan tulis catatannya. QR tidak diberikan.</span>
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button type="button" onClick={() => setPlacing('approve')} disabled={submitting !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50">
@@ -255,15 +276,26 @@ function PengesahanContent() {
                 verifyBase={view.verifyBase}
                 info={{ code: step.verification_code, name: step.approver_name ?? '-', roleTitle: step.role_title, decidedAt: step.decided_at, documentLabel: `${document.control_no} — ${document.title}` }}
               />
-              <button
-                type="button"
-                onClick={() => setPlacing('adjust')}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
-              >
-                <Crosshair className="size-4" /> Atur posisi QR saya
-              </button>
+              {view.canPlaceQr ? (
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPlacing('adjust')}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+                  >
+                    <Crosshair className="size-4" /> Atur posisi QR saya
+                  </button>
+                  {view.qrAdjustableUntil && (
+                    <p className="text-center text-[11px] text-muted-foreground">Bisa diubah sampai {formatDate(view.qrAdjustableUntil, true)}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="rounded-xl bg-secondary px-3 py-2 text-center text-xs text-muted-foreground">
+                  Posisi QR Anda sudah dikunci. Bila perlu dipindah, hubungi Admin ISM.
+                </p>
+              )}
               <a
-                href={`${API_BASE_PATH}/api/prosedur-isms/${view.documentId}/pdf?t=${pdfStamp}`}
+                href={signedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
@@ -275,6 +307,8 @@ function PengesahanContent() {
             <section className="rounded-2xl border border-border bg-card p-5 text-sm leading-6 text-muted-foreground shadow-sm">
               {view.superseded
                 ? 'Dokumen ini sudah direvisi setelah email dikirim — link ini tidak berlaku lagi. Anda akan menerima email baru untuk revisi terbaru.'
+                : view.linkExpired
+                  ? `Link pengesahan ini sudah kedaluwarsa (berlaku ${view.linkValidDays} hari sejak dikirim). Minta Admin ISM mengirim ulang email pengesahan — Anda akan menerima link baru.`
                 : step.status === 'approved'
                   ? `Anda telah menyetujui dokumen ini pada ${step.decided_at ? formatDate(step.decided_at, true) : '-'}.`
                   : step.status === 'rejected'
@@ -289,6 +323,7 @@ function PengesahanContent() {
         <RevisionNotesDialog
           mode="edit"
           filePath={document.file_path}
+          token={token}
           heading={`${document.control_no} — ${document.title}`}
           subheading={`Rev. ${document.revision} · ${step.approver_name ?? ''} (${step.role_title})`}
           onClose={() => setNotesMode(null)}
@@ -303,6 +338,7 @@ function PengesahanContent() {
         <RevisionNotesDialog
           mode="view"
           filePath={document.file_path}
+          token={token}
           heading={`${document.control_no} — ${document.title}`}
           subheading={`Catatan dari ${view.revisionRequest.approverName ?? '-'} · Rev. ${view.revisionRequest.revision}`}
           hint={view.revisionRequest.revision !== document.revision || previousCycle

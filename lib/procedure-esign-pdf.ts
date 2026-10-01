@@ -12,6 +12,7 @@
 // TANGGAL), so the result is never empty.
 
 import 'server-only'
+import { APP_TIME_ZONE } from '@/lib/config'
 import path from 'path'
 import { readFile } from 'fs/promises'
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, degrees, rgb } from 'pdf-lib'
@@ -107,11 +108,11 @@ function wrap(font: PDFFont, value: string, maxWidth: number, size: number): str
 }
 
 function fmtDate(value: string) {
-  return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+  return new Date(value).toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE, day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function fmtTime(value: string) {
-  return new Date(value).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+  return new Date(value).toLocaleTimeString('id-ID', { timeZone: APP_TIME_ZONE, hour: '2-digit', minute: '2-digit' })
 }
 
 export async function buildProcedureSignedPdf(data: SheetData): Promise<Uint8Array> {
@@ -263,7 +264,7 @@ export async function buildProcedureSignedPdf(data: SheetData): Promise<Uint8Arr
       lines.forEach((line, i) => text(line, MARGIN + 10, y - i * 10.5, 8, font, MUTED))
       y -= lines.length * 10.5 + 4
     }
-    text(`Dibuat otomatis oleh Portal ISMS pada ${new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })}`, MARGIN, MARGIN - 10, 7, italic, MUTED)
+    text(`Dibuat otomatis oleh Portal ISMS pada ${new Date().toLocaleString('id-ID', { timeZone: APP_TIME_ZONE, dateStyle: 'long', timeStyle: 'short' })}`, MARGIN, MARGIN - 10, 7, italic, MUTED)
     const pageLabel = `Hal. ${originalPages + 1} / ${originalPages + 1}`
     text(pageLabel, W - MARGIN - font.widthOfTextAtSize(pageLabel, 7), MARGIN - 10, 7, font, MUTED)
   }

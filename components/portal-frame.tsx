@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { ChevronRight, LockKeyhole, FileText, ClipboardList, BookOpen, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
+import { ChevronRight, LockKeyhole, FileText, ClipboardCheck, ClipboardList, BookOpen, Gauge, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
 import { PortalFooter } from '@/components/portal-footer'
@@ -33,6 +33,8 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
   '/news': <FileText className="size-5" />,
   '/kelola-departemen': <Settings className="size-5" />,
   '/kelola-admin': <Users className="size-5" />,
+  '/dashboard-admin': <Gauge className="size-5" />,
+  '/kelola-pernyataan-kebijakan': <ClipboardCheck className="size-5" />,
 }
 
 // Menu pages that render their own themed hero (components/page-hero.tsx);

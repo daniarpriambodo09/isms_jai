@@ -1,9 +1,47 @@
 // app/api/files/serve/route.ts
+//
+// Serves uploaded files from storage/. The portal's documents are meant to be
+// readable without logging in, so anonymous visitors may fetch a file only
+// while it is PUBLISHED — referenced by a document/slide/image row the portal
+// shows. Anything else in storage (files of deleted records, inactive hero
+// slides, uploads not saved yet, stray files) needs an admin session, even
+// with the exact path.
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile, stat } from 'fs/promises'
 import { createReadStream } from 'fs'
 import path from 'path'
 import { STORAGE_ROOT } from '@/lib/storage'
+import { getAdminFromRequest } from '@/lib/auth'
+import { query } from '@/lib/db'
+
+// A procedure is published only once every approver has approved it (or it
+// needs no approval). While it waits or is being revised, only admins and the
+// approvers — with the token from their email link — can open the file.
+async function isPublishedFile(relativePath: string, approvalToken: string) {
+  try {
+    const result = await query<{ published: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM procedure_documents WHERE file_path = $1 AND approval_status IN ('approved', 'none')
+         UNION ALL SELECT 1 FROM procedure_documents d JOIN procedure_approvals a ON a.document_id = d.id
+           WHERE d.file_path = $1 AND $2 <> '' AND a.token = $2
+         UNION ALL SELECT 1 FROM documents WHERE file_path = $1
+         UNION ALL SELECT 1 FROM education_documents WHERE file_path = $1
+         UNION ALL SELECT 1 FROM form_cs_documents WHERE file_path = $1
+         UNION ALL SELECT 1 FROM working_standard_documents WHERE file_path = $1
+         UNION ALL SELECT 1 FROM standard_isms_p14_documents WHERE file_path = $1
+         UNION ALL SELECT 1 FROM schedule_documents WHERE file_path = $1
+         UNION ALL SELECT 1 FROM policy_images WHERE file_path = $1
+         UNION ALL SELECT 1 FROM hero_slides WHERE file_path = $1 AND is_active
+         UNION ALL SELECT 1 FROM home_canvas WHERE position($1 in blocks::text) > 0
+       ) AS published`,
+      [relativePath, approvalToken]
+    )
+    return result.rows[0]?.published === true
+  } catch (error) {
+    console.error('[files/serve] publish check failed', error)
+    return false
+  }
+}
 
 const CONTENT_TYPES: Record<string, string> = {
   pdf: 'application/pdf',
@@ -39,6 +77,14 @@ export async function GET(request: NextRequest) {
   const fullPath = path.resolve(STORAGE_ROOT, relativePath)
   if (!fullPath.startsWith(`${path.resolve(STORAGE_ROOT)}${path.sep}`)) {
     return NextResponse.json({ message: 'Path tidak valid.' }, { status: 400 })
+  }
+
+  // Same 404 as a missing file, so the response never confirms that an
+  // unpublished file exists.
+  const normalized = relativePath.replace(/\\/g, '/')
+  const approvalToken = (request.nextUrl.searchParams.get('token') ?? '').slice(0, 100)
+  if (!getAdminFromRequest(request) && !(await isPublishedFile(normalized, approvalToken))) {
+    return NextResponse.json({ message: 'File tidak ditemukan.' }, { status: 404 })
   }
 
   const contentType = CONTENT_TYPES[path.extname(relativePath).slice(1).toLowerCase()] ?? 'application/octet-stream'
@@ -95,6 +141,7 @@ export async function GET(request: NextRequest) {
           'Content-Length': String(chunkSize),
           'Content-Disposition': 'inline',
           'Cache-Control': 'private, max-age=0, must-revalidate',
+          'X-Content-Type-Options': 'nosniff',
         },
       })
     }
@@ -108,6 +155,7 @@ export async function GET(request: NextRequest) {
         'Accept-Ranges': 'bytes',
         'Content-Disposition': 'inline',
         'Cache-Control': 'private, max-age=0, must-revalidate',
+        'X-Content-Type-Options': 'nosniff',
       },
     })
   } catch {

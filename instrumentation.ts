@@ -6,4 +6,7 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
   const { migrateOnStartup } = await import('./lib/migration-check')
   await migrateOnStartup()
+  // Weekly document-review reminder (lib/jobs.ts).
+  const { startBackgroundJobs } = await import('./lib/jobs')
+  startBackgroundJobs()
 }

@@ -22,6 +22,16 @@ Struktur database dikelola lewat migrasi dan **diperbarui otomatis saat aplikasi
 lihat [db/README.md](db/README.md). Di server, jalankan `npm run setup:server` sekali;
 setelah itu cukup `git pull` (install, build, restart, dan update database berjalan otomatis).
 
+**Backup:** `npm run backup:schedule` sekali di server (backup harian database + `storage/`),
+sebaiknya dengan `BACKUP_DIR` di disk lain — lihat [db/README.md](db/README.md#backup-wajib-di-server).
+
+## Tests
+
+```bash
+npm test                          # unit test (vitest)
+ISMS_DB_TESTS=1 npm test          # + integration test ke PostgreSQL dari .env.local / DB_*
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

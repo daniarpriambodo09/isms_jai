@@ -6,6 +6,7 @@
 // anything fancier tends to silently degrade in one of them.
 
 import 'server-only'
+import { APP_TIME_ZONE } from '@/lib/config'
 
 export type VisitorApprovalEmailData = {
   approverName: string
@@ -34,7 +35,7 @@ export type VisitorApprovalEmailData = {
 export const LOGO_CID = 'yazaki-logo'
 
 function fmtDateTime(value: string) {
-  return new Date(value).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })
+  return new Date(value).toLocaleString('id-ID', { timeZone: APP_TIME_ZONE, dateStyle: 'full', timeStyle: 'short' })
 }
 
 // Same palette as the web portal itself — the header gradient below is the
@@ -196,7 +197,7 @@ export function buildVisitorApprovalEmail(data: VisitorApprovalEmailData): { sub
 
 function fmtDate(value: string | null) {
   if (!value) return '-'
-  return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+  return new Date(value).toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE, day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 function escapeHtml(value: string) {
@@ -213,7 +214,7 @@ const MEMO_INK = '#1d2a36'
 const MEMO_SEAL = '#a8741a'
 const MEMO_SEAL_TINT = '#fbf3e2'
 
-function procedureEmailFrame(opts: { kicker: string; heading: string; subheading: string; controlNo: string; revision: number; seal: string; sealColor?: string; preheader?: string }, body: string) {
+function procedureEmailFrame(opts: { kicker: string; heading: string; subheading: string; controlNo: string; revision: number | null; seal: string; sealColor?: string; preheader?: string; tabTitle?: string; tabSub?: string }, body: string) {
   const sealColor = opts.sealColor ?? MEMO_SEAL
   return `
 <!doctype html>
@@ -237,8 +238,8 @@ function procedureEmailFrame(opts: { kicker: string; heading: string; subheading
                   </td>
                   <td align="right" style="vertical-align:middle;">
                     <table role="presentation" cellpadding="0" cellspacing="0" style="border:1px solid ${NAVY};border-radius:4px;">
-                      <tr><td style="background:${NAVY};padding:4px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;letter-spacing:0.14em;text-transform:uppercase;text-align:center;">Dokumen Terkendali</td></tr>
-                      <tr><td style="padding:7px 12px;font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:bold;color:${MEMO_INK};text-align:center;">${escapeHtml(opts.controlNo)}<br><span style="font-size:11px;font-weight:normal;color:${MUTED};">Rev. ${opts.revision}</span></td></tr>
+                      <tr><td style="background:${NAVY};padding:4px 12px;font-family:Arial,Helvetica,sans-serif;font-size:9px;font-weight:bold;color:#ffffff;letter-spacing:0.14em;text-transform:uppercase;text-align:center;">${opts.tabTitle ?? 'Dokumen Terkendali'}</td></tr>
+                      <tr><td style="padding:7px 12px;font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:bold;color:${MEMO_INK};text-align:center;">${escapeHtml(opts.controlNo)}<br><span style="font-size:11px;font-weight:normal;color:${MUTED};">${opts.tabSub ?? (opts.revision === null ? '' : `Rev. ${opts.revision}`)}</span></td></tr>
                     </table>
                   </td>
                 </tr>
@@ -426,7 +427,7 @@ const REV_TINT = '#fdf3ef'
 const OK_TINT = '#eef7f1'
 
 function fmtStamp(value: string) {
-  return new Date(value).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(value).toLocaleString('id-ID', { timeZone: APP_TIME_ZONE, day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 const SANS = 'Arial,Helvetica,sans-serif'
@@ -764,3 +765,52 @@ export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData
   }
 }
 
+
+// ─── Weekly document review reminder (lib/document-review.ts) ───
+
+export type ReviewDigestItem = { kindLabel: string; controlNo: string; title: string; revision: number | null; effDate: string; dueDate: string; overdueDays: number }
+
+export function buildReviewDigestEmail(data: { months: number; overdue: ReviewDigestItem[]; soon: ReviewDigestItem[]; dashboardUrl: string }): { subject: string; html: string } {
+  const row = (item: ReviewDigestItem, overdue: boolean) => `
+    <tr>
+      <td style="padding:9px 12px;border-top:1px solid ${MEMO_LINE};font-family:${SANS};vertical-align:top;">
+        <span style="font-family:'Courier New',Courier,monospace;font-size:12px;font-weight:bold;color:${MEMO_INK};">${escapeHtml(item.controlNo)}</span>
+        <span style="font-size:11px;color:${MUTED};">&nbsp;${escapeHtml(item.kindLabel)}${item.revision !== null ? ` &middot; Rev. ${item.revision}` : ''}</span><br>
+        <span style="font-size:13px;color:${MEMO_INK};">${escapeHtml(item.title)}</span>
+      </td>
+      <td style="padding:9px 12px;border-top:1px solid ${MEMO_LINE};font-family:${SANS};font-size:11.5px;color:${MUTED};white-space:nowrap;vertical-align:top;">Eff ${escapeHtml(fmtDate(item.effDate))}</td>
+      <td style="padding:9px 12px;border-top:1px solid ${MEMO_LINE};font-family:${SANS};font-size:11.5px;font-weight:bold;white-space:nowrap;text-align:right;vertical-align:top;color:${overdue ? '#b3361f' : '#8a6100'};">
+        ${overdue ? `Lewat ${item.overdueDays} hari` : `Jatuh tempo ${escapeHtml(fmtDate(item.dueDate))}`}
+      </td>
+    </tr>`
+  const table = (title: string, items: ReviewDigestItem[], overdue: boolean) => items.length ? `
+    <tr><td style="padding:20px 32px 0;">${sectionTitle(`${title} (${items.length})`)}
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${MEMO_LINE};border-radius:4px;border-collapse:separate;">${items.map((i) => row(i, overdue)).join('')}</table>
+    </td></tr>` : ''
+  const total = data.overdue.length + data.soon.length
+  const body = `
+    <tr><td style="padding:22px 32px 0;font-family:${SANS};font-size:13.5px;color:${TEXT};line-height:1.7;">
+      Dokumen ISMS ditinjau ulang setiap <strong>${data.months} bulan</strong> sejak Eff Date-nya. Minggu ini ada
+      <strong>${data.overdue.length} dokumen lewat jadwal review</strong> dan <strong>${data.soon.length} dokumen jatuh tempo dalam 30 hari</strong>.
+      Bila isinya masih sesuai, unggah ulang dengan Eff Date baru (atau revisi bila ada perubahan) agar tercatat sudah direview.
+    </td></tr>
+    ${table('Lewat jadwal review', data.overdue, true)}
+    ${table('Jatuh tempo 30 hari ke depan', data.soon, false)}
+    <tr><td align="center" style="padding:22px 32px 26px;">
+      <a href="${data.dashboardUrl}" style="display:inline-block;padding:12px 24px;background:${NAVY};color:#ffffff;border-radius:999px;text-decoration:none;font-family:${SANS};font-weight:bold;font-size:13px;">Buka Dashboard Admin</a>
+    </td></tr>`
+  return {
+    subject: `[Review Dokumen] ${data.overdue.length} lewat jadwal, ${data.soon.length} jatuh tempo — Portal ISMS`,
+    html: procedureEmailFrame({
+      kicker: 'Pengingat Mingguan &middot; Review Dokumen ISMS',
+      heading: 'Dokumen Perlu Direview',
+      subheading: `${total} dokumen &middot; siklus review ${data.months} bulan`,
+      controlNo: String(total),
+      revision: null,
+      tabTitle: 'Perlu Review',
+      tabSub: 'dokumen',
+      seal: 'Review<br>Berkala',
+      preheader: `${data.overdue.length} dokumen lewat jadwal review, ${data.soon.length} jatuh tempo 30 hari ke depan.`,
+    }, body),
+  }
+}

@@ -18,6 +18,7 @@ import { useAuth } from '@/context/AuthContext'
 import { ManifestoHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { PolicyAcknowledgement } from '@/components/policy/PolicyAcknowledgement'
 
 // Breaks the image out of <main>'s centered max-width/padding so it spans the
 // full browser width edge-to-edge, matching the Home hero's full-bleed treatment.
@@ -343,6 +344,9 @@ export default function PolicyPage() {
       </div>
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+
+      {/* Keyed on the image count: adding/removing a visual is a new policy version. */}
+      <PolicyAcknowledgement key={images.length} />
 
       {/* Policy index (motionsites "Sentinel"): mono header row, then one
           numbered card per policy visual. Thumbnails sit in a halftone

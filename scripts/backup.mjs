@@ -55,7 +55,8 @@ function dirStats(dir) {
 }
 
 const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
-const stamp = (d) => d.toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15)
+// Folder names in WIB (UTC+7), so they match the server's clock.
+const stamp = (d) => new Date(d.getTime() + 7 * 3_600_000).toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15)
 
 function main() {
   loadEnvFile('.env.local')
@@ -64,6 +65,12 @@ function main() {
   const keep = Math.max(1, Number(process.env.BACKUP_KEEP || 14))
   const started = new Date()
   const target = path.join(backupRoot, `isms-${stamp(started)}`)
+  // A BACKUP_DIR on a drive / share that isn't there (e.g. E:\ on a machine
+  // without an E: drive, a NAS that is offline) — say so plainly.
+  const driveRoot = path.parse(backupRoot).root
+  if (!fs.existsSync(driveRoot)) {
+    throw new Error(`BACKUP_DIR "${backupRoot}" tidak bisa dipakai: drive/share "${driveRoot}" tidak ada di komputer ini. Ganti BACKUP_DIR di .env.local ke drive yang ada (cek dengan: Get-PSDrive -PSProvider FileSystem).`)
+  }
   fs.mkdirSync(target, { recursive: true })
   console.log(`Backup → ${target}`)
 

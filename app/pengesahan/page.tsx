@@ -14,6 +14,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Check, Clock, Crosshair, ExternalLink, FileSignature, FileText, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { docKindInfo } from '@/lib/document-kinds'
 import { SignatureCard } from '@/components/documents/SignatureQr'
 import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
 import { RevisionNotesDialog, type RevisionPin } from '@/components/documents/RevisionNotes'
@@ -32,7 +33,7 @@ type Step = {
 
 type View = {
   step: Step
-  document: { control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
+  document: { kind?: string; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
   cycle: Step[]
   superseded: boolean
   linkExpired: boolean
@@ -154,7 +155,7 @@ function PengesahanContent() {
         <div className="h-1.5 bg-accent" />
         <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr]">
           <div>
-            <p className="flex items-center gap-2 font-mono-label text-[10px] text-accent"><ShieldCheck className="size-3.5" /> Permohonan pengesahan · Prosedur ISMS</p>
+            <p className="flex items-center gap-2 font-mono-label text-[10px] text-accent"><ShieldCheck className="size-3.5" /> Permohonan pengesahan · {docKindInfo(document.kind).label}</p>
             <h2 className="mt-3 font-display text-[clamp(1.8rem,3.8vw,3rem)] font-semibold leading-[1]">{document.title}</h2>
             <div className="mt-5 flex flex-wrap gap-2 font-mono text-[11px]">
               <span className="rounded-full bg-white/10 px-3 py-1">{document.control_no}</span>

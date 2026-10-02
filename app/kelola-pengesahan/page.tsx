@@ -1,8 +1,10 @@
 // app/kelola-pengesahan/page.tsx
 //
-// ISM Admin: who signs Prosedur ISMS documents. One row per position
-// (Unit Kerja / Jabatan) with the person currently holding it and their
-// email. When someone changes jobs, edit the name + email here — requests
+// ISM Admin: who signs controlled documents. Prosedur ISMS and Working
+// Standard each have their own list of positions (the tabs; ?kind=... opens
+// one directly) — positions can be added, edited and deleted in both. One row
+// per position (Unit Kerja / Jabatan) with the person currently holding it and
+// their email. When someone changes jobs, edit the name + email here — requests
 // still waiting on that position are re-sent to the new person automatically,
 // while past signatures keep the name of whoever actually signed.
 
@@ -13,12 +15,20 @@ import Link from 'next/link'
 import { AlertTriangle, ArrowRight, Loader2, Mail, Pencil, Plus, Send, ShieldCheck, Trash2, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
+import { DOC_KINDS, DOC_KIND_INFO, isDocKind, type DocKind } from '@/lib/document-kinds'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 
 type Role = { code: string; title: string; person_name: string; email: string | null; sort_order: number; is_default: boolean; updated_at: string; updated_by: string | null }
 type PendingStep = { id: number; document_id: number; control_no: string; title: string; role_title: string; approver_name: string | null; approver_email: string | null; notified_at: string | null; email_error: string | null }
 type Draft = { code: string; title: string; personName: string; email: string; sortOrder: string; isDefault: boolean }
+type KindCounts = Record<DocKind, { roles: number; pending: number }>
+
+// Example values shown in the empty inputs, per register.
+const PLACEHOLDERS: Record<DocKind, { code: string; title: string }> = {
+  procedure: { code: 'WPJU', title: 'Information Assets Administrator' },
+  working_standard: { code: 'WS-APP3', title: 'Approved 3' },
+}
 
 const inputClass = 'h-10 w-full min-w-0 rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const labelClass = 'text-xs font-semibold text-foreground'
@@ -44,18 +54,18 @@ function formatDateTime(value: string) {
 
 const emptyDraft = (order: number): Draft => ({ code: '', title: '', personName: '', email: '', sortOrder: String(order), isDefault: true })
 
-function RoleForm({ draft, setDraft, withCode }: { draft: Draft; setDraft: (d: Draft) => void; withCode: boolean }) {
+function RoleForm({ draft, setDraft, withCode, kind }: { draft: Draft; setDraft: (d: Draft) => void; withCode: boolean; kind: DocKind }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[90px_1.3fr_1fr_1.2fr_70px]">
       {withCode && (
         <label className="flex flex-col gap-1.5">
           <span className={labelClass}>Kode</span>
-          <input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} placeholder="WPJU" maxLength={20} className={`${inputClass} font-mono`} />
+          <input value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })} placeholder={PLACEHOLDERS[kind].code} maxLength={20} className={`${inputClass} font-mono`} />
         </label>
       )}
       <label className={`flex flex-col gap-1.5 ${withCode ? '' : 'lg:col-span-2'}`}>
         <span className={labelClass}>Unit Kerja (Jabatan)</span>
-        <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Information Assets Administrator" className={inputClass} />
+        <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder={PLACEHOLDERS[kind].title} className={inputClass} />
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={labelClass}>Nama</span>
@@ -79,6 +89,9 @@ function RoleForm({ draft, setDraft, withCode }: { draft: Draft; setDraft: (d: D
 
 export default function KelolaPengesahanPage() {
   const { isLoggedIn, isLoading, adminUser } = useAuth()
+  const [kind, setKind] = useState<DocKind>('procedure')
+  const [kindReady, setKindReady] = useState(false)
+  const [counts, setCounts] = useState<KindCounts | null>(null)
   const [roles, setRoles] = useState<Role[]>([])
   const [pending, setPending] = useState<PendingStep[]>([])
   const [smtpReady, setSmtpReady] = useState(true)
@@ -94,23 +107,43 @@ export default function KelolaPengesahanPage() {
   const [resendingDoc, setResendingDoc] = useState<number | null>(null)
 
   const isAdmin = adminUser?.role === 'ism_admin'
+  const kindInfo = DOC_KIND_INFO[kind]
+
+  // ?kind=working_standard opens that register's list (linked from its form).
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('kind')
+    if (isDocKind(requested)) setKind(requested)
+    setKindReady(true)
+  }, [])
+
+  const switchKind = (next: DocKind) => {
+    if (next === kind) return
+    setKind(next)
+    setEditingCode(null)
+    setAdding(false)
+    setMessage(null)
+    const url = new URL(window.location.href)
+    url.searchParams.set('kind', next)
+    window.history.replaceState(null, '', url)
+  }
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/prosedur-approver-roles`, { cache: 'no-store' })
+      const res = await fetch(`${API_BASE_PATH}/api/prosedur-approver-roles?kind=${kind}`, { cache: 'no-store' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
       setRoles(data.roles ?? [])
       setPending(data.pending ?? [])
+      setCounts(data.counts ?? null)
       setSmtpReady(Boolean(data.smtpReady))
     } catch (error) {
       setMessage({ ok: false, text: error instanceof Error ? error.message : 'Gagal memuat data.' })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [kind])
 
-  useEffect(() => { if (isAdmin) load() }, [isAdmin, load])
+  useEffect(() => { if (isAdmin && kindReady) load() }, [isAdmin, kindReady, load])
 
   const startEdit = (role: Role) => {
     setAdding(false)
@@ -133,7 +166,7 @@ export default function KelolaPengesahanPage() {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-approver-roles`, {
         method: adding ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: draft.code, title: draft.title, personName: draft.personName, email: draft.email, sortOrder: Number(draft.sortOrder), isDefault: draft.isDefault }),
+        body: JSON.stringify({ kind, code: draft.code, title: draft.title, personName: draft.personName, email: draft.email, sortOrder: Number(draft.sortOrder), isDefault: draft.isDefault }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan.')
@@ -187,14 +220,35 @@ export default function KelolaPengesahanPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Pengesahan Prosedur ISMS</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Approver Pengesahan Dokumen</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Atur siapa yang menjabat setiap posisi pengesahan. Saat ada pergantian jabatan, cukup ganti <strong>nama</strong> dan <strong>email</strong> di sini — permintaan yang sedang menunggu otomatis dikirim ulang ke orang baru, sedangkan riwayat tanda tangan sebelumnya tetap tercatat atas nama penyetuju lama.
+            Atur jabatan pengesahan dan siapa yang menjabatnya. Prosedur ISMS dan Working Standard punya daftar jabatan sendiri — jabatan bisa ditambah, diubah, dan dihapus. Saat ada pergantian jabatan, cukup ganti <strong>nama</strong> dan <strong>email</strong> di sini — permintaan yang sedang menunggu otomatis dikirim ulang ke orang baru, sedangkan riwayat tanda tangan sebelumnya tetap tercatat atas nama penyetuju lama.
           </p>
         </div>
-        <Link href="/prosedur-isms" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">
-          Register Prosedur <ArrowRight className="size-4" />
+        <Link href={kindInfo.path} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">
+          Register {kindInfo.short} <ArrowRight className="size-4" />
         </Link>
+      </div>
+
+      <div role="tablist" aria-label="Jenis dokumen" className="flex w-full gap-1 rounded-2xl border border-border bg-card p-1 shadow-sm sm:w-fit">
+        {DOC_KINDS.map((k) => {
+          const active = k === kind
+          const waiting = counts?.[k]?.pending ?? 0
+          return (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => switchKind(k)}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-2.5 py-2 text-[13px] font-semibold transition sm:flex-none sm:px-4 sm:text-sm ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            >
+              {DOC_KIND_INFO[k].label}
+              {counts && <span className={`rounded-full px-1.5 py-0.5 text-[10.5px] font-bold leading-none ${active ? 'bg-primary-foreground/20' : 'bg-secondary text-secondary-foreground'}`}>{counts[k].roles}</span>}
+              {waiting > 0 && <span title={`${waiting} dokumen menunggu pengesahan`} className="size-2 rounded-full bg-amber-500" />}
+            </button>
+          )
+        })}
       </div>
 
       {!smtpReady && (
@@ -208,13 +262,18 @@ export default function KelolaPengesahanPage() {
         <p className={`rounded-xl border px-4 py-3 text-sm ${message.ok ? 'border-emerald-600/20 bg-emerald-600/10 text-emerald-800' : 'border-destructive/20 bg-destructive/10 text-destructive'}`}>{message.text}</p>
       )}
 
-      <SectionCard icon={<Users className="size-4" />} title="Jabatan pengesahan" description="Email dikirim berurutan sesuai kolom Urutan (1 dulu, lalu 2, dst.)">
+      <SectionCard icon={<Users className="size-4" />} title={`Jabatan pengesahan ${kindInfo.label}`} description="Email dikirim berurutan sesuai kolom Urutan (1 dulu, lalu 2, dst.)">
         <div className="flex flex-col gap-3">
+          {roles.length === 0 && !adding && (
+            <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+              Belum ada jabatan pengesahan untuk {kindInfo.label}. Tambahkan jabatan pertama di bawah.
+            </p>
+          )}
           {roles.map((role) => (
             <div key={role.code} className={`rounded-xl border p-4 transition ${editingCode === role.code ? 'border-primary bg-primary/[0.03]' : 'border-border'}`}>
               {editingCode === role.code ? (
                 <div className="flex flex-col gap-4">
-                  <RoleForm draft={draft} setDraft={setDraft} withCode={false} />
+                  <RoleForm draft={draft} setDraft={setDraft} withCode={false} kind={kind} />
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
                       {saving && <Loader2 className="size-4 animate-spin" />} Simpan
@@ -225,7 +284,7 @@ export default function KelolaPengesahanPage() {
               ) : (
                 <div className="flex flex-wrap items-center gap-4">
                   <span className="grid size-10 flex-none place-items-center rounded-full bg-[color:var(--p-850)] font-mono text-sm font-bold text-primary-foreground">{role.sort_order}</span>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-[180px] flex-1">
                     <p className="text-xs text-muted-foreground">
                       <span className="mr-1.5 rounded bg-secondary px-1.5 py-0.5 font-mono text-[10px] font-semibold text-secondary-foreground">{role.code}</span>
                       {role.title}
@@ -237,7 +296,7 @@ export default function KelolaPengesahanPage() {
                     </p>
                   </div>
                   <p className="hidden text-[11px] text-muted-foreground md:block">Diubah {formatDateTime(role.updated_at)}{role.updated_by ? ` · ${role.updated_by}` : ''}</p>
-                  <div className="flex gap-1">
+                  <div className="ml-auto flex gap-1">
                     <button type="button" onClick={() => startEdit(role)} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"><Pencil className="size-3.5" /> Ganti / Edit</button>
                     <button type="button" onClick={() => setPendingDelete(role)} aria-label={`Hapus ${role.title}`} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
                   </div>
@@ -249,10 +308,10 @@ export default function KelolaPengesahanPage() {
           {adding ? (
             <div className="rounded-xl border border-primary bg-primary/[0.03] p-4">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold text-foreground">Jabatan baru</p>
+                <p className="text-sm font-semibold text-foreground">Jabatan baru · {kindInfo.label}</p>
                 <button type="button" onClick={() => setAdding(false)} aria-label="Batal" className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
               </div>
-              <RoleForm draft={draft} setDraft={setDraft} withCode />
+              <RoleForm draft={draft} setDraft={setDraft} withCode kind={kind} />
               <button type="button" onClick={save} disabled={saving} className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
                 {saving && <Loader2 className="size-4 animate-spin" />} Tambah jabatan
               </button>
@@ -265,9 +324,9 @@ export default function KelolaPengesahanPage() {
         </div>
       </SectionCard>
 
-      <SectionCard icon={<ShieldCheck className="size-4" />} title="Sedang menunggu pengesahan" description="Dokumen yang saat ini menunggu keputusan seorang approver">
+      <SectionCard icon={<ShieldCheck className="size-4" />} title="Sedang menunggu pengesahan" description={`${kindInfo.label} yang saat ini menunggu keputusan seorang approver`}>
         {pending.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada dokumen yang menunggu pengesahan.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada {kindInfo.noun} yang menunggu pengesahan.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {pending.map((step) => (

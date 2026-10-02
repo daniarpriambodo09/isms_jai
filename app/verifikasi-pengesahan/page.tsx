@@ -9,6 +9,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, FileSignature, Loader2, ShieldCheck, XCircle } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { docKindInfo } from '@/lib/document-kinds'
 
 type Signature = {
   code: string
@@ -16,7 +17,7 @@ type Signature = {
   role_title: string
   decided_at: string
   revision: number
-  document: { id: number; control_no: string; title: string; revision: number; elf_date: string; approval_status: string }
+  document: { id: number; kind?: string; control_no: string; title: string; revision: number; elf_date: string; approval_status: string }
   validity: 'valid' | 'superseded' | 'voided'
 }
 
@@ -77,7 +78,7 @@ function VerifikasiContent() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="flex items-center gap-2 border-b border-border px-5 py-3 font-mono-label text-[10px] text-muted-foreground"><ShieldCheck className="size-3.5 text-[color:var(--p-600)]" /> Detail tanda tangan · Prosedur ISMS</div>
+        <div className="flex items-center gap-2 border-b border-border px-5 py-3 font-mono-label text-[10px] text-muted-foreground"><ShieldCheck className="size-3.5 text-[color:var(--p-600)]" /> Detail tanda tangan · {docKindInfo(signature.document.kind).label}</div>
         <dl className="divide-y divide-border">
           {rows.map(([label, value]) => (
             <div key={label} className="grid grid-cols-[150px_1fr] gap-3 px-5 py-3 text-sm max-[480px]:grid-cols-1 max-[480px]:gap-0.5">

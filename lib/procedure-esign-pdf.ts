@@ -30,6 +30,8 @@ export type SheetStep = {
 }
 
 export type SheetData = {
+  /** Register name printed on the fallback sheet ("Prosedur ISMS" when omitted). */
+  kindLabel?: string
   controlNo: string
   title: string
   revision: number
@@ -160,7 +162,7 @@ export async function buildProcedureSignedPdf(data: SheetData): Promise<Uint8Arr
     y -= 52
     centered('LEMBAR PENGESAHAN ELEKTRONIK', MARGIN, W - 2 * MARGIN, y, 14, bold)
     y -= 15
-    centered('Catatan Pengesahan Prosedur ISMS - PT. Jatim Autocomp Indonesia', MARGIN, W - 2 * MARGIN, y, 9, font, MUTED)
+    centered(`Catatan Pengesahan ${data.kindLabel ?? 'Prosedur ISMS'} - PT. Jatim Autocomp Indonesia`, MARGIN, W - 2 * MARGIN, y, 9, font, MUTED)
     y -= 22
 
     // Document info

@@ -10,6 +10,7 @@ import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { ensureApprovalSchema, sendStepRequest, startApprovalCycle } from '@/lib/procedure-approval'
+import { docKindInfo } from '@/lib/document-kinds'
 
 export async function POST(request: NextRequest) {
   const session = getIsmsAdminFromRequest(request)
@@ -22,13 +23,13 @@ export async function POST(request: NextRequest) {
     const mode = body.mode === 'restart' ? 'restart' : 'resend'
     if (!Number.isInteger(documentId) || documentId <= 0) return NextResponse.json({ message: 'ID dokumen tidak valid.' }, { status: 400 })
 
-    const doc = await query<{ title: string; revision: number; approval_roles: string[] }>('SELECT title, revision, approval_roles FROM procedure_documents WHERE id = $1', [documentId])
+    const doc = await query<{ kind: string; title: string; revision: number; approval_roles: string[] }>('SELECT kind, title, revision, approval_roles FROM procedure_documents WHERE id = $1', [documentId])
     if (!doc.rows[0]) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
 
     if (mode === 'restart') {
       if (!doc.rows[0].approval_roles?.length) return NextResponse.json({ message: 'Dokumen ini tidak memerlukan pengesahan.' }, { status: 400 })
       await startApprovalCycle(documentId, doc.rows[0].approval_roles)
-      await logActivity(session, 'update', 'procedure_document', documentId, `Memulai ulang pengesahan prosedur ISMS "${doc.rows[0].title}"`)
+      await logActivity(session, 'update', 'procedure_document', documentId, `Memulai ulang pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}"`)
     } else {
       const pending = await query<{ id: number }>(
         `SELECT id FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'pending' LIMIT 1`,
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       )
       if (!pending.rows[0]) return NextResponse.json({ message: 'Tidak ada tahap yang sedang menunggu.' }, { status: 400 })
       const result = await sendStepRequest(pending.rows[0].id)
-      await logActivity(session, 'update', 'procedure_document', documentId, `Mengirim ulang email pengesahan prosedur ISMS "${doc.rows[0].title}"`)
+      await logActivity(session, 'update', 'procedure_document', documentId, `Mengirim ulang email pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}"`)
       if (!result.sent) return NextResponse.json({ message: result.error ?? 'Gagal mengirim email.' }, { status: 502 })
     }
 

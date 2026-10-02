@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Download, Eye, EyeOff, FileText, Globe, Loader2, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { IndexHero, latestUpload } from '@/components/page-hero'
+import { HazardHero, IndexHero, latestUpload } from '@/components/page-hero'
+import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
 import { API_BASE_PATH } from '@/lib/config'
 import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
 import { EmptyState } from '@/components/documents/EmptyState'
@@ -90,7 +91,12 @@ function groupByTitle(docs: ProcedureDocument[]): TitleGroup[] {
   return order.map((key) => map.get(key)!)
 }
 
-export function ProcedureRegisterPage() {
+// One register for every kind of document that goes through e-sign approval
+// (Prosedur ISMS, Working Standard): same table, same approval column, same
+// admin tools — only the hero, the wording and the list API differ.
+export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }) {
+  const kindInfo = DOC_KIND_INFO[kind]
+  const listApi = `${API_BASE_PATH}${kindInfo.api}`
   const { isLoggedIn, adminUser } = useAuth()
   const isIsmsAdmin = adminUser?.role === 'ism_admin'
   const [documents, setDocuments] = useState<ProcedureDocument[]>([])
@@ -124,7 +130,7 @@ export function ProcedureRegisterPage() {
   const loadDocuments = useCallback(async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms`, { cache: 'no-store' })
+      const response = await fetch(listApi, { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) throw new Error(data.message)
       setDocuments(data.documents ?? [])
@@ -132,11 +138,11 @@ export function ProcedureRegisterPage() {
       setError(null)
     } catch (loadError) {
       setDocuments([])
-      setError(loadError instanceof Error ? loadError.message : 'Gagal memuat daftar prosedur ISMS.')
+      setError(loadError instanceof Error ? loadError.message : `Gagal memuat daftar ${kindInfo.label}.`)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [listApi, kindInfo.label])
 
   // Reload on login/logout: admins also get the documents that aren't published yet.
   useEffect(() => { loadDocuments() }, [loadDocuments, isLoggedIn])
@@ -185,7 +191,7 @@ export function ProcedureRegisterPage() {
     if (ids.length === 0) return
     setVisibilityBusy(new Set(ids))
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms`, {
+      const response = await fetch(listApi, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, publicVisible }),
@@ -222,7 +228,7 @@ export function ProcedureRegisterPage() {
   const confirmBulkDelete = async () => {
     setBulkDeleting(true)
     const ids = Array.from(selectedIds)
-    const results = await Promise.all(ids.map((id) => fetch(`${API_BASE_PATH}/api/prosedur-isms?id=${id}`, { method: 'DELETE' })))
+    const results = await Promise.all(ids.map((id) => fetch(`${listApi}?id=${id}`, { method: 'DELETE' })))
     const failed = results.filter((r) => !r.ok).length
     if (failed > 0) setError(`${failed} dari ${ids.length} dokumen gagal dihapus.`)
     setSelectedIds(new Set())
@@ -232,7 +238,7 @@ export function ProcedureRegisterPage() {
   }
   const handleExportCsv = () => {
     downloadExcel(
-      `prosedur-isms-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      `${kindInfo.path.slice(1)}-${new Date().toISOString().slice(0, 10)}.xlsx`,
       ['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Tampil ke Pengunjung', 'Note Dokumen'],
       filteredDocuments.map((d) => [d.control_no, d.title, d.revision, formatDate(d.elf_date), formatDate(d.uploaded_at), approvalSummary(d), isPublished(d) ? 'Ya' : isHidden(d) ? 'Tidak (disembunyikan)' : 'Tidak (belum final)', d.note ?? ''])
     )
@@ -242,7 +248,7 @@ export function ProcedureRegisterPage() {
     if (!pendingDelete) return
     setDeleting(true)
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms?id=${pendingDelete.id}`, { method: 'DELETE' })
+      const response = await fetch(`${listApi}?id=${pendingDelete.id}`, { method: 'DELETE' })
       if (!response.ok) {
         const data = await response.json().catch(() => null)
         setError(data?.message ?? 'Gagal menghapus dokumen.')
@@ -270,6 +276,12 @@ export function ProcedureRegisterPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {kind === 'working_standard' ? (
+        <HazardHero
+          count={documents.length}
+          action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-md bg-[color:var(--p-900)] px-4 py-2.5 text-sm font-semibold text-accent shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
+        />
+      ) : (
       <IndexHero
         eyebrow="(P) — Procedure register"
         title="Prosedur ISMS"
@@ -279,6 +291,7 @@ export function ProcedureRegisterPage() {
         updatedAt={latestUpload(documents)}
         action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
       />
+      )}
 
       {/* Approval status filter — admins only; visitors see published documents only. */}
       {isLoggedIn && (
@@ -321,7 +334,7 @@ export function ProcedureRegisterPage() {
             </div>
           )}
           {isLoggedIn && <button type="button" onClick={handleExportCsv} disabled={filteredDocuments.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-3.5" />Export Excel</button>}
-          <div className="relative w-full sm:w-80"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No. Kontrol atau dokumen..." aria-label="Cari prosedur ISMS" className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}</div>
+          <div className="relative w-full sm:w-80"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No. Kontrol atau dokumen..." aria-label={`Cari ${kindInfo.label}`} className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}</div>
         </div>
       </div>
 
@@ -471,7 +484,7 @@ export function ProcedureRegisterPage() {
             : hasSignature(viewing) ? <span className="flex-none rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">File asli</span> : null}
         />
       )}
-      <ProcedureFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />
+      <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />
       <ConfirmDialog
         open={!!pendingDelete}
         title="Hapus dokumen?"

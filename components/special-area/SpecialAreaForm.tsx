@@ -65,7 +65,23 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
     setFromTime(p.time)
     setFromManual(true)
   }
+  // The areas on offer are set by the ISM Admin (Izin Area Special → Daftar
+  // Area Special); the built-in list stands in until they load.
+  const [areas, setAreas] = useState<string[]>([...SPECIAL_AREAS])
   const [areaChoice, setAreaChoice] = useState<string>(SPECIAL_AREAS[0])
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE_PATH}/api/special-area-requests/areas`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { areas?: string[] } | null) => {
+        if (cancelled || !data?.areas?.length) return
+        setAreas(data.areas)
+        // Keep the choice if it is still on the list, otherwise start at the top.
+        setAreaChoice((current) => (current === OTHER || data.areas!.includes(current) ? current : data.areas![0]))
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
   const [areaOther, setAreaOther] = useState('')
   const [purpose, setPurpose] = useState('')
   const [idCardNo, setIdCardNo] = useState('')
@@ -169,7 +185,7 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
             <label className={areaChoice === OTHER ? '' : 'sm:col-span-2'}>
               <span className={label}>Area Special Security</span>
               <select value={areaChoice} onChange={(e) => setAreaChoice(e.target.value)} className={input}>
-                {SPECIAL_AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
+                {areas.map((a) => <option key={a} value={a}>{a}</option>)}
                 <option value={OTHER}>Lainnya…</option>
               </select>
             </label>

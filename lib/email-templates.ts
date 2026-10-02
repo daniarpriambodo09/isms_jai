@@ -208,13 +208,14 @@ function escapeHtml(value: string) {
 // paper-cream, navy ink and a gold seal — so an approver can tell a
 // Prosedur ISMS request apart from the Ijin Foto/Video email (dark teal
 // gradient header + orange buttons) at a glance.
+const PROCEDURE_KIND = { label: 'Prosedur ISMS', short: 'Prosedur', noun: 'prosedur' }
 const MEMO_PAPER = '#f3efe6'
 const MEMO_LINE = '#e2dccd'
 const MEMO_INK = '#1d2a36'
 const MEMO_SEAL = '#a8741a'
 const MEMO_SEAL_TINT = '#fbf3e2'
 
-function procedureEmailFrame(opts: { kicker: string; heading: string; subheading: string; controlNo: string; revision: number | null; seal: string; sealColor?: string; preheader?: string; tabTitle?: string; tabSub?: string }, body: string) {
+function procedureEmailFrame(opts: { kicker: string; heading: string; subheading: string; controlNo: string; revision: number | null; seal: string; sealColor?: string; preheader?: string; footerLabel?: string; tabTitle?: string; tabSub?: string }, body: string) {
   const sealColor = opts.sealColor ?? MEMO_SEAL
   return `
 <!doctype html>
@@ -271,7 +272,7 @@ function procedureEmailFrame(opts: { kicker: string; heading: string; subheading
 
           <tr>
             <td style="background:${MEMO_PAPER};border-top:1px solid ${MEMO_LINE};padding:16px 32px;">
-              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">Pengesahan Prosedur ISMS &middot; dikirim otomatis oleh <strong style="color:${MEMO_INK};">Portal ISMS</strong> &middot; PT. Jatim Autocomp Indonesia</p>
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">${opts.footerLabel ?? 'Pengesahan Prosedur ISMS'} &middot; dikirim otomatis oleh <strong style="color:${MEMO_INK};">Portal ISMS</strong> &middot; PT. Jatim Autocomp Indonesia</p>
             </td>
           </tr>
         </table>
@@ -340,6 +341,8 @@ export type ProcedureApprovalEmailData = {
   stepTotal: number
   chain: ProcedureChainStep[]
   reviewUrl: string
+  /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
+  kind?: { label: string; short: string; noun: string }
 }
 
 export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): { subject: string; html: string } {
@@ -353,6 +356,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   if (data.note) rows.push(['Note Dokumen', escapeHtml(data.note)])
 
   const title = escapeHtml(data.title)
+  const kind = data.kind ?? PROCEDURE_KIND
   const para = `margin:0 0 14px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;`
 
   // Wording as requested by the ISMS team; the detail rows, the signing
@@ -361,7 +365,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     <tr>
       <td style="padding:20px 32px 6px;">
         <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Yth. Bapak/Ibu <strong>${escapeHtml(data.approverName)}</strong>,</p>
-        <p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan review dan approval atas dokumen prosedur <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>
+        <p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>
         <p style="${para}">Apabila terdapat hal yang perlu disesuaikan atau diperbaiki, mohon arahan lebih lanjut agar dapat segera saya tindak lanjuti.</p>
         <p style="margin:0 0 20px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;">Terima kasih atas perhatian dan kerja samanya.</p>
       </td>
@@ -381,10 +385,11 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     </tr>`
 
   return {
-    subject: `Pengajuan Approval Prosedur ${data.title}`,
+    subject: `Pengajuan Approval ${kind.short} ${data.title}`,
     html: procedureEmailFrame({
-      kicker: 'Pengesahan Dokumen &middot; Prosedur ISMS',
-      heading: 'Pengajuan Approval Prosedur',
+      kicker: `Pengesahan Dokumen &middot; ${kind.label}`,
+      heading: `Pengajuan Approval ${kind.short}`,
+      footerLabel: `Pengesahan ${kind.label}`,
       subheading: `Tahap ${data.stepNumber} dari ${data.stepTotal} &middot; ${escapeHtml(data.roleTitle)}`,
       controlNo: data.controlNo,
       revision: data.revision,
@@ -412,6 +417,8 @@ export type ProcedureResultEmailData = {
   placements?: { placed: number; total: number }
   registerUrl: string
   signedPdfUrl?: string
+  /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
+  kind?: { label: string; short: string; noun: string }
 }
 
 const STEP_STATUS: Record<string, { label: string; color: string; bg: string }> = {
@@ -436,6 +443,7 @@ const sectionTitle = (text: string) =>
 
 export function buildProcedureResultEmail(data: ProcedureResultEmailData): { subject: string; html: string } {
   const approved = data.outcome === 'approved'
+  const kind = data.kind ?? PROCEDURE_KIND
   const label = approved ? 'Disahkan' : 'Perlu Revisi'
   const color = approved ? GREEN : REV_RED
   const total = data.steps.length
@@ -530,10 +538,10 @@ export function buildProcedureResultEmail(data: ProcedureResultEmailData): { sub
           ? `<strong style="color:${REV_RED};">Periksa posisi QR:</strong> baru ${placements.placed} dari ${placements.total} approver yang QR-nya tercetak di kolom tanda tangan dokumen. Atur lewat tombol <em>Posisi QR</em> di register agar semua tanda tangan tampil.`
           : 'Semua QR tanda tangan tercetak di kolom tanda tangan dokumen beserta tanggalnya.',
         'Unduh <strong>PDF bertanda tangan</strong> untuk arsip atau distribusi &mdash; setiap QR dapat dipindai untuk memverifikasi penyetuju dan tanggalnya.',
-        'Dokumen otomatis tampil sebagai <strong>Disahkan</strong> di register Prosedur ISMS.',
+        `Dokumen otomatis tampil sebagai <strong>Disahkan</strong> di register ${kind.label}.`,
       ]
     : [
-        'Buka dokumen di register Prosedur ISMS, lalu klik <strong>Lihat catatan di dokumen</strong> untuk melihat letak setiap catatan.',
+        `Buka dokumen di register ${kind.label}, lalu klik <strong>Lihat catatan di dokumen</strong> untuk melihat letak setiap catatan.`,
         'Perbaiki dokumen sesuai catatan di atas.',
         'Klik <strong>Edit</strong> pada dokumen dan unggah file perbaikan (naikkan nomor revisi bila perlu). Pengesahan otomatis dimulai ulang dari tahap 1.',
         'Approver akan melihat catatan ini di samping dokumen baru, sehingga bisa langsung memeriksa perbaikannya.',
@@ -567,7 +575,8 @@ export function buildProcedureResultEmail(data: ProcedureResultEmailData): { sub
       ? `[Disahkan] ${data.controlNo} — ${data.title} (Rev. ${data.revision}) · ${approvedCount}/${total} approver`
       : `[Perlu Revisi] ${data.controlNo} — ${data.title} (Rev. ${data.revision}) · ${noteCount} catatan dari ${req?.by ?? 'approver'}`,
     html: procedureEmailFrame({
-      kicker: 'Notifikasi Admin &middot; Pengesahan Prosedur ISMS',
+      kicker: `Notifikasi Admin &middot; Pengesahan ${kind.label}`,
+      footerLabel: `Pengesahan ${kind.label}`,
       heading: approved ? 'Dokumen Disahkan' : 'Dokumen Perlu Revisi',
       subheading: escapeHtml(data.title),
       controlNo: data.controlNo,

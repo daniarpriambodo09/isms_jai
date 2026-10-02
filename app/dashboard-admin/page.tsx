@@ -14,14 +14,15 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
+import { docKindInfo } from '@/lib/document-kinds'
 
 type ReviewItem = { kind: string; kindLabel: string; id: number; controlNo: string; title: string; revision: number | null; effDate: string; dueDate: string; daysLeft: number; href: string }
 type Dashboard = {
   generatedAt: string
   procedures: {
-    pending: { documentId: number; controlNo: string; title: string; approver: string; role: string; since: string | null; emailError: string | null }[]
+    pending: { documentId: number; kind?: string; controlNo: string; title: string; approver: string; role: string; since: string | null; emailError: string | null }[]
     revision: number
-    revisionDocs: { id: number; control_no: string; title: string; revision: number }[]
+    revisionDocs: { id: number; kind?: string; control_no: string; title: string; revision: number }[]
     approvedThisMonth: number
   }
   requests: { photoPending: number; specialPending: number }
@@ -138,17 +139,17 @@ export default function DashboardAdminPage() {
             <ul className="divide-y divide-border">
               {procedures.revisionDocs.map((d) => (
                 <li key={`r${d.id}`} className="py-2.5">
-                  <Link href={`/prosedur-isms?q=${encodeURIComponent(d.control_no)}`} className="block hover:underline">
+                  <Link href={`${docKindInfo(d.kind).path}?q=${encodeURIComponent(d.control_no)}`} className="block hover:underline">
                     <span className="flex items-center gap-2 text-sm font-semibold text-foreground"><span className="rounded-full bg-[#fbe6e0] px-2 py-0.5 text-[10.5px] text-[#b3361f]">Perlu revisi</span>{d.control_no}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{d.title} · Rev. {d.revision}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{docKindInfo(d.kind).label} · {d.title} · Rev. {d.revision}</span>
                   </Link>
                 </li>
               ))}
               {procedures.pending.map((s) => (
                 <li key={`p${s.documentId}`} className="py-2.5">
-                  <Link href={`/prosedur-isms?q=${encodeURIComponent(s.controlNo)}`} className="block hover:underline">
+                  <Link href={`${docKindInfo(s.kind).path}?q=${encodeURIComponent(s.controlNo)}`} className="block hover:underline">
                     <span className="flex items-center gap-2 text-sm font-semibold text-foreground">{s.controlNo}{s.emailError && <AlertTriangle className="size-3.5 text-[#b3361f]" aria-label="Email gagal terkirim" />}</span>
-                    <span className="block truncate text-xs text-muted-foreground">Menunggu {s.approver} ({s.role}) · {daysAgo(s.since)}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{docKindInfo(s.kind).label} · menunggu {s.approver} ({s.role}) · {daysAgo(s.since)}</span>
                   </Link>
                 </li>
               ))}

@@ -19,7 +19,7 @@ import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { buildSpecialAreaApprovalEmail, LOGO_CID } from '@/lib/email-templates'
 import { API_BASE_PATH } from '@/lib/config'
 import { ensureApprovalSchema } from '@/lib/procedure-approval'
-import type { SpecialAreaRequest } from '@/lib/special-area-shared'
+import { SPECIAL_AREAS, type SpecialAreaRequest } from '@/lib/special-area-shared'
 
 // ─── approver setting ───
 // Who approves special-area requests is its own setting (app_settings key
@@ -61,6 +61,39 @@ export async function saveApproverSetting(setting: ApproverSetting, username: st
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by`,
     [SETTING_KEY, JSON.stringify(setting), username]
   )
+}
+
+// ─── list of special areas ───
+// The areas offered in the request form (app_settings key 'special_area_list').
+// Until an ISM Admin saves a list, the built-in one from the security-area
+// diagram is used. Requests keep the area name they were submitted with, so
+// renaming or removing an area never changes past records.
+
+const AREAS_KEY = 'special_area_list'
+
+export async function getAreaList(): Promise<{ areas: string[]; isDefault: boolean; updatedAt: string | null; updatedBy: string | null }> {
+  await ensureSettingsTable()
+  const row = (await query<{ value: { areas?: unknown }; updated_at: string; updated_by: string | null }>(
+    'SELECT value, updated_at, updated_by FROM app_settings WHERE key = $1', [AREAS_KEY]
+  )).rows[0]
+  const saved = Array.isArray(row?.value?.areas) ? (row!.value.areas as unknown[]).filter((a): a is string => typeof a === 'string' && !!a.trim()) : []
+  if (saved.length === 0) return { areas: [...SPECIAL_AREAS], isDefault: true, updatedAt: null, updatedBy: null }
+  return { areas: saved, isDefault: false, updatedAt: row!.updated_at, updatedBy: row!.updated_by }
+}
+
+export async function saveAreaList(areas: string[], username: string) {
+  await ensureSettingsTable()
+  await query(
+    `INSERT INTO app_settings (key, value, updated_at, updated_by) VALUES ($1, $2, now(), $3)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by`,
+    [AREAS_KEY, JSON.stringify({ areas }), username]
+  )
+}
+
+/** Back to the built-in list. */
+export async function resetAreaList() {
+  await ensureSettingsTable()
+  await query('DELETE FROM app_settings WHERE key = $1', [AREAS_KEY])
 }
 
 export async function resolveApprover(): Promise<ResolvedApprover> {

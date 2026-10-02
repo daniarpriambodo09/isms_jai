@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
       count("SELECT count(*)::int AS n FROM vendor_registrations WHERE stage = 'active'"),
       count('SELECT count(*)::int AS n FROM policy_acknowledgements WHERE policy_version = $1', [policy.version]),
       count('SELECT count(DISTINCT department)::int AS n FROM policy_acknowledgements WHERE policy_version = $1', [policy.version]),
-      query<{ id: number; control_no: string; title: string; revision: number }>(
-        "SELECT id, control_no, title, revision FROM procedure_documents WHERE approval_status = 'rejected' ORDER BY id DESC LIMIT 6"
+      query<{ id: number; kind: string; control_no: string; title: string; revision: number }>(
+        "SELECT id, kind, control_no, title, revision FROM procedure_documents WHERE approval_status = 'rejected' ORDER BY id DESC LIMIT 6"
       ).then((r) => r.rows).catch(() => []),
     ])
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       generatedAt: new Date().toISOString(),
       procedures: {
         pending: pendingSteps.map((s) => ({
-          documentId: s.document_id, controlNo: s.control_no, title: s.title, approver: s.approver_name, role: s.role_code,
+          documentId: s.document_id, kind: s.kind, controlNo: s.control_no, title: s.title, approver: s.approver_name, role: s.role_code,
           since: s.token_issued_at ?? s.notified_at, emailError: s.email_error,
         })),
         revision: proceduresRevision,

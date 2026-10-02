@@ -52,7 +52,7 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
     ismOnly: true,
     items: [
       { href: '/kelola-admin', label: 'Manage Admin Accounts', hint: 'Akun, role & log aktivitas', icon: Users },
-      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Penyetuju prosedur ISMS', icon: FileSignature },
+      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Jabatan penyetuju dokumen', icon: FileSignature },
     ],
   },
   {

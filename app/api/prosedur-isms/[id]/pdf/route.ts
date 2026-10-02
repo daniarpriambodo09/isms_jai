@@ -11,10 +11,11 @@ import { query } from '@/lib/db'
 import { currentStepsFor, ensureApprovalSchema, slotsFor, verifyBaseUrl } from '@/lib/procedure-approval'
 import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
+import { docKindInfo } from '@/lib/document-kinds'
 
 export const dynamic = 'force-dynamic'
 
-type Row = { id: number; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; public_visible: boolean }
+type Row = { id: number; kind: string; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; public_visible: boolean }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     await ensureApprovalSchema()
     const result = await query<Row>(
-      "SELECT id, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status, public_visible FROM procedure_documents WHERE id = $1",
+      "SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status, public_visible FROM procedure_documents WHERE id = $1",
       [id]
     )
     const doc = result.rows[0]
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // to check the QR placement before anyone has actually approved.
     const preview = request.nextUrl.searchParams.get('preview') === '1' && !!getIsmsAdminFromRequest(request)
     const bytes = await buildProcedureSignedPdf({
+      kindLabel: docKindInfo(doc.kind).label,
       controlNo: doc.control_no,
       title: doc.title,
       revision: doc.revision,

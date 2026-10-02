@@ -1,9 +1,10 @@
 // app/api/prosedur-approver-roles/route.ts
 //
-// The positions that sign off Prosedur ISMS documents (Unit Kerja/Jabatan,
-// the person holding it, their email, signing order). ism_admin only —
-// the responses include email addresses. Editing a role's person re-points
-// any approval still waiting on that role (see reassignRole).
+// The positions that sign off controlled documents (Unit Kerja/Jabatan, the
+// person holding it, their email, signing order). Prosedur ISMS and Working
+// Standard each have their own list (?kind=...); codes are unique across both.
+// ism_admin only — the responses include email addresses. Editing a role's
+// person re-points any approval still waiting on that role (see reassignRole).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
@@ -12,6 +13,10 @@ import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 import { logActivity } from '@/lib/activity-log'
 import { getSmtpSettings } from '@/lib/smtp'
 import { ensureApprovalSchema, listPendingSteps, listRoles, reassignRole } from '@/lib/procedure-approval'
+import { DOC_KINDS, docKindInfo, isDocKind, type DocKind } from '@/lib/document-kinds'
+import { getApproverSetting } from '@/lib/special-area'
+
+const kindOf = (value: unknown): DocKind => (isDocKind(value) ? value : 'procedure')
 
 
 type RoleInput = { title: string; personName: string; email: string | null; sortOrder: number; isDefault: boolean }
@@ -33,10 +38,17 @@ function parseRole(body: Record<string, unknown>): RoleInput | string {
 export async function GET(request: NextRequest) {
   if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   try {
-    const [roles, pending, smtp] = await Promise.all([listRoles(), listPendingSteps(), getSmtpSettings()])
+    const kind = kindOf(request.nextUrl.searchParams.get('kind'))
+    const [all, pending, smtp] = await Promise.all([listRoles(), listPendingSteps(), getSmtpSettings()])
     return NextResponse.json({
-      roles,
-      pending,
+      kind,
+      roles: all.filter((role) => role.kind === kind),
+      pending: pending.filter((step) => step.kind === kind),
+      // Per register: how many positions it has and how many documents are waiting.
+      counts: Object.fromEntries(DOC_KINDS.map((k) => [k, {
+        roles: all.filter((role) => role.kind === k).length,
+        pending: pending.filter((step) => step.kind === k).length,
+      }])),
       smtpReady: Boolean(smtp?.host && smtp.port && smtp.senderEmail),
     })
   } catch (error) {
@@ -51,21 +63,25 @@ export async function POST(request: NextRequest) {
   try {
     await ensureApprovalSchema()
     const body = await request.json().catch(() => ({}))
+    const kind = kindOf(body.kind)
     const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : ''
-    if (!/^[A-Z0-9-]{2,20}$/.test(code)) return NextResponse.json({ message: 'Kode 2–20 karakter (huruf besar/angka), mis. WPJU.' }, { status: 400 })
+    if (!/^[A-Z0-9-]{2,20}$/.test(code)) return NextResponse.json({ message: 'Kode 2–20 karakter (huruf besar, angka, atau tanda hubung), mis. WPJU.' }, { status: 400 })
     const parsed = parseRole(body)
     if (typeof parsed === 'string') return NextResponse.json({ message: parsed }, { status: 400 })
 
-    const exists = await query('SELECT 1 FROM procedure_approver_roles WHERE code = $1', [code])
-    if (exists.rows.length) return NextResponse.json({ message: `Kode ${code} sudah dipakai.` }, { status: 409 })
+    const exists = await query<{ kind: string }>('SELECT kind FROM procedure_approver_roles WHERE code = $1', [code])
+    if (exists.rows[0]) {
+      const where = exists.rows[0].kind === kind ? '' : ` di daftar ${docKindInfo(exists.rows[0].kind).label}`
+      return NextResponse.json({ message: `Kode ${code} sudah dipakai${where}. Gunakan kode lain.` }, { status: 409 })
+    }
 
     await query(
-      `INSERT INTO procedure_approver_roles (code, title, person_name, email, sort_order, is_default, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [code, parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username]
+      `INSERT INTO procedure_approver_roles (code, kind, title, person_name, email, sort_order, is_default, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [code, kind, parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username]
     )
-    await logActivity(session, 'create', 'procedure_approver_role', code, `Menambahkan jabatan pengesahan "${parsed.title}" (${parsed.personName})`)
-    return NextResponse.json({ roles: await listRoles() }, { status: 201 })
+    await logActivity(session, 'create', 'procedure_approver_role', code, `Menambahkan jabatan pengesahan ${docKindInfo(kind).label} "${parsed.title}" (${parsed.personName})`)
+    return NextResponse.json({ roles: await listRoles(kind) }, { status: 201 })
   } catch (error) {
     console.error('[prosedur-approver-roles/POST]', error)
     return NextResponse.json({ message: 'Gagal menambahkan jabatan.' }, { status: 500 })
@@ -82,7 +98,7 @@ export async function PUT(request: NextRequest) {
     const parsed = parseRole(body)
     if (typeof parsed === 'string') return NextResponse.json({ message: parsed }, { status: 400 })
 
-    const before = await query<{ title: string; person_name: string; email: string | null }>('SELECT title, person_name, email FROM procedure_approver_roles WHERE code = $1', [code])
+    const before = await query<{ kind: DocKind; title: string; person_name: string; email: string | null }>('SELECT kind, title, person_name, email FROM procedure_approver_roles WHERE code = $1', [code])
     if (!before.rows[0]) return NextResponse.json({ message: 'Jabatan tidak ditemukan.' }, { status: 404 })
     const old = before.rows[0]
 
@@ -107,7 +123,7 @@ export async function PUT(request: NextRequest) {
     let message = 'Perubahan disimpan.'
     if (reassigned.resent) message += ` ${reassigned.resent} permintaan pengesahan yang menunggu telah dikirim ulang ke ${parsed.personName}.`
     if (reassigned.failed) message += ` ${reassigned.failed} email gagal dikirim — cek email & SMTP.`
-    return NextResponse.json({ roles: await listRoles(), message })
+    return NextResponse.json({ roles: await listRoles(old.kind), message })
   } catch (error) {
     console.error('[prosedur-approver-roles/PUT]', error)
     return NextResponse.json({ message: 'Gagal menyimpan perubahan.' }, { status: 500 })
@@ -120,14 +136,21 @@ export async function DELETE(request: NextRequest) {
   try {
     await ensureApprovalSchema()
     const code = request.nextUrl.searchParams.get('code') ?? ''
-    const used = await query<{ count: string }>('SELECT COUNT(*) FROM procedure_documents WHERE $1 = ANY(approval_roles)', [code])
-    if (Number(used.rows[0].count) > 0) {
-      return NextResponse.json({ message: `Jabatan ini masih dipakai di ${used.rows[0].count} dokumen. Hapus dari dokumen tersebut dulu, atau cukup ganti nama orangnya.` }, { status: 409 })
+    const used = await query<{ control_no: string }>('SELECT control_no FROM procedure_documents WHERE $1 = ANY(approval_roles) ORDER BY control_no', [code])
+    if (used.rows.length > 0) {
+      const names = used.rows.slice(0, 3).map((row) => row.control_no).join(', ')
+      const more = used.rows.length > 3 ? ` dan ${used.rows.length - 3} lainnya` : ''
+      return NextResponse.json({ message: `Jabatan ini masih dipakai di ${used.rows.length} dokumen (${names}${more}). Lepas centangnya dari dokumen tersebut dulu, atau cukup ganti nama orangnya.` }, { status: 409 })
     }
-    const result = await query<{ title: string }>('DELETE FROM procedure_approver_roles WHERE code = $1 RETURNING title', [code])
+    // Izin Area Special may follow one of these positions for its approver.
+    const special = await getApproverSetting().catch(() => null)
+    if (special?.setting.mode === 'role' && special.setting.roleCode === code) {
+      return NextResponse.json({ message: 'Jabatan ini dipakai sebagai approver Izin Area Special. Ganti approver-nya dulu di Kelola Izin Area Special.' }, { status: 409 })
+    }
+    const result = await query<{ title: string; kind: DocKind }>('DELETE FROM procedure_approver_roles WHERE code = $1 RETURNING title, kind', [code])
     if (!result.rows[0]) return NextResponse.json({ message: 'Jabatan tidak ditemukan.' }, { status: 404 })
-    await logActivity(session, 'delete', 'procedure_approver_role', code, `Menghapus jabatan pengesahan "${result.rows[0].title}"`)
-    return NextResponse.json({ roles: await listRoles() })
+    await logActivity(session, 'delete', 'procedure_approver_role', code, `Menghapus jabatan pengesahan ${docKindInfo(result.rows[0].kind).label} "${result.rows[0].title}"`)
+    return NextResponse.json({ roles: await listRoles(result.rows[0].kind) })
   } catch (error) {
     console.error('[prosedur-approver-roles/DELETE]', error)
     return NextResponse.json({ message: 'Gagal menghapus jabatan.' }, { status: 500 })

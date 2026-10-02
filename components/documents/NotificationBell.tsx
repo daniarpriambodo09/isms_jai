@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, Bell, CalendarClock, Camera, Check, FileCheck2, PencilLine, UserPlus } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { docKindInfo } from '@/lib/document-kinds'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type PendingRequest = {
@@ -33,6 +34,7 @@ type TakenRequest = {
 // Procedure approvals that need the ISM Admin (see /api/prosedur-isms/notifications).
 type ProcedureNotice = {
   kind: 'revision' | 'approved'
+  docKind?: string
   documentId: number
   controlNo: string
   title: string
@@ -218,12 +220,12 @@ export function NotificationBell() {
                       {revision ? <PencilLine className="size-4" /> : <FileCheck2 className="size-4" />}
                     </span>
                     <Link
-                      href={`/prosedur-isms?q=${encodeURIComponent(notice.controlNo)}`}
+                      href={`${docKindInfo(notice.docKind).path}?q=${encodeURIComponent(notice.controlNo)}`}
                       onClick={() => setOpen(false)}
                       className="min-w-0 flex-1"
                     >
                       <span className={`block text-[10px] font-bold uppercase tracking-wide ${revision ? 'text-[#b3361f]' : 'text-emerald-700'}`}>
-                        {revision ? 'Prosedur perlu revisi' : 'Prosedur disahkan'}
+                        {`${docKindInfo(notice.docKind).short} ${revision ? 'perlu revisi' : 'disahkan'}`}
                       </span>
                       <span className="block truncate font-medium text-foreground" title={notice.title}>{notice.controlNo} &middot; {notice.title}</span>
                       {revision ? (

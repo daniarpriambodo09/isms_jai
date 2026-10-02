@@ -14,10 +14,10 @@ import { STORAGE_ROOT } from '@/lib/storage'
 import { getAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
-// A procedure is published only once every approver has approved it (or it
-// needs no approval) and the admin hasn't hidden it (public_visible). Until
-// then only admins and the approvers — with the token from their email link
-// — can open the file.
+// A procedure or working standard (both in procedure_documents) is published
+// only once every approver has approved it (or it needs no approval) and the
+// admin hasn't hidden it (public_visible). Until then only admins and the
+// approvers — with the token from their email link — can open the file.
 async function isPublishedFile(relativePath: string, approvalToken: string) {
   try {
     const result = await query<{ published: boolean }>(
@@ -28,7 +28,6 @@ async function isPublishedFile(relativePath: string, approvalToken: string) {
          UNION ALL SELECT 1 FROM documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM education_documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM form_cs_documents WHERE file_path = $1
-         UNION ALL SELECT 1 FROM working_standard_documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM standard_isms_p14_documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM schedule_documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM policy_images WHERE file_path = $1

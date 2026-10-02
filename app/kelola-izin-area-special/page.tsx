@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SpecialAreaFormModal } from '@/components/special-area/SpecialAreaForm'
 import { SpecialAreaTable } from '@/components/special-area/SpecialAreaTable'
 import { SpecialAreaApproverCard } from '@/components/special-area/SpecialAreaApproverCard'
+import { SpecialAreaListCard } from '@/components/special-area/SpecialAreaListCard'
 import type { SpecialAreaRequest } from '@/lib/special-area-shared'
 
 const TABS = [
@@ -91,6 +92,7 @@ export default function KelolaIzinAreaSpecialPage() {
       </div>
 
       <SpecialAreaApproverCard onChanged={load} />
+      <SpecialAreaListCard />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5">

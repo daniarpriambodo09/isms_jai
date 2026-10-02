@@ -30,9 +30,12 @@ import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { buildProcedureApprovalEmail, buildProcedureResultEmail, LOGO_CID } from '@/lib/email-templates'
 import { API_BASE_PATH } from '@/lib/config'
 import { isDeliverableEmail } from '@/lib/email-address'
+import { docKindInfo, type DocKind } from '@/lib/document-kinds'
 
 export type ApproverRole = {
   code: string
+  // Which register the position signs for — each kind has its own list.
+  kind: DocKind
   title: string
   person_name: string
   email: string | null
@@ -68,6 +71,8 @@ export type ApprovalStep = {
 // Gmail/Outlook cap a whole message at ~20–25 MB; stay safely under it.
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 
+const ROLE_COLUMNS = 'code, kind, title, person_name, email, sort_order, is_default, updated_at, updated_by'
+
 const STEP_COLUMNS ='id, document_id, revision, role_code, role_title, step, status, approver_name, notified_at, email_error, decided_at, decision_note, verification_code, token_issued_at'
 
 // ─── schema (idempotent, created on first use — see also db/legacy/prosedur-pengesahan.sql) ───
@@ -88,11 +93,19 @@ export function ensureApprovalSchema() {
           updated_at timestamptz NOT NULL DEFAULT now(),
           updated_by varchar(100)
         )`)
+      // One list of positions per register (db/migrations/0005).
+      await query("ALTER TABLE procedure_approver_roles ADD COLUMN IF NOT EXISTS kind varchar(30) NOT NULL DEFAULT 'procedure'")
+      // Starter positions for a brand-new table only — never re-added once an
+      // admin has edited or deleted them.
       await query(`
-        INSERT INTO procedure_approver_roles (code, title, person_name, sort_order, is_default) VALUES
+        INSERT INTO procedure_approver_roles (code, title, person_name, sort_order, is_default)
+        SELECT v.code, v.title, v.person_name, v.sort_order, v.is_default
+        FROM (VALUES
           ('SSA', 'System Security Administrator', 'Ika Yuni Setyo R.', 1, true),
           ('IAA', 'Information Assets Administrator', 'Teguh Sunjoyo', 2, true),
           ('PJU', 'Penanggung Jawab Umum (Presiden Director)', 'Tomotaka Takayanagi', 3, false)
+        ) AS v(code, title, person_name, sort_order, is_default)
+        WHERE NOT EXISTS (SELECT 1 FROM procedure_approver_roles)
         ON CONFLICT (code) DO NOTHING`)
       await query(`
         ALTER TABLE procedure_documents
@@ -176,16 +189,19 @@ export function ensureApprovalSchema() {
 
 // ─── roles ───
 
-export async function listRoles(): Promise<ApproverRole[]> {
+// Without a kind: every position of every register (codes are unique across them).
+export async function listRoles(kind?: DocKind): Promise<ApproverRole[]> {
   await ensureApprovalSchema()
-  const result = await query<ApproverRole>('SELECT code, title, person_name, email, sort_order, is_default, updated_at, updated_by FROM procedure_approver_roles ORDER BY sort_order ASC, code ASC')
+  const result = kind
+    ? await query<ApproverRole>(`SELECT ${ROLE_COLUMNS} FROM procedure_approver_roles WHERE kind = $1 ORDER BY sort_order ASC, code ASC`, [kind])
+    : await query<ApproverRole>(`SELECT ${ROLE_COLUMNS} FROM procedure_approver_roles ORDER BY kind ASC, sort_order ASC, code ASC`)
   return result.rows
 }
 
-// Keeps only known role codes, in signing order, without duplicates.
-export async function normalizeRoleCodes(raw: unknown): Promise<string[]> {
+// Keeps only the role codes known for that register, in signing order, without duplicates.
+export async function normalizeRoleCodes(raw: unknown, kind: DocKind): Promise<string[]> {
   const requested = Array.isArray(raw) ? raw.filter((code): code is string => typeof code === 'string') : []
-  const roles = await listRoles()
+  const roles = await listRoles(kind)
   return roles.filter((role) => requested.includes(role.code)).map((role) => role.code)
 }
 
@@ -214,11 +230,13 @@ export async function currentStepsFor(documentIds: number[]): Promise<Map<number
 
 // ─── cycle ───
 
-type DocumentInfo = { id: number; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
+// kind: which register the document belongs to — the engine treats them alike,
+// only the names and links in e-mails and notices differ (lib/document-kinds.ts).
+type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
 
 async function getDocument(documentId: number) {
   // elf_date as plain YYYY-MM-DD text — a DATE sent as a JS Date shifts a day back in UTC.
-  const result = await query<DocumentInfo>("SELECT id, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path FROM procedure_documents WHERE id = $1", [documentId])
+  const result = await query<DocumentInfo>("SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path FROM procedure_documents WHERE id = $1", [documentId])
   return result.rows[0] ?? null
 }
 
@@ -296,7 +314,7 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
   const step = stepResult.rows[0]
   if (!step) return { sent: false, error: 'Tahap pengesahan tidak ditemukan.' }
 
-  const roleResult = await query<ApproverRole>('SELECT code, title, person_name, email, sort_order, is_default, updated_at, updated_by FROM procedure_approver_roles WHERE code = $1', [step.role_code])
+  const roleResult = await query<ApproverRole>(`SELECT ${ROLE_COLUMNS} FROM procedure_approver_roles WHERE code = $1`, [step.role_code])
   const role = roleResult.rows[0]
   const token = randomBytes(24).toString('hex')
   const approverName = role?.person_name ?? step.approver_name ?? step.role_title
@@ -352,6 +370,7 @@ async function emailStep(stepId: number, token: string): Promise<string | null> 
         decidedAt: row.decided_at,
       })),
       reviewUrl: `${base}${API_BASE_PATH}/pengesahan?token=${token}`,
+      kind: docKindInfo(doc.kind),
     })
     // The procedure itself travels with the email ("telah saya lampirkan pada
     // email ini"), unless it's too big for typical mail servers — then the
@@ -376,7 +395,7 @@ async function emailStep(stepId: number, token: string): Promise<string | null> 
 
 export type TokenView = {
   step: ApprovalStep
-  document: { id: number; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
+  document: { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
   cycle: ApprovalStep[]
 }
 
@@ -589,8 +608,9 @@ async function notifyAdmins(documentId: number, outcome: 'approved' | 'rejected'
         : null,
       placements: outcome === 'approved' ? { placed: cycle.filter((s) => placedRoles.has(s.role_code)).length, total: cycle.length } : undefined,
       // Opens the register already filtered to this document.
-      registerUrl: `${base}/prosedur-isms?q=${encodeURIComponent(doc.control_no)}`,
+      registerUrl: `${base}${docKindInfo(doc.kind).path}?q=${encodeURIComponent(doc.control_no)}`,
       signedPdfUrl: outcome === 'approved' ? `${base}/api/prosedur-isms/${documentId}/pdf` : undefined,
+      kind: docKindInfo(doc.kind),
     })
     await sendMail(settings, {
       to: recipients.join(', '),
@@ -636,7 +656,7 @@ export type SignatureView = {
   role_title: string
   decided_at: string
   revision: number
-  document: { id: number; control_no: string; title: string; revision: number; elf_date: string; approval_status: string }
+  document: { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; approval_status: string }
   validity: SignatureValidity
 }
 
@@ -654,8 +674,8 @@ export async function getSignature(code: string): Promise<SignatureView | null> 
   )
   const row = result.rows[0]
   if (!row) return null
-  const doc = await query<{ id: number; control_no: string; title: string; revision: number; elf_date: string; approval_status: string }>(
-    "SELECT id, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, approval_status FROM procedure_documents WHERE id = $1",
+  const doc = await query<{ id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; approval_status: string }>(
+    "SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, approval_status FROM procedure_documents WHERE id = $1",
     [row.document_id]
   )
   if (!doc.rows[0]) return null
@@ -802,6 +822,8 @@ export function canPlaceOwnSlots(view: TokenView, now = Date.now()) {
 
 export type ProcedureNotice = {
   kind: 'revision' | 'approved'
+  /** Which register the document is in (procedure / working standard). */
+  docKind: DocKind
   documentId: number
   controlNo: string
   title: string
@@ -825,8 +847,8 @@ export async function listProcedureNotices(): Promise<ProcedureNotice[]> {
   await ensureApprovalSchema()
   const notices: ProcedureNotice[] = []
 
-  const revisions = (await query<{ id: number; control_no: string; title: string; revision: number }>(
-    `SELECT id, control_no, title, revision FROM procedure_documents
+  const revisions = (await query<{ id: number; kind: DocKind; control_no: string; title: string; revision: number }>(
+    `SELECT id, kind, control_no, title, revision FROM procedure_documents
      WHERE approval_status = 'rejected' ORDER BY id DESC LIMIT 20`
   )).rows
   for (const doc of revisions) {
@@ -836,15 +858,15 @@ export async function listProcedureNotices(): Promise<ProcedureNotice[]> {
     if (ack && new Date(ack) >= new Date(req.decidedAt)) continue
     const first = req.pins[0] ? `Hal. ${req.pins[0].page + 1}: ${req.pins[0].note}` : req.general
     notices.push({
-      kind: 'revision', documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision,
+      kind: 'revision', docKind: doc.kind, documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision,
       at: req.decidedAt, by: req.approverName, roleTitle: req.roleTitle,
       noteCount: (req.general ? 1 : 0) + req.pins.length, pinCount: req.pins.length,
       firstNote: first ? first.split('\n')[0].slice(0, 140) : null,
     })
   }
 
-  const approved = (await query<{ id: number; control_no: string; title: string; revision: number; file_path: string; at: string; total: number }>(
-    `SELECT d.id, d.control_no, d.title, d.revision, d.file_path, max(a.decided_at) AS at, count(*)::int AS total
+  const approved = (await query<{ id: number; kind: DocKind; control_no: string; title: string; revision: number; file_path: string; at: string; total: number }>(
+    `SELECT d.id, d.kind, d.control_no, d.title, d.revision, d.file_path, max(a.decided_at) AS at, count(*)::int AS total
      FROM procedure_documents d
      JOIN procedure_approvals a ON a.document_id = d.id AND a.revision = d.revision AND a.status = 'approved'
      WHERE d.approval_status = 'approved'
@@ -859,7 +881,7 @@ export async function listProcedureNotices(): Promise<ProcedureNotice[]> {
     )).rows.map((r) => r.role_code)
     const placedRoles = new Set((await slotsFor(doc.id, doc.file_path)).map((s) => s.role_code))
     notices.push({
-      kind: 'approved', documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision, at: doc.at,
+      kind: 'approved', docKind: doc.kind, documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision, at: doc.at,
       placed: approvedRoles.filter((r) => placedRoles.has(r)).length, total: doc.total,
     })
   }
@@ -875,8 +897,8 @@ export async function dismissProcedureNotice(documentId: number) {
 // Documents currently waiting on someone — for the admin monitoring list.
 export async function listPendingSteps() {
   await ensureApprovalSchema()
-  const result = await query<ApprovalStep & { control_no: string; title: string; approver_email: string | null }>(
-    `SELECT ${STEP_COLUMNS.split(', ').map((c) => `a.${c}`).join(', ')}, a.approver_email, d.control_no, d.title
+  const result = await query<ApprovalStep & { control_no: string; title: string; kind: DocKind; approver_email: string | null }>(
+    `SELECT ${STEP_COLUMNS.split(', ').map((c) => `a.${c}`).join(', ')}, a.approver_email, d.control_no, d.title, d.kind
      FROM procedure_approvals a JOIN procedure_documents d ON d.id = a.document_id AND d.revision = a.revision
      WHERE a.status = 'pending'
      ORDER BY a.notified_at ASC NULLS FIRST, a.id ASC`

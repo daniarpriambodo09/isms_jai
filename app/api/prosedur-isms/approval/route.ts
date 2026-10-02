@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       revisionRequest,
       step: view.step,
       document: {
+        kind: view.document.kind,
         control_no: view.document.control_no,
         title: view.document.title,
         revision: view.document.revision,

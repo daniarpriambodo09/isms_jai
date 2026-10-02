@@ -19,9 +19,8 @@ async function count(sql: string): Promise<number> {
 }
 
 const DOCUMENT_TABLES = [
-  'procedure_documents',
+  'procedure_documents', // procedures and working standards (kind)
   'form_cs_documents',
-  'working_standard_documents',
   'standard_isms_p14_documents',
   'education_documents',
   'documents',
@@ -41,8 +40,8 @@ export async function GET() {
     specialAreaApproved,
   ] = await Promise.all([
     Promise.all(DOCUMENT_TABLES.map((table) => count(`SELECT count(*)::int AS n FROM ${table}`))),
-    count(`SELECT count(*)::int AS n FROM procedure_documents WHERE approval_status = 'approved'`),
-    count(`SELECT count(*)::int AS n FROM procedure_documents WHERE approval_status = 'pending'`),
+    count(`SELECT count(*)::int AS n FROM procedure_documents WHERE kind = 'procedure' AND approval_status = 'approved'`),
+    count(`SELECT count(*)::int AS n FROM procedure_documents WHERE kind = 'procedure' AND approval_status = 'pending'`),
     count(`SELECT count(*)::int AS n FROM photo_video_requests WHERE status = 'approved'`),
     count(`SELECT count(*)::int AS n FROM photo_video_requests`),
     count(`SELECT count(*)::int AS n FROM vendor_registrations`),

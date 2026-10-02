@@ -34,10 +34,10 @@ const WORK_AREA_COLUMN: Record<WorkAreaCardType, 'vendor_card_barcode' | 'specia
 // this generalizes the same "register + hand over the card right now"
 // pattern to Visitor, Vendor, Special Area and Photography too.
 type QuickCardType = 'visitor' | 'vendor' | 'special_area' | 'photography' | 'affiliate'
-// "Daftarkan …" buttons. Special Area has none: its entry goes through the
-// "Izin Masuk Area Special Security" card above (Ajukan Izin Area Special),
-// so a second button here would be a duplicate.
-const QUICK_REGISTER_TYPES: QuickCardType[] = ['visitor', 'vendor', 'photography', 'affiliate']
+// "Daftarkan …" buttons. Special Area and Photography have none: they go
+// through their own cards above (Ajukan Izin Area Special / Ajukan Izin
+// Foto/Video), so a second button here would be a duplicate.
+const QUICK_REGISTER_TYPES: QuickCardType[] = ['visitor', 'vendor', 'affiliate']
 const QUICK_CARD_LABEL: Record<QuickCardType, string> = {
   visitor: 'Visitor',
   vendor: 'Vendor',

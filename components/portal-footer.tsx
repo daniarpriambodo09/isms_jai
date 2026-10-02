@@ -2,9 +2,9 @@
 //
 // Portal footer in the motionsites "NOX Grid Footer" style: a brand column
 // plus link columns separated by hairline grid rules (each column lights up
-// on hover), and a line-art skyline of the plant — offices, saw-tooth
-// production halls, water tower, security gate — that draws itself stroke by
-// stroke when the footer scrolls into view (.footer-draw in globals.css).
+// on hover), and the portal's name set as wide as the footer, its letters
+// rising and filling in when the footer scrolls into view (.footer-mark in
+// globals.css).
 // Colours come from theme tokens, so it follows Kelola Tema.
 
 'use client'
@@ -48,80 +48,59 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
 // the first row, Edukasi + Keamanan on the second).
 const CELL_RULES = ['', 'max-[1000px]:border-l-0 max-[1000px]:border-t', 'max-[1000px]:border-t']
 
-// Stroke-only skyline, 1440×240 user units, ground at y=228. Every shape
-// carries pathLength=1 so one dash rule animates them all; --d staggers
-// groups left to right.
-function PlantSkyline() {
-  const p = { pathLength: 1 } as const
+// The portal's name as wide as the footer: outlined letters that rise out of a
+// mask one by one, then fill with colour from the bottom up — "ISMS" in light
+// ink, "Portal" in the accent serif, like the small logo above. The font size
+// is fitted to the container so it spans edge to edge at any width.
+// (.footer-mark in globals.css)
+const MARK: { text: string; className: string }[] = [
+  { text: 'ISMS', className: 'font-display font-semibold tracking-[-0.045em]' },
+  { text: 'Portal', className: 'font-serif-accent' },
+]
+
+function FooterWordmark({ inView }: { inView: boolean }) {
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const lineRef = useRef<HTMLParagraphElement>(null)
+
+  useEffect(() => {
+    const wrap = wrapRef.current
+    const line = lineRef.current
+    if (!wrap || !line) return
+    let fittedFor = 0
+    const fit = (force = false) => {
+      // Only the width matters — refitting changes the height, which would
+      // otherwise call this again through the observer.
+      if (!force && wrap.clientWidth === fittedFor) return
+      fittedFor = wrap.clientWidth
+      wrap.style.fontSize = '100px'
+      const width = line.scrollWidth
+      if (width) wrap.style.fontSize = `${(wrap.clientWidth / width) * 100}px`
+    }
+    fit(true)
+    const observer = new ResizeObserver(() => fit())
+    observer.observe(wrap)
+    document.fonts?.ready.then(() => fit(true)).catch(() => {})
+    return () => observer.disconnect()
+  }, [])
+
+  const layer = (fill: boolean) => {
+    let index = 0
+    return MARK.map((word, w) => (
+      <span key={word.text} className={`${word.className} ${fill && w === 1 ? 'text-accent' : ''}`}>
+        {w > 0 && <span className="inline-block w-[0.16em]" />}
+        {word.text.split('').map((letter) => {
+          const delay = index++ * 55
+          return <span key={`${letter}-${delay}`} className="footer-mark-letter inline-block" style={{ transitionDelay: `${delay}ms` }}>{letter}</span>
+        })}
+      </span>
+    ))
+  }
+
   return (
-    <svg viewBox="0 0 1440 240" preserveAspectRatio="xMidYMax slice" className="block h-auto w-full max-[680px]:h-[140px]" fill="none" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {/* Far hills */}
-      <g style={{ '--d': '0s' } as React.CSSProperties} className="opacity-40">
-        <path {...p} d="M0 196 C120 150 220 170 330 142 C450 112 560 160 680 138 C800 116 900 150 1020 128 C1140 106 1260 150 1440 120" />
-        <circle {...p} cx="1318" cy="46" r="16" />
-      </g>
-
-      {/* Trees, left */}
-      <g style={{ '--d': '0.15s' } as React.CSSProperties}>
-        <path {...p} d="M40 228 V206 M26 208 L40 172 L54 208 Z" />
-        <path {...p} d="M76 228 V212 M64 214 L76 186 L88 214 Z" />
-      </g>
-
-      {/* Office block with window grid */}
-      <g style={{ '--d': '0.3s' } as React.CSSProperties}>
-        <path {...p} d="M120 228 V104 H300 V228" />
-        <path {...p} d="M112 104 H308" />
-        <path {...p} d="M150 124 V210 M180 124 V210 M210 124 V210 M240 124 V210 M270 124 V210" className="opacity-50" />
-        <path {...p} d="M134 136 H286 M134 160 H286 M134 184 H286" className="opacity-50" />
-        <path {...p} d="M192 228 V206 H228 V228" />
-        <path {...p} d="M210 104 V84 M204 84 H216" />
-      </g>
-
-      {/* Saw-tooth production hall */}
-      <g style={{ '--d': '0.55s' } as React.CSSProperties}>
-        <path {...p} d="M340 228 V150 L380 118 V150 L420 118 V150 L460 118 V150 L500 118 V150 L540 118 V150 L580 118 V150 L620 118 V150 L660 118 V150 L700 118 V150 L740 118 V228" />
-        <path {...p} d="M340 150 H740" className="opacity-50" />
-        <path {...p} d="M380 228 V186 H440 V228 M476 228 V186 H536 V228 M572 228 V186 H632 V228" />
-        <path {...p} d="M380 200 H440 M380 214 H440 M476 200 H536 M476 214 H536 M572 200 H632 M572 214 H632" className="opacity-50" />
-        <path {...p} d="M660 172 H716 V192 H660 Z" className="opacity-60" />
-      </g>
-
-      {/* Water tower */}
-      <g style={{ '--d': '0.8s' } as React.CSSProperties}>
-        <path {...p} d="M790 228 L800 128 M842 228 L832 128 M794 184 H838 M797 156 H835" />
-        <path {...p} d="M786 128 H846 V96 H786 Z" />
-        <path {...p} d="M782 96 L816 76 L850 96" />
-      </g>
-
-      {/* Main plant, flat roof with rooftop panels */}
-      <g style={{ '--d': '1s' } as React.CSSProperties}>
-        <path {...p} d="M880 228 V132 H1160 V228" />
-        <path {...p} d="M872 132 H1168" />
-        <path {...p} d="M900 132 L912 118 H952 L940 132 M968 132 L980 118 H1020 L1008 132 M1036 132 L1048 118 H1088 L1076 132 M1104 132 L1116 118 H1148 L1140 132" className="opacity-60" />
-        <path {...p} d="M904 156 H1136 M904 172 H1136" className="opacity-40" />
-        <path {...p} d="M940 228 V192 H1020 V228 M1048 228 V192 H1128 V228" />
-      </g>
-
-      {/* Security gate: post, barrier, shield */}
-      <g style={{ '--d': '1.25s' } as React.CSSProperties}>
-        <path {...p} d="M1200 228 V168 H1250 V228" />
-        <path {...p} d="M1194 168 H1256" />
-        <path {...p} d="M1210 180 H1240 V200 H1210 Z" className="opacity-60" />
-        <path {...p} d="M1262 228 V196 M1256 196 H1268 M1262 200 L1372 200" />
-        <path {...p} d="M1290 200 V206 M1320 200 V206 M1350 200 V206" className="opacity-50" />
-        <path {...p} d="M1225 124 L1243 131 V144 C1243 153 1236 159 1225 163 C1214 159 1207 153 1207 144 V131 Z" />
-        <path {...p} d="M1218 144 L1223 149 L1233 138" />
-      </g>
-
-      {/* Trees, right */}
-      <g style={{ '--d': '1.45s' } as React.CSSProperties}>
-        <path {...p} d="M1396 228 V208 M1384 210 L1396 180 L1408 210 Z" />
-        <path {...p} d="M1426 228 V214 M1416 216 L1426 192 L1436 216 Z" />
-      </g>
-
-      {/* Ground */}
-      <path {...p} d="M0 228 H1440" style={{ '--d': '0s' } as React.CSSProperties} />
-    </svg>
+    <div ref={wrapRef} aria-hidden className={`footer-mark relative mt-12 select-none overflow-hidden whitespace-nowrap text-[17vw] leading-[0.86] ${inView ? 'is-in' : ''}`}>
+      <p ref={lineRef} className="footer-mark-outline w-max">{layer(false)}</p>
+      <p className="footer-mark-fill absolute inset-0 w-max text-primary-foreground/90">{layer(true)}</p>
+    </div>
   )
 }
 
@@ -193,9 +172,9 @@ export function PortalFooter() {
           ))}
         </div>
 
-        {/* Line-art plant skyline, drawn on scroll */}
-        <div ref={ref} className={`footer-draw mt-10 text-primary-foreground/35 ${inView ? 'is-in' : ''}`}>
-          <PlantSkyline />
+        {/* Giant wordmark, revealed on scroll */}
+        <div ref={ref}>
+          <FooterWordmark inView={inView} />
         </div>
 
         {/* Bottom bar */}

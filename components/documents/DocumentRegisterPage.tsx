@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext'
 import { FolderHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
+import { EmptyState } from '@/components/documents/EmptyState'
 import { onRowClick } from '@/lib/row-click'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { DocumentFormModal, type EditableDocument } from '@/components/documents/DocumentFormModal'
@@ -159,7 +160,7 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
           <thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['Tanggal Upload', 'Nama Dokumen', 'Revisi', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[560px]:hidden' : ''}`}>{head}</th>)}</tr></thead>
           <tbody className="divide-y divide-border">
             {loading && <TableSkeletonRows columns={isLoggedIn ? 5 : 4} />}
-            {!loading && filteredDocs.length === 0 && <tr><td colSpan={5} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{hasFilter ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>{hasFilter && <button onClick={() => setQuery('')} className="mt-2 text-xs font-semibold text-primary hover:underline">Hapus pencarian</button>}</td></tr>}
+            {!loading && filteredDocs.length === 0 && <tr><td colSpan={5} className="px-5 py-16 text-center"><EmptyState filtered={hasFilter} onClear={() => setQuery('')} onAdd={isLoggedIn ? openAdd : undefined} /></td></tr>}
             {groupByTitle(pageItems).map((group, index) => (
               <tr key={group.key} onClick={(event) => onRowClick(event, () => setViewing(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
                 {isLoggedIn && (
@@ -189,10 +190,10 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
                   <div className="flex flex-col gap-1.5">
                     {group.docs.map((doc) => (
                       <div key={doc.id} className="flex items-center gap-1 py-0.5">
-                        <button type="button" onClick={() => setViewing(doc)} aria-label={`Lihat ${doc.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                        <button type="button" onClick={() => setViewing(doc)} aria-label={`Lihat ${doc.title}`} title="Lihat dokumen" data-label="Lihat" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
                         {isLoggedIn && <>
-                          <button type="button" onClick={() => openEdit(doc)} aria-label={`Edit ${doc.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
-                          <button type="button" onClick={() => setPendingDelete(doc)} aria-label={`Hapus ${doc.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
+                          <button type="button" onClick={() => openEdit(doc)} aria-label={`Edit ${doc.title}`} title="Edit dokumen" data-label="Edit" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
+                          <button type="button" onClick={() => setPendingDelete(doc)} aria-label={`Hapus ${doc.title}`} title="Hapus dokumen" data-label="Hapus" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
                         </>}
                       </div>
                     ))}

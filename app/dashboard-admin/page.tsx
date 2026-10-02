@@ -110,7 +110,10 @@ export default function DashboardAdminPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Ringkasan yang perlu ditindaklanjuti · diperbarui {new Date(data.generatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
+        <div>
+          <h2 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Dashboard Admin</h2>
+          <p className="mt-1.5 text-sm text-muted-foreground">Ringkasan yang perlu ditindaklanjuti · diperbarui {new Date(data.generatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</p>
+        </div>
         <button type="button" onClick={load} disabled={refreshing} className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-60">
           <RefreshCw className={`size-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Muat ulang
         </button>
@@ -157,21 +160,21 @@ export default function DashboardAdminPage() {
           <Panel title={`Review dokumen berkala (${review.months} bulan setelah Eff. Date)`} icon={<CalendarClock />}>
             {!reviewList.length ? <Empty>Semua dokumen masih dalam masa berlaku review.</Empty> : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
+                <table className="admin-table w-full min-w-[640px] text-sm">
                   <thead className="text-left text-xs text-muted-foreground">
                     <tr><th className="py-2 pr-3 font-semibold">Dokumen</th><th className="py-2 pr-3 font-semibold">Jenis</th><th className="py-2 pr-3 font-semibold">Eff. Date</th><th className="py-2 pr-3 font-semibold">Jatuh tempo</th><th className="py-2 font-semibold">Status</th></tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {reviewList.map((r) => (
                       <tr key={`${r.kind}${r.id}`}>
-                        <td className="py-2.5 pr-3">
+                        <td data-cell="title" className="py-2.5 pr-3">
                           <Link href={r.href} className="font-semibold text-foreground hover:underline">{r.controlNo}</Link>
                           <span className="block max-w-[360px] truncate text-xs text-muted-foreground">{r.title}{r.revision !== null ? ` · Rev. ${r.revision}` : ''}</span>
                         </td>
-                        <td className="py-2.5 pr-3 text-muted-foreground">{r.kindLabel}</td>
-                        <td className="py-2.5 pr-3 text-muted-foreground">{fmtDate(r.effDate)}</td>
-                        <td className="py-2.5 pr-3 text-muted-foreground">{fmtDate(r.dueDate)}</td>
-                        <td className="py-2.5">
+                        <td data-label="Jenis" className="py-2.5 pr-3 text-muted-foreground">{r.kindLabel}</td>
+                        <td data-label="Eff. Date" className="py-2.5 pr-3 text-muted-foreground">{fmtDate(r.effDate)}</td>
+                        <td data-label="Jatuh tempo" className="py-2.5 pr-3 text-muted-foreground">{fmtDate(r.dueDate)}</td>
+                        <td data-label="Status" className="py-2.5">
                           {r.daysLeft < 0
                             ? <span className="rounded-full bg-[#fbe6e0] px-2 py-0.5 text-xs font-semibold text-[#b3361f]">Terlambat {-r.daysLeft} hari</span>
                             : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{r.daysLeft === 0 ? 'Hari ini' : `${r.daysLeft} hari lagi`}</span>}

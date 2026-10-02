@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, Fragment } from 'react'
 import { CalendarDays, Camera, CheckCircle2, Clock, History, MapPin, ScanLine, Search, Send, Sparkles, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 
@@ -166,7 +166,37 @@ function Field({ label, span = 1, children }: { label: string; span?: 1 | 2; chi
   )
 }
 
+// Sections of the form, for the step bar that stays in view while scrolling.
+const STEP_IDS = ['pv-step-1', 'pv-step-2', 'pv-step-3']
+
+// Which section the reader is in right now.
+function useCurrentStep() {
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    const update = () => {
+      let current = 0
+      STEP_IDS.forEach((id, index) => {
+        const el = document.getElementById(id)
+        // "current" once its heading is in the upper part of the screen
+        if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.42) current = index
+      })
+      // Bottom of the page: the last step, even if its marker never reaches the line.
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4 && document.getElementById(STEP_IDS[2])) {
+        const last = document.getElementById(STEP_IDS[2])!.getBoundingClientRect()
+        if (last.top < window.innerHeight) current = 2
+      }
+      setStep(current)
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update) }
+  }, [])
+  return step
+}
+
 export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visitor' }) {
+  const currentStep = useCurrentStep()
   const isInternal = locale === 'internal'
 
   const [nik, setNik] = useState('')
@@ -328,7 +358,25 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
       </section>
 
       <form onSubmit={handleSubmit} className="rounded-b-[1.75rem] border border-t-0 border-border bg-card p-6 shadow-md sm:p-8">
-        <div className="mb-6 flex items-center gap-2">
+        {/* Step bar: stays under the navbar while the form scrolls */}
+        <nav aria-label={isInternal ? 'Langkah pengisian' : 'Form steps'} className="sticky top-[78px] z-10 -mx-6 -mt-6 mb-6 flex items-center gap-1.5 border-b border-border bg-card/95 px-6 py-3 backdrop-blur sm:-mx-8 sm:-mt-8 sm:px-8 max-[680px]:top-[70px]">
+          {(isInternal ? ['Data pemohon', 'Info foto/video', 'Kirim'] : ['Requester', 'Photo/video info', 'Submit']).map((label, index) => (
+            <Fragment key={label}>
+              {index > 0 && <span aria-hidden className={`h-px flex-1 transition-colors duration-300 ${index <= currentStep ? 'bg-[color:var(--p-600)]' : 'bg-border'}`} />}
+              <button
+                type="button"
+                onClick={() => document.getElementById(STEP_IDS[index])?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                aria-current={index === currentStep ? 'step' : undefined}
+                className={`flex flex-none items-center gap-2 rounded-full py-1 pl-1 pr-3 text-xs font-semibold transition-colors duration-300 ${index === currentStep ? 'bg-primary text-primary-foreground' : index < currentStep ? 'text-[color:var(--p-600)]' : 'text-muted-foreground'}`}
+              >
+                <span className={`grid size-6 place-items-center rounded-full font-mono text-[11px] ${index === currentStep ? 'bg-primary-foreground/20' : index < currentStep ? 'bg-[color:var(--p-600)] text-white' : 'bg-secondary'}`}>{index + 1}</span>
+                <span className={index === currentStep ? '' : 'max-[520px]:hidden'}>{label}</span>
+              </button>
+            </Fragment>
+          ))}
+        </nav>
+
+        <div id="pv-step-1" className="mb-6 flex scroll-mt-40 items-center gap-2">
           <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary"><Users className="size-4" /></span>
           <p className="portal-eyebrow">{isInternal ? 'Data Pemohon' : 'Requester Details'}</p>
         </div>
@@ -380,7 +428,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
 
         <div className="my-7 h-px bg-border" />
 
-        <div className="mb-6 flex items-center gap-2">
+        <div id="pv-step-2" className="mb-6 flex scroll-mt-40 items-center gap-2">
           <span className="grid size-8 place-items-center rounded-full bg-accent/20 text-accent-foreground"><Camera className="size-4" /></span>
           <p className="portal-eyebrow">{isInternal ? 'Informasi Pengambilan Foto/Video' : 'Recording Photo/Video Information'}</p>
         </div>
@@ -521,7 +569,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
           </Field>
         </div>
 
-        <div className="mt-7 flex flex-col gap-4 rounded-2xl bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div id="pv-step-3" className="mt-7 flex scroll-mt-40 flex-col gap-4 rounded-2xl bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">{noteText}</p>
           <button
             type="submit"

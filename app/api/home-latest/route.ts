@@ -1,6 +1,6 @@
 // app/api/home-latest/route.ts
 //
-// "Dokumen terbaru" on Home (components/home/QuickAccess.tsx): the most
+// "Dokumen terbaru" on Home (components/home/SecurityPillars.tsx): the most
 // recently uploaded documents across every register. Public, so procedures
 // are limited to the published ones — the same rule as the register itself.
 

@@ -490,7 +490,7 @@ export function EducationRegisterPage() {
                             type="button"
                             onClick={() => handleView(doc)}
                             aria-label={`Lihat ${doc.title} (${doc.category}, ${doc.language})`}
-                            title="Lihat"
+                            title="Lihat" data-label="Lihat"
                             className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                           >
                             <Eye className="size-4" />
@@ -501,7 +501,7 @@ export function EducationRegisterPage() {
                             href={downloadUrl(doc.file_path, doc.title)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Download"
+                            title="Download" data-label="Unduh"
                             aria-label={`Download ${doc.title} (${doc.category}, ${doc.language})`}
                             className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                           >
@@ -515,7 +515,7 @@ export function EducationRegisterPage() {
                                 type="button"
                                 onClick={() => openEdit(doc)}
                                 aria-label={`Edit ${doc.title} (${doc.category}, ${doc.language})`}
-                                title="Edit dokumen"
+                                title="Edit dokumen" data-label="Edit"
                                 className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-accent-foreground"
                               >
                                 <Pencil className="size-4" />
@@ -524,7 +524,7 @@ export function EducationRegisterPage() {
                                 type="button"
                                 onClick={() => setPendingDelete(doc)}
                                 aria-label={`Hapus ${doc.title} (${doc.category}, ${doc.language})`}
-                                title="Hapus dokumen"
+                                title="Hapus dokumen" data-label="Hapus"
                                 className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                               >
                                 <Trash2 className="size-4" />

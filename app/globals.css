@@ -251,15 +251,17 @@
 .typed-caret { animation: typed-caret 1s steps(1) infinite; }
 @media (prefers-reduced-motion: reduce) { .typed-caret { animation: none; } .sentinel-thumb img { transition: none; } }
 
-/* Footer skyline (components/portal-footer.tsx): every stroke carries
-   pathLength=1, so a single dash hides it and it draws on once .is-in lands;
-   groups inherit --d to draw left to right while the whole piece rises. */
-.footer-draw svg { transform: translateY(24px); opacity: 0; transition: transform 1.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.8s ease; }
-.footer-draw svg :is(path, circle) { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.2s cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0s); }
-.footer-draw.is-in svg { transform: none; opacity: 1; }
-.footer-draw.is-in svg :is(path, circle) { stroke-dashoffset: 0; }
+/* Footer wordmark (components/portal-footer.tsx): outlined letters rise out of
+   the mask one after another once .is-in lands, then the solid copy on top
+   wipes in from the bottom. */
+.footer-mark-outline { color: transparent; -webkit-text-stroke: 1.5px color-mix(in oklch, var(--primary-foreground) 30%, transparent); }
+.footer-mark-letter { transform: translateY(105%); transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.footer-mark.is-in .footer-mark-letter { transform: none; }
+.footer-mark-fill { clip-path: inset(100% 0 0 0); transition: clip-path 1.5s cubic-bezier(0.65, 0, 0.35, 1) 0.75s; }
+.footer-mark.is-in .footer-mark-fill { clip-path: inset(0 0 0 0); }
 @media (prefers-reduced-motion: reduce) {
-  .footer-draw svg, .footer-draw svg :is(path, circle) { transform: none; opacity: 1; stroke-dashoffset: 0; transition: none; }
+  .footer-mark-letter { transform: none; transition: none; }
+  .footer-mark-fill { clip-path: none; transition: none; }
   .line-mask > span { transform: none; transition: none; }
   .pulse-word { opacity: 1; }
 }
@@ -453,4 +455,85 @@
 @media (prefers-reduced-motion: reduce) {
   .skeleton { animation: none; }
   .modal-backdrop, .modal-card, .toast-item, .toast-item.toast-leave { animation-duration: 1ms; }
+}
+
+/* ─── "Masuk sebagai admin" (components/admin-welcome.tsx) ───
+   2.5s in all: the curtain shuts (0–0.4s), the shield draws and the greeting
+   rises (0.3–1.5s), the content lifts away (1.55s) and the two doors part
+   (1.7–2.45s). Timings mirror TOTAL_MS / WELCOME_COVERED_MS in the component. */
+@keyframes welcome-door-left { 0% { transform: translateX(-100%); } 14%, 68% { transform: none; } 100% { transform: translateX(-101%); } }
+@keyframes welcome-door-right { 0% { transform: translateX(100%); } 14%, 68% { transform: none; } 100% { transform: translateX(101%); } }
+/* A seam of light where the doors meet — only as they start to part, after the greeting has lifted away. */
+@keyframes welcome-seam { 0%, 62% { opacity: 0; transform: scaleY(0); } 70% { opacity: 0.9; transform: scaleY(1); } 80%, 100% { opacity: 0; transform: scaleY(1); } }
+@keyframes welcome-content { 0%, 10% { opacity: 0; } 20%, 60% { opacity: 1; transform: none; } 68%, 100% { opacity: 0; transform: translateY(-22px); } }
+@keyframes welcome-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes welcome-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes welcome-ring { 0% { opacity: 0; transform: scale(0.7); } 40% { opacity: 1; } 100% { opacity: 0; transform: scale(1.55); } }
+@keyframes welcome-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.welcome-door-left { animation: welcome-door-left 2500ms cubic-bezier(0.76, 0, 0.24, 1) both; }
+.welcome-door-right { animation: welcome-door-right 2500ms cubic-bezier(0.76, 0, 0.24, 1) both; }
+.welcome-seam { animation: welcome-seam 2500ms ease both; }
+.welcome-content { animation: welcome-content 2500ms ease both; }
+.welcome-shield, .welcome-check { stroke-dasharray: 1; stroke-dashoffset: 1; }
+.welcome-shield { animation: welcome-draw 800ms cubic-bezier(0.65, 0, 0.35, 1) 380ms forwards; }
+.welcome-check { animation: welcome-draw 380ms cubic-bezier(0.65, 0, 0.35, 1) 950ms forwards; }
+.welcome-ring { opacity: 0; animation: welcome-ring 900ms ease-out 950ms both; }
+.welcome-line-1 { animation: welcome-rise 520ms cubic-bezier(0.16, 1, 0.3, 1) 520ms both; }
+.welcome-line-2 { animation: welcome-rise 600ms cubic-bezier(0.16, 1, 0.3, 1) 640ms both; }
+.welcome-line-3 { animation: welcome-rise 520ms cubic-bezier(0.16, 1, 0.3, 1) 820ms both; }
+.welcome-progress { animation: welcome-progress 1050ms cubic-bezier(0.4, 0, 0.2, 1) 450ms both; }
+/* Reduced motion: no doors, no drawing — the greeting simply fades in and out. */
+@keyframes welcome-fade { 0% { opacity: 0; } 18%, 78% { opacity: 1; } 100% { opacity: 0; } }
+.welcome-reduced { animation: welcome-fade 1100ms ease both; }
+.welcome-reduced :is(.welcome-door, .welcome-seam, .welcome-content, .welcome-ring, .welcome-line-1, .welcome-line-2, .welcome-line-3, .welcome-progress) { animation: none; opacity: 1; transform: none; }
+.welcome-reduced .welcome-seam, .welcome-reduced .welcome-ring { opacity: 0; }
+.welcome-reduced :is(.welcome-shield, .welcome-check) { animation: none; stroke-dashoffset: 0; }
+
+/* ─── Home: three pillars (components/home/SecurityPillars.tsx) ─── */
+@keyframes pillar-habit { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pillar-timer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.pillar-habit { animation: pillar-habit 520ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.pillar-timer { animation: pillar-timer linear both; }
+/* The big letter is an outline: ink on a closed panel, white on the open (dark) one. */
+.pillar-letter { color: transparent; -webkit-text-stroke: 2px var(--foreground); }
+.pillar[data-open="true"] .pillar-letter { -webkit-text-stroke-color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  .pillar-habit, .pillar-timer { animation: none; }
+  .pillar { transition: none; }
+}
+
+/* ─── Admin tables as labelled cards on phones ───
+   <table class="admin-table">: below 680px each row is a card — the title
+   cell (data-cell="title") opens it, every other cell reads "LABEL  value"
+   from its data-label, and the actions (data-cell="actions") close it. */
+@media (max-width: 680px) {
+  .admin-table { display: block; min-width: 0 !important; }
+  .admin-table thead { display: none; }
+  .admin-table tbody { display: block; }
+  .admin-table tr { display: flex; flex-direction: column; padding: 14px 16px; }
+  .admin-table td { display: block; position: relative; min-width: 0 !important; padding: 4px 0 4px 118px !important; white-space: normal !important; }
+  .admin-table td[data-label]::before {
+    content: attr(data-label);
+    position: absolute; left: 0; top: 6px; width: 108px;
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .admin-table td[data-cell="title"] { order: -1; padding: 0 0 8px !important; font-size: 15px; }
+  .admin-table td[data-cell="actions"] { padding: 10px 0 0 !important; }
+  .admin-table td[colspan] { padding: 20px 0 !important; }
+}
+
+/* Touch screens: 16px form text, so iOS doesn't zoom the page on focus. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+}
+
+/* Action icons get a word under them where there is no hover to show a
+   tooltip — phones (the card layout) and touch screens. */
+@media (max-width: 680px), (hover: none) {
+  .doc-table td[data-cell="actions"] [data-label] {
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    width: auto; min-width: 44px; height: auto; min-height: 44px; padding: 5px 6px 4px;
+  }
+  .doc-table td[data-cell="actions"] [data-label]::after { content: attr(data-label); font-size: 10px; font-weight: 600; line-height: 1; white-space: nowrap; }
 }

@@ -12,13 +12,13 @@ import {
   ShieldCheck,
   Trash2,
   Upload,
-  X,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ManifestoHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PolicyAcknowledgement } from '@/components/policy/PolicyAcknowledgement'
+import { ImageZoomViewer } from '@/components/image-zoom-viewer'
 
 // Breaks the image out of <main>'s centered max-width/padding so it spans the
 // full browser width edge-to-edge, matching the Home hero's full-bleed treatment.
@@ -70,14 +70,6 @@ export default function PolicyPage() {
     }, 5000)
     return () => window.clearInterval(timer)
   }, [images.length])
-
-  useEffect(() => {
-    const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsImageOpen(false)
-    }
-    window.addEventListener('keydown', close)
-    return () => window.removeEventListener('keydown', close)
-  }, [])
 
   function moveImage(direction: 1 | -1) {
     if (images.length > 1) {
@@ -194,7 +186,7 @@ export default function PolicyPage() {
           letterboxing blends with the page instead of standing out as its own box. */}
       <div
         ref={stageRef}
-        className={`relative touch-pan-y select-none overflow-hidden [perspective:1600px] ${FULL_BLEED} h-[70vh] min-h-[420px] max-h-[780px] ${images.length > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        className={`relative touch-pan-y select-none overflow-hidden [perspective:1600px] ${FULL_BLEED} h-[70vh] min-h-[420px] max-h-[780px] max-[680px]:h-[66vw] max-[680px]:min-h-[250px] ${images.length > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{ background: 'linear-gradient(180deg, var(--card) 0%, var(--background) 55%, var(--muted) 100%)' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -417,29 +409,7 @@ export default function PolicyPage() {
       </section>
 
       {isImageOpen && activeImage && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Preview gambar policy"
-          className="fixed inset-0 z-50 bg-black"
-          onClick={() => setIsImageOpen(false)}
-        >
-          <Image
-            src={activeImage.url}
-            alt="Policy visual"
-            fill
-            unoptimized
-            className="object-contain"
-          />
-          <button
-            type="button"
-            onClick={() => setIsImageOpen(false)}
-            aria-label="Tutup preview gambar"
-            className="absolute right-4 top-4 z-10 grid size-11 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
+        <ImageZoomViewer src={activeImage.url} alt={policyTitle(activeImage.file_name, activeIndex)} onClose={() => setIsImageOpen(false)} />
       )}
 
       <ConfirmDialog

@@ -189,10 +189,10 @@ function KelolaPermintaanFotoVideoContent() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="admin-table w-full min-w-[900px] text-sm">
             <thead className="bg-secondary/55">
               <tr>
-                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'No. ID Photography', 'Status', 'Aksi'].map((head) => (
+                {['Tanggal', 'Tipe', 'Nama/NIK', 'Dept/Company', 'Lokasi', 'Periode', 'ID Photography', 'Status', 'Aksi'].map((head) => (
                   <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                 ))}
               </tr>
@@ -209,14 +209,14 @@ function KelolaPermintaanFotoVideoContent() {
               )}
               {filteredRequests.map((req, index) => (
                 <tr key={req.id} className={index % 2 ? 'bg-secondary/20' : ''}>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.submitted_at)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.request_type === 'internal' ? 'Internal' : 'Visitor'}</td>
-                  <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{req.requester_name}{req.nik && <span className="block text-xs text-muted-foreground">NIK: {req.nik}</span>}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{req.dept_or_company}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{req.location}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.from_at)} &ndash; {formatDateTime(req.to_at)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.photo_id_no ?? '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td data-label="Diajukan" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.submitted_at)}</td>
+                  <td data-label="Tipe" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.request_type === 'internal' ? 'Internal' : 'Visitor'}</td>
+                  <td data-cell="title" className="min-w-[160px] px-4 py-3 font-medium text-foreground">{req.requester_name}{req.nik && <span className="block text-xs text-muted-foreground">NIK: {req.nik}</span>}</td>
+                  <td data-label="Dept/Company" className="px-4 py-3 text-xs text-muted-foreground">{req.dept_or_company}</td>
+                  <td data-label="Lokasi" className="px-4 py-3 text-xs text-muted-foreground">{req.location}</td>
+                  <td data-label="Periode" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.from_at)} &ndash;<br />{formatDateTime(req.to_at)}</td>
+                  <td data-label="ID Photography" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.photo_id_no ?? '—'}</td>
+                  <td data-label="Status" className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span>
                     {req.status === 'pending' && new Date(req.to_at).getTime() < Date.now() && (
                       <span className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-destructive" title="Periode yang diajukan sudah lewat tapi belum diputuskan">
@@ -229,8 +229,8 @@ function KelolaPermintaanFotoVideoContent() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
+                  <td data-cell="actions" className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap">
                       {isIsmAdmin && req.status === 'pending' ? (
                         <button type="button" onClick={() => setSelected(req)} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90">
                           Tinjau

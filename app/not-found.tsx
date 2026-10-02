@@ -1,46 +1,60 @@
 // app/not-found.tsx
+//
+// Shown for an address that doesn't exist. Theme tokens only, so it follows
+// Kelola Tema like every other page; the frame (components/portal-frame.tsx)
+// leaves the heading to this page.
 
 import Link from 'next/link'
-import { Compass, Home } from 'lucide-react'
+import { ArrowUpRight, Compass, Home } from 'lucide-react'
+
+const SUGGESTIONS: [string, string][] = [
+  ['Prosedur ISMS', '/prosedur-isms'],
+  ['Kebijakan Dasar ISMS', '/kebijakan-dasar-ISMS'],
+  ['Education & Training', '/education'],
+  ['Form Aplikasi', '/form-aplikasi'],
+]
 
 export default function NotFound() {
   return (
-    <section
-      className="relative overflow-hidden rounded-3xl p-10 text-center sm:p-16"
-      style={{
-        background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, color-mix(in oklch, var(--p-surface2) 99%, transparent) 100%)',
-        boxShadow: '0 20px 50px color-mix(in oklch, var(--p-950) 12%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-600) 12%, transparent)',
-      }}
-    >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.05]"
-        style={{ backgroundImage: 'radial-gradient(circle, var(--p-600) 1px, transparent 1px)', backgroundSize: '18px 18px' }}
-      />
+    <section className="relative overflow-hidden rounded-3xl border border-border bg-card px-6 py-14 text-center shadow-sm sm:px-16 sm:py-20">
+      {/* Oversized outlined "404" behind the message */}
+      <p
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none font-display text-[clamp(9rem,34vw,26rem)] font-bold leading-none text-transparent opacity-[0.09]"
+        style={{ WebkitTextStroke: '2px var(--foreground)' }}
+      >
+        404
+      </p>
 
-      <div className="relative mx-auto flex max-w-md flex-col items-center gap-4">
-        <div
-          className="flex h-20 w-20 items-center justify-center rounded-3xl"
-          style={{ background: 'linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%)', boxShadow: '0 10px 26px color-mix(in oklch, var(--p-600) 35%, transparent)' }}
-        >
-          <Compass className="h-9 w-9 text-white" />
-        </div>
-
-        <div>
-          <p className="text-[13px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--p-600)' }}>Error 404</p>
-          <h1 className="mt-1 text-[22px] font-bold" style={{ color: 'var(--p-900)' }}>Halaman tidak ditemukan</h1>
-          <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: 'var(--p-muted)' }}>
-            Halaman yang Anda cari mungkin sudah dipindahkan, dihapus, atau alamatnya salah ketik.
-          </p>
-        </div>
+      <div className="relative mx-auto flex max-w-lg flex-col items-center">
+        <span className="grid size-16 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
+          <Compass className="size-7" />
+        </span>
+        <p className="mt-6 font-mono-label text-[10.5px] text-[color:var(--p-600)]">Error 404</p>
+        <h2 className="mt-2 font-display text-[clamp(1.9rem,4vw,2.9rem)] font-semibold leading-[1.02] text-foreground">
+          Halaman tidak <span className="font-serif-accent text-[color:var(--p-600)]">ditemukan</span>.
+        </h2>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          Halaman yang Anda cari mungkin sudah dipindahkan, dihapus, atau alamatnya salah ketik.
+        </p>
 
         <Link
           href="/"
-          className="mt-1 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-          style={{ background: 'linear-gradient(135deg, var(--p-700) 0%, var(--p-600) 100%)', boxShadow: '0 6px 18px color-mix(in oklch, var(--p-600) 35%, transparent)' }}
+          className="mt-7 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-transform duration-200 hover:-translate-y-0.5"
         >
-          <Home className="h-4 w-4" />
-          Kembali ke Home
+          <Home className="size-4" /> Kembali ke Home
         </Link>
+
+        <div className="mt-9 w-full border-t border-border pt-5">
+          <p className="font-mono-label text-[10px] text-muted-foreground">Atau buka</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {SUGGESTIONS.map(([label, href]) => (
+              <Link key={href} href={href} className="group inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-2 text-xs font-semibold text-foreground transition-colors hover:border-[color:var(--p-600)] hover:bg-secondary">
+                {label} <ArrowUpRight className="size-3.5 text-muted-foreground transition group-hover:text-[color:var(--p-600)]" />
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
     </section>
   )

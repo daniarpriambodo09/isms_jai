@@ -586,7 +586,7 @@ export function Navbar() {
               </button>
             ) : (
               <button
-                onClick={() => setLoginOpen(true)}
+                onClick={() => { setMobileOpen(false); setLoginOpen(true) }}
                 className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
               >
                 Admin Login

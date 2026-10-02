@@ -71,7 +71,7 @@ export function SpecialAreaTable({ requests, loading, canDelete, onChanged, onDe
     <div className="flex flex-col gap-3">
       {notice && <p className={`rounded-lg border px-3 py-2 text-xs ${notice.ok ? 'border-emerald-600/25 bg-emerald-600/10 text-emerald-800' : 'border-destructive/20 bg-destructive/10 text-destructive'}`}>{notice.text}</p>}
       <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="admin-table w-full min-w-[760px] text-sm">
           <thead className="bg-secondary/55">
             <tr>{['Nama / Perusahaan', 'Area', 'Waktu Masuk – Keluar', 'ID Card No.', 'Status', 'Aksi'].map((h) => <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{h}</th>)}</tr>
           </thead>
@@ -82,18 +82,18 @@ export function SpecialAreaTable({ requests, loading, canDelete, onChanged, onDe
               const badge = BADGE[r.status]
               return (
                 <tr key={r.id} className="align-top">
-                  <td className="px-4 py-3"><p className="font-medium text-foreground">{r.requester_name}</p><p className="text-xs text-muted-foreground">{r.org_company}{r.department ? ` · ${r.department}` : ''}</p><p className="mt-0.5 max-w-[240px] text-xs text-muted-foreground">Tujuan: {r.purpose}</p><p className="mt-1 text-[11px] text-muted-foreground/80">Diajukan {fmt(r.submitted_at)}{r.submitted_by ? ` · ${r.submitted_by}` : ''}</p></td>
-                  <td className="px-4 py-3"><span className="inline-flex whitespace-nowrap rounded-md bg-red-600/10 px-2 py-0.5 text-xs font-semibold text-red-700">{r.area}</span></td>
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{fmt(r.from_at)}<br />{fmt(r.to_at)}</td>
-                  <td className="px-4 py-3"><IdCardCell req={r} onChanged={onChanged} /></td>
-                  <td className="px-4 py-3">
+                  <td data-cell="title" className="px-4 py-3"><p className="font-medium text-foreground">{r.requester_name}</p><p className="text-xs text-muted-foreground">{r.org_company}{r.department ? ` · ${r.department}` : ''}</p><p className="mt-0.5 max-w-[240px] text-xs text-muted-foreground">Tujuan: {r.purpose}</p><p className="mt-1 text-[11px] text-muted-foreground/80">Diajukan {fmt(r.submitted_at)}{r.submitted_by ? ` · ${r.submitted_by}` : ''}</p></td>
+                  <td data-label="Area" className="px-4 py-3"><span className="inline-flex whitespace-nowrap rounded-md bg-red-600/10 px-2 py-0.5 text-xs font-semibold text-red-700">{r.area}</span></td>
+                  <td data-label="Masuk – Keluar" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{fmt(r.from_at)}<br />{fmt(r.to_at)}</td>
+                  <td data-label="ID Card No." className="px-4 py-3"><IdCardCell req={r} onChanged={onChanged} /></td>
+                  <td data-label="Status" className="px-4 py-3">
                     <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
                     {r.decided_at && <span className="mt-1 block text-[11px] text-muted-foreground">{r.approver_name} · {fmt(r.decided_at)}</span>}
                     {r.status === 'pending' && r.approver_name && <span className="mt-1 block text-[11px] text-muted-foreground">Menunggu {r.approver_name}</span>}
                     {r.status === 'pending' && r.email_error && <span className="mt-1 block max-w-[220px] text-[11px] text-destructive">{r.email_error}</span>}
                     {r.status === 'rejected' && r.decision_note && <span className="mt-1 block max-w-[220px] text-[11px] text-destructive">Alasan: {r.decision_note}</span>}
                   </td>
-                  <td className="px-4 py-3">
+                  <td data-cell="actions" className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {r.status !== 'pending' && (
                         <a href={`${API_BASE_PATH}/api/special-area-requests/${r.id}/pdf`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-semibold text-foreground hover:bg-secondary">

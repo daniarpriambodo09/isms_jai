@@ -3,7 +3,7 @@
 import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { ImageShowcase } from '@/components/home/ImageShowcase'
 import { IsmsPulse } from '@/components/home/IsmsPulse'
-import { QuickAccess } from '@/components/home/QuickAccess'
+import { SecurityPillars } from '@/components/home/SecurityPillars'
 import { ScheduleSection } from '@/components/home/ScheduleSection'
 
 export default function Page() {
@@ -14,7 +14,7 @@ export default function Page() {
           (components/home/ChapterHeader.tsx); .home-chapters resets the counter. */}
       <div className="home-chapters flex flex-col">
         <IsmsPulse />
-        <QuickAccess />
+        <SecurityPillars />
         <ImageShowcase />
         <ScheduleSection />
       </div>

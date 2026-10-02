@@ -79,9 +79,12 @@ export default function KelolaPernyataanKebijakanPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="max-w-3xl text-sm text-muted-foreground">
-        Karyawan mengonfirmasi <span className="font-semibold text-foreground">&ldquo;Saya sudah membaca &amp; memahami&rdquo;</span> di halaman Kebijakan Dasar ISMS dengan NIK, nama, dan departemen. Setiap kali visual kebijakan diubah, versi baru dimulai dan karyawan diminta mengonfirmasi ulang.
-      </p>
+      <div>
+        <h2 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Pernyataan Kebijakan</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          Karyawan mengonfirmasi <span className="font-semibold text-foreground">&ldquo;Saya sudah membaca &amp; memahami&rdquo;</span> di halaman Kebijakan Dasar ISMS dengan NIK, nama, dan departemen. Setiap kali visual kebijakan diubah, versi baru dimulai dan karyawan diminta mengonfirmasi ulang.
+        </p>
+      </div>
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
@@ -143,7 +146,7 @@ export default function KelolaPernyataanKebijakanPage() {
               </div>
             </div>
             <div className="overflow-x-auto rounded-2xl border border-border bg-card">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="admin-table w-full min-w-[640px] text-sm">
                 <thead className="bg-secondary/60 text-left text-xs text-muted-foreground">
                   <tr>
                     <th className="px-4 py-2.5 font-semibold">NIK</th>
@@ -156,11 +159,11 @@ export default function KelolaPernyataanKebijakanPage() {
                 <tbody className="divide-y divide-border">
                   {filtered.map((a) => (
                     <tr key={a.id}>
-                      <td className="px-4 py-2.5 font-mono text-xs">{a.nik}</td>
-                      <td className="px-4 py-2.5 font-medium text-foreground">{a.full_name}</td>
-                      <td className="px-4 py-2.5">{a.department}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{a.section ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{fmt(a.acknowledged_at)}</td>
+                      <td data-label="NIK" className="px-4 py-2.5 font-mono text-xs">{a.nik}</td>
+                      <td data-cell="title" className="px-4 py-2.5 font-medium text-foreground">{a.full_name}</td>
+                      <td data-label="Departemen" className="px-4 py-2.5">{a.department}</td>
+                      <td data-label="Section" className="px-4 py-2.5 text-muted-foreground">{a.section ?? '—'}</td>
+                      <td data-label="Waktu" className="px-4 py-2.5 text-muted-foreground">{fmt(a.acknowledged_at)}</td>
                     </tr>
                   ))}
                   {!filtered.length && (

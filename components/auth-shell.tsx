@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type R
 import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff, FileCheck2, KeyRound, Loader2, LockKeyhole, QrCode, ShieldCheck, User, Users } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
+import { welcomeAdmin, WELCOME_COVERED_MS } from '@/components/admin-welcome'
 
 // ─── styles ───
 
@@ -212,7 +213,7 @@ export function AuthSplitLogin({
   title: ReactNode
   subtitle: string
   successSubtitle: string
-  /** Called after the success animation. */
+  /** Called once the welcome curtain covers the screen. */
   onSuccess: () => void
   onBack?: () => void
   topRight?: ReactNode
@@ -238,12 +239,15 @@ export function AuthSplitLogin({
     setSubmitting(false)
     if (result.success) {
       setSuccess(true)
+      // Full-screen "masuk sebagai admin" sequence (components/admin-welcome.tsx);
+      // this screen closes underneath once its curtain has shut.
+      welcomeAdmin(username)
       timer.current = window.setTimeout(() => {
         onSuccess()
         setSuccess(false)
         setUsername('')
         setPassword('')
-      }, 1300)
+      }, WELCOME_COVERED_MS)
     } else {
       setError(result.message)
     }

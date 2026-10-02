@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext'
 import { HazardHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
+import { EmptyState } from '@/components/documents/EmptyState'
 import { onRowClick } from '@/lib/row-click'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { WorkingStandardFormModal, type EditableWorkingStandard } from '@/components/documents/WorkingStandardFormModal'
@@ -184,7 +185,7 @@ export function WorkingStandardRegisterPage() {
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="doc-table w-full min-w-[640px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Effective Date', 'Tanggal Upload', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 4 ? 'max-[680px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
         {loading && <TableSkeletonRows columns={isLoggedIn ? 7 : 6} />}
-        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={7} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
+        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={7} className="px-5 py-16 text-center"><EmptyState filtered={!!query} onClear={() => setQuery('')} onAdd={isLoggedIn ? () => { setEditing(null); setFormOpen(true) } : undefined} /></td></tr>}
         {groupByTitle(pageItems).map((group, index) => (
           <tr key={group.key} onClick={(event) => onRowClick(event, () => setViewing(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
             {isLoggedIn && (
@@ -224,10 +225,10 @@ export function WorkingStandardRegisterPage() {
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => (
                   <div key={document.id} className="flex items-center gap-1 py-0.5">
-                    <button type="button" onClick={() => setViewing(document)} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                    <button type="button" onClick={() => setViewing(document)} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" data-label="Lihat" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
                     {isLoggedIn && <>
-                      <button type="button" onClick={() => { setEditing(document); setFormOpen(true) }} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
-                      <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
+                      <button type="button" onClick={() => { setEditing(document); setFormOpen(true) }} aria-label={`Edit ${document.title}`} title="Edit dokumen" data-label="Edit" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
+                      <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" data-label="Hapus" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
                     </>}
                   </div>
                 ))}

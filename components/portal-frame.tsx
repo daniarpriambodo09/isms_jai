@@ -82,7 +82,15 @@ const PAGE_TITLES: Record<string, string> = {
 const OWN_HERO_PREFIXES = [
   '/kebijakan-dasar-ISMS', '/prosedur-isms', '/standard-isms-p14', '/working-standard', '/education',
   '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/verifikasi-pengesahan', '/persetujuan-area-special', '/verifikasi-area-special',
+  // Admin pages open with their own "Admin workspace" header or page heading.
+  '/dashboard-admin', '/pengaturan', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-departemen', '/kelola-permintaan-foto-video',
+  '/kelola-izin-area-special', '/kelola-kamera', '/kelola-pic-approve', '/kelola-admin', '/kelola-pengesahan',
+  '/kelola-pernyataan-kebijakan', '/kelola-smtp', '/kelola-tema',
 ]
+
+// Routes that exist without being listed in PAGE_TITLES (dynamic segments).
+// Anything else that isn't in PAGE_TITLES is a mistyped address → 404 page.
+const DYNAMIC_PREFIXES = ['/documents/', '/verifikasi/']
 
 export function PortalFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -106,13 +114,16 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
   if (isKioskRoute) return <>{children}</>
 
   const isHome = pathname === '/'
-  const hasOwnHero = OWN_HERO_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  // A mistyped address: app/not-found.tsx shows the message, so the frame
+  // neither echoes the wrong URL as a title nor adds a second heading.
+  const isNotFound = !(pathname in PAGE_TITLES) && !DYNAMIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  const hasOwnHero = isNotFound || OWN_HERO_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 
   const segments = pathname.split('/').filter(Boolean)
   const isSectionPage = segments[0] === 'documents' && segments[1] === 'department' && segments.length === 4
   const pageTitle =
     PAGE_TITLES[pathname]
-      ?? (isSectionPage
+      ?? (isNotFound ? PAGE_TITLES['/_not-found'] : isSectionPage
         ? decodeURIComponent(segments.at(-1) ?? '').replaceAll('-', ' ').toUpperCase()
         : titleFor(segments.at(-1) ?? 'Home'))
 

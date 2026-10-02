@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { IndexHero, latestUpload } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
 import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
+import { EmptyState } from '@/components/documents/EmptyState'
 import { onRowClick } from '@/lib/row-click'
 import { toast } from '@/components/toast'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
@@ -328,7 +329,7 @@ export function ProcedureRegisterPage() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="doc-table w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
         {loading && <TableSkeletonRows columns={isLoggedIn ? 8 : 7} />}
-        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={8}className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query || statusFilter !== 'all' ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
+        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={8} className="px-5 py-16 text-center"><EmptyState filtered={!!query || statusFilter !== 'all'} onClear={() => { setQuery(''); setStatusFilter('all') }} onAdd={isLoggedIn ? openAdd : undefined} /></td></tr>}
         {groupByTitle(pageItems).map((group, index) => (
           <tr key={group.key} onClick={(event) => onRowClick(event, () => openDocument(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
             {isLoggedIn && (
@@ -408,14 +409,14 @@ export function ProcedureRegisterPage() {
                   <div key={document.id} className="flex items-center gap-1 py-0.5">
                     {hasSignature(document) && !isLoggedIn ? (
                       // Visitors: the final document, QR signatures in place.
-                      <button type="button" onClick={() => { setViewingSigned(true); setViewing(document) }} aria-label={`Lihat ${document.title}`} title="Lihat dokumen (bertanda tangan QR)" className="relative grid size-8 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10"><Eye className="size-4" /><QrCode className="absolute -right-0.5 -top-0.5 size-3 rounded-sm bg-card" /></button>
+                      <button type="button" onClick={() => { setViewingSigned(true); setViewing(document) }} aria-label={`Lihat ${document.title}`} title="Lihat dokumen (bertanda tangan QR)" data-label="Lihat" className="relative grid size-8 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10"><Eye className="size-4" /><QrCode className="absolute -right-0.5 -top-0.5 size-3 rounded-sm bg-card" /></button>
                     ) : hasSignature(document) ? (
                       <>
-                        <button type="button" onClick={() => { setViewingSigned(true); setViewing(document) }} aria-label={`Lihat ${document.title} bertanda tangan`} title="Lihat dokumen bertanda tangan (QR)" className="relative grid size-8 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10"><Eye className="size-4" /><QrCode className="absolute -right-0.5 -top-0.5 size-3 rounded-sm bg-card" /></button>
-                        <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat file asli ${document.title}`} title="Lihat file asli (tanpa QR)" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><FileText className="size-4" /></button>
+                        <button type="button" onClick={() => { setViewingSigned(true); setViewing(document) }} aria-label={`Lihat ${document.title} bertanda tangan`} title="Lihat dokumen bertanda tangan (QR)" data-label="Ber-QR" className="relative grid size-8 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10"><Eye className="size-4" /><QrCode className="absolute -right-0.5 -top-0.5 size-3 rounded-sm bg-card" /></button>
+                        <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat file asli ${document.title}`} title="Lihat file asli (tanpa QR)" data-label="Asli" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><FileText className="size-4" /></button>
                       </>
                     ) : (
-                      <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                      <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" data-label="Lihat" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
                     )}
                     {isIsmsAdmin && (
                       // Show / hide on the visitors' page. Not final yet → it can't be
@@ -423,6 +424,7 @@ export function ProcedureRegisterPage() {
                       <button
                         type="button"
                         role="switch"
+                        data-label={document.public_visible ? 'Tampil' : 'Sembunyi'}
                         aria-checked={document.public_visible}
                         onClick={() => setVisibility([document.id], !document.public_visible)}
                         disabled={visibilityBusy.has(document.id)}
@@ -442,8 +444,8 @@ export function ProcedureRegisterPage() {
                       </button>
                     )}
                     {isLoggedIn && <>
-                      <button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
-                      <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
+                      <button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" data-label="Edit" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
+                      <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" data-label="Hapus" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
                     </>}
                   </div>
                 ))}

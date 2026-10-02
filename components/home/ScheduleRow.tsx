@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Maximize2, X } from 'lucide-react'
+import { FileText, Maximize2 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { ChapterHeader, type ChapterTone } from '@/components/home/ChapterHeader'
 import { ScrollAperture } from '@/components/home/ScrollAperture'
+import { ImageZoomViewer } from '@/components/image-zoom-viewer'
 
 type ScheduleDocument = {
   id: number
@@ -120,17 +121,7 @@ export function ScheduleRow({ label, docs, tone = 'light' }: { label: string; do
         isPdfOpen ? (
           <DocumentViewModal open={Boolean(openDoc)} onClose={() => setOpenDoc(null)} filePath={openDoc.file_path} fileName={openDoc.title ?? label} />
         ) : isImageOpen ? (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/90" onClick={() => setOpenDoc(null)}>
-            <img src={fileUrl(openDoc)} alt={openDoc.title ?? label} className="h-screen w-screen object-contain" onClick={(e) => e.stopPropagation()} />
-            <button
-              type="button"
-              onClick={() => setOpenDoc(null)}
-              aria-label="Tutup"
-              className="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
+          <ImageZoomViewer src={fileUrl(openDoc)} alt={openDoc.title ?? label} onClose={() => setOpenDoc(null)} />
         ) : null
       )}
     </section>

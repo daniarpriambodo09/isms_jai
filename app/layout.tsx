@@ -8,6 +8,7 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ButtonPressEffects } from '@/components/button-press-effects'
 import { ThemeApplier } from '@/components/theme-applier'
 import { Toaster } from '@/components/toast'
+import { AdminWelcome } from '@/components/admin-welcome'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { API_BASE_PATH } from '@/lib/config'
 
@@ -36,12 +37,11 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#eef3f5' },
-    { media: '(prefers-color-scheme: dark)', color: '#182832' },
-  ],
-  userScalable: false,
+  // The portal has one (light) look, set by Kelola Tema — saying so keeps
+  // browsers from darkening inputs and scrollbars on a device in dark mode.
+  colorScheme: 'light',
+  themeColor: '#eef3f5',
+  // Pinch-zoom stays on: policy images and documents need it on phones.
 }
 
 export default function RootLayout({
@@ -58,6 +58,7 @@ export default function RootLayout({
           <ButtonPressEffects />
           <ThemeApplier />
           <Toaster />
+          <AdminWelcome />
         </AuthProvider>
       </body>
     </html>

@@ -6,6 +6,7 @@ import { Camera, Download, FileText, Plus, Search, Settings2, Trash2, X } from '
 import { useAuth } from '@/context/AuthContext'
 import { ControlPanelHero, PaperHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
+import { BlockSkeleton } from '@/components/documents/TableSkeleton'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { FormCsFormModal, type EditableFormCsDocument } from '@/components/documents/FormCsFormModal'
 import { FormCsSpreadsheetTable, type FormCsDocument, type FormCsGroupHeader, type FormCsRow } from '@/components/documents/FormCsSpreadsheetTable'
@@ -185,7 +186,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{documents.length} dokumen terdaftar</p></div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-[680px]:w-full">
           {isLoggedIn && selectedIds.size > 0 && (
             <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
               <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
@@ -211,10 +212,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       {loading ? (
-        <div className="rounded-xl border border-border bg-card p-16 text-center shadow-sm">
-          <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" />
-          <p className="text-sm text-muted-foreground">Memuat dokumen...</p>
-        </div>
+        <BlockSkeleton lines={6} />
       ) : (
         <FormCsSpreadsheetTable
           documents={filteredDocuments}

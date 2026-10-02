@@ -14,7 +14,7 @@ import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
 
 export const dynamic = 'force-dynamic'
 
-type Row = { id: number; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected' }
+type Row = { id: number; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; public_visible: boolean }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -23,14 +23,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     await ensureApprovalSchema()
     const result = await query<Row>(
-      "SELECT id, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status FROM procedure_documents WHERE id = $1",
+      "SELECT id, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status, public_visible FROM procedure_documents WHERE id = $1",
       [id]
     )
     const doc = result.rows[0]
     if (!doc) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
-    // Not final yet (waiting / sent back): admins, or an approver of this
-    // document with the token from their email link — same 404 otherwise.
-    if (doc.approval_status !== 'approved' && doc.approval_status !== 'none' && !getAdminFromRequest(request)) {
+    // Not published (waiting / sent back, or hidden by the admin): admins, or
+    // an approver of this document with the token from their email link —
+    // same 404 otherwise.
+    const published = (doc.approval_status === 'approved' || doc.approval_status === 'none') && doc.public_visible
+    if (!published && !getAdminFromRequest(request)) {
       const token = request.nextUrl.searchParams.get('token') ?? ''
       const allowed = token && (await query('SELECT 1 FROM procedure_approvals WHERE document_id = $1 AND token = $2', [doc.id, token.slice(0, 100)])).rowCount
       if (!allowed) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })

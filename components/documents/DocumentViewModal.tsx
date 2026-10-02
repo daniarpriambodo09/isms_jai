@@ -53,8 +53,10 @@ export function DocumentViewModal({
   const isCompact = kind === 'video' || kind === 'other'
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4">
-      <div role="dialog" aria-modal="true" aria-label={fileName} className={`flex w-full flex-col rounded-2xl bg-white shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)] ${isCompact ? 'max-w-[960px]' : 'h-[85vh] max-w-[900px]'}`}>
+    // Opens with a fade + rise (.modal-backdrop / .modal-card in globals.css);
+    // a click on the dimmed area closes it, like Escape.
+    <div className="modal-backdrop fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_50%,_transparent)] p-4 max-[680px]:p-2" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={fileName} onClick={(event) => event.stopPropagation()} className={`modal-card flex w-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_20px_50px_color-mix(in_oklch,_var(--p-950)_25%,_transparent)] ${isCompact ? 'max-w-[960px]' : 'h-[85vh] max-w-[900px] max-[680px]:h-[92dvh]'}`}>
         <div className="flex items-center justify-between border-b border-[color:var(--p-border)] px-5 py-4">
           <div className="flex min-w-0 items-center gap-2">
             <h2 className="truncate text-[14px] font-semibold text-[color:var(--p-800)]">{fileName}</h2>

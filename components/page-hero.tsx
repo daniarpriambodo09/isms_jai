@@ -193,8 +193,8 @@ export function BentoHero({ count, categories, languages, action }: WithAction &
   count: number; categories: { name: string; count: number }[]; languages: string[]
 }) {
   return (
-    <section className="grid grid-cols-1 gap-3 md:grid-cols-4 md:grid-rows-[auto_auto]">
-      <div className="relative overflow-hidden rounded-3xl bg-accent p-7 text-accent-foreground sm:p-9 md:col-span-2 md:row-span-2">
+    <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:grid-rows-[auto_auto]">
+      <div className="relative col-span-2 overflow-hidden rounded-3xl bg-accent p-6 text-accent-foreground sm:p-9 md:row-span-2">
         <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-16 size-64 rounded-full bg-white/20" />
         <p className="font-mono-label text-[10px] font-semibold opacity-75">Education &amp; Training</p>
         <h2 className="relative mt-4 font-display text-[clamp(2.3rem,4.6vw,3.9rem)] font-semibold leading-[0.95]">
@@ -203,25 +203,26 @@ export function BentoHero({ count, categories, languages, action }: WithAction &
         <p className="relative mt-4 max-w-md text-sm leading-6 opacity-80">Materi edukasi keamanan informasi untuk seluruh karyawan — video, slide, dan dokumen dalam beberapa bahasa.</p>
         {action && <div className="relative mt-7">{action}</div>}
       </div>
-      <div className="relative flex flex-col justify-between overflow-hidden rounded-3xl bg-primary p-6 text-primary-foreground">
-        <GraduationCap className="hero-float size-10 text-accent" style={{ ['--r' as string]: '-8deg' }} />
-        <div className="mt-6">
-          <p className="font-display text-5xl font-bold leading-none tabular-nums">{count}</p>
+      <div className="relative flex flex-col justify-between overflow-hidden rounded-3xl bg-primary p-5 text-primary-foreground sm:p-6">
+        <GraduationCap className="hero-float size-8 text-accent sm:size-10" style={{ ['--r' as string]: '-8deg' }} />
+        <div className="mt-4 sm:mt-6">
+          <p className="font-display text-4xl font-bold leading-none tabular-nums sm:text-5xl">{count}</p>
           <p className="mt-1 font-mono-label text-[10px] text-primary-foreground/60">materi tersedia</p>
         </div>
       </div>
-      <div className="flex flex-col justify-between rounded-3xl border border-border bg-card p-6">
+      <div className="flex flex-col justify-between rounded-3xl border border-border bg-card p-5 sm:p-6">
         <Languages className="size-7 text-[color:var(--p-600)]" />
-        <div className="mt-6">
-          <div className="flex flex-wrap gap-1.5">
+        <div className="mt-4 sm:mt-6">
+          <p className="font-display text-4xl font-bold leading-none tabular-nums text-foreground sm:text-5xl">{(languages.length || 3)}</p>
+          <p className="mt-1 font-mono-label text-[10px] text-muted-foreground">bahasa</p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {(languages.length ? languages : ['IDN', 'ENG', 'JPN']).map((lang) => (
               <span key={lang} className="rounded-full border border-border px-2.5 py-1 font-mono text-[11px] font-semibold text-foreground">{lang}</span>
             ))}
           </div>
-          <p className="mt-2 font-mono-label text-[10px] text-muted-foreground">bahasa</p>
         </div>
       </div>
-      <div className="flex flex-col justify-between gap-4 rounded-3xl bg-secondary p-6 text-secondary-foreground md:col-span-2">
+      <div className="col-span-2 flex flex-col justify-between gap-4 rounded-3xl bg-secondary p-5 text-secondary-foreground sm:p-6">
         <div className="flex items-center gap-2 font-mono-label text-[10px] font-semibold"><Layers className="size-4" /> Format materi</div>
         <div className="flex flex-wrap gap-2">
           {categories.length === 0 && <span className="text-sm opacity-70">Belum ada materi.</span>}

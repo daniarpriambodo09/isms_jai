@@ -323,16 +323,16 @@
 @keyframes route-wipe { 0%, 30% { transform: translateY(0); } 100% { transform: translateY(-101%); } }
 @keyframes route-label { 0% { opacity: 0; transform: translateY(18px); } 22% { opacity: 1; transform: none; } 45% { opacity: 1; transform: none; } 70%, 100% { opacity: 0; transform: translateY(-24px); } }
 @keyframes route-line { 0% { transform: scaleX(0); } 40% { transform: scaleX(1); } 100% { transform: scaleX(1); } }
-.route-curtain-front { animation: route-wipe 950ms cubic-bezier(0.76, 0, 0.24, 1) both; }
-.route-curtain-back { animation: route-wipe 1100ms cubic-bezier(0.76, 0, 0.24, 1) both; }
-.route-curtain-label { animation: route-label 950ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.route-curtain-line { animation: route-line 950ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.route-curtain-front { animation: route-wipe 600ms cubic-bezier(0.76, 0, 0.24, 1) both; }
+.route-curtain-back { animation: route-wipe 720ms cubic-bezier(0.76, 0, 0.24, 1) both; }
+.route-curtain-label { animation: route-label 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.route-curtain-line { animation: route-line 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 /* New page content rises in as the curtain lifts. "backwards" (not "both"):
    the wrapper must not keep a transform afterwards, or every position:fixed
    dialog inside the page would be positioned against it instead of the screen. */
 @keyframes route-enter { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
-.route-enter { animation: route-enter 750ms cubic-bezier(0.16, 1, 0.3, 1) 380ms backwards; }
-.route-enter-first { animation: route-enter 600ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.route-enter { animation: route-enter 480ms cubic-bezier(0.16, 1, 0.3, 1) 220ms backwards; }
+.route-enter-first { animation: route-enter 450ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 @media (prefers-reduced-motion: reduce) {
   .route-enter, .route-enter-first { animation: page-fade-in 200ms ease backwards; }
 }
@@ -394,3 +394,63 @@
   :root:not(.light) { color-scheme: dark; }
 }
 
+
+/* ─── Document tables as cards on phones ───
+   A register table (<table class="doc-table">) has too many columns for a
+   phone: below 680px each row becomes a card — title first, then control
+   no. / revision / dates in a line, the approval cell on its own line, and
+   the action buttons at the right with finger-sized targets. Cells are
+   tagged with data-cell (select, title, code, approval, actions). */
+.doc-row { cursor: pointer; }
+.doc-row:active { background: color-mix(in oklch, var(--primary) 10%, transparent); }
+@media (max-width: 680px) {
+  .doc-table { display: block; min-width: 0 !important; }
+  .doc-table thead { display: none; }
+  .doc-table tbody { display: block; }
+  .doc-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 14px 16px; }
+  .doc-table td { display: block; padding: 0 !important; min-width: 0 !important; order: 2; }
+  .doc-table td[colspan] { flex: 1 0 100%; }
+  .doc-table td[colspan].text-center { padding: 24px 0 !important; }
+  .doc-table td[data-cell="select"] { order: 0; align-self: flex-start; padding-top: 10px !important; }
+  .doc-table td[data-cell="title"] { order: 1; flex: 1 1 0; font-size: 15px; }
+  /* Everything after the title starts on a new line. */
+  .doc-table tr::before { content: ''; order: 2; flex: 0 0 100%; height: 0; margin-top: -8px; }
+  .doc-table td[data-cell="code"] { white-space: normal; }
+  /* Columns the desktop table already drops on small screens stay dropped. */
+  .doc-table td[class*=":hidden"] { display: none; }
+  /* Actions end the control-no. line; the approval record gets its own line below. */
+  .doc-table td[data-cell="actions"] { margin-left: auto; }
+  .doc-table td[data-cell="approval"] { order: 3; flex: 1 0 100%; }
+  .doc-table td[data-cell="actions"] :is(button, a) { width: 40px; height: 40px; }
+}
+
+/* ─── Loading skeleton (components/documents/TableSkeleton.tsx) ─── */
+@keyframes skeleton-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, color-mix(in oklch, var(--foreground) 7%, transparent) 25%, color-mix(in oklch, var(--foreground) 14%, transparent) 37%, color-mix(in oklch, var(--foreground) 7%, transparent) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@media (max-width: 680px) {
+  .doc-table tr.skeleton-row td { flex: 1 1 28%; }
+  .doc-table tr.skeleton-row td:first-child { flex-basis: 100%; }
+}
+
+/* ─── Document viewer / dialogs opening ─── */
+@keyframes modal-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-card-in { from { opacity: 0; transform: translateY(18px) scale(0.975); } to { opacity: 1; transform: none; } }
+.modal-backdrop { animation: modal-backdrop-in 180ms ease-out both; }
+.modal-card { animation: modal-card-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ─── Toasts (components/toast.tsx) ─── */
+@keyframes toast-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(8px) scale(0.97); } }
+.toast-item { animation: toast-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.toast-item.toast-leave { animation: toast-out 220ms ease-in both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  .modal-backdrop, .modal-card, .toast-item, .toast-item.toast-leave { animation-duration: 1ms; }
+}

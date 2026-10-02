@@ -2,6 +2,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { Download } from 'lucide-react';
+import { API_BASE_PATH } from '@/lib/config';
+import { PdfPages, loadPageRatios } from '@/components/documents/PdfPages';
 
 interface PDFViewerProps {
   filePath: string;
@@ -12,32 +16,45 @@ interface PDFViewerProps {
 
 /**
  * PDFViewer berbasis Blob URL
- * 
+ *
  * KENAPA BLOB, BUKAN IFRAME LANGSUNG?
  * - <iframe src="/uploads/file.pdf"> → Browser/IDM mendeteksi URL file PDF → auto-download
  * - <iframe src="blob:..."> → Tidak ada URL yang bisa diintersep IDM → PDF tampil inline
  * - Juga berfungsi di halaman tanpa auth cookie (misal /review-page-owner)
  *   karena fetch dilakukan oleh Next.js API route (/api/files/serve) di server side
+ *
+ * Two ways to show it:
+ * - Desktop browsers with a built-in PDF viewer: <object> on the blob (zoom,
+ *   search and print come for free).
+ * - Phones / tablets, or any browser without an inline PDF viewer (Chrome on
+ *   Android shows nothing in <object>): every page drawn with pdf.js, in one
+ *   scrolling column.
  */
 export default function PDFViewer({ filePath, fileName, sourceUrl }: PDFViewerProps) {
   const [blobUrl, setBlobUrl]   = useState<string | null>(null);
+  const [pdf, setPdf]           = useState<PDFDocumentProxy | null>(null);
+  const [ratios, setRatios]     = useState<number[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(false);
   const blobRef                 = useRef<string | null>(null);
+  const scrollRef               = useRef<HTMLDivElement>(null);
+  const pageRefs                = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     let cancelled = false;
+    let loaded: PDFDocumentProxy | null = null;
 
     const loadBlob = async () => {
       try {
         setLoading(true);
         setError(false);
+        setPdf(null);
 
         // Strip leading slash jika ada, karena API serve menambahkan prefix sendiri
         const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
         const encodedPath = encodeURIComponent(cleanPath);
 
-        const res = await fetch(sourceUrl ?? `/isms-jai/api/files/serve?path=${encodedPath}`);
+        const res = await fetch(sourceUrl ?? `${API_BASE_PATH}/api/files/serve?path=${encodedPath}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const blob = await res.blob();
@@ -46,8 +63,19 @@ export default function PDFViewer({ filePath, fileName, sourceUrl }: PDFViewerPr
         // Pastikan type adalah PDF agar browser merender inline, bukan download
         const pdfBlob = new Blob([blob], { type: 'application/pdf' });
         const url = URL.createObjectURL(pdfBlob);
-
         blobRef.current = url;
+
+        // No inline PDF viewer (Android Chrome), or a touch device: draw the pages ourselves.
+        const drawPages = !navigator.pdfViewerEnabled || window.matchMedia('(pointer: coarse)').matches;
+        if (drawPages) {
+          const pdfjs = await import('pdfjs-dist');
+          pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`;
+          loaded = await pdfjs.getDocument({ data: new Uint8Array(await pdfBlob.arrayBuffer()) }).promise;
+          const pageRatios = await loadPageRatios(loaded);
+          if (cancelled) return;
+          setRatios(pageRatios);
+          setPdf(loaded);
+        }
         setBlobUrl(url);
       } catch (err) {
         console.error('PDFViewer: gagal memuat blob', err);
@@ -62,6 +90,7 @@ export default function PDFViewer({ filePath, fileName, sourceUrl }: PDFViewerPr
     // Cleanup: revoke blob URL saat komponen unmount untuk mencegah memory leak
     return () => {
       cancelled = true;
+      loaded?.destroy();
       if (blobRef.current) {
         URL.revokeObjectURL(blobRef.current);
         blobRef.current = null;
@@ -71,9 +100,8 @@ export default function PDFViewer({ filePath, fileName, sourceUrl }: PDFViewerPr
 
   if (loading) {
     return (
-      <div className="w-full flex flex-col items-center justify-center gap-3 py-16 bg-slate-50">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
-        <p className="text-slate-500 text-sm">Memuat dokumen PDF...</p>
+      <div className="flex w-full flex-col items-center gap-4 bg-muted p-6" aria-busy="true" aria-label="Memuat dokumen PDF">
+        <span className="skeleton w-full max-w-[640px] rounded-md" style={{ aspectRatio: '1 / 1.3' }} />
       </div>
     );
   }
@@ -91,6 +119,21 @@ export default function PDFViewer({ filePath, fileName, sourceUrl }: PDFViewerPr
           <p className="text-slate-700 font-medium mb-1">Gagal memuat PDF</p>
           <p className="text-slate-500 text-sm">File tidak dapat ditampilkan di browser</p>
         </div>
+      </div>
+    );
+  }
+
+  if (pdf) {
+    return (
+      <div ref={scrollRef} className="h-full overflow-auto bg-muted px-3 pb-5 pt-3">
+        <PdfPages pdf={pdf} ratios={ratios} scrollRef={scrollRef} pageRefs={pageRefs} renderOverlay={() => null} />
+        <a
+          href={blobUrl}
+          download={fileName.toLowerCase().endsWith('.pdf') ? fileName : `${fileName}.pdf`}
+          className="mx-auto mt-4 flex w-fit items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-sm"
+        >
+          <Download className="size-3.5" /> Download PDF
+        </a>
       </div>
     );
   }

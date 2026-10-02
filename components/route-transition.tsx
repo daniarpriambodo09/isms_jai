@@ -22,7 +22,7 @@ export function RouteCurtain({ pathname, label }: { pathname: string; label: str
     previous.current = pathname
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     setRun({ id: Date.now(), label })
-    const timer = window.setTimeout(() => setRun(null), 1150)
+    const timer = window.setTimeout(() => setRun(null), 760)
     return () => window.clearTimeout(timer)
     // label changes together with pathname; only the route change matters
     // eslint-disable-next-line react-hooks/exhaustive-deps

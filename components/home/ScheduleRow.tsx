@@ -32,6 +32,28 @@ function fileUrl(doc: ScheduleDocument) {
   return `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(doc.file_path)}`
 }
 
+// Natural height, nothing cropped — and never stretched far past the file's
+// own pixels: a small upload shown edge-to-edge on a wide screen turns to
+// mush. Wider screens get the image centred on a soft blurred copy of itself.
+const MAX_UPSCALE = 1.15
+
+function ScheduleImage({ src, alt }: { src: string; alt: string }) {
+  const [naturalWidth, setNaturalWidth] = useState<number | null>(null)
+  return (
+    <span className="relative block overflow-hidden bg-muted">
+      <img src={src} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl" />
+      <img
+        src={src}
+        alt={alt}
+        onLoad={(event) => setNaturalWidth(event.currentTarget.naturalWidth)}
+        ref={(img) => { if (img?.complete && img.naturalWidth && naturalWidth === null) setNaturalWidth(img.naturalWidth) }}
+        className="relative mx-auto block h-auto w-full"
+        style={{ maxWidth: naturalWidth ? Math.round(naturalWidth * MAX_UPSCALE) : undefined }}
+      />
+    </span>
+  )
+}
+
 export function ScheduleRow({ label, docs, tone = 'light' }: { label: string; docs: ScheduleDocument[]; tone?: ChapterTone }) {
   const [openDoc, setOpenDoc] = useState<ScheduleDocument | null>(null)
 
@@ -68,9 +90,7 @@ export function ScheduleRow({ label, docs, tone = 'light' }: { label: string; do
                 onClick={() => setOpenDoc(doc)}
                 className="group relative block w-full overflow-hidden"
               >
-                {/* Full width, natural height — no forced box, so no side letterbox
-                    bars and nothing cropped, whatever the image's own proportions. */}
-                <img src={fileUrl(doc)} alt={doc.title ?? label} className="block h-auto w-full" />
+                <ScheduleImage src={fileUrl(doc)} alt={doc.title ?? label} />
                 <span className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
                   <Maximize2 className="size-4" />
                 </span>

@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Download, Eye, FileText, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
+import { Download, Eye, EyeOff, FileText, Globe, Loader2, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { IndexHero, latestUpload } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
+import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
+import { onRowClick } from '@/lib/row-click'
+import { toast } from '@/components/toast'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
 import { ProcedureApprovalCell, type ApprovalStep } from '@/components/documents/ProcedureApprovalCell'
@@ -25,24 +28,31 @@ type ProcedureDocument = {
   approval_roles: string[]
   note: string | null
   approval_status: 'none' | 'pending' | 'approved' | 'rejected'
+  /** Admin's choice: show this document to visitors once it is final. */
+  public_visible: boolean
   approvals: ApprovalStep[]
   slots_count: number
 }
 
-type StatusFilter = 'all' | 'published' | 'pending' | 'approved' | 'rejected' | 'none'
+type StatusFilter = 'all' | 'published' | 'hidden' | 'pending' | 'approved' | 'rejected' | 'none'
 
 // Admin only — visitors get just the published documents from the API.
-// "published" = what visitors see: fully approved, or needs no approval.
+// "published" = what visitors see: final (fully approved, or needs no
+// approval) and not hidden by the admin. "hidden" = final but switched off.
 const STATUS_FILTERS: { id: StatusFilter; label: string; hint?: string }[] = [
   { id: 'all', label: 'Semua' },
-  { id: 'published', label: 'Tampil ke pengunjung', hint: 'Sudah disahkan semua approver, atau tanpa pengesahan' },
+  { id: 'published', label: 'Tampil ke pengunjung', hint: 'Sudah final dan dipilih admin untuk ditampilkan' },
+  { id: 'hidden', label: 'Disembunyikan', hint: 'Sudah final, tetapi disembunyikan admin dari pengunjung' },
   { id: 'approved', label: 'Disahkan semua' },
   { id: 'pending', label: 'Menunggu' },
   { id: 'rejected', label: 'Perlu Revisi' },
   { id: 'none', label: 'Tanpa pengesahan' },
 ]
 
-const isPublished = (document: { approval_status: string }) => document.approval_status === 'approved' || document.approval_status === 'none'
+// Final = every approver approved it, or it needs no approval.
+const isFinal = (document: { approval_status: string }) => document.approval_status === 'approved' || document.approval_status === 'none'
+const isPublished = (document: { approval_status: string; public_visible: boolean }) => isFinal(document) && document.public_visible
+const isHidden = (document: { approval_status: string; public_visible: boolean }) => isFinal(document) && !document.public_visible
 
 function approvalSummary(document: ProcedureDocument) {
   if (document.approval_roles.length === 0) return '-'
@@ -86,7 +96,6 @@ export function ProcedureRegisterPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [busyId, setBusyId] = useState<number | null>(null)
   const [verifyBase, setVerifyBase] = useState('')
-  const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   // ?q= prefills the search (links in the admin emails and the bell open the
@@ -99,6 +108,8 @@ export function ProcedureRegisterPage() {
   // true = show the generated signed PDF (QRs stamped), false = the uploaded original
   const [viewingSigned, setViewingSigned] = useState(false)
   const hasSignature = (document: ProcedureDocument) => document.approvals.some((step) => step.status === 'approved' && step.verification_code)
+  // Clicking a row: the signed version when there is one, else the uploaded file.
+  const openDocument = (document: ProcedureDocument) => { setViewingSigned(hasSignature(document)); setViewing(document) }
   const [editing, setEditing] = useState<ProcedureDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -107,6 +118,7 @@ export function ProcedureRegisterPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [visibilityBusy, setVisibilityBusy] = useState<Set<number>>(new Set())
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -131,23 +143,24 @@ export function ProcedureRegisterPage() {
   const filteredDocuments = useMemo(() => {
     const keyword = query.trim().toLowerCase()
     return documents.filter((document) =>
-      (statusFilter === 'all' || (statusFilter === 'published' ? isPublished(document) : document.approval_status === statusFilter)) &&
+      (statusFilter === 'all'
+        || (statusFilter === 'published' ? isPublished(document) : statusFilter === 'hidden' ? isHidden(document) : document.approval_status === statusFilter)) &&
       (!keyword || `${document.control_no} ${document.title} ${document.note ?? ''}`.toLowerCase().includes(keyword))
     )
   }, [documents, query, statusFilter])
 
   const statusCounts = useMemo(() => {
-    const counts: Record<StatusFilter, number> = { all: documents.length, published: 0, pending: 0, approved: 0, rejected: 0, none: 0 }
+    const counts: Record<StatusFilter, number> = { all: documents.length, published: 0, hidden: 0, pending: 0, approved: 0, rejected: 0, none: 0 }
     for (const document of documents) {
       counts[document.approval_status] = (counts[document.approval_status] ?? 0) + 1
       if (isPublished(document)) counts.published++
+      if (isHidden(document)) counts.hidden++
     }
     return counts
   }, [documents])
 
   const approvalAction = async (document: ProcedureDocument, mode: 'resend' | 'restart') => {
     setBusyId(document.id)
-    setNotice(null)
     setError(null)
     try {
       const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval/resend`, {
@@ -156,13 +169,35 @@ export function ProcedureRegisterPage() {
         body: JSON.stringify({ documentId: document.id, mode }),
       })
       const data = await response.json().catch(() => ({}))
-      if (response.ok) setNotice(data.message ?? 'Email pengesahan dikirim.')
-      else setError(data.message ?? 'Gagal mengirim email pengesahan.')
+      if (response.ok) toast(data.message ?? 'Email pengesahan dikirim.')
+      else toast(data.message ?? 'Gagal mengirim email pengesahan.', 'error')
       await loadDocuments()
     } catch {
-      setError('Tidak dapat menghubungi server.')
+      toast('Tidak dapat menghubungi server.', 'error')
     } finally {
       setBusyId(null)
+    }
+  }
+
+  // Show / hide documents on the visitors' page (one row's switch, or the selection).
+  const setVisibility = async (ids: number[], publicVisible: boolean) => {
+    if (ids.length === 0) return
+    setVisibilityBusy(new Set(ids))
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/prosedur-isms`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, publicVisible }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.message ?? 'Gagal mengubah tampilan dokumen.')
+      setDocuments((current) => current.map((document) => ids.includes(document.id) ? { ...document, public_visible: publicVisible } : document))
+      const what = ids.length > 1 ? `${ids.length} dokumen` : (documents.find((document) => document.id === ids[0])?.control_no ?? 'Dokumen')
+      toast(`${what} ${publicVisible ? 'ditampilkan ke' : 'disembunyikan dari'} pengunjung.`, publicVisible ? 'success' : 'info')
+    } catch (visibilityError) {
+      toast(visibilityError instanceof Error ? visibilityError.message : 'Gagal mengubah tampilan dokumen.', 'error')
+    } finally {
+      setVisibilityBusy(new Set())
     }
   }
 
@@ -197,8 +232,8 @@ export function ProcedureRegisterPage() {
   const handleExportCsv = () => {
     downloadExcel(
       `prosedur-isms-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Note Dokumen'],
-      filteredDocuments.map((d) => [d.control_no, d.title, d.revision, formatDate(d.elf_date), formatDate(d.uploaded_at), approvalSummary(d), d.note ?? ''])
+      ['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Tampil ke Pengunjung', 'Note Dokumen'],
+      filteredDocuments.map((d) => [d.control_no, d.title, d.revision, formatDate(d.elf_date), formatDate(d.uploaded_at), approvalSummary(d), isPublished(d) ? 'Ya' : isHidden(d) ? 'Tidak (disembunyikan)' : 'Tidak (belum final)', d.note ?? ''])
     )
   }
 
@@ -263,18 +298,23 @@ export function ProcedureRegisterPage() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            Pengunjung hanya melihat dokumen yang <strong className="text-foreground">sudah disahkan semua approver</strong> (atau tanpa pengesahan).
-            Dokumen yang masih menunggu atau perlu revisi hanya terlihat oleh admin dan approver-nya.
+            Pengunjung hanya melihat dokumen yang <strong className="text-foreground">sudah final</strong> (disahkan semua approver, atau tanpa pengesahan)
+            {' '}<strong className="text-foreground">dan Anda pilih untuk ditampilkan</strong> — atur dengan tombol <Globe className="inline size-3.5 text-emerald-700" /> di kolom Aksi, atau centang beberapa dokumen sekaligus.
+            Dokumen yang masih menunggu atau perlu revisi tidak pernah tampil ke pengunjung.
           </p>
         </div>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{documents.length} dokumen terdaftar</p></div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-[680px]:w-full">
           {isLoggedIn && selectedIds.size > 0 && (
             <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
               <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
+              {isIsmsAdmin && <>
+                <button type="button" onClick={() => setVisibility(Array.from(selectedIds), true)} disabled={visibilityBusy.size > 0} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"><Globe className="size-3.5" />Tampilkan ke pengunjung</button>
+                <button type="button" onClick={() => setVisibility(Array.from(selectedIds), false)} disabled={visibilityBusy.size > 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"><EyeOff className="size-3.5" />Sembunyikan</button>
+              </>}
               <button type="button" onClick={() => setBulkDeleteOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90"><Trash2 className="size-3.5" />Hapus Terpilih</button>
               <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
             </div>
@@ -285,33 +325,35 @@ export function ProcedureRegisterPage() {
       </div>
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
-      {notice && <p className="rounded-lg border border-emerald-600/20 bg-emerald-600/10 px-4 py-3 text-sm text-emerald-800">{notice}</p>}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
-        {loading && <tr><td colSpan={8}className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="doc-table w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
+        {loading && <TableSkeletonRows columns={isLoggedIn ? 8 : 7} />}
         {!loading && filteredDocuments.length === 0 && <tr><td colSpan={8}className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{query || statusFilter !== 'all' ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p></td></tr>}
         {groupByTitle(pageItems).map((group, index) => (
-          <tr key={group.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+          <tr key={group.key} onClick={(event) => onRowClick(event, () => openDocument(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
             {isLoggedIn && (
-              <td className="px-4 py-4 align-top">
+              <td data-cell="select" className="px-4 py-4 align-top">
                 <div className="flex flex-col gap-1.5">
                   {group.docs.map((document) => <div key={document.id} className="py-0.5"><input type="checkbox" checked={selectedIds.has(document.id)} onChange={() => toggleSelect(document.id)} aria-label={`Pilih ${document.title}`} className="size-4 rounded border-border" /></div>)}
                 </div>
               </td>
             )}
-            <td className="px-4 py-4 align-top font-semibold text-accent-foreground">
+            <td data-cell="code" className="px-4 py-4 align-top font-semibold text-accent-foreground">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => (
                   <div key={document.id} className="whitespace-nowrap py-0.5">
                     <Highlight text={document.control_no} keyword={query} />
-                    {isLoggedIn && !isPublished(document) && (
+                    {isLoggedIn && !isFinal(document) && (
                       <span title="Belum disahkan semua approver — tidak tampil ke pengunjung" className="ml-2 inline-block rounded-full bg-amber-100 align-middle px-2 py-0.5 text-[10px] font-semibold text-amber-800">Belum tampil publik</span>
+                    )}
+                    {isLoggedIn && isHidden(document) && (
+                      <span title="Sudah final, tetapi disembunyikan admin dari pengunjung" className="ml-2 inline-block rounded-full bg-secondary align-middle px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Disembunyikan</span>
                     )}
                   </div>
                 ))}
               </div>
             </td>
-            <td className="min-w-[240px] px-4 py-4 align-top">
+            <td data-cell="title" className="min-w-[240px] px-4 py-4 align-top">
               <div className="flex items-start gap-3 font-medium text-foreground">
                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span>
                 <div className="min-w-0 pt-1.5">
@@ -339,7 +381,7 @@ export function ProcedureRegisterPage() {
                 {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{formatDate(document.uploaded_at)}</div>)}
               </div>
             </td>
-            <td className="px-4 py-4 align-top">
+            <td data-cell="approval" className="px-4 py-4 align-top">
               <div className="flex flex-col gap-3">
                 {group.docs.map((document) => (
                   <ProcedureApprovalCell
@@ -360,7 +402,7 @@ export function ProcedureRegisterPage() {
                 ))}
               </div>
             </td>
-            <td className="px-4 py-4 align-top">
+            <td data-cell="actions" className="px-4 py-4 align-top">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => (
                   <div key={document.id} className="flex items-center gap-1 py-0.5">
@@ -374,6 +416,30 @@ export function ProcedureRegisterPage() {
                       </>
                     ) : (
                       <button type="button" onClick={() => { setViewingSigned(false); setViewing(document) }} aria-label={`Lihat ${document.title}`} title="Lihat dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"><Eye className="size-4" /></button>
+                    )}
+                    {isIsmsAdmin && (
+                      // Show / hide on the visitors' page. Not final yet → it can't be
+                      // public, but the choice is kept for when it is approved.
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={document.public_visible}
+                        onClick={() => setVisibility([document.id], !document.public_visible)}
+                        disabled={visibilityBusy.has(document.id)}
+                        aria-label={`Tampilkan ${document.title} ke pengunjung`}
+                        title={
+                          !document.public_visible ? 'Disembunyikan dari pengunjung — klik untuk menampilkan'
+                            : isFinal(document) ? 'Tampil ke pengunjung — klik untuk menyembunyikan'
+                              : 'Akan tampil ke pengunjung setelah disahkan semua approver — klik untuk tetap menyembunyikan'
+                        }
+                        className={`grid size-8 place-items-center rounded-md transition disabled:opacity-50 ${
+                          !document.public_visible ? 'text-muted-foreground/60 hover:bg-secondary hover:text-foreground'
+                            : isFinal(document) ? 'bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20'
+                              : 'text-amber-700 hover:bg-amber-100'
+                        }`}
+                      >
+                        {visibilityBusy.has(document.id) ? <Loader2 className="size-4 animate-spin" /> : document.public_visible ? <Globe className="size-4" /> : <EyeOff className="size-4" />}
+                      </button>
                     )}
                     {isLoggedIn && <>
                       <button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>

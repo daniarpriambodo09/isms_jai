@@ -15,13 +15,14 @@ import { getAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 // A procedure is published only once every approver has approved it (or it
-// needs no approval). While it waits or is being revised, only admins and the
-// approvers — with the token from their email link — can open the file.
+// needs no approval) and the admin hasn't hidden it (public_visible). Until
+// then only admins and the approvers — with the token from their email link
+// — can open the file.
 async function isPublishedFile(relativePath: string, approvalToken: string) {
   try {
     const result = await query<{ published: boolean }>(
       `SELECT EXISTS (
-         SELECT 1 FROM procedure_documents WHERE file_path = $1 AND approval_status IN ('approved', 'none')
+         SELECT 1 FROM procedure_documents WHERE file_path = $1 AND approval_status IN ('approved', 'none') AND public_visible
          UNION ALL SELECT 1 FROM procedure_documents d JOIN procedure_approvals a ON a.document_id = d.id
            WHERE d.file_path = $1 AND $2 <> '' AND a.token = $2
          UNION ALL SELECT 1 FROM documents WHERE file_path = $1

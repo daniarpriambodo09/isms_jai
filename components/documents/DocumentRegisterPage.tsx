@@ -7,6 +7,8 @@ import { Download, Eye, FileText, Pencil, Plus, Search, Trash2, X } from 'lucide
 import { useAuth } from '@/context/AuthContext'
 import { FolderHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
+import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
+import { onRowClick } from '@/lib/row-click'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { DocumentFormModal, type EditableDocument } from '@/components/documents/DocumentFormModal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -135,7 +137,7 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
 
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled library</p><p className="mt-1 text-sm text-muted-foreground">{docs.length} dokumen terdaftar</p></div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 max-[680px]:w-full">
           {isLoggedIn && selectedIds.size > 0 && (
             <div className="flex items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 py-2">
               <span className="text-xs font-semibold text-foreground">{selectedIds.size} terpilih</span>
@@ -153,15 +155,15 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-sm">
+        <div className="overflow-x-auto"><table className="doc-table w-full min-w-[560px] text-sm">
           <thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['Tanggal Upload', 'Nama Dokumen', 'Revisi', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[560px]:hidden' : ''}`}>{head}</th>)}</tr></thead>
           <tbody className="divide-y divide-border">
-            {loading && <tr><td colSpan={5} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat dokumen...</p></td></tr>}
+            {loading && <TableSkeletonRows columns={isLoggedIn ? 5 : 4} />}
             {!loading && filteredDocs.length === 0 && <tr><td colSpan={5} className="px-5 py-16 text-center"><FileText className="mx-auto mb-3 size-9 text-muted-foreground/40" /><p className="font-medium text-muted-foreground">{hasFilter ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>{hasFilter && <button onClick={() => setQuery('')} className="mt-2 text-xs font-semibold text-primary hover:underline">Hapus pencarian</button>}</td></tr>}
             {groupByTitle(pageItems).map((group, index) => (
-              <tr key={group.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+              <tr key={group.key} onClick={(event) => onRowClick(event, () => setViewing(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
                 {isLoggedIn && (
-                  <td className="px-5 py-4 align-top">
+                  <td data-cell="select" className="px-5 py-4 align-top">
                     <div className="flex flex-col gap-1.5">
                       {group.docs.map((doc) => <div key={doc.id} className="py-0.5"><input type="checkbox" checked={selectedIds.has(doc.id)} onChange={() => toggleSelect(doc.id)} aria-label={`Pilih ${doc.title}`} className="size-4 rounded border-border" /></div>)}
                     </div>
@@ -172,7 +174,7 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
                     {group.docs.map((doc) => <div key={doc.id} className="whitespace-nowrap py-0.5">{formatDate(doc.uploaded_at)}</div>)}
                   </div>
                 </td>
-                <td className="min-w-[260px] px-5 py-4 align-top">
+                <td data-cell="title" className="min-w-[260px] px-5 py-4 align-top">
                   <div className="flex items-center gap-3 font-medium text-foreground">
                     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent/20 text-accent-foreground"><FileText className="size-4" /></span>
                     <Highlight text={group.title} keyword={query} />
@@ -183,7 +185,7 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
                     {group.docs.map((doc) => <div key={doc.id} className="py-0.5"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">{doc.revision?.trim() ? doc.revision : '—'}</span></div>)}
                   </div>
                 </td>
-                <td className="px-5 py-4 align-top">
+                <td data-cell="actions" className="px-5 py-4 align-top">
                   <div className="flex flex-col gap-1.5">
                     {group.docs.map((doc) => (
                       <div key={doc.id} className="flex items-center gap-1 py-0.5">

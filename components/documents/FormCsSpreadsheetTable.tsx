@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { onRowClick } from '@/lib/row-click'
 import { Eye, FileSpreadsheet, Pencil, Trash2, ShieldCheck, UserPlus } from 'lucide-react'
 
 export type FormCsDocument = {
@@ -105,7 +106,7 @@ function GroupHeaderRow({ header, colSpanOffset = 0 }: { header: FormCsGroupHead
     <tr>
       <td colSpan={6 + colSpanOffset} className="bg-secondary/50 p-3 align-top">
         <div className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary">{header.label}</div>
-        <div className="grid grid-cols-12 gap-1">
+        <div className="grid grid-cols-12 gap-1 max-[680px]:grid-cols-6">
           {MONTH_BADGES.map((badge) => (
             <MonthBadgeLink key={badge.label} label={badge.label} monthIndex={badge.monthIndex} year={badge.year} />
           ))}
@@ -185,7 +186,75 @@ export function FormCsSpreadsheetTable({
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      <div className="overflow-x-auto">
+      {/* Phones: the spreadsheet has too many columns, and a control no. can hold
+          several titles each with its own language files — so each control no.
+          becomes a card, each title a block with its files as tap targets. */}
+      <div className="hidden divide-y divide-border max-[680px]:block">
+        {groupHeaders.map((header) => (
+          <div key={header.id} className="bg-secondary/50 p-3">
+            <div className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary">{header.label}</div>
+            <div className="grid grid-cols-6 gap-1">
+              {MONTH_BADGES.map((badge) => (
+                <MonthBadgeLink key={badge.label} label={badge.label} monthIndex={badge.monthIndex} year={badge.year} />
+              ))}
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && groupHeaders.length === 0 && (
+          <div className="px-5 py-12 text-center">
+            <FileSpreadsheet className="mx-auto mb-3 size-9 text-muted-foreground/40" />
+            <p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>
+          </div>
+        )}
+        {rows.map((row, index) => (
+          <div key={row.key} className={`px-4 py-3.5 ${index % 2 ? 'bg-secondary/20' : ''}`}>
+            <div className="flex items-center gap-2.5">
+              {showSelection && (
+                <input
+                  type="checkbox"
+                  checked={row.files.every((f) => selectedIds!.has(f.id))}
+                  onChange={() => onToggleRow!(row)}
+                  aria-label={`Pilih ${row.controlNo}`}
+                  className="size-4 rounded border-border"
+                />
+              )}
+              <span className="font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></span>
+            </div>
+            <div className="mt-2 flex flex-col gap-3">
+              {groupFilesByTitle(row.files).map((group) => (
+                <div key={group.key}>
+                  <p className="text-[15px] font-medium leading-snug text-foreground"><TitleCell title={group.title} emphasisFrom={group.emphasisFrom} keyword={query} /></p>
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    {group.files.map((file) => (
+                      <div key={file.id} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onView(file)}
+                          aria-label={`Lihat ${file.title} (${file.language})`}
+                          className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3 text-left transition active:bg-secondary"
+                        >
+                          <span className="text-[11px] font-bold text-foreground">{file.language}</span>
+                          <FileChip kind={file.file_kind} variant={file.file_variant} />
+                          {file.keterangan_note && <span className="min-w-0 truncate text-[11px] italic text-destructive">{file.keterangan_note}</span>}
+                          <Eye className="ml-auto size-4 flex-none text-muted-foreground" />
+                        </button>
+                        {isLoggedIn && (
+                          <>
+                            <button type="button" onClick={() => onEdit(file)} aria-label={`Edit ${file.title} (${file.language})`} className="grid size-10 flex-none place-items-center rounded-md text-muted-foreground active:bg-secondary"><Pencil className="size-4" /></button>
+                            <button type="button" onClick={() => onDelete(file)} aria-label={`Hapus ${file.title} (${file.language})`} className="grid size-10 flex-none place-items-center rounded-md text-muted-foreground active:bg-destructive/10 active:text-destructive"><Trash2 className="size-4" /></button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto max-[680px]:hidden">
         <table className="w-full min-w-[960px] text-sm">
           <thead className="table-head-gradient">
             <tr>
@@ -214,9 +283,9 @@ export function FormCsSpreadsheetTable({
             {rows.map((row, index) => {
               const titleGroups = groupFilesByTitle(row.files)
               return (
-              <tr key={row.key} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+              <tr key={row.key} onClick={(event) => onRowClick(event, () => onView(row.files[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
                 {showSelection && (
-                  <td className="px-4 py-3 align-top">
+                  <td data-cell="select" className="px-4 py-3 align-top">
                     <input
                       type="checkbox"
                       checked={row.files.every((f) => selectedIds!.has(f.id))}
@@ -226,7 +295,7 @@ export function FormCsSpreadsheetTable({
                     />
                   </td>
                 )}
-                <td className="px-4 py-3 align-top font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></td>
+                <td data-cell="code" className="px-4 py-3 align-top font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></td>
                 {/* Nama Dokumen / Lang / File / Aksi are rendered one line per title
                     group (files sharing an identical title, grouped by groupFilesByTitle)
                     rather than one line per file — so when several files under a Ctrl No
@@ -234,7 +303,7 @@ export function FormCsSpreadsheetTable({
                     versions), the title shows once with all its language variants listed
                     together, instead of repeating the full title once per file. A group
                     with a single file renders exactly as before. */}
-                <td className="min-w-[260px] px-4 py-3 align-top font-medium text-foreground">
+                <td data-cell="title" className="min-w-[260px] px-4 py-3 align-top font-medium text-foreground">
                   <div className="flex flex-col gap-1.5">
                     {titleGroups.map((group) => (
                       <div key={group.key} className="py-0.5"><TitleCell title={group.title} emphasisFrom={group.emphasisFrom} keyword={query} /></div>
@@ -281,7 +350,7 @@ export function FormCsSpreadsheetTable({
                     ))}
                   </div>
                 </td>
-                <td className="px-4 py-3 align-top">
+                <td data-cell="actions" className="px-4 py-3 align-top">
                   <div className="flex flex-col gap-1.5">
                     {titleGroups.map((group) => (
                       <div key={group.key} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-0.5">

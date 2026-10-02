@@ -7,6 +7,7 @@ import { PortalFrame } from '@/components/portal-frame'
 import { AuthProvider } from '@/context/AuthContext'
 import { ButtonPressEffects } from '@/components/button-press-effects'
 import { ThemeApplier } from '@/components/theme-applier'
+import { Toaster } from '@/components/toast'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { API_BASE_PATH } from '@/lib/config'
 
@@ -56,6 +57,7 @@ export default function RootLayout({
           <PortalFrame>{children}</PortalFrame>
           <ButtonPressEffects />
           <ThemeApplier />
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

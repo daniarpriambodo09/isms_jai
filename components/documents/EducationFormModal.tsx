@@ -152,7 +152,7 @@ export function EducationFormModal({
 
           <div className="grid grid-cols-2 gap-3">
             <label className={labelClass}>
-              <span className={labelTextClass}>Kategori</span>
+              <span className={labelTextClass}>Format</span>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -191,7 +191,7 @@ export function EducationFormModal({
               className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-700)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white hover:file:bg-[color:var(--p-600)]"
             />
             <span className="text-[11px] text-[color:var(--p-muted2)]">
-              {isEdit ? 'Kosongkan jika hanya mengubah data dokumen.' : 'Sesuaikan file dengan kategori — PDF, video, PPT, dokumen, dll.'}
+              {isEdit ? 'Kosongkan jika hanya mengubah data dokumen.' : 'Sesuaikan file dengan formatnya — PDF, video, PPT, dokumen, dll.'}
             </span>
           </label>
 

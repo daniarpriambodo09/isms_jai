@@ -7,6 +7,8 @@ import { Download, Eye, FileText, GraduationCap, Pencil, Plus, Search, Trash2, X
 import { useAuth } from '@/context/AuthContext'
 import { BentoHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
+import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
+import { onRowClick } from '@/lib/row-click'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { EducationFormModal, type EditableEducation } from '@/components/documents/EducationFormModal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -228,7 +230,7 @@ export function EducationRegisterPage() {
   const handleExportCsv = () => {
     downloadExcel(
       `education-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['Judul Materi', 'Kategori', 'Bahasa', 'Tanggal Upload'],
+      ['Judul Materi', 'Format', 'Bahasa', 'Tanggal Upload'],
       filtered.map((d) => [d.title, d.category, d.language, formatDate(d.uploaded_at)])
     )
   }
@@ -332,7 +334,7 @@ export function EducationRegisterPage() {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari judul atau kategori..."
+              placeholder="Cari judul atau format..."
               aria-label="Cari dokumen education"
               className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25"
             />
@@ -359,7 +361,7 @@ export function EducationRegisterPage() {
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[780px] text-sm">
+          <table className="doc-table w-full min-w-[780px] text-sm">
             <thead
               style={{ background: 'linear-gradient(135deg, var(--secondary) 0%, color-mix(in oklch, var(--secondary) 60%, var(--card)) 100%)' }}
             >
@@ -369,7 +371,7 @@ export function EducationRegisterPage() {
                     <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" />
                   </th>
                 )}
-                {['Tanggal', 'Judul Materi', 'Kategori', 'Bahasa', 'Aksi'].map((head, i) => (
+                {['Tanggal', 'Judul Materi', 'Format', 'Bahasa', 'Aksi'].map((head, i) => (
                   <th
                     key={head}
                     className={`whitespace-nowrap px-5 py-3.5 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[680px]:hidden' : ''}`}
@@ -380,14 +382,7 @@ export function EducationRegisterPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center">
-                    <div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" />
-                    <p className="text-sm text-muted-foreground">Memuat dokumen...</p>
-                  </td>
-                </tr>
-              )}
+              {loading && <TableSkeletonRows columns={isLoggedIn ? 6 : 5} />}
 
               {!loading && filtered.length === 0 && (
                 <tr>
@@ -417,11 +412,12 @@ export function EducationRegisterPage() {
                 return (
                 <tr
                   key={group.key}
-                  className="transition-colors hover:bg-secondary/30"
+                  onClick={(event) => onRowClick(event, () => handleView(group.docs[0]))}
+                  className="doc-row transition-colors hover:bg-secondary/30"
                   style={{ background: index % 2 === 1 ? 'color-mix(in oklch, var(--secondary) 30%, transparent)' : undefined }}
                 >
                   {isLoggedIn && (
-                    <td className="px-5 py-4 align-top">
+                    <td data-cell="select" className="px-5 py-4 align-top">
                       <input type="checkbox" checked={groupIds.every((id) => selectedIds.has(id))} onChange={() => toggleGroupSelect(groupIds)} aria-label={`Pilih ${group.title}`} className="size-4 rounded border-border" />
                     </td>
                   )}
@@ -433,7 +429,7 @@ export function EducationRegisterPage() {
                   </td>
 
                   {/* Judul — shown once per group, not repeated per file */}
-                  <td className="min-w-[280px] px-5 py-4 align-top">
+                  <td data-cell="title" className="min-w-[280px] px-5 py-4 align-top">
                     <div className="flex items-center gap-3 font-medium text-foreground">
                       <span
                         className="grid size-9 flex-shrink-0 place-items-center rounded-lg"
@@ -448,7 +444,7 @@ export function EducationRegisterPage() {
                     </div>
                   </td>
 
-                  {/* Kategori */}
+                  {/* Format */}
                   <td className="whitespace-nowrap px-5 py-4 align-top">
                     <div className="flex flex-col gap-1.5">
                       {group.docs.map((doc) => (
@@ -483,7 +479,7 @@ export function EducationRegisterPage() {
                   </td>
 
                   {/* Aksi */}
-                  <td className="px-5 py-4 align-top">
+                  <td data-cell="actions" className="px-5 py-4 align-top">
                     <div className="flex flex-col gap-1.5">
                       {group.docs.map((doc) => (
                         <div key={doc.id} className="flex items-center gap-1 py-0.5">

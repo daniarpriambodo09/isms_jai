@@ -16,10 +16,11 @@ type ProcedureRow = {
   approval_roles: string[]
   note: string | null
   approval_status: string
+  public_visible: boolean
 }
 
 // elf_date as plain YYYY-MM-DD text: a DATE sent as a JS Date shifts a day back in UTC.
-const COLUMNS = "id, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status"
+const COLUMNS = "id, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status, public_visible"
 
 function isValidDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -41,15 +42,16 @@ async function withApprovals(rows: ProcedureRow[]) {
   return rows.map((row) => ({ ...row, approvals: steps.get(row.id) ?? [], slots_count: counts.get(row.id) ?? 0 }))
 }
 
-// Visitors see a procedure only once it is final: every approver approved it,
-// or it needs no approval. Waiting / sent-back documents are admin-only.
+// Visitors see a procedure only when it is final — every approver approved
+// it, or it needs no approval — AND the admin has it set to show
+// (public_visible). Waiting / sent-back / hidden documents are admin-only.
 export async function GET(request: NextRequest) {
   try {
     await ensureApprovalSchema()
     const onlyPublished = !getAdminFromRequest(request)
     const result = await query<ProcedureRow>(
       `SELECT ${COLUMNS} FROM procedure_documents
-       ${onlyPublished ? "WHERE approval_status IN ('approved', 'none')" : ''}
+       ${onlyPublished ? "WHERE approval_status IN ('approved', 'none') AND public_visible" : ''}
        ORDER BY control_no ASC, id ASC`
     )
     return NextResponse.json({ documents: await withApprovals(result.rows), verifyBase: await verifyBaseUrl(request.nextUrl.origin) })
@@ -185,6 +187,38 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('[prosedur-isms/PUT]', error)
     return NextResponse.json({ message: 'Gagal memperbarui prosedur ISMS.' }, { status: 500 })
+  }
+}
+
+// ISM Admin: show / hide documents on the visitors' Prosedur ISMS page.
+// Body: { ids: number[], publicVisible: boolean }. Only final documents ever
+// reach visitors, whatever this is set to.
+export async function PATCH(request: NextRequest) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) {
+    return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  }
+
+  try {
+    const body = await request.json().catch(() => ({}))
+    const ids: number[] = Array.isArray(body.ids) ? body.ids.filter((id: unknown) => Number.isInteger(id) && (id as number) > 0).slice(0, 500) : []
+    if (ids.length === 0 || typeof body.publicVisible !== 'boolean') {
+      return NextResponse.json({ message: 'Pilih dokumen dan tentukan tampil / sembunyikan.' }, { status: 400 })
+    }
+
+    const result = await query<{ id: number; control_no: string }>(
+      'UPDATE procedure_documents SET public_visible = $2 WHERE id = ANY($1) AND public_visible <> $2 RETURNING id, control_no',
+      [ids, body.publicVisible]
+    )
+    if (result.rows.length > 0) {
+      const names = result.rows.map((row) => row.control_no).join(', ').slice(0, 300)
+      await logActivity(session, 'update', 'procedure_document', result.rows.length === 1 ? result.rows[0].id : null,
+        `${body.publicVisible ? 'Menampilkan ke pengunjung' : 'Menyembunyikan dari pengunjung'}: ${names}`)
+    }
+    return NextResponse.json({ updated: result.rows.length })
+  } catch (error) {
+    console.error('[prosedur-isms/PATCH]', error)
+    return NextResponse.json({ message: 'Gagal mengubah tampilan dokumen.' }, { status: 500 })
   }
 }
 

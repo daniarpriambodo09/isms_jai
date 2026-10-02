@@ -35,6 +35,12 @@ const FULL_BLEED = 'w-screen ml-[calc(50%-50vw)]'
 const TOP_MIST = 'linear-gradient(180deg, var(--background) 0%, var(--background) 20%, color-mix(in oklch, var(--background) 82%, transparent) 32%, color-mix(in oklch, var(--background) 35%, transparent) 44%, transparent 56%)'
 const BOTTOM_MIST = 'linear-gradient(0deg, color-mix(in oklch, var(--background) 70%, transparent) 0%, transparent 26%)'
 
+// A slide can be uploaded without a headline (some are saved with only an
+// invisible character as their title). Then there is nothing to put on the
+// cream mist, so the video takes the whole frame instead of leaving a blank band.
+const visibleText = (value: string | null | undefined) => (value ?? '').replace(/[\s\u200B-\u200F\u2060\uFEFF]/g, '')
+const hasHeadline = (slide: Slide) => visibleText(slide.title).length > 0 || visibleText(slide.description).length > 0
+
 function slideUrl(slide: Slide) {
   return `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(slide.file_path)}`
 }
@@ -85,6 +91,7 @@ function SlideLayer({
   onVideoEnded?: () => void
 }) {
   const url = slideUrl(slide)
+  const headline = hasHeadline(slide)
   const fadeAnimation = phase === 'in'
     ? `hero-fade-in ${TRANSITION_MS}ms ease-out forwards`
     : `hero-fade-out ${TRANSITION_MS}ms ease-in forwards`
@@ -93,7 +100,7 @@ function SlideLayer({
     <div className="absolute inset-0" style={{ animation: fadeAnimation }} onAnimationEnd={phase === 'out' ? onDone : undefined}>
       {/* The video sits in the lower part of the frame like a landscape; in
           true fullscreen it takes the whole screen. */}
-      <div className={`absolute inset-x-0 bottom-0 overflow-hidden ${isFullscreen ? 'top-0 bg-black' : 'top-[16%] hero-parallax-media'}`}>
+      <div className={`absolute inset-x-0 bottom-0 overflow-hidden ${isFullscreen ? 'top-0 bg-black' : `${headline ? 'top-[16%]' : 'top-0'} hero-parallax-media`}`}>
         <video
           src={url}
           autoPlay
@@ -107,7 +114,7 @@ function SlideLayer({
 
       {!isFullscreen && (
         <>
-          <div className="pointer-events-none absolute inset-0" style={{ background: TOP_MIST }} />
+          {headline && <div className="pointer-events-none absolute inset-0" style={{ background: TOP_MIST }} />}
           <div className="pointer-events-none absolute inset-0" style={{ background: BOTTOM_MIST }} />
         </>
       )}
@@ -115,14 +122,14 @@ function SlideLayer({
       {!isFullscreen && phase === 'in' && (
         <>
           {/* Centered headline on the cream mist */}
-          <div className="hero-parallax-text absolute inset-x-0 top-0 z-10 mx-auto max-w-5xl px-6 pt-[clamp(2.2rem,7vh,4.5rem)] text-center">
+          {headline && <div className="hero-parallax-text absolute inset-x-0 top-0 z-10 mx-auto max-w-5xl px-6 pt-[clamp(2.2rem,7vh,4.5rem)] text-center">
             <TwoToneHeadline text={slide.title} className="text-[clamp(2.6rem,7.4vw,6.6rem)]" />
             {slide.description && (
               <p className="hero-word mx-auto mt-5 max-w-xl text-sm leading-6 text-[color:var(--p-ink2)] sm:text-base" style={{ animationDelay: '520ms' }}>
                 {slide.description}
               </p>
             )}
-          </div>
+          </div>}
 
           {/* Bottom-left info + CTA card */}
           <div className="hero-word absolute bottom-5 left-4 z-20 flex max-w-[calc(100%-8rem)] flex-col items-start gap-3 sm:bottom-9 sm:left-10 sm:max-w-sm" style={{ animationDelay: '700ms' }}>
@@ -240,12 +247,18 @@ export function HeroCarousel() {
     )
   }
 
+  // Height: tall landscape hero with a headline; without one, on phones the
+  // frame follows the video's own 16:9 shape so nothing is cropped away.
+  const frameHeight = hasHeadline(current)
+    ? 'h-[72vh] max-h-[880px] min-h-[520px] sm:h-[86vh] sm:min-h-[560px]'
+    : 'aspect-[16/10] max-h-[880px] sm:aspect-auto sm:h-[86vh] sm:min-h-[560px]'
+
   const glassButton = 'grid size-8 place-items-center rounded-full text-foreground transition-colors hover:bg-foreground/10'
 
   return (
     <section
       ref={sectionRef}
-      className={`relative isolate overflow-hidden bg-background ${isFullscreen ? 'h-screen w-screen' : `h-[72vh] max-h-[880px] min-h-[520px] sm:h-[86vh] sm:min-h-[560px] ${FULL_BLEED}`}`}
+      className={`relative isolate overflow-hidden bg-background ${isFullscreen ? 'h-screen w-screen' : `${frameHeight} ${FULL_BLEED}`}`}
     >
       {outgoing && slides[outgoing.index] && (
         <SlideLayer key={`out-${outgoing.key}`} slide={slides[outgoing.index]} phase="out" loop={loopVideo} muted={muted} isFullscreen={isFullscreen} onDone={() => setOutgoing((current) => (current?.key === outgoing.key ? null : current))} />

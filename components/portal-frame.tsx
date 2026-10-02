@@ -37,6 +37,46 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
   '/kelola-pernyataan-kebijakan': <ClipboardCheck className="size-5" />,
 }
 
+// Page names for the breadcrumb, the big page title and the route curtain —
+// written out so they read the same as the menus instead of echoing the URL
+// ("audits", "ijin foto video"). Anything not listed falls back to the slug.
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Home',
+  '/_not-found': 'Halaman Tidak Ditemukan',
+  '/kebijakan-dasar-ISMS': 'Kebijakan Dasar ISMS',
+  '/prosedur-isms': 'Prosedur ISMS',
+  '/standard-isms-p14': 'Standard Requirement TMMIN',
+  '/working-standard': 'Working Standard',
+  '/education': 'Education & Training',
+  '/form-aplikasi': 'Form Aplikasi',
+  '/kontrol-cs': 'Kontrol CS',
+  '/audits': 'Jadwal Audit',
+  '/news': 'Berita',
+  '/ijin-foto-video': 'Ijin Foto/Video',
+  '/foto-video-internal': 'Ijin Foto/Video Internal',
+  '/foto-video-visitor': 'Ijin Foto/Video Visitor',
+  '/rekap-foto-video': 'Rekap Foto/Video',
+  '/pengesahan': 'Pengesahan Dokumen',
+  '/verifikasi-pengesahan': 'Verifikasi Pengesahan',
+  '/konfirmasi-approval': 'Konfirmasi Persetujuan',
+  '/persetujuan-area-special': 'Persetujuan Area Special',
+  '/verifikasi-area-special': 'Verifikasi Area Special',
+  '/dashboard-admin': 'Dashboard Admin',
+  '/pengaturan': 'Kelola Isi Menu',
+  '/kelola-hero-slides': 'Kelola Hero Slides',
+  '/kelola-jadwal': 'Kelola Jadwal',
+  '/kelola-departemen': 'Kelola Departemen',
+  '/kelola-permintaan-foto-video': 'Permintaan Foto/Video',
+  '/kelola-izin-area-special': 'Izin Area Special',
+  '/kelola-kamera': 'Kelola Kamera',
+  '/kelola-pic-approve': 'PIC Approver',
+  '/kelola-admin': 'Kelola Akun Admin',
+  '/kelola-pengesahan': 'Approver Pengesahan',
+  '/kelola-pernyataan-kebijakan': 'Pernyataan Kebijakan',
+  '/kelola-smtp': 'Pengaturan SMTP',
+  '/kelola-tema': 'Warna Tema',
+}
+
 // Menu pages that render their own themed hero (components/page-hero.tsx);
 // the frame then shows only the breadcrumb row, not a duplicate giant title.
 const OWN_HERO_PREFIXES = [
@@ -71,23 +111,10 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
   const segments = pathname.split('/').filter(Boolean)
   const isSectionPage = segments[0] === 'documents' && segments[1] === 'department' && segments.length === 4
   const pageTitle =
-    pathname === '/'
-      ? 'Home'
-      : pathname === '/_not-found'
-        ? 'Halaman Tidak Ditemukan'
-        : pathname === '/prosedur-isms'
-          ? 'Prosedur ISMS'
-          : pathname === '/standard-isms-p14'
-            ? 'Standard Requirement TMMIN'
-            : pathname === '/working-standard'
-              ? 'Working Standard'
-              : pathname === '/form-aplikasi'
-                ? 'Form Aplikasi'
-                : pathname === '/kontrol-cs'
-                  ? 'Kontrol CS'
-                  : isSectionPage
-                    ? decodeURIComponent(segments.at(-1) ?? '').replaceAll('-', ' ').toUpperCase()
-                    : titleFor(segments.at(-1) ?? 'Home')
+    PAGE_TITLES[pathname]
+      ?? (isSectionPage
+        ? decodeURIComponent(segments.at(-1) ?? '').replaceAll('-', ' ').toUpperCase()
+        : titleFor(segments.at(-1) ?? 'Home'))
 
   const pageIcon = PAGE_ICONS[pathname] ?? <FileText className="size-5" />
 

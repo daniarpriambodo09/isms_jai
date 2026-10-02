@@ -55,8 +55,8 @@ function PhotoVideoFormModal({ onClose }: { onClose: () => void }) {
 // kiosk-level read access to every request (and, via the PDF route's
 // kiosk-gated check, to the resulting Visitor PDF), so the recap here is
 // the exact same Internal/Visitor table as the full /rekap-foto-video page.
-// canSubmit=false hides "Ajukan Izin Foto/Video" (Lobby registers photo
-// guests through "Daftarkan Photography" instead); the recap stays.
+// "Ajukan Izin Foto/Video" opens the request form (Internal / Visitor) right
+// from the kiosk; canSubmit=false would leave only the recap.
 export function PhotoVideoRequestsPanel({ canSubmit = true }: { canSubmit?: boolean }) {
   const [open, setOpen] = useState(false)
   const [formOpen, setFormOpen] = useState(false)

@@ -166,7 +166,8 @@ export function Navbar() {
   const departmentHref = (dept: Department) => `/documents/department/${dept.slug}`
   const sectionHref = (dept: Department, section: Section) => `/documents/department/${dept.slug}/${section.slug}`
 
-  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-2.5 py-2 2xl:px-3.5 text-[13px] font-medium text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
+  // Menu labels are set in capitals; Admin Settings (button and its menu) keeps normal case.
+  const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-2 py-2 2xl:px-3 text-[11px] uppercase tracking-[0.035em] font-semibold text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
   const navLinkActive = 'bg-accent text-white hover:text-white'
   const adminGroups = ADMIN_GROUPS.filter((group) => !group.ismOnly || adminUser?.role === 'ism_admin')
   const isAdminSectionActive = ADMIN_GROUPS.some((group) => group.items.some((item) => item.href === pathname))
@@ -176,8 +177,8 @@ export function Navbar() {
 
   const formCsItems = (
     <>
-      <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">Application Form</Link>
-      <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">CS Control</Link>
+      <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Application Form</Link>
+      <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">CS Control</Link>
     </>
   )
 
@@ -206,7 +207,7 @@ export function Navbar() {
           : null
     const label = key ? (navLabels[key] ?? item.label) : item.label
     return (
-      <Link key={item.href} href={item.href} className={cn('nav-drawer-item block rounded-md px-3 py-2.5 text-sm font-medium text-foreground', pathname === item.href && 'bg-secondary font-semibold text-primary')}>
+      <Link key={item.href} href={item.href} className={cn('nav-drawer-item block rounded-md px-3 py-2.5 text-[13px] font-medium uppercase tracking-[0.04em] text-foreground', pathname === item.href && 'bg-secondary font-semibold text-primary')}>
         {label}
       </Link>
     )
@@ -216,9 +217,9 @@ export function Navbar() {
   const isIsmsStandardActive = ismsStandardRoutes.includes(pathname)
   const ismsStandardItems = (
     <>
-      <Link href="/prosedur-isms" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">{navLabels.prosedur ?? 'ISMS Procedures'}</Link>
-      <Link href="/standard-isms-p14" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">Standard Requirement TMMIN</Link>
-      <Link href="/working-standard" className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">{navLabels.working_standard ?? 'Working Standard'}</Link>
+      <Link href="/prosedur-isms" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">{navLabels.prosedur ?? 'ISMS Procedures'}</Link>
+      <Link href="/standard-isms-p14" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Standard Requirement TMMIN</Link>
+      <Link href="/working-standard" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">{navLabels.working_standard ?? 'Working Standard'}</Link>
     </>
   )
 
@@ -238,16 +239,16 @@ export function Navbar() {
 
   const departmentItems = departments.map((dept) =>
     dept.sections.length === 0 ? (
-      <Link key={dept.id} href={departmentHref(dept)} className="nav-drop-item block rounded-md px-3 py-2.5 text-sm text-foreground">{dept.name}</Link>
+      <Link key={dept.id} href={departmentHref(dept)} className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">{dept.name}</Link>
     ) : (
       <div key={dept.id}>
-        <button type="button" onClick={() => setExpandedDept((value) => value === dept.slug ? null : dept.slug)} className="nav-drop-item flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-sm text-foreground">
+        <button type="button" onClick={() => setExpandedDept((value) => value === dept.slug ? null : dept.slug)} className="nav-drop-item flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-[12.5px] uppercase tracking-[0.04em] text-foreground">
           {dept.name}<ChevronDown className={cn('size-4 transition-transform duration-200', expandedDept === dept.slug && 'rotate-180')} />
         </button>
         {expandedDept === dept.slug && (
           <div className="ml-3 border-l border-border pl-2">
             {dept.sections.map((section) => (
-              <Link key={section.id} href={sectionHref(dept, section)} className="nav-drop-item block rounded-md px-3 py-2 text-xs text-muted-foreground hover:text-foreground">{section.name}</Link>
+              <Link key={section.id} href={sectionHref(dept, section)} className="nav-drop-item block rounded-md px-3 py-2 text-[11.5px] uppercase tracking-[0.04em] text-muted-foreground hover:text-foreground">{section.name}</Link>
             ))}
           </div>
         )}
@@ -412,6 +413,7 @@ export function Navbar() {
                   className={cn(
                     'flex items-center gap-1',
                     navLink,
+                    'text-[13px] font-medium normal-case tracking-normal',
                     isAdminSectionActive && navLinkActive,
                   )}
                 >
@@ -506,7 +508,7 @@ export function Navbar() {
               ) : (
                 <button
                   onClick={() => setLoginOpen(true)}
-                  className="group hidden items-center gap-2 rounded-full py-2 pl-4 pr-2 text-[12.5px] font-semibold text-white transition-transform duration-200 hover:scale-[1.03] sm:flex"
+                  className="group hidden items-center gap-2 rounded-full py-2 pl-4 pr-2 text-[11.5px] font-semibold uppercase tracking-[0.045em] text-white transition-transform duration-200 hover:scale-[1.03] sm:flex"
                   style={{ background: 'linear-gradient(135deg, var(--p-550) 0%, var(--p-500) 100%)', boxShadow: '0 3px 12px color-mix(in oklch, var(--p-550) 40%, transparent)' }}
                 >
                   Admin Login
@@ -587,7 +589,7 @@ export function Navbar() {
             ) : (
               <button
                 onClick={() => { setMobileOpen(false); setLoginOpen(true) }}
-                className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
+                className="w-full rounded-full bg-primary py-3 text-[13px] font-semibold uppercase tracking-[0.04em] text-primary-foreground"
               >
                 Admin Login
               </button>

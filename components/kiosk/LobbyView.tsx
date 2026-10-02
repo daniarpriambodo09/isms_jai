@@ -34,7 +34,10 @@ const WORK_AREA_COLUMN: Record<WorkAreaCardType, 'vendor_card_barcode' | 'specia
 // this generalizes the same "register + hand over the card right now"
 // pattern to Visitor, Vendor, Special Area and Photography too.
 type QuickCardType = 'visitor' | 'vendor' | 'special_area' | 'photography' | 'affiliate'
-const QUICK_CARD_TYPES: QuickCardType[] = ['visitor', 'vendor', 'special_area', 'photography', 'affiliate']
+// "Daftarkan …" buttons. Special Area has none: its entry goes through the
+// "Izin Masuk Area Special Security" card above (Ajukan Izin Area Special),
+// so a second button here would be a duplicate.
+const QUICK_REGISTER_TYPES: QuickCardType[] = ['visitor', 'vendor', 'photography', 'affiliate']
 const QUICK_CARD_LABEL: Record<QuickCardType, string> = {
   visitor: 'Visitor',
   vendor: 'Vendor',
@@ -620,7 +623,7 @@ export function LobbyView() {
 
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography', 'affiliate']} />
-        <PhotoVideoRequestsPanel canSubmit={false} />
+        <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
 
         <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -652,7 +655,7 @@ export function LobbyView() {
             <button type="button" onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
-            {QUICK_CARD_TYPES.map((type) => {
+            {QUICK_REGISTER_TYPES.map((type) => {
               const Icon = QUICK_CARD_ICON[type]
               return (
                 <button

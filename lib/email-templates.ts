@@ -616,6 +616,8 @@ export type ProcedureApprovalEmailData = {
   reviewUrl: string
   /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
   kind?: DocKindLook
+  /** A follow-up of a request the approver hasn't decided on: which reminder, and how long it has waited. */
+  reminder?: { count: number; waitingDays: number } | null
   /** Sent again after a "Minta Revisi": what was asked, by whom; round = 2 for the first re-submission. */
   resubmission?: {
     round: number
@@ -674,7 +676,21 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
 
   // Wording as requested by the ISMS team; the detail rows, the signing
   // chain and the button stay, since the approval itself happens via that link.
-  const body = `${resubmitBanner}
+  // Reminder: an amber note first thing in the mail — same link as before.
+  const rem = data.reminder ?? null
+  const reminderBanner = rem ? `
+    <tr>
+      <td style="padding:20px 32px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ecd9a6;border-left:4px solid #b97400;background:#fdf7e6;border-radius:4px;">
+          <tr><td style="padding:12px 16px;font-family:${SANS};">
+            <p style="margin:0;font-size:11px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#8a5600;">&#9200;&nbsp; Pengingat ke-${rem.count}</p>
+            <p style="margin:5px 0 0;font-size:13.5px;color:${MEMO_INK};line-height:1.6;">Dokumen ini sudah <strong>${rem.waitingDays} hari</strong> menunggu keputusan Bapak/Ibu. Link di email ini sama dengan email sebelumnya &mdash; mohon kesediaannya untuk mereview.</p>
+          </td></tr>
+        </table>
+      </td>
+    </tr>` : ''
+
+  const body = `${reminderBanner}${resubmitBanner}
     <tr>
       <td style="padding:20px 32px 6px;">
         <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Yth. Bapak/Ibu <strong>${escapeHtml(data.approverName)}</strong>,</p>
@@ -700,9 +716,9 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     </tr>`
 
   return {
-    subject: re
+    subject: (rem ? `[Pengingat ke-${rem.count}] ` : '') + (re
       ? `[Pengajuan Ulang ke-${re.round}] Approval ${kind.short} ${data.title} (Rev. ${data.revision}) — setelah revisi`
-      : `Pengajuan Approval ${kind.short} ${data.title}`,
+      : `Pengajuan Approval ${kind.short} ${data.title}`),
     html: documentEmailFrame(kind, {
       kicker: re ? `Pengajuan Ulang ke-${re.round} &middot; ${kind.label}` : `Pengesahan Dokumen &middot; ${kind.label}`,
       heading: re ? `Pengajuan Ulang Approval ${kind.short}` : `Pengajuan Approval ${kind.short}`,
@@ -712,7 +728,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
       revision: data.revision,
       seal: re ? `Pengajuan<br>Ulang<br>ke-${re.round}` : 'Menunggu<br>Pengesahan<br>Anda',
       sealColor: re ? '#1f7a4d' : undefined,
-      preheader: re ? `Pengajuan ulang setelah revisi — link di email sebelumnya sudah tidak berlaku.` : undefined,
+      preheader: rem ? `Sudah ${rem.waitingDays} hari menunggu keputusan Anda.` : re ? `Pengajuan ulang setelah revisi — link di email sebelumnya sudah tidak berlaku.` : undefined,
     }, body),
   }
 }

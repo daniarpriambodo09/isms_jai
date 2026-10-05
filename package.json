@@ -10,6 +10,7 @@
     "migrate:status": "node scripts/migrate.mjs --status",
     "setup:server": "git config core.hooksPath .githooks && node -e \"try{require('fs').chmodSync('.githooks/post-merge',0o755)}catch{}\" && echo Auto-update after git pull: ON",
     "test": "vitest run",
+    "test:db": "node scripts/test-db.mjs",
     "backup": "node scripts/backup.mjs",
     "backup:schedule": "node scripts/backup-schedule.mjs"
   },

@@ -9,8 +9,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
-import { ensureApprovalSchema, sendStepRequest, startApprovalCycle } from '@/lib/procedure-approval'
-import { docKindInfo } from '@/lib/document-kinds'
+import { ensureApprovalSchema, sendStepRequest, startApprovalCycle, missingEmailMessage, rolesWithoutEmail } from '@/lib/procedure-approval'
+import { docKindInfo, isDocKind } from '@/lib/document-kinds'
 
 export async function POST(request: NextRequest) {
   const session = getIsmsAdminFromRequest(request)
@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
 
     if (mode === 'restart') {
       if (!doc.rows[0].approval_roles?.length) return NextResponse.json({ message: 'Dokumen ini tidak memerlukan pengesahan.' }, { status: 400 })
+      const noEmail = missingEmailMessage(await rolesWithoutEmail(doc.rows[0].approval_roles, isDocKind(doc.rows[0].kind) ? doc.rows[0].kind : 'procedure'))
+      if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
       await startApprovalCycle(documentId, doc.rows[0].approval_roles)
       await logActivity(session, 'update', 'procedure_document', documentId, `Memulai ulang pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}"`)
     } else {

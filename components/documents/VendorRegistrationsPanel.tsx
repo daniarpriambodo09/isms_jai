@@ -27,6 +27,7 @@ import {
   CARD_BARCODE_FIELD,
   formatDateTime,
   type Registration,
+  stationOf,
 } from '@/components/kiosk/kiosk-shared'
 
 type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
@@ -89,7 +90,7 @@ function GuestDetailModal({ registration, onClose }: { registration: Registratio
   if (!registration) return null
 
   const barcode = getBarcode(registration)
-  const isSecurity = registration.entry_path === 'security'
+  const isSecurity = stationOf(registration) === 'security'
 
   return (
     <div
@@ -252,7 +253,7 @@ export function VendorRegistrationsPanel({ isLoggedIn = false }: { isLoggedIn?: 
   }, [loadData])
 
   // Split datasets
-  const securityRows = useMemo(() => rows.filter((r) => r.entry_path === 'security'), [rows])
+  const securityRows = useMemo(() => rows.filter((r) => stationOf(r) === 'security'), [rows])
   const lobbyRows = useMemo(() => rows, [rows]) // Admin Lobby handles all registrations/cards
 
   // Available years per view
@@ -332,7 +333,7 @@ export function VendorRegistrationsPanel({ isLoggedIn = false }: { isLoggedIn?: 
         r.full_name,
         r.pic_jai,
         r.company_remark,
-        r.entry_path === 'security' ? 'Pos Security' : 'Lobby',
+        stationOf(r) === 'security' ? 'Pos Security' : 'Lobby',
         lobbyStatusOf(r).label,
         r.current_card_type ? CARD_LABEL[r.current_card_type] : '',
         getBarcode(r) ?? '',
@@ -917,12 +918,12 @@ export function VendorRegistrationsPanel({ isLoggedIn = false }: { isLoggedIn?: 
                           <td className="whitespace-nowrap px-4 py-3 text-xs">
                             <span
                               className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold ${
-                                r.entry_path === 'security'
+                                stationOf(r) === 'security'
                                 ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
                                 : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
                               }`}
                             >
-                              {r.entry_path === 'security' ? 'Security' : 'Lobby'}
+                              {stationOf(r) === 'security' ? 'Security' : 'Lobby'}
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3">

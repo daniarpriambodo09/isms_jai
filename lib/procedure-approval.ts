@@ -194,6 +194,8 @@ export function ensureApprovalSchema() {
           replaced_by varchar(100)
         )`)
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS file_path text')
+      // Reminders to an approver who hasn't decided (db/migrations/0012).
+      await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS reminded_at timestamptz, ADD COLUMN IF NOT EXISTS reminder_count integer NOT NULL DEFAULT 0')
       // Links replaced by a newer one (db/migrations/0009) — see replacedLink().
       await query(`
         CREATE TABLE IF NOT EXISTS procedure_approval_old_tokens (
@@ -357,7 +359,7 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
 
   await query(
     `UPDATE procedure_approvals
-     SET status = 'pending', token = $1, token_issued_at = now(), approver_name = $2, approver_email = $3, role_title = COALESCE($4, role_title), notified_at = NULL, email_error = NULL
+     SET status = 'pending', token = $1, token_issued_at = now(), approver_name = $2, approver_email = $3, role_title = COALESCE($4, role_title), notified_at = NULL, email_error = NULL, reminded_at = NULL, reminder_count = 0
      WHERE id = $5`,
     [token, approverName, approverEmail, role?.title ?? null, stepId]
   )
@@ -370,7 +372,8 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
   return { sent: error === null, error }
 }
 
-async function emailStep(stepId: number, token: string): Promise<string | null> {
+// reminder: this is a follow-up of a request already sent (see sendApprovalReminders).
+async function emailStep(stepId: number, token: string, reminder: { count: number; waitingDays: number } | null = null): Promise<string | null> {
   try {
     const stepResult = await query<ApprovalStep & { approver_email: string | null }>(`SELECT ${STEP_COLUMNS}, approver_email FROM procedure_approvals WHERE id = $1`, [stepId])
     const step = stepResult.rows[0]
@@ -394,6 +397,7 @@ async function emailStep(stepId: number, token: string): Promise<string | null> 
 
     const base = resolveAppBaseUrl(settings.appUrl)
     const { subject, html } = buildProcedureApprovalEmail({
+      reminder,
       resubmission: lastRequest
         ? {
           round: requests.length + 1,
@@ -439,6 +443,60 @@ async function emailStep(stepId: number, token: string): Promise<string | null> 
     console.error('[procedure-approval/emailStep]', error)
     return describeSmtpError(error)
   }
+}
+
+// ─── approver positions that can't be e-mailed ───
+
+// Of these positions, the ones without a usable e-mail address: a request to
+// them could never be delivered, so the document would wait forever.
+export async function rolesWithoutEmail(roleCodes: string[], kind: DocKind): Promise<ApproverRole[]> {
+  if (!roleCodes.length) return []
+  return (await listRoles(kind)).filter((role) => roleCodes.includes(role.code) && !(role.email && isDeliverableEmail(role.email)))
+}
+
+/** The message shown when a document can't be submitted because of them (null when all are fine). */
+export function missingEmailMessage(roles: ApproverRole[]): string | null {
+  if (!roles.length) return null
+  const names = roles.map((role) => `${role.title} (${role.code})`).join(', ')
+  return `Jabatan ${names} belum punya email, jadi permintaan pengesahannya tidak bisa dikirim. Isi emailnya di Admin Settings → Approver Pengesahan, atau lepas centangnya.`
+}
+
+// ─── reminders ───
+
+// An approver who hasn't decided gets a reminder every REMINDER_EVERY_DAYS,
+// at most REMINDER_MAX times, as long as the link still works. The reminder
+// carries the same link and does not extend its validity.
+export const REMINDER_EVERY_DAYS = 3
+export const REMINDER_MAX = 5
+
+type ReminderState = Pick<ApprovalStep, 'status' | 'notified_at' | 'token_issued_at'> & { reminded_at: string | null; reminder_count: number }
+
+export function reminderDue(step: ReminderState, now = Date.now()): boolean {
+  if (step.status !== 'pending' || !step.notified_at) return false // never delivered: an e-mail problem, not a forgetful approver
+  if (linkExpired(step, now) || step.reminder_count >= REMINDER_MAX) return false
+  const last = new Date(step.reminded_at ?? step.notified_at).getTime()
+  return now - last >= REMINDER_EVERY_DAYS * 86_400_000
+}
+
+export async function sendApprovalReminders(now = Date.now()): Promise<{ sent: number; failed: number }> {
+  await ensureApprovalSchema()
+  const rows = (await query<ReminderState & { id: number; token: string | null }>(
+    `SELECT a.id, a.status, a.notified_at, a.token_issued_at, a.reminded_at, a.reminder_count, a.token
+     FROM procedure_approvals a JOIN procedure_documents d ON d.id = a.document_id AND d.revision = a.revision
+     WHERE a.status = 'pending' AND a.token IS NOT NULL AND a.notified_at IS NOT NULL AND a.reminder_count < $1`,
+    [REMINDER_MAX]
+  )).rows
+  let sent = 0
+  let failed = 0
+  for (const row of rows) {
+    if (!row.token || !reminderDue(row, now)) continue
+    const waitingDays = Math.floor((now - new Date(row.notified_at as string).getTime()) / 86_400_000)
+    const error = await emailStep(row.id, row.token, { count: row.reminder_count + 1, waitingDays })
+    if (error) { failed++; continue }
+    await query('UPDATE procedure_approvals SET reminded_at = now(), reminder_count = reminder_count + 1 WHERE id = $1', [row.id])
+    sent++
+  }
+  return { sent, failed }
 }
 
 // ─── decisions (public, token-secured) ───
@@ -1036,8 +1094,8 @@ export async function dismissProcedureNotice(documentId: number) {
 // Documents currently waiting on someone — for the admin monitoring list.
 export async function listPendingSteps() {
   await ensureApprovalSchema()
-  const result = await query<ApprovalStep & { control_no: string; title: string; kind: DocKind; approver_email: string | null }>(
-    `SELECT ${STEP_COLUMNS.split(', ').map((c) => `a.${c}`).join(', ')}, a.approver_email, d.control_no, d.title, d.kind
+  const result = await query<ApprovalStep & { control_no: string; title: string; kind: DocKind; approver_email: string | null; reminded_at: string | null; reminder_count: number }>(
+    `SELECT ${STEP_COLUMNS.split(', ').map((c) => `a.${c}`).join(', ')}, a.approver_email, a.reminded_at, a.reminder_count, d.control_no, d.title, d.kind
      FROM procedure_approvals a JOIN procedure_documents d ON d.id = a.document_id AND d.revision = a.revision
      WHERE a.status = 'pending'
      ORDER BY a.notified_at ASC NULLS FIRST, a.id ASC`

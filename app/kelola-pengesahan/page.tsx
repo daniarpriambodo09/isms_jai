@@ -20,7 +20,7 @@ import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 
 type Role = { code: string; title: string; person_name: string; email: string | null; sort_order: number; is_default: boolean; updated_at: string; updated_by: string | null }
-type PendingStep = { id: number; document_id: number; control_no: string; title: string; role_title: string; approver_name: string | null; approver_email: string | null; notified_at: string | null; email_error: string | null }
+type PendingStep = { id: number; document_id: number; control_no: string; title: string; role_title: string; approver_name: string | null; approver_email: string | null; notified_at: string | null; email_error: string | null; reminded_at?: string | null; reminder_count?: number }
 type Draft = { code: string; title: string; personName: string; email: string; sortOrder: string; isDefault: boolean }
 type KindCounts = Record<DocKind, { roles: number; pending: number }>
 
@@ -361,7 +361,7 @@ export default function KelolaPengesahanPage() {
         </div>
       </SectionCard>
 
-      <SectionCard icon={<ShieldCheck className="size-4" />} title="Sedang menunggu pengesahan" description={`${kindInfo.label} yang saat ini menunggu keputusan seorang approver`}>
+      <SectionCard icon={<ShieldCheck className="size-4" />} title="Sedang menunggu pengesahan" description={`${kindInfo.label} yang saat ini menunggu keputusan seorang approver — pengingat otomatis tiap 3 hari, dikirim pada hari kerja (maks. 5×)`}>
         {pending.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada {kindInfo.noun} yang menunggu pengesahan.</p>
         ) : (
@@ -373,7 +373,7 @@ export default function KelolaPengesahanPage() {
                   <p className="text-xs text-muted-foreground">Menunggu <strong className="text-foreground">{step.approver_name}</strong> · {step.role_title}{step.approver_email ? ` · ${step.approver_email}` : ''}</p>
                   {step.email_error
                     ? <p className="mt-0.5 text-xs text-destructive">{step.email_error}</p>
-                    : step.notified_at && <p className="mt-0.5 text-[11px] text-muted-foreground">Email terkirim {formatDateTime(step.notified_at)}</p>}
+                    : step.notified_at && <p className="mt-0.5 text-[11px] text-muted-foreground">Email terkirim {formatDateTime(step.notified_at)}{step.reminder_count && step.reminded_at ? ` · pengingat ${step.reminder_count}× (terakhir ${formatDateTime(step.reminded_at)})` : ''}</p>}
                 </div>
                 <button type="button" onClick={() => resend(step.document_id)} disabled={resendingDoc === step.document_id} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50">
                   {resendingDoc === step.document_id ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />} Kirim ulang

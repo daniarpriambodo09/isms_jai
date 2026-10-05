@@ -74,6 +74,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/kelola-pengesahan': 'Approver Pengesahan',
   '/kelola-pernyataan-kebijakan': 'Pernyataan Kebijakan',
   '/kelola-smtp': 'Pengaturan SMTP',
+  '/pratinjau-email': 'Pratinjau Email',
   '/kelola-tema': 'Warna Tema',
 }
 
@@ -85,7 +86,7 @@ const OWN_HERO_PREFIXES = [
   // Admin pages open with their own "Admin workspace" header or page heading.
   '/dashboard-admin', '/pengaturan', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-departemen', '/kelola-permintaan-foto-video',
   '/kelola-izin-area-special', '/kelola-kamera', '/kelola-pic-approve', '/kelola-admin', '/kelola-pengesahan',
-  '/kelola-pernyataan-kebijakan', '/kelola-smtp', '/kelola-tema',
+  '/kelola-pernyataan-kebijakan', '/kelola-smtp', '/kelola-tema', '/pratinjau-email',
 ]
 
 // Routes that exist without being listed in PAGE_TITLES (dynamic segments).

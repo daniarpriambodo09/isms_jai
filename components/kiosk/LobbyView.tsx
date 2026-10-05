@@ -13,7 +13,7 @@ import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPa
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, useKioskAutoRefresh, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, formatDateTime, stationOf, inputClass, labelClass, useKioskAutoRefresh, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
 
@@ -77,7 +77,7 @@ function statusOf(r: Registration): { key: string; label: string } {
   return { key: 'visitor', label: 'Kartu Visitor' }
 }
 
-function QuickCardModal({ cardType, onClose, onSaved }: { cardType: QuickCardType; onClose: () => void; onSaved: () => void }) {
+function QuickCardModal({ cardType, station, onClose, onSaved }: { cardType: QuickCardType; station: 'lobby' | 'security'; onClose: () => void; onSaved: () => void }) {
   const [fullName, setFullName] = useState('')
   const [idCard, setIdCard] = useState('')
   const [picJai, setPicJai] = useState('')
@@ -101,7 +101,7 @@ function QuickCardModal({ cardType, onClose, onSaved }: { cardType: QuickCardTyp
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, cardType, barcode }),
+        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, cardType, barcode, station }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
@@ -520,7 +520,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         r.full_name,
         r.pic_jai,
         r.company_remark,
-        r.entry_path === 'security' ? 'Security' : 'Lobby',
+        stationOf(r) === 'security' ? 'Security' : 'Lobby',
         statusOf(r).label,
         r.current_card_type ? (r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '') : '',
         formatDateTime(r.entry_at),
@@ -761,7 +761,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                       <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.entry_path === 'security' ? 'Security' : 'Lobby'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{stationOf(r) === 'security' ? 'Security' : 'Lobby'}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
                         {r.current_card_type && (
@@ -790,7 +790,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         </div>
       </main>
 
-      {quickCardOpen && <QuickCardModal cardType={quickCardOpen} onClose={() => setQuickCardOpen(null)} onSaved={load} />}
+      {quickCardOpen && <QuickCardModal cardType={quickCardOpen} station={station} onClose={() => setQuickCardOpen(null)} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
       <ConfirmDialog
         open={!!pendingDelete}

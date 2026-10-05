@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   APPROVAL_LINK_DAYS, MAX_SLOTS_PER_ROLE, QR_ADJUST_HOURS,
-  canPlaceOwnSlots, isStrike, linkExpired, parseRevisionNotes, STRIKE_DEFAULT_NOTE, parseSlots, qrAdjustableUntil, summarizeRevisionNotes,
+  canPlaceOwnSlots, isStrike, linkExpired, reminderDue, REMINDER_EVERY_DAYS, REMINDER_MAX, parseRevisionNotes, STRIKE_DEFAULT_NOTE, parseSlots, qrAdjustableUntil, summarizeRevisionNotes,
   type TokenView,
 } from './procedure-approval'
 
@@ -118,5 +118,24 @@ describe('approval link expiry & QR lock', () => {
     expect(canPlaceOwnSlots(view({ status: 'approved', decided_at: new Date(NOW - 3_600_000).toISOString() }), NOW)).toBe(true)
     expect(canPlaceOwnSlots(view({ status: 'approved', decided_at: new Date(NOW - 2 * DAY).toISOString() }), NOW)).toBe(false)
     expect(canPlaceOwnSlots(view({ status: 'rejected', decided_at: new Date(NOW - 60_000).toISOString() }), NOW)).toBe(false)
+  })
+})
+
+describe('approver reminders', () => {
+  const at = (daysAgo: number) => new Date(NOW - daysAgo * DAY).toISOString()
+  const step = (over: Partial<Parameters<typeof reminderDue>[0]> = {}) => ({ status: 'pending' as const, notified_at: at(4), token_issued_at: at(4), reminded_at: null, reminder_count: 0, ...over })
+
+  it('is due REMINDER_EVERY_DAYS after the request, then after each reminder', () => {
+    expect(reminderDue(step({ notified_at: at(REMINDER_EVERY_DAYS - 1), token_issued_at: at(REMINDER_EVERY_DAYS - 1) }), NOW)).toBe(false)
+    expect(reminderDue(step(), NOW)).toBe(true)
+    expect(reminderDue(step({ notified_at: at(10), token_issued_at: at(10), reminded_at: at(1), reminder_count: 1 }), NOW)).toBe(false)
+    expect(reminderDue(step({ notified_at: at(10), token_issued_at: at(10), reminded_at: at(REMINDER_EVERY_DAYS), reminder_count: 1 }), NOW)).toBe(true)
+  })
+
+  it('stops for decided steps, undelivered requests, expired links and after REMINDER_MAX', () => {
+    expect(reminderDue(step({ status: 'approved' }), NOW)).toBe(false)
+    expect(reminderDue(step({ notified_at: null }), NOW)).toBe(false)
+    expect(reminderDue(step({ notified_at: at(APPROVAL_LINK_DAYS + 2), token_issued_at: at(APPROVAL_LINK_DAYS + 2) }), NOW)).toBe(false)
+    expect(reminderDue(step({ reminder_count: REMINDER_MAX }), NOW)).toBe(false)
   })
 })

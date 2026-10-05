@@ -46,7 +46,7 @@ type VendorRegistrationRow = {
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
-  registered_at, entry_at, exit_at, created_by, entry_path, stage, current_card_type,
+  registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode`
 
@@ -89,7 +89,10 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
-    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode', string>>
+    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station', string>>
+    // Where the guest is being registered ("Asal"): a kiosk account is its own
+    // post; the ISM Admin works from whichever kiosk page they have open.
+    const station = session.role === 'security' ? 'security' : session.role === 'lobby' ? 'lobby' : body.station === 'security' ? 'security' : 'lobby'
     const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : ''
     const idCard = typeof body.idCard === 'string' ? body.idCard.trim() : ''
     const picJai = typeof body.picJai === 'string' ? body.picJai.trim() : ''
@@ -127,10 +130,10 @@ export async function POST(request: NextRequest) {
       const result = await query<VendorRegistrationRow>(
         `INSERT INTO vendor_registrations
            (full_name, id_card, pic_jai, purpose, company_remark, created_by,
-            entry_path, stage, current_card_type, ${column}, entry_at)
-         VALUES ($1, $2, $3, $4, $5, $6, 'lobby_affiliate', 'active', $7, $8, now())
+            entry_path, stage, current_card_type, ${column}, entry_at, registered_station)
+         VALUES ($1, $2, $3, $4, $5, $6, 'lobby_affiliate', 'active', $7, $8, now(), $9)
          RETURNING ${SELECT_COLUMNS}`,
-        [fullName, idCard || '-', picJai || '-', purpose, companyRemark, session.username, cardType, barcode]
+        [fullName, idCard || '-', picJai || '-', purpose, companyRemark, session.username, cardType, barcode, station]
       )
       await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu ${CARD_LABEL[cardType]} "${result.rows[0].full_name}"`)
       return NextResponse.json({ registration: result.rows[0] }, { status: 201 })
@@ -138,8 +141,8 @@ export async function POST(request: NextRequest) {
 
     // Default path: Security registers, still pending approval (no card yet).
     const result = await query<VendorRegistrationRow>(
-      `INSERT INTO vendor_registrations (full_name, id_card, pic_jai, purpose, company_remark, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO vendor_registrations (full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station)
+       VALUES ($1, $2, $3, $4, $5, $6, 'security')
        RETURNING ${SELECT_COLUMNS}`,
       [fullName, idCard, picJai, purpose, companyRemark, session.username]
     )

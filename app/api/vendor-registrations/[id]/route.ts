@@ -33,7 +33,7 @@ type VendorRegistrationRow = {
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
-  registered_at, entry_at, exit_at, created_by, entry_path, stage, current_card_type,
+  registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode`
 

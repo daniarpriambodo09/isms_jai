@@ -12,6 +12,7 @@ import { SignatureQrButton } from '@/components/documents/SignatureQr'
 import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
 import { RevisionCompareDialog, RevisionHistoryList, openForRequest, type HistoryRequest, type RevisionHistoryData } from '@/components/documents/RevisionHistory'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { RowActionsMenu } from '@/components/documents/RowActionsMenu'
 
 export type ApprovalStep = {
   id: number
@@ -156,39 +157,48 @@ export function ProcedureApprovalCell({
         )
       })}
 
-      {steps.some((step) => step.status === 'approved') && (
-        <a
-          href={`${API_BASE_PATH}/api/prosedur-isms/${documentId}/pdf`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${status === 'approved' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-border text-foreground hover:bg-secondary'}`}
-        >
-          <FileSignature className="size-3" /> PDF bertanda tangan
-        </a>
-      )}
-
-      {isAdmin && (
-        <button
-          type="button"
-          onClick={() => setPlacing(true)}
-          title="Atur di mana QR tiap approver dibubuhkan pada kolom tanda tangan dokumen"
-          className={`mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${slotsCount >= roles.length ? 'border border-emerald-600/30 text-emerald-700 hover:bg-emerald-600/10' : 'border border-amber-500/40 bg-amber-50 text-amber-800 hover:bg-amber-100'}`}
-        >
-          <Crosshair className="size-3" /> Posisi QR {slotsCount}/{roles.length}
-        </button>
-      )}
+      {/* One line of actions: the signed PDF, the next step when a revision was
+          asked, and everything else (QR placement, history, re-send) under "⋯". */}
+      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+        {steps.some((step) => step.status === 'approved') && (
+          <a
+            href={`${API_BASE_PATH}/api/prosedur-isms/${documentId}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${status === 'approved' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-border text-foreground hover:bg-secondary'}`}
+          >
+            <FileSignature className="size-3" /> PDF bertanda tangan
+          </a>
+        )}
+        {isAdmin && status === 'rejected' && (
+          <button
+            type="button"
+            onClick={onRestart}
+            disabled={busy}
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#c2412c] px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-[#a83522] disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="size-3 animate-spin" /> : <Upload className="size-3" />} Unggah perbaikan &amp; ajukan ulang
+          </button>
+        )}
+        {isAdmin && (
+          <RowActionsMenu
+            actions={[
+              {
+                key: 'qr', icon: <Crosshair className="size-3.5" />, label: 'Atur posisi QR', detail: `${slotsCount}/${roles.length}`,
+                attention: slotsCount < roles.length, onSelect: () => setPlacing(true),
+              },
+              ...(historyCount > 0 ? [{
+                key: 'history', icon: <History className="size-3.5" />, label: 'Riwayat revisi', detail: String(historyCount),
+                busy: notesLoading === 'history', disabled: notesLoading !== null, onSelect: () => { void openNotes('history') },
+              }] : []),
+              ...(status === 'pending' ? [{
+                key: 'resend', icon: <Send className="size-3.5" />, label: 'Kirim ulang email', busy, onSelect: onResend,
+              }] : []),
+            ]}
+          />
+        )}
+      </div>
       {placing && <SignatureSlotEditor documentId={documentId} onClose={() => setPlacing(false)} onSaved={onSlotsChanged} />}
-      {isAdmin && historyCount > 0 && (
-        <button
-          type="button"
-          onClick={() => openNotes('history')}
-          disabled={notesLoading !== null}
-          title="File-file sebelumnya dan semua permintaan revisi — bandingkan sebelum & sesudah"
-          className="mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
-        >
-          {notesLoading === 'history' ? <Loader2 className="size-3 animate-spin" /> : <History className="size-3" />} Riwayat revisi ({historyCount})
-        </button>
-      )}
       {notes && notesFor === 'latest' && notes.revisionRequest && (
         <RevisionCompareDialog
           history={notes.history}
@@ -198,18 +208,6 @@ export function ProcedureApprovalCell({
         />
       )}
       {notes && notesFor === 'history' && <HistoryDialog notes={notes} onClose={() => setNotesFor(null)} />}
-
-      {isAdmin && (status === 'pending' || status === 'rejected') && (
-        <button
-          type="button"
-          onClick={status === 'pending' ? onResend : onRestart}
-          disabled={busy}
-          className="mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="size-3 animate-spin" /> : status === 'pending' ? <Send className="size-3" /> : <Upload className="size-3" />}
-          {status === 'pending' ? 'Kirim ulang email' : 'Unggah perbaikan & ajukan ulang'}
-        </button>
-      )}
     </div>
   )
 }

@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Aperture, ArrowUpRight, Building2, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, Images, LayoutList, LogOut, Mail, Menu, Palette, Search, Settings, ShieldAlert, UserCheck, Users, X } from 'lucide-react'
+import { Aperture, ArrowUpRight, Building2, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, Images, LayoutList, LogOut, Mail, MailOpen, Menu, Palette, Search, Settings, ShieldAlert, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -60,6 +60,7 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
     ismOnly: true,
     items: [
       { href: '/kelola-smtp', label: 'SMTP Settings', hint: 'Email notifikasi & App URL', icon: Mail },
+      { href: '/pratinjau-email', label: 'Email Preview', hint: 'Contoh tampilan tiap email', icon: MailOpen },
       { href: '/kelola-tema', label: 'Theme Colors', hint: 'Warna tema portal', icon: Palette },
     ],
   },

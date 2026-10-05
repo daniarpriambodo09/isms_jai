@@ -13,7 +13,7 @@ import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
-import { currentStepsFor, ensureApprovalSchema, historyCounts, normalizeRoleCodes, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
+import { currentStepsFor, ensureApprovalSchema, historyCounts, missingEmailMessage, normalizeRoleCodes, rolesWithoutEmail, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
 import { parseOrderedIds } from '@/lib/ordered-ids'
 
@@ -112,6 +112,9 @@ export function documentHandlers(kind: DocKind) {
 
       const roles = await normalizeRoleCodes(parseRoles(form.get('approvalRoles')), kind)
       const note = parseNote(form.get('note'))
+      // A request to a position without an e-mail could never be delivered.
+      const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind))
+      if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
 
       const filePath = await saveDocumentFile(file)
       let created: DocumentRow
@@ -186,6 +189,12 @@ export function documentHandlers(kind: DocKind) {
       const note = parseNote(form.get('note'))
 
       const replacement = file instanceof File && file.size > 0
+      // Only when this edit (re)starts the approval — a plain correction of
+      // the title or date must not be blocked by an old selection.
+      if (replacement || revision !== before.revision || roles.join(',') !== (before.approval_roles ?? []).join(',')) {
+        const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind))
+        if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
+      }
       const newFilePath = replacement ? await saveDocumentFile(file) : null
       let updated: DocumentRow
       try {

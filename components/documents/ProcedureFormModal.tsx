@@ -86,7 +86,8 @@ export function ProcedureFormModal({
         if (cancelled) return
         const list = data.roles ?? []
         setRoles(list)
-        if (!isEdit) setSelectedRoles(list.filter((role) => role.is_default).map((role) => role.code))
+        // Positions without an e-mail can't be asked, so they never start ticked.
+        if (!isEdit) setSelectedRoles(list.filter((role) => role.is_default && role.email).map((role) => role.code))
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setRolesLoaded(true) })
@@ -162,11 +163,12 @@ export function ProcedureFormModal({
             <legend className="px-1 text-[12px] font-medium text-[color:var(--p-ink2)]">Catatan Pengesahan</legend>
             {roles.length === 0 && <p className="text-[11.5px] text-[color:var(--p-muted2)]">{rolesLoaded ? `Belum ada jabatan pengesahan untuk ${DOC_KIND_INFO[kind].label}.` : 'Memuat daftar jabatan…'}</p>}
             {roles.map((role) => (
-              <label key={role.code} className="flex cursor-pointer items-start gap-2.5 rounded-[7px] px-1.5 py-1 hover:bg-[color:var(--p-surface2)]">
-                <input type="checkbox" checked={selectedRoles.includes(role.code)} onChange={() => toggleRole(role.code)} className="mt-0.5 size-4 accent-[color:var(--p-700)]" />
+              <label key={role.code} title={role.email ? undefined : 'Isi email jabatan ini dulu di Approver Pengesahan'} className={`flex items-start gap-2.5 rounded-[7px] px-1.5 py-1 ${role.email || selectedRoles.includes(role.code) ? 'cursor-pointer hover:bg-[color:var(--p-surface2)]' : 'cursor-not-allowed opacity-60'}`}>
+                {/* no e-mail → can't be chosen (an already-chosen one can still be unticked) */}
+                <input type="checkbox" checked={selectedRoles.includes(role.code)} disabled={!role.email && !selectedRoles.includes(role.code)} onChange={() => toggleRole(role.code)} className="mt-0.5 size-4 accent-[color:var(--p-700)]" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12.5px] font-medium text-[color:var(--p-800)]">{role.title}</span>
-                  <span className="block text-[11.5px] text-[color:var(--p-muted)]">{role.person_name}{!role.email && <span className="ml-1 text-[#b3413a]">· email belum diisi</span>}</span>
+                  <span className="block text-[11.5px] text-[color:var(--p-muted)]">{role.person_name}{!role.email && <span className="ml-1 text-[#b3413a]">· email belum diisi — tidak bisa dipilih</span>}</span>
                 </span>
                 <span className="rounded-full bg-[color:var(--p-surface2)] px-2 py-0.5 font-mono text-[10px] text-[color:var(--p-muted)]">{role.code}</span>
               </label>

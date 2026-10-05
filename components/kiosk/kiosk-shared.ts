@@ -41,6 +41,8 @@ export type Registration = {
   entry_at: string | null
   exit_at: string | null
   entry_path: EntryPath
+  /** The kiosk the guest was registered at (null on rows from before it was recorded). */
+  registered_station?: 'lobby' | 'security' | null
   stage: Stage
   current_card_type: CardType | null
   visitor_card_barcode: string | null
@@ -65,3 +67,10 @@ export function formatDateTime(value: string | null) {
 
 export const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 export const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
+
+// Where a guest was registered — the "Asal" column and the per-post recap.
+// entry_path describes the card flow (both kiosks now issue cards directly),
+// so it only stands in for rows older than registered_station.
+export function stationOf(r: Pick<Registration, 'entry_path' | 'registered_station'>): 'lobby' | 'security' {
+  return r.registered_station ?? (r.entry_path === 'security' ? 'security' : 'lobby')
+}

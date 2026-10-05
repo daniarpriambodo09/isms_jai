@@ -16,6 +16,9 @@ import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
 import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
+import { NO_HEAD_CLASS, OrderCell, moveItem, useDragReorder } from '@/components/documents/RowReorder'
+import { toast } from '@/components/toast'
+import { GripVertical } from 'lucide-react'
 
 type EducationDocument = {
   id: number
@@ -194,6 +197,27 @@ export function EducationRegisterPage() {
     })
   }, [documents, searchQuery, categoryFilter])
 
+  // The list in rows (files sharing a title are one row) — numbered, and
+  // arranged by hand by the admin while no search / category narrows it.
+  const hasFilter = searchQuery.trim() !== '' || categoryFilter !== 'Semua'
+  const allGroups = useMemo(() => groupDocumentsByTitle(documents), [documents])
+  const shownGroups = useMemo(() => groupDocumentsByTitle(filtered), [filtered])
+  const canReorder = isLoggedIn && !hasFilter && allGroups.length > 1
+  const moveGroup = async (fromKey: string, to: number) => {
+    const from = allGroups.findIndex((g) => g.key === fromKey)
+    if (from < 0 || to < 0 || to >= allGroups.length || from === to) return
+    const next = moveItem(allGroups, from, to).flatMap((g) => g.docs)
+    setDocuments(next) // shown at once; saved in the background
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/education`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: next.map((d) => d.id) }) })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? 'Gagal menyimpan urutan dokumen.')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Gagal menyimpan urutan dokumen.', 'error')
+      loadDocuments()
+    }
+  }
+  const dragReorder = useDragReorder((fromKey, toKey) => moveGroup(fromKey, allGroups.findIndex((g) => g.key === toKey)))
+
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   const openEdit = (doc: EducationDocument) => { setEditing(doc); setFormOpen(true) }
   const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filtered, 20)
@@ -230,8 +254,8 @@ export function EducationRegisterPage() {
   const handleExportCsv = () => {
     downloadExcel(
       `education-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['Judul Materi', 'Format', 'Bahasa', 'Tanggal Upload'],
-      filtered.map((d) => [d.title, d.category, d.language, formatDate(d.uploaded_at)])
+      ['No.', 'Judul Materi', 'Format', 'Bahasa', 'Tanggal Upload'],
+      filtered.map((d) => [shownGroups.findIndex((g) => g.key === d.title) + 1, d.title, d.category, d.language, formatDate(d.uploaded_at)])
     )
   }
 
@@ -358,6 +382,15 @@ export function EducationRegisterPage() {
         </p>
       )}
 
+      {isLoggedIn && (
+        <p className="-mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+          <GripVertical className="mt-0.5 size-3.5 flex-none" />
+          {!hasFilter
+            ? <span>Urutan bisa diatur: tarik baris lewat ikon <strong className="text-foreground">⋮⋮</strong> di kolom No., atau pakai panah naik/turun. Dokumen baru masuk di paling bawah.</span>
+            : <span>Kosongkan pencarian/filter untuk mengatur urutan dokumen.</span>}
+        </p>
+      )}
+
       {/* Table */}
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
@@ -371,6 +404,7 @@ export function EducationRegisterPage() {
                     <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" />
                   </th>
                 )}
+                <th className={NO_HEAD_CLASS}>No.</th>
                 {['Tanggal', 'Judul Materi', 'Format', 'Bahasa', 'Aksi'].map((head, i) => (
                   <th
                     key={head}
@@ -382,11 +416,11 @@ export function EducationRegisterPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {loading && <TableSkeletonRows columns={isLoggedIn ? 6 : 5} />}
+              {loading && <TableSkeletonRows columns={isLoggedIn ? 7 : 6} />}
 
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center">
+                  <td colSpan={7} className="px-5 py-16 text-center">
                     <GraduationCap className="mx-auto mb-3 size-10 text-muted-foreground/30" />
                     <p className="font-medium text-muted-foreground">
                       {searchQuery || categoryFilter !== 'Semua'
@@ -409,11 +443,13 @@ export function EducationRegisterPage() {
 
               {groupDocumentsByTitle(pageItems).map((group, index) => {
                 const groupIds = group.docs.map((d) => d.id)
+                const position = shownGroups.findIndex((g) => g.key === group.key)
                 return (
                 <tr
                   key={group.key}
+                  {...(canReorder ? dragReorder.row(group.key) : {})}
                   onClick={(event) => onRowClick(event, () => handleView(group.docs[0]))}
-                  className="doc-row transition-colors hover:bg-secondary/30"
+                  className={`doc-row transition-colors hover:bg-secondary/30 ${dragReorder.rowClass(group.key)}`}
                   style={{ background: index % 2 === 1 ? 'color-mix(in oklch, var(--secondary) 30%, transparent)' : undefined }}
                 >
                   {isLoggedIn && (
@@ -421,6 +457,13 @@ export function EducationRegisterPage() {
                       <input type="checkbox" checked={groupIds.every((id) => selectedIds.has(id))} onChange={() => toggleGroupSelect(groupIds)} aria-label={`Pilih ${group.title}`} className="size-4 rounded border-border" />
                     </td>
                   )}
+                  <td data-cell="no" className="px-4 py-4 align-top">
+                    <OrderCell
+                      number={position + 1}
+                      label={group.title}
+                      reorder={canReorder ? { handleProps: dragReorder.handle(group.key), canUp: position > 0, canDown: position < allGroups.length - 1, onUp: () => moveGroup(group.key, position - 1), onDown: () => moveGroup(group.key, position + 1) } : undefined}
+                    />
+                  </td>
                   {/* Tanggal */}
                   <td className="whitespace-nowrap px-5 py-4 align-top text-xs text-muted-foreground max-[680px]:hidden">
                     <div className="flex flex-col gap-1.5">

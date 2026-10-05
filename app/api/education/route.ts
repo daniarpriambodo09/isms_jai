@@ -5,6 +5,7 @@ import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
+import { parseOrderedIds } from '@/lib/ordered-ids'
 
 type EducationRow = {
   id: number
@@ -21,7 +22,7 @@ export async function GET() {
     const result = await query<EducationRow>(
       `SELECT id, title, category, language, file_path, mime_type, uploaded_at
        FROM education_documents
-       ORDER BY uploaded_at DESC, id DESC`
+       ORDER BY sort_order ASC NULLS LAST, uploaded_at DESC, id DESC`
     )
     return NextResponse.json({ documents: result.rows })
   } catch (error) {
@@ -58,8 +59,8 @@ export async function POST(request: NextRequest) {
 
     const filePath = await saveDocumentFile(file)
     const result = await query<EducationRow>(
-      `INSERT INTO education_documents (title, category, language, file_path, mime_type)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO education_documents (title, category, language, file_path, mime_type, sort_order)
+       VALUES ($1, $2, $3, $4, $5, (SELECT COALESCE(max(sort_order), 0) + 1 FROM education_documents))
        RETURNING id, title, category, language, file_path, mime_type, uploaded_at`,
       [title.trim(), category.trim(), language.trim(), filePath, file.type || 'application/octet-stream']
     )
@@ -157,5 +158,31 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('[education/DELETE]', error)
     return NextResponse.json({ message: 'Gagal menghapus dokumen education.' }, { status: 500 })
+  }
+}
+
+// Admin only — the order of the Education & Training list, set by hand
+// (drag a row, or up / down). Body: { ids: number[] } = the list, top to bottom.
+export async function PATCH(request: NextRequest) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  try {
+    const body = await request.json().catch(() => ({}))
+    const ids = parseOrderedIds(body.ids)
+    if (!ids) return NextResponse.json({ message: 'Urutan dokumen tidak valid.' }, { status: 400 })
+    const total = Number((await query<{ n: string }>('SELECT count(*) AS n FROM education_documents')).rows[0].n)
+    const known = Number((await query<{ n: string }>('SELECT count(*) AS n FROM education_documents WHERE id = ANY($1)', [ids])).rows[0].n)
+    if (known !== ids.length || total !== ids.length) {
+      return NextResponse.json({ message: 'Daftar dokumen sudah berubah — muat ulang halaman lalu coba lagi.' }, { status: 409 })
+    }
+    await query(
+      'UPDATE education_documents d SET sort_order = v.position FROM unnest($1::int[]) WITH ORDINALITY AS v(id, position) WHERE d.id = v.id',
+      [ids]
+    )
+    await logActivity(session, 'update', 'education_document', null, `Mengubah urutan ${ids.length} dokumen Education & Training`)
+    return NextResponse.json({ updated: ids.length })
+  } catch (error) {
+    console.error('[education/PATCH]', error)
+    return NextResponse.json({ message: 'Gagal menyimpan urutan dokumen.' }, { status: 500 })
   }
 }

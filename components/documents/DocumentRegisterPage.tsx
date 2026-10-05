@@ -3,7 +3,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Download, Eye, FileText, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
+import { Download, Eye, FileText, GripVertical, Pencil, Plus, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { FolderHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
@@ -17,6 +17,8 @@ import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
 import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
+import { NO_HEAD_CLASS, OrderCell, moveItem, useDragReorder } from '@/components/documents/RowReorder'
+import { toast } from '@/components/toast'
 
 type ApiDocument = { id: number; title: string; revision: string; file_path: string; uploaded_at: string }
 type SectionInfo = { id: number; name: string; slug: string }
@@ -86,6 +88,26 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
   const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredDocs, 20)
   useEffect(() => { setPage(1) }, [query, setPage])
 
+  // The list in rows (documents sharing a title are one row) — numbered, and
+  // arranged by hand by the admin while no search narrows it.
+  const allGroups = useMemo(() => groupByTitle(docs), [docs])
+  const shownGroups = useMemo(() => groupByTitle(filteredDocs), [filteredDocs])
+  const canReorder = isLoggedIn && !hasFilter && allGroups.length > 1
+  const moveGroup = async (fromKey: string, to: number) => {
+    const from = allGroups.findIndex((g) => g.key === fromKey)
+    if (from < 0 || to < 0 || to >= allGroups.length || from === to) return
+    const next = moveItem(allGroups, from, to).flatMap((g) => g.docs)
+    setDocs(next) // shown at once; saved in the background
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/documents`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: next.map((d) => d.id) }) })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? 'Gagal menyimpan urutan dokumen.')
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Gagal menyimpan urutan dokumen.', 'error')
+      loadDocuments()
+    }
+  }
+  const dragReorder = useDragReorder((fromKey, toKey) => moveGroup(fromKey, allGroups.findIndex((g) => g.key === toKey)))
+
   const confirmDelete = async () => {
     if (!pendingDelete) return
     setDeleting(true)
@@ -122,8 +144,8 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
   const handleExportCsv = () => {
     downloadExcel(
       `dokumen-${department.slug}${section ? `-${section.slug}` : ''}-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['Nama Dokumen', 'Revisi', 'Tanggal Upload'],
-      filteredDocs.map((d) => [d.title, d.revision, formatDate(d.uploaded_at)])
+      ['No.', 'Nama Dokumen', 'Revisi', 'Tanggal Upload'],
+      filteredDocs.map((d) => [shownGroups.findIndex((g) => g.key === d.title) + 1, d.title, d.revision, formatDate(d.uploaded_at)])
     )
   }
 
@@ -155,14 +177,25 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
         </div>
       </div>
 
+      {isLoggedIn && (
+        <p className="-mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+          <GripVertical className="mt-0.5 size-3.5 flex-none" />
+          {!hasFilter
+            ? <span>Urutan bisa diatur: tarik baris lewat ikon <strong className="text-foreground">⋮⋮</strong> di kolom No., atau pakai panah naik/turun. Dokumen baru masuk di paling bawah.</span>
+            : <span>Kosongkan pencarian/filter untuk mengatur urutan dokumen.</span>}
+        </p>
+      )}
+
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto"><table className="doc-table w-full min-w-[560px] text-sm">
-          <thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}{['Tanggal Upload', 'Nama Dokumen', 'Revisi', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[560px]:hidden' : ''}`}>{head}</th>)}</tr></thead>
+          <thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}<th className={NO_HEAD_CLASS}>No.</th>{['Tanggal Upload', 'Nama Dokumen', 'Revisi', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-5 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 0 ? 'max-[560px]:hidden' : ''}`}>{head}</th>)}</tr></thead>
           <tbody className="divide-y divide-border">
-            {loading && <TableSkeletonRows columns={isLoggedIn ? 5 : 4} />}
-            {!loading && filteredDocs.length === 0 && <tr><td colSpan={5} className="px-5 py-16 text-center"><EmptyState filtered={hasFilter} onClear={() => setQuery('')} onAdd={isLoggedIn ? openAdd : undefined} /></td></tr>}
-            {groupByTitle(pageItems).map((group, index) => (
-              <tr key={group.key} onClick={(event) => onRowClick(event, () => setViewing(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+            {loading && <TableSkeletonRows columns={isLoggedIn ? 6 : 5} />}
+            {!loading && filteredDocs.length === 0 && <tr><td colSpan={6} className="px-5 py-16 text-center"><EmptyState filtered={hasFilter} onClear={() => setQuery('')} onAdd={isLoggedIn ? openAdd : undefined} /></td></tr>}
+            {groupByTitle(pageItems).map((group, index) => {
+              const position = shownGroups.findIndex((g) => g.key === group.key)
+              return (
+              <tr key={group.key} {...(canReorder ? dragReorder.row(group.key) : {})} onClick={(event) => onRowClick(event, () => setViewing(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''} ${dragReorder.rowClass(group.key)}`}>
                 {isLoggedIn && (
                   <td data-cell="select" className="px-5 py-4 align-top">
                     <div className="flex flex-col gap-1.5">
@@ -170,6 +203,13 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
                     </div>
                   </td>
                 )}
+                <td data-cell="no" className="px-4 py-4 align-top">
+                  <OrderCell
+                    number={position + 1}
+                    label={group.title}
+                    reorder={canReorder ? { handleProps: dragReorder.handle(group.key), canUp: position > 0, canDown: position < allGroups.length - 1, onUp: () => moveGroup(group.key, position - 1), onDown: () => moveGroup(group.key, position + 1) } : undefined}
+                  />
+                </td>
                 <td className="px-5 py-4 align-top text-muted-foreground max-[560px]:hidden">
                   <div className="flex flex-col gap-1.5">
                     {group.docs.map((doc) => <div key={doc.id} className="whitespace-nowrap py-0.5">{formatDate(doc.uploaded_at)}</div>)}
@@ -200,7 +240,8 @@ export function DocumentRegisterPage({ department, section }: { department: Depa
                   </div>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table></div>
         {!loading && filteredDocs.length > 0 && (

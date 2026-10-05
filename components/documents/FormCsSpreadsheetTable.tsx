@@ -104,7 +104,7 @@ function MonthBadgeLink({ label, monthIndex, year }: { label: string; monthIndex
 function GroupHeaderRow({ header, colSpanOffset = 0 }: { header: FormCsGroupHeader; colSpanOffset?: number }) {
   return (
     <tr>
-      <td colSpan={6 + colSpanOffset} className="bg-secondary/50 p-3 align-top">
+      <td colSpan={7 + colSpanOffset} className="bg-secondary/50 p-3 align-top">
         <div className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-primary">{header.label}</div>
         <div className="grid grid-cols-12 gap-1 max-[680px]:grid-cols-6">
           {MONTH_BADGES.map((badge) => (
@@ -218,6 +218,7 @@ export function FormCsSpreadsheetTable({
                   className="size-4 rounded border-border"
                 />
               )}
+              <span className="grid min-w-6 place-items-center rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
               <span className="font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></span>
             </div>
             <div className="mt-2 flex flex-col gap-3">
@@ -263,7 +264,7 @@ export function FormCsSpreadsheetTable({
                   <input type="checkbox" checked={allSelected} onChange={onToggleAll} aria-label="Pilih semua" className="size-4 rounded border-border" />
                 </th>
               )}
-              {['CTRL No.', 'Nama Dokumen', 'Lang', 'File', 'Keterangan', 'Aksi'].map((head) => (
+              {['No.', 'CTRL No.', 'Nama Dokumen', 'Lang', 'File', 'Keterangan', 'Aksi'].map((head) => (
                 <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
               ))}
             </tr>
@@ -273,7 +274,7 @@ export function FormCsSpreadsheetTable({
 
             {rows.length === 0 && groupHeaders.length === 0 && (
               <tr>
-                <td colSpan={showSelection ? 7 : 6} className="px-5 py-14 text-center">
+                <td colSpan={showSelection ? 8 : 7} className="px-5 py-14 text-center">
                   <FileSpreadsheet className="mx-auto mb-3 size-9 text-muted-foreground/40" />
                   <p className="font-medium text-muted-foreground">{query ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'}</p>
                 </td>
@@ -295,6 +296,7 @@ export function FormCsSpreadsheetTable({
                     />
                   </td>
                 )}
+                <td data-cell="no" className="w-px whitespace-nowrap px-4 py-3 align-top font-mono text-[13px] font-semibold tabular-nums text-muted-foreground">{index + 1}</td>
                 <td data-cell="code" className="px-4 py-3 align-top font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></td>
                 {/* Nama Dokumen / Lang / File / Aksi are rendered one line per title
                     group (files sharing an identical title, grouped by groupFilesByTitle)

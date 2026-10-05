@@ -6,11 +6,12 @@
 // block of the paper register. Admins also get resend / restart actions.
 
 import { useState } from 'react'
-import { Check, Clock, Crosshair, FileSignature, Loader2, MapPin, PencilLine, RotateCcw, Send } from 'lucide-react'
+import { Check, Clock, Crosshair, FileSignature, History, Loader2, MapPin, PencilLine, Send, Upload, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { SignatureQrButton } from '@/components/documents/SignatureQr'
 import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
-import { RevisionNotesDialog, type RevisionPin } from '@/components/documents/RevisionNotes'
+import { RevisionCompareDialog, RevisionHistoryList, openForRequest, type HistoryRequest, type RevisionHistoryData } from '@/components/documents/RevisionHistory'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 export type ApprovalStep = {
   id: number
@@ -28,7 +29,29 @@ export type ApprovalStep = {
 
 type NotesView = {
   document: { control_no: string; title: string; revision: number; file_path: string }
-  revisionRequest: { approverName: string | null; roleTitle: string; revision: number; general: string | null; pins: RevisionPin[] }
+  revisionRequest: HistoryRequest | null
+  history: RevisionHistoryData
+}
+
+// The register's "Riwayat revisi": every file and revision request of one document.
+function HistoryDialog({ notes, onClose }: { notes: NotesView; onClose: () => void }) {
+  useEscapeClose(true, onClose)
+  return (
+    <div className="fixed inset-0 z-[55] grid place-items-center bg-[color-mix(in_oklch,_var(--p-950)_55%,_transparent)] p-4" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label="Riwayat revisi" onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-card shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 font-mono-label text-[10px] text-muted-foreground"><History className="size-3.5" /> Riwayat revisi</p>
+            <h2 className="mt-1 truncate text-base font-semibold text-foreground">{notes.document.control_no} — {notes.document.title}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-8 flex-none place-items-center rounded-full text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-5">
+          <RevisionHistoryList history={notes.history} heading={`${notes.document.control_no} — ${notes.document.title}`} />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function formatDate(value: string) {
@@ -55,6 +78,7 @@ export function ProcedureApprovalCell({
   onResend,
   onRestart,
   slotsCount = 0,
+  historyCount = 0,
   onSlotsChanged,
 }: {
   documentId: number
@@ -68,20 +92,27 @@ export function ProcedureApprovalCell({
   onResend: () => void
   onRestart: () => void
   slotsCount?: number
+  /** Earlier files + revision requests of this document. */
+  historyCount?: number
   onSlotsChanged?: () => void
 }) {
   const [placing, setPlacing] = useState(false)
   const [notes, setNotes] = useState<NotesView | null>(null)
-  const [notesLoading, setNotesLoading] = useState(false)
+  // What is open: the latest request's marks, or the whole history.
+  const [notesFor, setNotesFor] = useState<'latest' | 'history' | null>(null)
+  const [notesLoading, setNotesLoading] = useState<'latest' | 'history' | null>(null)
 
-  const openNotes = async () => {
-    setNotesLoading(true)
+  const openNotes = async (what: 'latest' | 'history') => {
+    setNotesLoading(what)
     try {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-isms/${documentId}/revision-notes`, { cache: 'no-store' })
       const data = await res.json()
-      if (res.ok && data.revisionRequest) setNotes(data)
+      if (res.ok && data.history && (what === 'history' || data.revisionRequest)) {
+        setNotes(data)
+        setNotesFor(what)
+      }
     } finally {
-      setNotesLoading(false)
+      setNotesLoading(null)
     }
   }
   if (roles.length === 0) {
@@ -113,8 +144,8 @@ export function ProcedureApprovalCell({
                 <div className="mt-1 rounded-md border-l-2 border-[#c2412c] bg-[#fdf6f3] px-2 py-1">
                   <p className="line-clamp-4 whitespace-pre-line text-[11px] leading-snug text-[#8a2d1d]">{step.decision_note}</p>
                   {isAdmin && (
-                    <button type="button" onClick={openNotes} disabled={notesLoading} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#a83522] hover:underline disabled:opacity-50">
-                      {notesLoading ? <Loader2 className="size-3 animate-spin" /> : <MapPin className="size-3" />} Lihat catatan di dokumen
+                    <button type="button" onClick={() => openNotes('latest')} disabled={notesLoading !== null} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#a83522] hover:underline disabled:opacity-50">
+                      {notesLoading === 'latest' ? <Loader2 className="size-3 animate-spin" /> : <MapPin className="size-3" />} Lihat catatan di dokumen
                     </button>
                   )}
                 </div>
@@ -147,18 +178,26 @@ export function ProcedureApprovalCell({
         </button>
       )}
       {placing && <SignatureSlotEditor documentId={documentId} onClose={() => setPlacing(false)} onSaved={onSlotsChanged} />}
-      {notes && (
-        <RevisionNotesDialog
-          mode="view"
-          filePath={notes.document.file_path}
+      {isAdmin && historyCount > 0 && (
+        <button
+          type="button"
+          onClick={() => openNotes('history')}
+          disabled={notesLoading !== null}
+          title="File-file sebelumnya dan semua permintaan revisi — bandingkan sebelum & sesudah"
+          className="mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
+        >
+          {notesLoading === 'history' ? <Loader2 className="size-3 animate-spin" /> : <History className="size-3" />} Riwayat revisi ({historyCount})
+        </button>
+      )}
+      {notes && notesFor === 'latest' && notes.revisionRequest && (
+        <RevisionCompareDialog
+          history={notes.history}
+          open={openForRequest(notes.history, notes.revisionRequest)}
           heading={`${notes.document.control_no} — ${notes.document.title}`}
-          subheading={`Catatan dari ${notes.revisionRequest.approverName ?? '-'} (${notes.revisionRequest.roleTitle}) · Rev. ${notes.revisionRequest.revision}`}
-          hint="Perbaiki bagian yang dicoret atau ditandai, lalu Edit dokumen dan unggah file perbaikannya — pengesahan dimulai ulang dan approver melihat catatan ini di samping dokumen baru."
-          initialGeneral={notes.revisionRequest.general}
-          initialPins={notes.revisionRequest.pins}
-          onClose={() => setNotes(null)}
+          onClose={() => setNotesFor(null)}
         />
       )}
+      {notes && notesFor === 'history' && <HistoryDialog notes={notes} onClose={() => setNotesFor(null)} />}
 
       {isAdmin && (status === 'pending' || status === 'rejected') && (
         <button
@@ -167,8 +206,8 @@ export function ProcedureApprovalCell({
           disabled={busy}
           className="mt-0.5 inline-flex w-fit items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
         >
-          {busy ? <Loader2 className="size-3 animate-spin" /> : status === 'pending' ? <Send className="size-3" /> : <RotateCcw className="size-3" />}
-          {status === 'pending' ? 'Kirim ulang email' : 'Ajukan ulang'}
+          {busy ? <Loader2 className="size-3 animate-spin" /> : status === 'pending' ? <Send className="size-3" /> : <Upload className="size-3" />}
+          {status === 'pending' ? 'Kirim ulang email' : 'Unggah perbaikan & ajukan ulang'}
         </button>
       )}
     </div>

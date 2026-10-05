@@ -47,7 +47,8 @@ export async function GET(request: NextRequest) {
         // Only published procedures — waiting, sent-back or admin-hidden ones aren't public.
         "SELECT control_no, title, revision, file_path FROM procedure_documents WHERE kind = 'procedure' AND approval_status IN ('approved', 'none') AND public_visible AND (control_no ILIKE $1 OR title ILIKE $1) ORDER BY control_no LIMIT 8"),
       run<{ control_no: string; title: string; revision: number; file_path: string }>(
-        "SELECT control_no, title, revision, file_path FROM standard_isms_p14_documents WHERE control_no ILIKE $1 OR title ILIKE $1 ORDER BY control_no LIMIT 8"),
+        // TMMIN standards share the procedures' table and publishing rule too.
+        "SELECT control_no, title, revision, file_path FROM procedure_documents WHERE kind = 'tmmin_standard' AND approval_status IN ('approved', 'none') AND public_visible AND (control_no ILIKE $1 OR title ILIKE $1) ORDER BY control_no LIMIT 8"),
       run<{ control_no: string; title: string; revision: number; file_path: string }>(
         // Working standards share the procedures' table and publishing rule.
         "SELECT control_no, title, revision, file_path FROM procedure_documents WHERE kind = 'working_standard' AND approval_status IN ('approved', 'none') AND public_visible AND (control_no ILIKE $1 OR title ILIKE $1) ORDER BY control_no LIMIT 8"),

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const published = (doc.approval_status === 'approved' || doc.approval_status === 'none') && doc.public_visible
     if (!published && !getAdminFromRequest(request)) {
       const token = request.nextUrl.searchParams.get('token') ?? ''
-      const allowed = token && (await query('SELECT 1 FROM procedure_approvals WHERE document_id = $1 AND token = $2', [doc.id, token.slice(0, 100)])).rowCount
+      const allowed = token && (await query("SELECT 1 FROM procedure_approvals WHERE document_id = $1 AND token = $2 AND status <> 'cancelled'", [doc.id, token.slice(0, 100)])).rowCount
       if (!allowed) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
     }
 

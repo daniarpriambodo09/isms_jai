@@ -17,8 +17,11 @@
 //
 // Positions are fractions (0–1) of the page as displayed, top-left origin,
 // like the QR placement editor. A strike runs from (x, y) to (x2, y2).
+//
+// view + compare: the file the marks were made on and a later file side by
+// side (one at a time on a phone), scrolling together — to see what changed.
 
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ChevronLeft, ChevronRight, Hand, Loader2, MapPin, MessageSquareText, Send, Strikethrough, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
@@ -43,6 +46,78 @@ let keySeq = 0
 const newKey = () => `pin-${Date.now().toString(36)}-${(keySeq++).toString(36)}`
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1)
 
+async function loadPdf(filePath: string, token?: string) {
+  const pdfjs = await import('pdfjs-dist')
+  pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`
+  const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
+  if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')
+  const loaded = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
+  return { pdf: loaded, ratios: await loadPageRatios(loaded) }
+}
+
+// Label strip on top of each side of a comparison.
+function PaneLabel({ tone, children }: { tone: 'before' | 'after'; children: React.ReactNode }) {
+  return (
+    <p className={`flex-none truncate border-b px-3 py-1.5 text-[11px] font-semibold ${tone === 'before' ? 'border-[#c2412c]/25 bg-[#fdf0ec] text-[#a83522]' : 'border-emerald-600/25 bg-emerald-50 text-emerald-800'}`}>
+      {children}
+    </p>
+  )
+}
+
+// The later file of a comparison, plain; its scroll follows `partner` (and
+// leads it) in proportion, so both sides show the same part of the document.
+function ComparePane({ filePath, token, zoom, partner, label }: { filePath: string; token?: string; zoom: number; partner: RefObject<HTMLDivElement | null>; label: string }) {
+  const [doc, setDoc] = useState<{ pdf: PDFDocumentProxy; ratios: number[] } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    loadPdf(filePath, token).then((d) => { if (!cancelled) setDoc(d) }).catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Gagal memuat dokumen.') })
+    return () => { cancelled = true }
+  }, [filePath, token])
+
+  useEffect(() => {
+    const a = partner.current
+    const b = scrollRef.current
+    if (!a || !b || !doc) return
+    // Whichever side the reader scrolls leads; the echo it causes is ignored.
+    let leader: HTMLElement | null = null
+    let release = 0
+    const follow = (from: HTMLElement, to: HTMLElement) => () => {
+      if (leader && leader !== from) return
+      leader = from
+      window.clearTimeout(release)
+      release = window.setTimeout(() => { leader = null }, 120)
+      const ratioY = from.scrollTop / Math.max(from.scrollHeight - from.clientHeight, 1)
+      const ratioX = from.scrollLeft / Math.max(from.scrollWidth - from.clientWidth, 1)
+      to.scrollTop = ratioY * (to.scrollHeight - to.clientHeight)
+      to.scrollLeft = ratioX * (to.scrollWidth - to.clientWidth)
+    }
+    const fromA = follow(a, b)
+    const fromB = follow(b, a)
+    a.addEventListener('scroll', fromA, { passive: true })
+    b.addEventListener('scroll', fromB, { passive: true })
+    return () => { a.removeEventListener('scroll', fromA); b.removeEventListener('scroll', fromB); window.clearTimeout(release) }
+  }, [partner, doc])
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <PaneLabel tone="after">{label}</PaneLabel>
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+        {error ? (
+          <p className="mx-auto mt-10 max-w-md rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-center text-sm text-destructive">{error}</p>
+        ) : !doc ? (
+          <div className="grid h-full place-items-center text-muted-foreground"><Loader2 className="size-7 animate-spin" /></div>
+        ) : (
+          <PdfPages pdf={doc.pdf} ratios={doc.ratios} scrollRef={scrollRef} pageRefs={pageRefs} zoom={zoom} renderOverlay={() => null} />
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function RevisionNotesDialog({
   mode,
   filePath,
@@ -52,6 +127,8 @@ export function RevisionNotesDialog({
   hint,
   initialGeneral = null,
   initialPins = [],
+  baseLabel,
+  compare,
   onClose,
   onSubmit,
 }: {
@@ -64,11 +141,18 @@ export function RevisionNotesDialog({
   hint?: string
   initialGeneral?: string | null
   initialPins?: RevisionPin[]
+  /** view + compare: label over the file the marks were made on. */
+  baseLabel?: string
+  /** view only: a later file shown beside it, scrolling together. */
+  compare?: { filePath: string; label: string }
   onClose: () => void
   /** edit mode: sends the notes; resolve with an error message to keep the dialog open. */
   onSubmit?: (general: string, pins: RevisionPin[]) => Promise<string | null>
 }) {
   const editing = mode === 'edit'
+  const comparing = !editing && !!compare
+  // Phone: which side of the comparison is shown.
+  const [side, setSide] = useState<'before' | 'after'>('before')
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   // The page currently in view (all pages are shown in one scrolling column).
@@ -104,12 +188,7 @@ export function RevisionNotesDialog({
     let cancelled = false
     ;(async () => {
       try {
-        const pdfjs = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`
-        const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
-        if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')
-        const loaded = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise
-        const pageRatios = await loadPageRatios(loaded)
+        const { pdf: loaded, ratios: pageRatios } = await loadPdf(filePath, token)
         if (cancelled) return
         setPdf(loaded)
         setRatios(pageRatios)
@@ -306,17 +385,17 @@ export function RevisionNotesDialog({
 
   return (
     <div className="fixed inset-0 z-[60] flex bg-[color-mix(in_oklch,_var(--p-950)_70%,_transparent)] p-0 sm:p-6">
-      <div role="dialog" aria-modal="true" aria-label={heading} className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden bg-card shadow-2xl sm:rounded-2xl">
+      <div role="dialog" aria-modal="true" aria-label={heading} className={`mx-auto flex h-full w-full ${comparing ? 'max-w-[1680px]' : 'max-w-6xl'} flex-col overflow-hidden bg-card shadow-2xl sm:rounded-2xl`}>
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 font-mono-label text-[10px] text-[color:#b3361f]"><MessageSquareText className="size-3.5" /> {editing ? 'Minta revisi' : 'Catatan revisi'}</p>
+            <p className="flex items-center gap-1.5 font-mono-label text-[10px] text-[color:#b3361f]"><MessageSquareText className="size-3.5" /> {editing ? 'Minta revisi' : comparing ? 'Bandingkan revisi' : 'Catatan revisi'}</p>
             <h2 className="mt-1 truncate text-lg font-semibold text-foreground">{heading}</h2>
             {subheading && <p className="truncate text-xs text-muted-foreground">{subheading}</p>}
           </div>
           <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-9 flex-none place-items-center rounded-full text-muted-foreground hover:bg-secondary"><X className="size-5" /></button>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[1fr_360px] lg:grid-rows-1">
+        <div className={`grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-rows-1 ${comparing ? 'lg:grid-cols-[1fr_320px]' : 'lg:grid-cols-[1fr_360px]'}`}>
           {/* Page */}
           <div className="flex min-h-0 flex-col bg-muted/40">
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-border bg-card/60 px-3 py-2 text-sm">
@@ -330,6 +409,15 @@ export function RevisionNotesDialog({
                 <span className="w-10 text-center font-mono text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
                 <button type="button" disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]} onClick={() => changeZoom(1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Perbesar"><ZoomIn className="size-4" /></button>
               </div>
+              {comparing && (
+                <div role="tablist" aria-label="Sisi perbandingan" className="flex rounded-full border border-border bg-card p-0.5 text-xs font-semibold lg:hidden">
+                  {([['before', 'Sebelum'], ['after', 'Sesudah']] as const).map(([value, label]) => (
+                    <button key={value} type="button" role="tab" aria-selected={side === value} onClick={() => setSide(value)} className={`rounded-full px-3 py-1 transition ${side === value ? (value === 'before' ? 'bg-[#c2412c] text-white' : 'bg-emerald-600 text-white') : 'text-muted-foreground'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               {editing && coarse && (
                 <div role="group" aria-label="Fungsi sentuhan" className="flex rounded-full border border-border bg-card p-0.5 text-xs font-semibold">
                   {([['mark', 'Coret / tandai', Strikethrough], ['pan', 'Geser', Hand]] as const).map(([tool, label, Icon]) => (
@@ -346,6 +434,9 @@ export function RevisionNotesDialog({
                 </div>
               )}
             </div>
+            <div className={comparing ? 'flex min-h-0 flex-1 lg:divide-x lg:divide-border' : 'flex min-h-0 flex-1'}>
+            <div className={`min-h-0 flex-1 flex-col ${comparing && side === 'after' ? 'hidden lg:flex' : 'flex'}`}>
+            {comparing && <PaneLabel tone="before">{baseLabel ?? 'Sebelum'}</PaneLabel>}
             <div
               ref={scrollRef}
               className="min-h-0 flex-1 overflow-auto p-3 sm:p-4"
@@ -434,6 +525,13 @@ export function RevisionNotesDialog({
                   }}
                 />
               )}
+            </div>
+            </div>
+            {comparing && (
+              <div className={`min-h-0 flex-1 flex-col ${side === 'after' ? 'flex' : 'hidden lg:flex'}`}>
+                <ComparePane filePath={compare!.filePath} token={token} zoom={zoom} partner={scrollRef} label={compare!.label} />
+              </div>
+            )}
             </div>
           </div>
 

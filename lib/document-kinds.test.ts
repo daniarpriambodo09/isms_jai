@@ -8,14 +8,15 @@ describe('document kinds', () => {
     expect(new Set(paths).size).toBe(DOC_KINDS.length)
     expect(new Set(apis).size).toBe(DOC_KINDS.length)
     for (const kind of DOC_KINDS) {
-      expect(DOC_KIND_INFO[kind].path).toMatch(/^\/[a-z-]+$/)
-      expect(DOC_KIND_INFO[kind].api).toMatch(/^\/api\/[a-z-]+$/)
+      expect(DOC_KIND_INFO[kind].path).toMatch(/^\/[a-z0-9-]+$/)
+      expect(DOC_KIND_INFO[kind].api).toMatch(/^\/api\/[a-z0-9-]+$/)
     }
   })
 
   it('recognises valid kinds only', () => {
     expect(isDocKind('procedure')).toBe(true)
     expect(isDocKind('working_standard')).toBe(true)
+    expect(isDocKind('tmmin_standard')).toBe(true)
     expect(isDocKind('working-standard')).toBe(false)
     expect(isDocKind(null)).toBe(false)
   })

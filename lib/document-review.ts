@@ -43,8 +43,7 @@ function hrefFor(kind: ReviewItem['kind'], controlNo: string) {
 export async function listReviewItems(): Promise<{ overdue: ReviewItem[]; soon: ReviewItem[] }> {
   const rows = (await query<{ kind: ReviewItem['kind']; id: number; control_no: string; title: string; revision: number | null; eff_date: string; due_date: string; days_left: number }>(
     `WITH docs AS (
-       SELECT CASE WHEN kind = 'working_standard' THEN 'working-standard' ELSE 'procedure' END AS kind, id, control_no, title, revision, elf_date AS eff FROM procedure_documents
-       UNION ALL SELECT 'standard', id, control_no, title, revision, eff_date FROM standard_isms_p14_documents
+       SELECT CASE kind WHEN 'working_standard' THEN 'working-standard' WHEN 'tmmin_standard' THEN 'standard' ELSE 'procedure' END AS kind, id, control_no, title, revision, elf_date AS eff FROM procedure_documents
      ), due AS (
        SELECT *, (eff + make_interval(months => $1))::date AS due FROM docs WHERE eff IS NOT NULL
      )

@@ -1,7 +1,7 @@
 // app/api/smtp-settings/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
-import { getSmtpSettings, saveSmtpSettings, type Encryption } from '@/lib/smtp'
+import { getSmtpSettings, saveAppUrl, saveSmtpSettings, type Encryption } from '@/lib/smtp'
 import { logActivity } from '@/lib/activity-log'
 
 const ENCRYPTIONS: Encryption[] = ['none', 'tls', 'ssl']
@@ -21,6 +21,23 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[smtp-settings/GET]', error)
     return NextResponse.json({ message: 'Gagal memuat pengaturan SMTP.' }, { status: 500 })
+  }
+}
+
+// Just App URL (the "use this server's current address" button).
+export async function PATCH(request: NextRequest) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  try {
+    const body = await request.json().catch(() => ({}))
+    const appUrl = typeof body.appUrl === 'string' ? body.appUrl.trim() : ''
+    if (!/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(appUrl) || appUrl.length > 200) return NextResponse.json({ message: 'App URL tidak valid.' }, { status: 400 })
+    if (!(await saveAppUrl(appUrl))) return NextResponse.json({ message: 'SMTP belum dikonfigurasi — isi dulu di SMTP Settings.' }, { status: 409 })
+    await logActivity(session, 'update', 'smtp_settings', '1', `Mengubah App URL menjadi ${appUrl}`)
+    return NextResponse.json({ message: `App URL diubah ke ${appUrl}. Email berikutnya memakai alamat ini.` })
+  } catch (error) {
+    console.error('[smtp-settings/PATCH]', error)
+    return NextResponse.json({ message: 'Gagal mengubah App URL.' }, { status: 500 })
   }
 }
 

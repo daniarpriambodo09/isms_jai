@@ -6,7 +6,7 @@
 // approve anything) and single-use (a step can only leave 'pending' once).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { APPROVAL_LINK_DAYS, canPlaceOwnSlots, decideByToken, getByToken, latestRevisionRequest, linkExpired, parseRevisionNotes, qrAdjustableUntil, verifyBaseUrl } from '@/lib/procedure-approval'
+import { APPROVAL_LINK_DAYS, canPlaceOwnSlots, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, verifyBaseUrl } from '@/lib/procedure-approval'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,12 +14,19 @@ export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get('token') ?? ''
   try {
     const view = await getByToken(token)
-    if (!view) return NextResponse.json({ message: 'Link tidak ditemukan atau sudah tidak berlaku.' }, { status: 404 })
+    if (!view) {
+      // An older link of a request that was sent again to another address.
+      const replaced = await replacedLink(token)
+      if (replaced) return NextResponse.json({ message: 'Link ini sudah diganti dengan link baru.', replaced }, { status: 410 })
+      return NextResponse.json({ message: 'Link tidak ditemukan atau sudah tidak berlaku.' }, { status: 404 })
+    }
     // The last "Minta Revisi" on this document — its notes, whichever cycle
     // it came from (the page shows it as "what was asked to be fixed").
-    const revisionRequest = await latestRevisionRequest(view.document.id)
+    // Plus the earlier files, to compare a fix with what was marked.
+    const history = await revisionHistory(view.document.id)
     return NextResponse.json({
-      revisionRequest,
+      revisionRequest: history?.requests[0] ?? null,
+      history,
       step: view.step,
       document: {
         kind: view.document.kind,

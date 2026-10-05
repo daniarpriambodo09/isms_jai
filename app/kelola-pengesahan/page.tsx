@@ -28,6 +28,7 @@ type KindCounts = Record<DocKind, { roles: number; pending: number }>
 const PLACEHOLDERS: Record<DocKind, { code: string; title: string }> = {
   procedure: { code: 'WPJU', title: 'Information Assets Administrator' },
   working_standard: { code: 'WS-APP3', title: 'Approved 3' },
+  tmmin_standard: { code: 'TM-APP2', title: 'Approved 2' },
 }
 
 const inputClass = 'h-10 w-full min-w-0 rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
@@ -95,6 +96,8 @@ export default function KelolaPengesahanPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [pending, setPending] = useState<PendingStep[]>([])
   const [smtpReady, setSmtpReady] = useState(true)
+  const [appUrlWarning, setAppUrlWarning] = useState<{ configured: string; suggestions: string[] } | null>(null)
+  const [fixingUrl, setFixingUrl] = useState(false)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -136,6 +139,7 @@ export default function KelolaPengesahanPage() {
       setPending(data.pending ?? [])
       setCounts(data.counts ?? null)
       setSmtpReady(Boolean(data.smtpReady))
+      setAppUrlWarning(data.appUrlWarning ?? null)
     } catch (error) {
       setMessage({ ok: false, text: error instanceof Error ? error.message : 'Gagal memuat data.' })
     } finally {
@@ -195,6 +199,19 @@ export default function KelolaPengesahanPage() {
     }
   }
 
+  const applyAppUrl = async (appUrl: string) => {
+    setFixingUrl(true)
+    setMessage(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/smtp-settings`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appUrl }) })
+      const data = await res.json().catch(() => ({}))
+      setMessage({ ok: res.ok, text: res.ok ? `${data.message} Tekan "Kirim ulang" pada dokumen yang menunggu agar approver menerima link yang benar.` : (data.message ?? 'Gagal mengubah App URL.') })
+      await load()
+    } finally {
+      setFixingUrl(false)
+    }
+  }
+
   const resend = async (documentId: number) => {
     setResendingDoc(documentId)
     setMessage(null)
@@ -222,7 +239,7 @@ export default function KelolaPengesahanPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Approver Pengesahan Dokumen</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Atur jabatan pengesahan dan siapa yang menjabatnya. Prosedur ISMS dan Working Standard punya daftar jabatan sendiri — jabatan bisa ditambah, diubah, dan dihapus. Saat ada pergantian jabatan, cukup ganti <strong>nama</strong> dan <strong>email</strong> di sini — permintaan yang sedang menunggu otomatis dikirim ulang ke orang baru, sedangkan riwayat tanda tangan sebelumnya tetap tercatat atas nama penyetuju lama.
+            Atur jabatan pengesahan dan siapa yang menjabatnya. Prosedur ISMS, Working Standard, dan Standard Requirement TMMIN masing-masing punya daftar jabatan sendiri — jabatan bisa ditambah, diubah, dan dihapus. Saat ada pergantian jabatan, cukup ganti <strong>nama</strong> dan <strong>email</strong> di sini — permintaan yang sedang menunggu otomatis dikirim ulang ke orang baru, sedangkan riwayat tanda tangan sebelumnya tetap tercatat atas nama penyetuju lama.
           </p>
         </div>
         <Link href={kindInfo.path} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">
@@ -230,7 +247,7 @@ export default function KelolaPengesahanPage() {
         </Link>
       </div>
 
-      <div role="tablist" aria-label="Jenis dokumen" className="flex w-full gap-1 rounded-2xl border border-border bg-card p-1 shadow-sm sm:w-fit">
+      <div role="tablist" aria-label="Jenis dokumen" className="flex w-full flex-wrap gap-1 rounded-2xl border border-border bg-card p-1 shadow-sm sm:w-fit">
         {DOC_KINDS.map((k) => {
           const active = k === kind
           const waiting = counts?.[k]?.pending ?? 0
@@ -255,6 +272,26 @@ export default function KelolaPengesahanPage() {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-50 px-5 py-4 text-sm text-amber-900">
           <AlertTriangle className="mt-0.5 size-5 flex-none" />
           <p>SMTP belum dikonfigurasi, jadi email pengesahan belum bisa terkirim. Atur dulu di <Link href="/kelola-smtp" className="font-semibold underline">SMTP Settings</Link>.</p>
+        </div>
+      )}
+
+      {appUrlWarning && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-red-500/40 bg-red-50 px-5 py-4 text-sm text-red-900">
+          <p className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-5 flex-none" />
+            <span>
+              <strong>Link di email pengesahan tidak bisa dibuka.</strong> App URL masih <span className="font-mono">{appUrlWarning.configured}</span>, padahal alamat server ini sekarang <span className="font-mono">{appUrlWarning.suggestions.join(' / ')}</span> (IP laptop/server berubah). Approver akan melihat &ldquo;This site can&rsquo;t be reached&rdquo;.
+            </span>
+          </p>
+          <div className="flex flex-wrap items-center gap-2 pl-7">
+            {appUrlWarning.suggestions.slice(0, 2).map((url) => (
+              <button key={url} type="button" onClick={() => applyAppUrl(url)} disabled={fixingUrl} className="inline-flex items-center gap-1.5 rounded-full bg-red-700 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-800 disabled:opacity-50">
+                {fixingUrl && <Loader2 className="size-3.5 animate-spin" />} Pakai {url}
+              </button>
+            ))}
+            <Link href="/kelola-smtp" className="text-xs font-semibold underline">Atur di SMTP Settings</Link>
+          </div>
+          <p className="pl-7 text-xs text-red-800/80">Agar tidak terulang, beri laptop/server ini IP tetap (DHCP reservation di router atau IP statis).</p>
         </div>
       )}
 

@@ -208,7 +208,7 @@ function escapeHtml(value: string) {
 // paper-cream, navy ink and a gold seal — so an approver can tell a
 // Prosedur ISMS request apart from the Ijin Foto/Video email (dark teal
 // gradient header + orange buttons) at a glance.
-const PROCEDURE_KIND = { label: 'Prosedur ISMS', short: 'Prosedur', noun: 'prosedur' }
+const PROCEDURE_KIND: DocKindLook = { key: 'procedure', label: 'Prosedur ISMS', short: 'Prosedur', noun: 'prosedur' }
 const MEMO_PAPER = '#f3efe6'
 const MEMO_LINE = '#e2dccd'
 const MEMO_INK = '#1d2a36'
@@ -283,8 +283,277 @@ function procedureEmailFrame(opts: { kicker: string; heading: string; subheading
 </html>`
 }
 
-// Ruled "form" rows, like the fields of a paper document.
-function detailTable(rows: [string, string][]) {
+
+// ─── "Sheet" looks: Working Standard and Standard Requirement TMMIN ───
+// Each register has its own look, so its e-mails are told apart in the inbox
+// at a glance:
+// - Prosedur ISMS — the cream memo with the round gold seal (above);
+// - Working Standard — a "work instruction sheet": charcoal header band under
+//   an amber bar, the control number on an amber plate, the three steps
+//   (baca / pahami / terapkan), square tiles, amber button;
+// - Standard Requirement TMMIN — a "blueprint" like its page: a frame of its
+//   own (blueprintEmailFrame below), only the palette comes from here.
+type SheetLook = {
+  bg: string; dark: string; dark2: string; accent: string; accentDark: string; plateText: string; line: string; panel: string
+  plateTitle: string
+  tiles: [string, string][]
+  /** Drawn with the blueprint frame instead of the sheet (Standard Requirement TMMIN). */
+  blueprint?: boolean
+}
+const SHEET_LOOKS: Record<string, SheetLook> = {
+  working_standard: {
+    bg: '#e9edf0', dark: '#232d36', dark2: '#2f3b46', accent: '#f5a623', accentDark: '#b97400', plateText: '#5a3a00', line: '#d6dce1', panel: '#f4f6f8',
+    plateTitle: 'Working Standard No.',
+    tiles: [['01', 'BACA'], ['02', 'PAHAMI'], ['03', 'TERAPKAN']],
+  },
+  tmmin_standard: {
+    bg: '#e8ebf4', dark: '#171a3d', dark2: '#262b5e', accent: '#2cc4dc', accentDark: '#0b7285', plateText: '#063b45', line: '#d4d9e8', panel: '#f2f4fa',
+    plateTitle: 'No. Dokumen',
+    tiles: [],
+    blueprint: true,
+  },
+}
+
+type DocKindLook = { key?: string; label: string; short: string; noun: string }
+const sheetLook = (kind: DocKindLook): SheetLook | null => SHEET_LOOKS[kind.key ?? ''] ?? null
+
+type FrameOptions = { kicker: string; heading: string; subheading: string; controlNo: string; revision: number | null; seal: string; sealColor?: string; preheader?: string; footerLabel?: string; tabTitle?: string; tabSub?: string }
+
+function sheetEmailFrame(look: SheetLook, opts: FrameOptions, body: string) {
+  const tagColor = opts.sealColor ?? look.accentDark
+  const tile = (n: string, label: string) => `<td style="padding:0 0 0 6px;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:${look.dark2};border-radius:3px;padding:4px 9px;font-family:Arial,Helvetica,sans-serif;font-size:9.5px;font-weight:bold;letter-spacing:0.1em;color:#c9d2d9;white-space:nowrap;"><span style="color:${look.accent};">${n}</span>&nbsp;${label}</td></tr></table></td>`
+  const preheader = opts.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</div>` : ''
+  const plateSub = opts.tabSub !== undefined ? opts.tabSub : opts.revision === null ? '' : `Rev. ${opts.revision}`
+  return `
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:${look.bg};font-family:Arial,Helvetica,sans-serif;">
+  ${preheader}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look.bg};padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid ${look.line};border-radius:10px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;">
+
+          <!-- Accent bar -->
+          <tr><td style="height:6px;line-height:6px;font-size:0;background:${look.accent};">&nbsp;</td></tr>
+
+          <!-- Charcoal header: logo chip + control-number plate -->
+          <tr>
+            <td style="background:${look.dark};padding:20px 28px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+                      <td style="background:#ffffff;border-radius:6px;padding:6px 10px;"><img src="cid:${LOGO_CID}" alt="YAZAKI" width="78" style="display:block;border:0;outline:none;height:auto;" /></td>
+                      <td style="padding-left:12px;font-family:Arial,Helvetica,sans-serif;font-size:9.5px;line-height:1.5;color:#9fb0bd;letter-spacing:0.12em;text-transform:uppercase;">Information Security<br>Management Committee</td>
+                    </tr></table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="background:${look.accent};border-radius:6px;">
+                      <tr><td style="padding:6px 14px 0;font-family:Arial,Helvetica,sans-serif;font-size:8.5px;font-weight:bold;color:${look.plateText};letter-spacing:0.16em;text-transform:uppercase;text-align:center;">${opts.tabTitle ?? look.plateTitle}</td></tr>
+                      <tr><td style="padding:2px 14px 7px;font-family:'Courier New',Courier,monospace;font-size:15px;font-weight:bold;color:${look.dark};text-align:center;">${escapeHtml(opts.controlNo)}${plateSub ? `<span style="font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:bold;color:${look.plateText};"> &middot; ${plateSub}</span>` : ''}</td></tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Title -->
+          <tr>
+            <td style="background:${look.dark};padding:22px 28px 18px;font-family:Arial,Helvetica,sans-serif;">
+              <p style="margin:0;font-size:10.5px;font-weight:bold;color:${look.accent};letter-spacing:0.18em;text-transform:uppercase;">${opts.kicker}</p>
+              <p style="margin:8px 0 0;font-size:25px;font-weight:bold;color:#ffffff;line-height:1.2;">${opts.heading}</p>
+              <p style="margin:8px 0 0;font-size:12.5px;color:#b5c2cc;">${opts.subheading}</p>
+            </td>
+          </tr>
+
+          <!-- Status tag + the register's own tiles -->
+          <tr>
+            <td style="background:${look.dark};padding:0 28px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:#ffffff;border-left:4px solid ${tagColor};border-radius:3px;padding:6px 12px;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:bold;color:${tagColor};letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;">${opts.seal.replace(/<br>/g, ' ')}</td></tr></table>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0"><tr>${look.tiles.map(([n, label]) => tile(n, label)).join('')}</tr></table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          ${body}
+
+          <tr>
+            <td style="background:${look.panel};border-top:1px solid ${look.line};padding:16px 28px;">
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">${opts.footerLabel ?? 'Pengesahan Working Standard'} &middot; dikirim otomatis oleh <strong style="color:${look.dark};">Portal ISMS</strong> &middot; PT. Jatim Autocomp Indonesia</p>
+            </td>
+          </tr>
+          <tr><td style="height:4px;line-height:4px;font-size:0;background:${look.dark};">&nbsp;</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+// ─── Standard Requirement TMMIN: the "blueprint" ───
+// Its own frame, not the sheet's: a technical drawing like the register's
+// page — square corners, an indigo title block ruled with a fine grid, corner
+// brackets, monospace captions, the document's data in a ruled title-block
+// table (no. / rev. / status), the details as data cards, boxed steps joined
+// by arrows, and a square cyan button.
+const BP_MONO = "'Courier New',Courier,monospace"
+const BP_GRID = '#262b5e'
+
+function blueprintEmailFrame(look: SheetLook, opts: FrameOptions, body: string) {
+  const statusColor = opts.sealColor ?? look.accent
+  const preheader = opts.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</div>` : ''
+  const revision = opts.tabSub !== undefined ? opts.tabSub : opts.revision === null ? '–' : `Rev. ${opts.revision}`
+  const bracket = (ch: string, align: 'left' | 'right') => `<td align="${align}" style="font-family:${BP_MONO};font-size:16px;line-height:14px;color:${look.accent};">${ch}</td>`
+  const cell = (label: string, value: string, width: string, extra = '') => `
+    <td width="${width}" style="border:1px solid ${look.accentDark};padding:8px 12px;vertical-align:top;${extra}">
+      <p style="margin:0;font-family:${BP_MONO};font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:#8fa0c8;">${label}</p>
+      <p style="margin:3px 0 0;font-family:${BP_MONO};font-size:13px;font-weight:bold;color:#ffffff;">${value}</p>
+    </td>`
+  // "TMMIN" in the heading is picked out in the accent colour, as on the page.
+  const heading = opts.heading.replace(/TMMIN/g, `<span style="color:${look.accent};">TMMIN</span>`)
+  return `
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:${look.bg};font-family:Arial,Helvetica,sans-serif;">
+  ${preheader}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look.bg};padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border:2px solid ${look.dark};font-family:Arial,Helvetica,sans-serif;">
+
+          <!-- Title block: indigo, fine grid, corner brackets -->
+          <tr>
+            <td bgcolor="${look.dark}" style="background-color:${look.dark};background-image:linear-gradient(${BP_GRID} 1px, transparent 1px),linear-gradient(90deg, ${BP_GRID} 1px, transparent 1px);background-size:24px 24px;padding:14px 18px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${bracket('&#9484;', 'left')}${bracket('&#9488;', 'right')}</tr></table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding:6px 14px 0;vertical-align:middle;">
+                    <p style="margin:0;font-family:${BP_MONO};font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:${look.accent};">Standard Requirement TMMIN</p>
+                  </td>
+                  <td align="right" style="padding:6px 14px 0;vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:#ffffff;padding:5px 9px;"><img src="cid:${LOGO_CID}" alt="YAZAKI" width="70" style="display:block;border:0;outline:none;height:auto;" /></td></tr></table>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:14px 14px 0;">
+                    <p style="margin:0;font-family:${BP_MONO};font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#8fa0c8;">${opts.kicker}</p>
+                    <p style="margin:8px 0 0;font-size:27px;font-weight:bold;color:#ffffff;line-height:1.15;">${heading}</p>
+                    <p style="margin:8px 0 0;font-size:12.5px;color:#b9c3e0;">${opts.subheading}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="padding:16px 14px 4px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                      <tr>${cell(opts.tabTitle ?? 'No. Dokumen', escapeHtml(opts.controlNo), '42%')}${cell('Revisi', revision, '18%')}${cell('Status', `<span style="color:${statusColor === look.accent ? look.accent : '#ffffff'};">&#9679;</span> ${opts.seal.replace(/<br>/g, ' ')}`, '40%', statusColor === look.accent ? '' : `background:${statusColor};`)}</tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${bracket('&#9492;', 'left')}<td align="center" style="font-family:${BP_MONO};font-size:8.5px;letter-spacing:0.14em;color:#6f7fae;">INFORMATION SECURITY MANAGEMENT COMMITTEE</td>${bracket('&#9496;', 'right')}</tr></table>
+            </td>
+          </tr>
+
+          <tr><td style="height:5px;line-height:5px;font-size:0;background:${look.accent};">&nbsp;</td></tr>
+
+          ${body}
+
+          <tr>
+            <td style="border-top:2px solid ${look.dark};padding:14px 28px;">
+              <p style="margin:0;font-family:${BP_MONO};font-size:10px;color:${MUTED};text-align:center;line-height:1.7;letter-spacing:0.02em;">${opts.footerLabel ?? 'Pengesahan Standard Requirement TMMIN'} &middot; dikirim otomatis oleh <strong style="color:${look.dark};">Portal ISMS</strong> &middot; PT. Jatim Autocomp Indonesia</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+// Details as data cards: the first one (the document's name) across the full
+// width, the rest two per row — cyan caption, bold value.
+function blueprintDetails(look: SheetLook, rows: [string, string][]) {
+  const card = (label: string, value: string, colspan = 1) => `
+        <td${colspan > 1 ? ` colspan="${colspan}"` : ''} width="${colspan > 1 ? '100%' : '50%'}" style="padding:4px;vertical-align:top;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look.panel};border:1px solid ${look.line};border-left:3px solid ${look.accent};">
+            <tr><td style="padding:10px 14px;">
+              <p style="margin:0;font-family:${BP_MONO};font-size:9.5px;letter-spacing:0.14em;text-transform:uppercase;color:${look.accentDark};">${label}</p>
+              <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;color:${look.dark};line-height:1.4;">${value}</p>
+            </td></tr>
+          </table>
+        </td>`
+  const [first, ...rest] = rows
+  const pairs: [string, string][][] = []
+  for (let i = 0; i < rest.length; i += 2) pairs.push(rest.slice(i, i + 2))
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 -4px;">
+      ${first ? `<tr>${card(first[0], first[1], 2)}</tr>` : ''}
+      ${pairs.map((pair) => `<tr>${pair.map(([label, value]) => card(label, value, pair.length === 1 ? 2 : 1)).join('')}</tr>`).join('')}
+    </table>`
+}
+
+// The signing chain as boxed steps joined by arrows.
+function blueprintChain(look: SheetLook, chain: ProcedureChainStep[]) {
+  const boxes = chain.map((step, i) => {
+    const current = step.state === 'current'
+    const done = step.state === 'done'
+    const box = current
+      ? `background:${look.dark};border:2px solid ${look.dark};`
+      : done ? `background:#ffffff;border:2px solid ${GREEN};` : `background:#ffffff;border:1px dashed #9aa3c2;`
+    const caption = current ? look.accent : done ? GREEN : MUTED
+    const ink = current ? '#ffffff' : look.dark
+    const sub = current ? '#b9c3e0' : MUTED
+    const status = done ? `&#10003; ${fmtDate(step.decidedAt)}` : current ? '&#9679; Giliran Anda' : 'Menunggu'
+    const arrow = i < chain.length - 1 ? `<td width="18" align="center" style="font-family:${BP_MONO};font-size:14px;color:${look.accentDark};">&rarr;</td>` : ''
+    return `
+      <td valign="top" style="${box}padding:9px 10px;">
+        <p style="margin:0;font-family:${BP_MONO};font-size:9px;letter-spacing:0.14em;color:${caption};">STEP ${String(i + 1).padStart(2, '0')}</p>
+        <p style="margin:5px 0 0;font-size:12.5px;font-weight:bold;color:${ink};line-height:1.3;">${escapeHtml(step.name)}</p>
+        <p style="margin:2px 0 0;font-size:10.5px;color:${sub};line-height:1.35;">${escapeHtml(step.roleTitle)}</p>
+        <p style="margin:6px 0 0;font-family:${BP_MONO};font-size:10px;font-weight:bold;color:${caption};">${status}</p>
+      </td>${arrow}`
+  }).join('')
+  return `
+    <p style="margin:0 0 8px;font-family:${BP_MONO};font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:${look.accentDark};">&#9654; Alur Pengesahan</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${boxes}</tr></table>`
+}
+
+// The frame of a register's e-mails: the memo for Prosedur ISMS, the sheet
+// for Working Standard, the blueprint for Standard Requirement TMMIN.
+function documentEmailFrame(kind: DocKindLook, opts: FrameOptions, body: string) {
+  const look = sheetLook(kind)
+  if (!look) return procedureEmailFrame(opts, body)
+  return look.blueprint ? blueprintEmailFrame(look, opts, body) : sheetEmailFrame(look, opts, body)
+}
+
+// Ruled "form" rows, like the fields of a paper document — or, on a sheet,
+// a boxed spec table with shaded label cells.
+function detailTable(rows: [string, string][], look: SheetLook | null = null) {
+  if (look?.blueprint) return blueprintDetails(look, rows)
+  if (look) {
+    return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${look.line};border-radius:6px;border-collapse:separate;">
+      ${rows.map(([label, value], i) => `
+      <tr>
+        <td style="padding:10px 12px;background:${look.panel};${i ? `border-top:1px solid ${look.line};` : ''}border-right:1px solid ${look.line};font-family:Arial,Helvetica,sans-serif;font-size:10.5px;font-weight:bold;color:${MUTED};width:128px;vertical-align:top;letter-spacing:0.08em;text-transform:uppercase;">${label}</td>
+        <td style="padding:10px 14px;${i ? `border-top:1px solid ${look.line};` : ''}font-family:Arial,Helvetica,sans-serif;font-size:13.5px;color:${look.dark};font-weight:bold;vertical-align:top;">${value}</td>
+      </tr>`).join('')}
+    </table>`
+  }
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:2px solid ${MEMO_INK};">
       ${rows.map(([label, value]) => `
@@ -298,32 +567,36 @@ function detailTable(rows: [string, string][]) {
 export type ProcedureChainStep = { roleTitle: string; name: string; state: 'done' | 'current' | 'waiting'; decidedAt: string | null }
 
 // The signing chain drawn as a row of stamps: ✓ signed, current (you), queued.
-function chainRow(chain: ProcedureChainStep[]) {
+function chainRow(chain: ProcedureChainStep[], look: SheetLook | null = null) {
+  if (look?.blueprint) return blueprintChain(look, chain)
   const width = Math.floor(100 / Math.max(chain.length, 1))
+  // Sheets: square tiles, the current one in the accent colour.
+  const shape = look ? 'border-radius:7px;' : 'border-radius:50%;'
+  const currentColor = look ? look.accentDark : NAVY
   const cells = chain.map((step, i) => {
     const circle =
       step.state === 'done'
         ? `background:${GREEN};color:#ffffff;border:2px solid ${GREEN};`
         : step.state === 'current'
-          ? `background:${NAVY};color:#ffffff;border:2px solid ${NAVY};`
-          : `background:#ffffff;color:${MUTED};border:2px dashed ${MEMO_LINE};`
+          ? (look ? `background:${look.accent};color:${look.dark};border:2px solid ${look.accent};` : `background:${NAVY};color:#ffffff;border:2px solid ${NAVY};`)
+          : `background:#ffffff;color:${MUTED};border:2px dashed ${look ? look.line : MEMO_LINE};`
     const mark = step.state === 'done' ? '&#10003;' : String(i + 1)
     const status =
       step.state === 'done'
         ? `<span style="color:${GREEN};">Disetujui ${fmtDate(step.decidedAt)}</span>`
         : step.state === 'current'
-          ? `<span style="color:${NAVY};font-weight:bold;">&#9679; Giliran Anda</span>`
+          ? `<span style="color:${currentColor};font-weight:bold;">&#9679; Giliran Anda</span>`
           : `<span style="color:${MUTED};">Menunggu</span>`
     return `
       <td align="center" valign="top" width="${width}%" style="padding:0 4px;">
-        <div style="width:34px;height:34px;line-height:34px;border-radius:50%;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;text-align:center;${circle}">${mark}</div>
+        <div style="width:34px;height:34px;line-height:34px;${shape}font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;text-align:center;${circle}">${mark}</div>
         <p style="margin:8px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${MEMO_INK};line-height:1.3;">${escapeHtml(step.name)}</p>
         <p style="margin:2px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};line-height:1.35;">${escapeHtml(step.roleTitle)}</p>
         <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;line-height:1.35;">${status}</p>
       </td>`
   }).join('')
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${MEMO_PAPER};border:1px solid ${MEMO_LINE};border-radius:6px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look ? look.panel : MEMO_PAPER};border:1px solid ${look ? look.line : MEMO_LINE};${look ? `border-top:3px solid ${look.accent};` : ''}border-radius:6px;">
       <tr><td style="padding:14px 16px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:${MUTED};letter-spacing:0.14em;text-transform:uppercase;">Alur Pengesahan</td></tr>
       <tr><td style="padding:10px 8px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table></td></tr>
     </table>`
@@ -342,7 +615,16 @@ export type ProcedureApprovalEmailData = {
   chain: ProcedureChainStep[]
   reviewUrl: string
   /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
-  kind?: { label: string; short: string; noun: string }
+  kind?: DocKindLook
+  /** Sent again after a "Minta Revisi": what was asked, by whom; round = 2 for the first re-submission. */
+  resubmission?: {
+    round: number
+    by: string
+    at: string
+    general: string | null
+    pins: { page: number; note: string; strike: boolean }[]
+    fileChanged: boolean
+  } | null
 }
 
 export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): { subject: string; html: string } {
@@ -358,23 +640,56 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   const title = escapeHtml(data.title)
   const kind = data.kind ?? PROCEDURE_KIND
   const para = `margin:0 0 14px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;`
+  const re = data.resubmission ?? null
+  const look = sheetLook(kind)
+  // The button: navy with a gold foot on the memo, the accent colour on a sheet.
+  const buttonStyle = look?.blueprint
+    ? `background:${look.accent};color:${look.dark};border-bottom:4px solid ${re ? '#1f7a4d' : look.dark};letter-spacing:0.1em;`
+    : look
+    ? `background:${look.accent};color:${look.dark};border-radius:6px;border-bottom:3px solid ${re ? '#1f7a4d' : look.accentDark};`
+    : `background:${NAVY};color:#ffffff;border-radius:4px;border-bottom:3px solid ${re ? '#1f7a4d' : MEMO_SEAL};`
+
+  // Re-submission: a green banner first thing in the mail — which round, that
+  // older links are void, and what the approver asked to be fixed.
+  const resubmitBanner = re ? `
+    <tr>
+      <td style="padding:20px 32px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #b9dcc8;border-left:4px solid #1f7a4d;background:#eef8f2;border-radius:4px;">
+          <tr><td style="padding:14px 16px;font-family:${SANS};">
+            <p style="margin:0;font-size:11px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#1f7a4d;">&#8635;&nbsp; Pengajuan ulang ke-${re.round} &middot; setelah revisi</p>
+            <p style="margin:6px 0 0;font-size:13.5px;color:${MEMO_INK};line-height:1.6;">
+              Dokumen ini ${re.fileChanged ? '<strong>sudah diperbaiki</strong>' : 'diajukan kembali'} menindaklanjuti permintaan revisi dari <strong>${escapeHtml(re.by)}</strong> (${escapeHtml(fmtStamp(re.at))}).
+              <strong>Link pada email sebelumnya sudah tidak berlaku</strong> &mdash; gunakan tombol di email ini.
+            </p>
+            ${re.general || re.pins.length ? `
+            <p style="margin:10px 0 4px;font-size:11.5px;font-weight:bold;color:${MUTED};">Yang diminta sebelumnya:</p>
+            ${re.general ? `<p style="margin:0 0 4px;font-size:13px;color:${MEMO_INK};line-height:1.55;">${escapeHtml(re.general)}</p>` : ''}
+            ${re.pins.slice(0, 8).map((p, i) => `<p style="margin:0 0 3px;font-size:13px;color:${MEMO_INK};line-height:1.55;"><strong style="color:#b3361f;">${i + 1}.</strong> <span style="color:${MUTED};">Hal. ${p.page + 1}${p.strike ? ' &middot; coret' : ''} &mdash;</span> ${escapeHtml(p.note)}</p>`).join('')}
+            ${re.pins.length > 8 ? `<p style="margin:0;font-size:12px;color:${MUTED};">… dan ${re.pins.length - 8} catatan lainnya</p>` : ''}` : ''}
+            ${re.fileChanged ? `<p style="margin:10px 0 0;font-size:12px;color:${MUTED};line-height:1.55;">Di halaman pengesahan, pilih <strong>Bandingkan sebelum &amp; sesudah revisi</strong> untuk melihat perubahannya berdampingan.</p>` : ''}
+          </td></tr>
+        </table>
+      </td>
+    </tr>` : ''
 
   // Wording as requested by the ISMS team; the detail rows, the signing
   // chain and the button stay, since the approval itself happens via that link.
-  const body = `
+  const body = `${resubmitBanner}
     <tr>
       <td style="padding:20px 32px 6px;">
         <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Yth. Bapak/Ibu <strong>${escapeHtml(data.approverName)}</strong>,</p>
-        <p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>
+        ${re
+          ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah ${re.fileChanged ? 'diperbaiki sesuai catatan revisi dan ' : ''}saya lampirkan pada email ini.</p>`
+          : `<p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>`}
         <p style="${para}">Apabila terdapat hal yang perlu disesuaikan atau diperbaiki, mohon arahan lebih lanjut agar dapat segera saya tindak lanjuti.</p>
         <p style="margin:0 0 20px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;">Terima kasih atas perhatian dan kerja samanya.</p>
       </td>
     </tr>
-    <tr><td style="padding:0 32px 22px;">${detailTable(rows)}</td></tr>
-    <tr><td style="padding:0 32px;">${chainRow(data.chain)}</td></tr>
+    <tr><td style="padding:0 32px 22px;">${detailTable(rows, look)}</td></tr>
+    <tr><td style="padding:0 32px;">${chainRow(data.chain, look)}</td></tr>
     <tr>
       <td align="center" style="padding:26px 32px 6px;">
-        <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;background:${NAVY};color:#ffffff;border-radius:4px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;border-bottom:3px solid ${MEMO_SEAL};">&#9998;&nbsp; REVIEW &amp; APPROVAL</a>
+        <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;${buttonStyle}">&#9998;&nbsp; ${re ? 'REVIEW ULANG &amp; APPROVAL' : 'REVIEW &amp; APPROVAL'}</a>
         <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11.5px;color:${MUTED};">Buka dokumen, lalu pilih <strong>Setujui</strong> atau <strong>Tolak</strong> &mdash; tanpa perlu login.</p>
       </td>
     </tr>
@@ -385,15 +700,19 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     </tr>`
 
   return {
-    subject: `Pengajuan Approval ${kind.short} ${data.title}`,
-    html: procedureEmailFrame({
-      kicker: `Pengesahan Dokumen &middot; ${kind.label}`,
-      heading: `Pengajuan Approval ${kind.short}`,
+    subject: re
+      ? `[Pengajuan Ulang ke-${re.round}] Approval ${kind.short} ${data.title} (Rev. ${data.revision}) — setelah revisi`
+      : `Pengajuan Approval ${kind.short} ${data.title}`,
+    html: documentEmailFrame(kind, {
+      kicker: re ? `Pengajuan Ulang ke-${re.round} &middot; ${kind.label}` : `Pengesahan Dokumen &middot; ${kind.label}`,
+      heading: re ? `Pengajuan Ulang Approval ${kind.short}` : `Pengajuan Approval ${kind.short}`,
       footerLabel: `Pengesahan ${kind.label}`,
       subheading: `Tahap ${data.stepNumber} dari ${data.stepTotal} &middot; ${escapeHtml(data.roleTitle)}`,
       controlNo: data.controlNo,
       revision: data.revision,
-      seal: 'Menunggu<br>Pengesahan<br>Anda',
+      seal: re ? `Pengajuan<br>Ulang<br>ke-${re.round}` : 'Menunggu<br>Pengesahan<br>Anda',
+      sealColor: re ? '#1f7a4d' : undefined,
+      preheader: re ? `Pengajuan ulang setelah revisi — link di email sebelumnya sudah tidak berlaku.` : undefined,
     }, body),
   }
 }
@@ -418,7 +737,7 @@ export type ProcedureResultEmailData = {
   registerUrl: string
   signedPdfUrl?: string
   /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
-  kind?: { label: string; short: string; noun: string }
+  kind?: DocKindLook
 }
 
 const STEP_STATUS: Record<string, { label: string; color: string; bg: string }> = {
@@ -543,7 +862,7 @@ export function buildProcedureResultEmail(data: ProcedureResultEmailData): { sub
     : [
         `Buka dokumen di register ${kind.label}, lalu klik <strong>Lihat catatan di dokumen</strong> untuk melihat letak setiap catatan.`,
         'Perbaiki dokumen sesuai catatan di atas.',
-        'Klik <strong>Edit</strong> pada dokumen dan unggah file perbaikan (naikkan nomor revisi bila perlu). Pengesahan otomatis dimulai ulang dari tahap 1.',
+        'Klik <strong>Unggah perbaikan &amp; ajukan ulang</strong> pada dokumen dan pilih file PDF hasil perbaikan (naikkan nomor revisi bila perlu). Pengesahan otomatis dimulai ulang dari tahap 1.',
         'Approver akan melihat catatan ini di samping dokumen baru, sehingga bisa langsung memeriksa perbaikannya.',
       ]
 
@@ -574,7 +893,7 @@ export function buildProcedureResultEmail(data: ProcedureResultEmailData): { sub
     subject: approved
       ? `[Disahkan] ${data.controlNo} — ${data.title} (Rev. ${data.revision}) · ${approvedCount}/${total} approver`
       : `[Perlu Revisi] ${data.controlNo} — ${data.title} (Rev. ${data.revision}) · ${noteCount} catatan dari ${req?.by ?? 'approver'}`,
-    html: procedureEmailFrame({
+    html: documentEmailFrame(kind, {
       kicker: `Notifikasi Admin &middot; Pengesahan ${kind.label}`,
       footerLabel: `Pengesahan ${kind.label}`,
       heading: approved ? 'Dokumen Disahkan' : 'Dokumen Perlu Revisi',

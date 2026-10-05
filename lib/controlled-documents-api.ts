@@ -13,7 +13,7 @@ import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
-import { currentStepsFor, ensureApprovalSchema, normalizeRoleCodes, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
+import { currentStepsFor, ensureApprovalSchema, historyCounts, normalizeRoleCodes, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
 
 type DocumentRow = {
@@ -51,7 +51,8 @@ function parseNote(raw: FormDataEntryValue | null) {
 async function withApprovals(rows: DocumentRow[]) {
   const steps = await currentStepsFor(rows.map((row) => row.id))
   const counts = await slotCounts(rows.map((row) => row.id))
-  return rows.map((row) => ({ ...row, approvals: steps.get(row.id) ?? [], slots_count: counts.get(row.id) ?? 0 }))
+  const history = await historyCounts(rows.map((row) => row.id))
+  return rows.map((row) => ({ ...row, approvals: steps.get(row.id) ?? [], slots_count: counts.get(row.id) ?? 0, history_count: history.get(row.id) ?? 0 }))
 }
 
 const isUniqueViolation = (error: unknown) => (error as { code?: string } | null)?.code === '23505'
@@ -171,8 +172,8 @@ export function documentHandlers(kind: DocKind) {
         return NextResponse.json({ message: 'File harus berupa PDF.' }, { status: 400 })
       }
 
-      const existing = await query<{ file_path: string; revision: number; approval_roles: string[] }>(
-        'SELECT file_path, revision, approval_roles FROM procedure_documents WHERE id = $1 AND kind = $2',
+      const existing = await query<{ file_path: string; revision: number; approval_roles: string[]; uploaded_at: string }>(
+        'SELECT file_path, revision, approval_roles, uploaded_at FROM procedure_documents WHERE id = $1 AND kind = $2',
         [id, kind]
       )
       if (existing.rows.length === 0) {
@@ -207,7 +208,15 @@ export function documentHandlers(kind: DocKind) {
         throw error
       }
 
-      if (newFilePath) await deleteDocumentFile(before.file_path)
+      // The replaced file is kept as an earlier version, so a fix can be
+      // compared with the file the revision was asked on.
+      if (newFilePath) {
+        await ensureApprovalSchema()
+        await query(
+          'INSERT INTO procedure_document_versions (document_id, revision, file_path, uploaded_at, replaced_by) VALUES ($1, $2, $3, $4, $5)',
+          [id, before.revision, before.file_path, before.uploaded_at, session.username]
+        )
+      }
 
       // A new file, a new revision number or a different set of approvers is a
       // new thing to sign — restart the cycle. Plain metadata edits keep it.
@@ -267,6 +276,12 @@ export function documentHandlers(kind: DocKind) {
         return NextResponse.json({ message: 'ID dokumen tidak valid.' }, { status: 400 })
       }
 
+      await ensureApprovalSchema()
+      // Earlier versions go with the document (rows by cascade, files below).
+      const versions = (await query<{ file_path: string }>(
+        'SELECT v.file_path FROM procedure_document_versions v JOIN procedure_documents d ON d.id = v.document_id WHERE d.id = $1 AND d.kind = $2',
+        [id, kind]
+      )).rows
       const result = await query<{ id: number; title: string; file_path: string }>(
         'DELETE FROM procedure_documents WHERE id = $1 AND kind = $2 RETURNING id, title, file_path',
         [id, kind]
@@ -276,6 +291,7 @@ export function documentHandlers(kind: DocKind) {
       }
 
       await deleteDocumentFile(result.rows[0].file_path)
+      for (const v of versions) await deleteDocumentFile(v.file_path).catch(() => {})
       await logActivity(session, 'delete', 'procedure_document', id, `Menghapus ${info.label} "${result.rows[0].title}"`)
       return NextResponse.json({ message: 'Dokumen dihapus.' })
     } catch (error) {

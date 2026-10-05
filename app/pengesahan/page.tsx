@@ -12,12 +12,13 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Check, Clock, Crosshair, ExternalLink, FileSignature, FileText, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeftRight, Check, Clock, Crosshair, ExternalLink, FileSignature, FileText, History, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { docKindInfo } from '@/lib/document-kinds'
 import { SignatureCard } from '@/components/documents/SignatureQr'
 import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
 import { RevisionNotesDialog, type RevisionPin } from '@/components/documents/RevisionNotes'
+import { RevisionCompareDialog, RevisionHistoryList, hasHistory, openForRequest, type HistoryRequest, type RevisionHistoryData } from '@/components/documents/RevisionHistory'
 
 type Step = {
   id: number
@@ -43,15 +44,9 @@ type View = {
   documentId: number
   verifyBase: string
   // Last 'Minta Revisi' on this document (any cycle), if any.
-  revisionRequest: {
-    approvalId: number
-    approverName: string | null
-    roleTitle: string
-    revision: number
-    decidedAt: string
-    general: string | null
-    pins: RevisionPin[]
-  } | null
+  revisionRequest: HistoryRequest | null
+  // Earlier files and every revision request, to compare before / after.
+  history: RevisionHistoryData | null
 }
 
 function formatDate(value: string, withTime = false) {
@@ -77,6 +72,8 @@ function PengesahanContent() {
   const token = useSearchParams().get('token') ?? ''
   const [view, setView] = useState<View | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // The link was replaced by a newer one (the request was sent again).
+  const [replaced, setReplaced] = useState<{ controlNo: string; title: string; kind: string; replacedAt: string; stillPending: boolean } | null>(null)
   // Minta Revisi dialog: 'edit' writes a new request, 'view' shows the last one
   const [notesMode, setNotesMode] = useState<'edit' | 'view' | null>(null)
   const [submitting, setSubmitting] = useState<'approve' | 'reject' | null>(null)
@@ -90,6 +87,7 @@ function PengesahanContent() {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
       const data = await res.json()
+      if (res.status === 410 && data.replaced) { setReplaced(data.replaced); return }
       if (!res.ok) throw new Error(data.message)
       setView(data)
       setLoadError(null)
@@ -122,6 +120,24 @@ function PengesahanContent() {
     }
   }
 
+  if (replaced) {
+    return (
+      <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
+        <span className="mx-auto grid size-14 place-items-center rounded-full bg-amber-100 text-amber-700"><History className="size-7" /></span>
+        <h2 className="mt-5 font-display text-2xl font-semibold text-foreground">Link ini sudah diganti</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Email pengesahan untuk <strong className="text-foreground">{replaced.controlNo} — {replaced.title}</strong> ({docKindInfo(replaced.kind).label}) dikirim ulang pada {formatDate(replaced.replacedAt, true)}, sehingga link dari email sebelumnya tidak berlaku lagi.
+        </p>
+        <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-sm leading-6 text-foreground">
+          {replaced.stillPending
+            ? <>Buka email <strong>terbaru</strong> untuk dokumen ini (dikirim {formatDate(replaced.replacedAt, true)} atau sesudahnya), lalu tekan tombol <strong>REVIEW &amp; APPROVAL</strong> di sana.</>
+            : <>Permintaan ini sudah diproses lewat link yang baru — tidak ada yang perlu Anda lakukan lagi.</>}
+        </p>
+        <p className="mt-3 text-xs text-muted-foreground">Tidak menemukan emailnya? Minta Admin ISM menekan <strong>Kirim ulang</strong>.</p>
+      </div>
+    )
+  }
+
   if (loadError) {
     return (
       <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
@@ -137,6 +153,23 @@ function PengesahanContent() {
   }
 
   const { step, document, cycle } = view
+
+  // A link from an earlier email: the document was re-submitted (or the
+  // approval restarted) since, and a newer email carries the valid link.
+  if (step.status === 'cancelled') {
+    return (
+      <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-10 text-center shadow-sm">
+        <span className="mx-auto grid size-14 place-items-center rounded-full bg-amber-100 text-amber-700"><History className="size-7" /></span>
+        <h2 className="mt-5 font-display text-2xl font-semibold text-foreground">Link ini sudah diganti</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          <strong className="text-foreground">{document.control_no} — {document.title}</strong> sudah diajukan ulang (Rev. {document.revision}), sehingga link dari email sebelumnya tidak berlaku lagi.
+        </p>
+        <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-sm leading-6 text-foreground">
+          Buka email <strong>terbaru</strong> untuk dokumen ini — subjeknya diawali <span className="font-mono text-[13px]">[Pengajuan Ulang ke-…]</span> — lalu tekan tombol <strong>REVIEW ULANG &amp; APPROVAL</strong>.
+        </p>
+      </div>
+    )
+  }
   // The revision request came from an earlier (restarted) cycle, not this one.
   const previousCycle = !!view.revisionRequest && !cycle.some((item) => item.id === view.revisionRequest!.approvalId)
   const canDecide = step.status === 'pending' && !view.superseded && !view.linkExpired
@@ -147,6 +180,9 @@ function PengesahanContent() {
   const signedUrl = `${API_BASE_PATH}/api/prosedur-isms/${view.documentId}/pdf?${tokenParam}&t=${pdfStamp}`
   const originalUrl = `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(document.file_path)}&${tokenParam}`
   const approvedSoFar = cycle.filter((item) => item.status === 'approved').length
+  // The last request, on the file its marks were made on (side by side with
+  // the current file once that has been replaced).
+  const lastOpen = view.revisionRequest && view.history ? openForRequest(view.history, view.revisionRequest) : null
 
   return (
     <div className="flex flex-col gap-6">
@@ -241,12 +277,27 @@ function PengesahanContent() {
                   ))}
                 </ol>
               )}
-              {view.revisionRequest.pins.length > 0 && (
+              {(view.revisionRequest.pins.length > 0 || lastOpen?.compare) && (
                 <button type="button" onClick={() => setNotesMode('view')} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#c2412c]/40 bg-card px-3.5 py-2 text-xs font-semibold text-[#a83522] transition hover:bg-[#fdf0ec]">
-                  <MapPin className="size-3.5" /> Lihat coretan & penanda di dokumen
+                  {lastOpen?.compare
+                    ? <><ArrowLeftRight className="size-3.5" /> Bandingkan sebelum & sesudah revisi</>
+                    : <><MapPin className="size-3.5" /> Lihat coretan & penanda di dokumen</>}
                 </button>
               )}
             </section>
+          )}
+
+          {/* Every earlier file and revision request of this document. */}
+          {hasHistory(view.history) && (
+            <details className="group rounded-2xl border border-border bg-card shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-5 py-4">
+                <span className="flex items-center gap-2 text-sm font-semibold text-foreground"><History className="size-4 text-[color:var(--p-600)]" /> Riwayat revisi</span>
+                <span className="text-xs text-muted-foreground">{view.history!.versions.length + 1} file · {view.history!.requests.length} permintaan revisi</span>
+              </summary>
+              <div className="border-t border-border px-4 pb-4 pt-3">
+                <RevisionHistoryList history={view.history!} token={token} heading={`${document.control_no} — ${document.title}`} />
+              </div>
+            </details>
           )}
 
           {canDecide ? (
@@ -335,18 +386,12 @@ function PengesahanContent() {
           }}
         />
       )}
-      {notesMode === 'view' && view.revisionRequest && (
-        <RevisionNotesDialog
-          mode="view"
-          filePath={document.file_path}
+      {notesMode === 'view' && view.history && lastOpen && (
+        <RevisionCompareDialog
+          history={view.history}
+          open={lastOpen}
           token={token}
           heading={`${document.control_no} — ${document.title}`}
-          subheading={`Catatan dari ${view.revisionRequest.approverName ?? '-'} · Rev. ${view.revisionRequest.revision}`}
-          hint={view.revisionRequest.revision !== document.revision || previousCycle
-            ? 'Coretan dan penanda dibuat pada file sebelum diperbaiki — posisinya ditampilkan di file terbaru, bisa sedikit bergeser bila tata letaknya berubah.'
-            : undefined}
-          initialGeneral={view.revisionRequest.general}
-          initialPins={view.revisionRequest.pins}
           onClose={() => setNotesMode(null)}
         />
       )}

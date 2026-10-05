@@ -14,21 +14,23 @@ import { STORAGE_ROOT } from '@/lib/storage'
 import { getAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
-// A procedure or working standard (both in procedure_documents) is published
+// A procedure, working standard or TMMIN standard (all in procedure_documents) is published
 // only once every approver has approved it (or it needs no approval) and the
 // admin hasn't hidden it (public_visible). Until then only admins and the
-// approvers — with the token from their email link — can open the file.
+// approvers — with the token from their email link — can open the file; the
+// same token also opens the document's earlier versions (revision history).
 async function isPublishedFile(relativePath: string, approvalToken: string) {
   try {
     const result = await query<{ published: boolean }>(
       `SELECT EXISTS (
          SELECT 1 FROM procedure_documents WHERE file_path = $1 AND approval_status IN ('approved', 'none') AND public_visible
          UNION ALL SELECT 1 FROM procedure_documents d JOIN procedure_approvals a ON a.document_id = d.id
-           WHERE d.file_path = $1 AND $2 <> '' AND a.token = $2
+           WHERE d.file_path = $1 AND $2 <> '' AND a.token = $2 AND a.status <> 'cancelled'
+         UNION ALL SELECT 1 FROM procedure_document_versions v JOIN procedure_approvals a ON a.document_id = v.document_id
+           WHERE v.file_path = $1 AND $2 <> '' AND a.token = $2 AND a.status <> 'cancelled'
          UNION ALL SELECT 1 FROM documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM education_documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM form_cs_documents WHERE file_path = $1
-         UNION ALL SELECT 1 FROM standard_isms_p14_documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM schedule_documents WHERE file_path = $1
          UNION ALL SELECT 1 FROM policy_images WHERE file_path = $1
          UNION ALL SELECT 1 FROM hero_slides WHERE file_path = $1 AND is_active

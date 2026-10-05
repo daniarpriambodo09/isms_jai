@@ -181,6 +181,26 @@ export function ensureApprovalSchema() {
         )`)
       // A strike (words crossed out): the line runs from (x, y) to (x2, y2).
       await query('ALTER TABLE procedure_revision_notes ADD COLUMN IF NOT EXISTS x2 real, ADD COLUMN IF NOT EXISTS y2 real')
+      // Revision history (db/migrations/0007): files replaced by a new upload,
+      // and the file each decision was taken on.
+      await query(`
+        CREATE TABLE IF NOT EXISTS procedure_document_versions (
+          id serial PRIMARY KEY,
+          document_id integer NOT NULL REFERENCES procedure_documents(id) ON DELETE CASCADE,
+          revision integer NOT NULL,
+          file_path text NOT NULL,
+          uploaded_at timestamptz,
+          replaced_at timestamptz NOT NULL DEFAULT now(),
+          replaced_by varchar(100)
+        )`)
+      await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS file_path text')
+      // Links replaced by a newer one (db/migrations/0009) — see replacedLink().
+      await query(`
+        CREATE TABLE IF NOT EXISTS procedure_approval_old_tokens (
+          token varchar(64) PRIMARY KEY,
+          approval_id integer NOT NULL REFERENCES procedure_approvals(id) ON DELETE CASCADE,
+          replaced_at timestamptz NOT NULL DEFAULT now()
+        )`)
     })().catch((error) => {
       schemaReady = null
       throw error
@@ -258,14 +278,17 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
 
   // Cancel the old cycle and create the new one atomically — never a
   // document with its old steps gone and no new ones.
+  // Cancelled steps keep their token: an old link from an earlier email then
+  // opens a page saying it was replaced by the re-submission (it can't decide
+  // anything or open the file any more — see getByToken's callers).
   const started = await withTransaction(async () => {
     await query(
-      `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
+      `UPDATE procedure_approvals SET status = 'cancelled'
        WHERE document_id = $1 AND status IN ('waiting', 'pending', 'rejected', 'approved') AND revision = $2`,
       [documentId, doc.revision]
     )
     await query(
-      `UPDATE procedure_approvals SET status = 'cancelled', token = NULL
+      `UPDATE procedure_approvals SET status = 'cancelled'
        WHERE document_id = $1 AND status IN ('waiting', 'pending')`,
       [documentId]
     )
@@ -312,15 +335,25 @@ async function activateNextStep(documentId: number): Promise<boolean> {
  * Used for the first send, for "Kirim ulang", and when a role changes hands.
  */
 export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; error: string | null }> {
-  const stepResult = await query<ApprovalStep & { approver_email: string | null }>(`SELECT ${STEP_COLUMNS}, approver_email FROM procedure_approvals WHERE id = $1`, [stepId])
+  const stepResult = await query<ApprovalStep & { approver_email: string | null; token: string | null }>(`SELECT ${STEP_COLUMNS}, approver_email, token FROM procedure_approvals WHERE id = $1`, [stepId])
   const step = stepResult.rows[0]
   if (!step) return { sent: false, error: 'Tahap pengesahan tidak ditemukan.' }
 
   const roleResult = await query<ApproverRole>(`SELECT ${ROLE_COLUMNS} FROM procedure_approver_roles WHERE code = $1`, [step.role_code])
   const role = roleResult.rows[0]
-  const token = randomBytes(24).toString('hex')
   const approverName = role?.person_name ?? step.approver_name ?? step.role_title
   const approverEmail = role?.email ?? null
+
+  // Re-sending to the SAME address keeps the link, so the earlier e-mail in
+  // that inbox still works (its validity period starts again). Only when the
+  // request goes to a different address does it get a fresh link — and the
+  // old one is remembered, so opening it explains that it was replaced.
+  const sameRecipient = step.status === 'pending' && !!step.token && !!approverEmail
+    && (step.approver_email ?? '').trim().toLowerCase() === approverEmail.trim().toLowerCase()
+  const token = sameRecipient ? step.token! : randomBytes(24).toString('hex')
+  if (step.token && step.token !== token) {
+    await query('INSERT INTO procedure_approval_old_tokens (token, approval_id) VALUES ($1, $2) ON CONFLICT (token) DO NOTHING', [step.token, stepId])
+  }
 
   await query(
     `UPDATE procedure_approvals
@@ -354,8 +387,23 @@ async function emailStep(stepId: number, token: string): Promise<string | null> 
       [doc.id, doc.revision]
     )
 
+    // After a "Minta Revisi" every request is a re-submission: the email
+    // says so, lists what was asked, and that earlier links no longer work.
+    const requests = await revisionRequests(doc.id)
+    const lastRequest = requests[0] ?? null
+
     const base = resolveAppBaseUrl(settings.appUrl)
     const { subject, html } = buildProcedureApprovalEmail({
+      resubmission: lastRequest
+        ? {
+          round: requests.length + 1,
+          by: lastRequest.approverName ?? lastRequest.roleTitle,
+          at: lastRequest.decidedAt,
+          general: lastRequest.general,
+          pins: lastRequest.pins.map((p) => ({ page: p.page, note: p.note, strike: typeof p.x2 === 'number' })),
+          fileChanged: !!lastRequest.filePath && lastRequest.filePath !== doc.file_path,
+        }
+        : null,
       approverName: step.approver_name ?? step.role_title,
       roleTitle: step.role_title,
       controlNo: doc.control_no,
@@ -394,6 +442,25 @@ async function emailStep(stepId: number, token: string): Promise<string | null> 
 }
 
 // ─── decisions (public, token-secured) ───
+
+export type ReplacedLink = { controlNo: string; title: string; kind: DocKind; replacedAt: string; stillPending: boolean }
+
+// A link that no longer works because a newer one was issued for the same
+// step (see sendStepRequest). Tells the /pengesahan page what to say; gives
+// no access to the document.
+export async function replacedLink(token: string): Promise<ReplacedLink | null> {
+  await ensureApprovalSchema()
+  if (!/^[a-f0-9]{48}$/.test(token)) return null
+  const row = (await query<{ control_no: string; title: string; kind: DocKind; replaced_at: string; status: string }>(
+    `SELECT d.control_no, d.title, d.kind, o.replaced_at, a.status
+     FROM procedure_approval_old_tokens o
+     JOIN procedure_approvals a ON a.id = o.approval_id
+     JOIN procedure_documents d ON d.id = a.document_id
+     WHERE o.token = $1`,
+    [token]
+  )).rows[0]
+  return row ? { controlNo: row.control_no, title: row.title, kind: row.kind, replacedAt: row.replaced_at, stillPending: row.status === 'pending' } : null
+}
 
 export type TokenView = {
   step: ApprovalStep
@@ -466,35 +533,96 @@ export type RevisionRequest = {
   decidedAt: string
   general: string | null
   pins: { page: number; x: number; y: number; note: string; x2: number | null; y2: number | null }[]
+  // The file the marks were made on (null for requests from before this was
+  // recorded); fileKept = that file can still be opened.
+  filePath: string | null
+  fileKept: boolean
 }
 
-// The most recent "Minta Revisi" on a document (in any cycle — a restart
+// Every "Minta Revisi" on a document, newest first (in any cycle — a restart
 // cancels the step but keeps its decision and notes).
-export async function latestRevisionRequest(documentId: number): Promise<RevisionRequest | null> {
+export async function revisionRequests(documentId: number, limit = 50): Promise<RevisionRequest[]> {
   await ensureApprovalSchema()
-  const step = (await query<{ id: number; approver_name: string | null; role_title: string; revision: number; decided_at: string; decision_note: string | null }>(
-    `SELECT id, approver_name, role_title, revision, decided_at, decision_note FROM procedure_approvals
-     WHERE document_id = $1 AND decided_at IS NOT NULL AND verification_code IS NULL AND decision_note IS NOT NULL
-     ORDER BY decided_at DESC LIMIT 1`,
-    [documentId]
-  )).rows[0]
-  if (!step) return null
-  const rows = (await query<{ page: number | null; x: number | null; y: number | null; x2: number | null; y2: number | null; note: string }>(
-    'SELECT page, x, y, x2, y2, note FROM procedure_revision_notes WHERE approval_id = $1 ORDER BY seq',
-    [step.id]
+  const steps = (await query<{ id: number; approver_name: string | null; role_title: string; revision: number; decided_at: string; decision_note: string | null; file_path: string | null; file_kept: boolean }>(
+    `SELECT a.id, a.approver_name, a.role_title, a.revision, a.decided_at, a.decision_note, a.file_path,
+            (a.file_path = d.file_path OR EXISTS (SELECT 1 FROM procedure_document_versions v WHERE v.document_id = a.document_id AND v.file_path = a.file_path)) AS file_kept
+     FROM procedure_approvals a JOIN procedure_documents d ON d.id = a.document_id
+     WHERE a.document_id = $1 AND a.decided_at IS NOT NULL AND a.verification_code IS NULL AND a.decision_note IS NOT NULL
+     ORDER BY a.decided_at DESC LIMIT $2`,
+    [documentId, limit]
   )).rows
-  const general = rows.find((r) => r.page === null)?.note ?? null
-  const pins = rows.filter((r) => r.page !== null).map((r) => ({ page: r.page as number, x: r.x ?? 0, y: r.y ?? 0, note: r.note, x2: r.x2, y2: r.y2 }))
+  if (!steps.length) return []
+  const notes = (await query<{ approval_id: number; page: number | null; x: number | null; y: number | null; x2: number | null; y2: number | null; note: string }>(
+    'SELECT approval_id, page, x, y, x2, y2, note FROM procedure_revision_notes WHERE approval_id = ANY($1) ORDER BY approval_id, seq',
+    [steps.map((s) => s.id)]
+  )).rows
+  return steps.map((step) => {
+    const rows = notes.filter((n) => n.approval_id === step.id)
+    const general = rows.find((r) => r.page === null)?.note ?? null
+    return {
+      approvalId: step.id,
+      approverName: step.approver_name,
+      roleTitle: step.role_title,
+      revision: step.revision,
+      decidedAt: step.decided_at,
+      // Requests made before pinned notes existed only have the summary text.
+      general: rows.length ? general : step.decision_note,
+      pins: rows.filter((r) => r.page !== null).map((r) => ({ page: r.page as number, x: r.x ?? 0, y: r.y ?? 0, note: r.note, x2: r.x2, y2: r.y2 })),
+      filePath: step.file_path,
+      fileKept: step.file_kept === true,
+    }
+  })
+}
+
+// The most recent "Minta Revisi" on a document.
+export async function latestRevisionRequest(documentId: number): Promise<RevisionRequest | null> {
+  return (await revisionRequests(documentId, 1))[0] ?? null
+}
+
+export type DocumentVersion = { revision: number; filePath: string; uploadedAt: string | null; replacedAt: string; replacedBy: string | null }
+
+export type RevisionHistory = {
+  current: { revision: number; filePath: string; uploadedAt: string }
+  // Earlier files, newest first.
+  versions: DocumentVersion[]
+  requests: RevisionRequest[]
+}
+
+// What the document looked like before each new upload, with every revision
+// request — for comparing the fixed file with the one the marks were made on.
+export async function revisionHistory(documentId: number): Promise<RevisionHistory | null> {
+  await ensureApprovalSchema()
+  const doc = (await query<{ revision: number; file_path: string; uploaded_at: string }>(
+    'SELECT revision, file_path, uploaded_at FROM procedure_documents WHERE id = $1', [documentId]
+  )).rows[0]
+  if (!doc) return null
+  const versions = (await query<{ revision: number; file_path: string; uploaded_at: string | null; replaced_at: string; replaced_by: string | null }>(
+    'SELECT revision, file_path, uploaded_at, replaced_at, replaced_by FROM procedure_document_versions WHERE document_id = $1 ORDER BY replaced_at DESC, id DESC',
+    [documentId]
+  )).rows
   return {
-    approvalId: step.id,
-    approverName: step.approver_name,
-    roleTitle: step.role_title,
-    revision: step.revision,
-    decidedAt: step.decided_at,
-    // Requests made before pinned notes existed only have the summary text.
-    general: rows.length ? general : step.decision_note,
-    pins,
+    current: { revision: doc.revision, filePath: doc.file_path, uploadedAt: doc.uploaded_at },
+    versions: versions.map((v) => ({ revision: v.revision, filePath: v.file_path, uploadedAt: v.uploaded_at, replacedAt: v.replaced_at, replacedBy: v.replaced_by })),
+    requests: await revisionRequests(documentId),
   }
+}
+
+// Per document: earlier files kept + revision requests (register badge).
+export async function historyCounts(documentIds: number[]): Promise<Map<number, number>> {
+  await ensureApprovalSchema()
+  const map = new Map<number, number>()
+  if (!documentIds.length) return map
+  const result = await query<{ document_id: number; n: string }>(
+    `SELECT document_id, count(*) AS n FROM (
+       SELECT document_id FROM procedure_document_versions WHERE document_id = ANY($1)
+       UNION ALL
+       SELECT document_id FROM procedure_approvals
+       WHERE document_id = ANY($1) AND decided_at IS NOT NULL AND verification_code IS NULL AND decision_note IS NOT NULL
+     ) t GROUP BY document_id`,
+    [documentIds]
+  )
+  for (const row of result.rows) map.set(row.document_id, Number(row.n))
+  return map
 }
 
 export async function decideByToken(
@@ -529,9 +657,9 @@ export async function decideByToken(
     // Token stays on the row so the approver can reopen the link to see the result;
     // the status guard makes the decision single-use.
     const updated = await query<{ id: number }>(
-      `UPDATE procedure_approvals SET status = $1, decided_at = now(), decision_note = $2, verification_code = $3
+      `UPDATE procedure_approvals SET status = $1, decided_at = now(), decision_note = $2, verification_code = $3, file_path = $5
        WHERE id = $4 AND status = 'pending' RETURNING id`,
-      [status, note, verificationCode, view.step.id]
+      [status, note, verificationCode, view.step.id, view.document.file_path]
     )
     if (updated.rows.length === 0) return 'already' as const
 

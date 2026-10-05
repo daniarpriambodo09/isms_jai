@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Download, Eye, EyeOff, FileText, Globe, Loader2, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { HazardHero, IndexHero, latestUpload } from '@/components/page-hero'
+import { BlueprintHero, HazardHero, IndexHero, latestUpload } from '@/components/page-hero'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
 import { API_BASE_PATH } from '@/lib/config'
 import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
@@ -13,6 +13,7 @@ import { onRowClick } from '@/lib/row-click'
 import { toast } from '@/components/toast'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
+import { ResubmitDialog } from '@/components/documents/ResubmitDialog'
 import { ProcedureApprovalCell, type ApprovalStep } from '@/components/documents/ProcedureApprovalCell'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
@@ -34,6 +35,8 @@ type ProcedureDocument = {
   public_visible: boolean
   approvals: ApprovalStep[]
   slots_count: number
+  // Earlier files kept + revision requests ("Riwayat revisi").
+  history_count?: number
 }
 
 type StatusFilter = 'all' | 'published' | 'hidden' | 'pending' | 'approved' | 'rejected' | 'none'
@@ -118,6 +121,8 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   // Clicking a row: the signed version when there is one, else the uploaded file.
   const openDocument = (document: ProcedureDocument) => { setViewingSigned(hasSignature(document)); setViewing(document) }
   const [editing, setEditing] = useState<ProcedureDocument | null>(null)
+  // "Ajukan ulang" after a revision request: upload the fixed file.
+  const [resubmitting, setResubmitting] = useState<ProcedureDocument | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ProcedureDocument | null>(null)
@@ -276,7 +281,13 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
 
   return (
     <div className="flex flex-col gap-6">
-      {kind === 'working_standard' ? (
+      {kind === 'tmmin_standard' ? (
+        <BlueprintHero
+          count={documents.length}
+          updatedAt={latestUpload(documents)}
+          action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-none border border-[color:var(--p-400)] bg-[color:var(--p-400)] px-4 py-2.5 font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--p-950)] transition hover:opacity-90"><Plus className="size-4" />Tambah Dokumen</button>}
+        />
+      ) : kind === 'working_standard' ? (
         <HazardHero
           count={documents.length}
           action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-md bg-[color:var(--p-900)] px-4 py-2.5 text-sm font-semibold text-accent shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
@@ -409,8 +420,9 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                     isAdmin={isIsmsAdmin}
                     busy={busyId === document.id}
                     onResend={() => approvalAction(document, 'resend')}
-                    onRestart={() => approvalAction(document, 'restart')}
+                    onRestart={() => setResubmitting(document)}
                     slotsCount={document.slots_count}
+                    historyCount={document.history_count ?? 0}
                     onSlotsChanged={() => loadDocuments()}
                   />
                 ))}
@@ -485,6 +497,16 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
         />
       )}
       <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />
+      {resubmitting && (
+        <ResubmitDialog
+          kind={kind}
+          document={resubmitting}
+          revisionNote={resubmitting.approvals.find((step) => step.status === 'rejected')?.decision_note ?? null}
+          onClose={() => setResubmitting(null)}
+          onDone={(message) => { setResubmitting(null); toast(message); loadDocuments() }}
+          onWithoutFile={() => { const target = resubmitting; setResubmitting(null); approvalAction(target, 'restart') }}
+        />
+      )}
       <ConfirmDialog
         open={!!pendingDelete}
         title="Hapus dokumen?"

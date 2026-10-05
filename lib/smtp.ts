@@ -45,6 +45,12 @@ export async function getSmtpSettings(): Promise<SmtpSettings | null> {
   }
 }
 
+// Only App URL — e.g. the server's IP changed (see lib/app-url-check.ts).
+export async function saveAppUrl(appUrl: string) {
+  const result = await query('UPDATE smtp_settings SET app_url = $1, updated_at = now() WHERE id = 1', [appUrl])
+  return (result.rowCount ?? 0) > 0
+}
+
 export async function saveSmtpSettings(settings: {
   host: string
   port: number

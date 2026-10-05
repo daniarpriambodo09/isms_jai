@@ -2,12 +2,13 @@
 //
 // ISM Admin: the latest "Minta Revisi" on a procedure — the approver's
 // general note and the notes pinned on the document — for the register's
-// "Lihat catatan di dokumen" viewer.
+// "Lihat catatan di dokumen" viewer, plus the whole revision history
+// (earlier files and every request) for "Riwayat revisi".
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
-import { ensureApprovalSchema, latestRevisionRequest } from '@/lib/procedure-approval'
+import { ensureApprovalSchema, revisionHistory } from '@/lib/procedure-approval'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       [id]
     )).rows[0]
     if (!doc) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
-    return NextResponse.json({ document: doc, revisionRequest: await latestRevisionRequest(Number(id)) })
+    const history = await revisionHistory(Number(id))
+    return NextResponse.json({ document: doc, revisionRequest: history?.requests[0] ?? null, history })
   } catch (error) {
     console.error('[prosedur-isms/revision-notes/GET]', error)
     return NextResponse.json({ message: 'Gagal memuat catatan revisi.' }, { status: 500 })

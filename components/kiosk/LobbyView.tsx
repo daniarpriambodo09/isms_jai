@@ -442,8 +442,11 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   )
 }
 
-export function LobbyView() {
+// station: the same view serves both kiosks — Admin Lobby and Pos Security
+// have identical menus; only the name in the header and the export differ.
+export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security' }) {
   const { adminUser, logout } = useAuth()
+  const stationName = station === 'security' ? 'Pos Security' : 'Admin Lobby'
   // A month/year badge elsewhere in the portal (e.g. the Form Aplikasi group
   // header) can deep-link here as ?month=0-11&year=YYYY to land pre-filtered
   // on that period instead of the unfiltered full list.
@@ -510,7 +513,7 @@ export function LobbyView() {
 
   const handleExportCsv = () => {
     downloadExcel(
-      `rekap-tamu-lobby-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      `rekap-tamu-${station === 'security' ? 'pos-security' : 'lobby'}-${new Date().toISOString().slice(0, 10)}.xlsx`,
       ['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status', 'Nomor Kartu', 'Jam Masuk', 'Jam Keluar'],
       filteredRegistrations.map((r) => [
         formatDateTime(r.registered_at),
@@ -607,7 +610,7 @@ export function LobbyView() {
           <span className="grid size-10 place-items-center rounded-xl bg-white/15"><ShieldCheck className="size-5" /></span>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/65">PT. Jatim Autocomp Indonesia</p>
-            <h1 className="text-lg font-bold">Admin Lobby</h1>
+            <h1 className="text-lg font-bold">{stationName}</h1>
           </div>
         </div>
         <div className="flex items-center gap-2">

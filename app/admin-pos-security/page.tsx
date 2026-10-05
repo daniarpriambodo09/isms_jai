@@ -5,7 +5,7 @@
 import { Suspense, useRef, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { KioskLoginForm } from '@/components/kiosk/KioskLoginForm'
-import { SecurityView } from '@/components/kiosk/SecurityView'
+import { LobbyView } from '@/components/kiosk/LobbyView'
 
 function AdminPosSecurityContent() {
   const { adminUser, isLoading } = useAuth()
@@ -16,10 +16,11 @@ function AdminPosSecurityContent() {
 
   const canAccess = adminUser?.role === 'security' || adminUser?.role === 'ism_admin'
 
+  // Pos Security has the same menus as Admin Lobby — the same view, under its own name.
   // Already had a valid session (e.g. page reload) — skip straight to the view, no login flash.
   // A fresh login instead keeps rendering the same KioskLoginForm instance so its success
   // celebration finishes playing before this swaps to the real kiosk view.
-  if (canAccess && (revealView || !sawLoginForm.current)) return <SecurityView />
+  if (canAccess && (revealView || !sawLoginForm.current)) return <LobbyView station="security" />
 
   sawLoginForm.current = true
   return <KioskLoginForm title="Pos Security" subtitle="Login khusus admin Pos Security" onCelebrationDone={() => setRevealView(true)} />

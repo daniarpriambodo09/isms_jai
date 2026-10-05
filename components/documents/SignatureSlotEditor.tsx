@@ -17,9 +17,12 @@
 // - One role can sign in several spots (e.g. a signature table on two
 //   pages): select a box, Ctrl+C, go to the page, Ctrl+V — or use the copy
 //   button on the box. Delete removes the selected box.
-// - Each QR box has a companion TGL box where the approval date is printed.
-//   It snaps to the TANGGAL column on the QR's row and follows the QR when
-//   it moves; it can also be dragged by hand (then it only follows the row).
+// - Each QR box may have a companion TGL box where the approval date is
+//   printed. On a page with a TANGGAL column it starts in that column on the
+//   QR's row and follows the QR; elsewhere a new QR has no date until it is
+//   switched on. Once the TGL box is dragged by hand it stays exactly where
+//   it was put. It can be removed from the box itself (trash / Delete), per
+//   QR in the list, or for every QR at once.
 //
 // Positions are fractions (0–1) of the page as displayed, top-left origin,
 // so they don't depend on the zoom level.
@@ -221,6 +224,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   const pageRefs = useRef<(HTMLDivElement | null)[]>([])
   const initialPage = useRef<number | null>(null)
   const drag = useRef<{ key: string; target: 'qr' | 'date'; mode: 'move' | 'resize'; startX: number; startY: number; orig: Slot } | null>(null)
+  // Which part of the selected placement is selected: its QR or its TGL box.
+  const [selectedPart, setSelectedPart] = useState<'qr' | 'date'>('qr')
 
   const goToPage = (index: number) => scrollToPage(scrollRef, pageRefs, index)
 
@@ -263,8 +268,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         const mine = saved.find((s) => editable.includes(s.role_code)) ?? saved[0]
         initialPage.current = mine?.page ?? 0
 
-        // Find the TANGGAL column on every page, then give QR spots saved
-        // before dates existed a date box in their row.
+        // Find the TANGGAL column on every page. A saved QR without a date box
+        // stays without one — the date may have been switched off on purpose.
         const cols: Record<number, DateCol | null> = {}
         for (let i = 0; i < loaded.numPages; i++) {
           cols[i] = findDateColumn(await pagePhrases(loaded, i).catch(() => []))
@@ -272,11 +277,13 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         }
         dateColsRef.current = cols
         setDateCols(cols)
-        const upgraded = saved.map((s) => (!s.date && cols[s.page] && editable.includes(s.role_code) ? { ...s, date: dateInColumn(s, cols[s.page]!) } : s))
-        if (upgraded.some((s, i) => s !== saved[i])) {
-          setSlots(upgraded)
-          setDirty(true)
-          setMessage({ ok: true, text: 'Kotak TANGGAL ditambahkan otomatis di baris QR yang sudah ada. Periksa, lalu Simpan.' })
+        // A saved date box that isn't where the TANGGAL column would put it
+        // was placed by hand — it keeps its own spot.
+        for (const s of saved) {
+          const col = cols[s.page]
+          if (!s.date || !col) continue
+          const auto = dateInColumn(s, col)
+          if (Math.abs(auto.x - s.date.x) + Math.abs(auto.y - s.date.y) + Math.abs(auto.w - s.date.w) > 0.003) manualDate.current.add(s.key)
         }
       } catch (error) {
         if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Gagal memuat dokumen.')
@@ -294,16 +301,16 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   }, [ratios])
 
   // Where the date box goes after the QR box changed from `prev` to `next`:
-  // snapped into the page's TANGGAL column on the QR's row, or — without a
-  // detected column, or once dragged by hand — moved along with the QR.
+  // snapped into the page's TANGGAL column on the QR's row; without a
+  // detected column moved along with the QR; once dragged by hand, left alone.
   const followDate = (prev: Slot, next: Slot): Box | null => {
     if (!prev.date) return null
-    const manual = manualDate.current.has(prev.key)
+    if (manualDate.current.has(prev.key)) return prev.date
     const col = dateColsRef.current[next.page]
-    if (col && !manual) return dateInColumn(next, col)
+    if (col) return dateInColumn(next, col)
     // Keep matching the QR's height while the two were the same size.
     const h = Math.abs(prev.date.h - prev.h) < 1e-6 ? next.h : prev.date.h
-    const x = manual ? prev.date.x : prev.date.x + (next.x - prev.x)
+    const x = prev.date.x + (next.x - prev.x)
     return {
       x: Math.min(Math.max(x, 0), 1 - prev.date.w),
       y: Math.min(Math.max(prev.date.y + (next.y - prev.y), 0), 1 - h),
@@ -312,7 +319,14 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
     }
   }
 
-  // Default date box for a QR box: its row's TANGGAL cell, else just right of it.
+  // A new QR gets a date box only where the page has a TANGGAL column;
+  // anywhere else the date is switched on by hand when wanted.
+  const autoDate = (slot: Placement): Box | null => {
+    const col = dateColsRef.current[slot.page]
+    return col ? dateInColumn(slot, col) : null
+  }
+
+  // Date box when switched on by hand: its row's TANGGAL cell, else just right of it.
   const defaultDate = (slot: Placement): Box => {
     const col = dateColsRef.current[slot.page]
     if (col) return dateInColumn(slot, col)
@@ -363,11 +377,14 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       }
       const h = size / ratio
       base = { role_code: role, page: pageIndex, x: 0.5 - size / 2, y: Math.min(Math.max(cy - h / 2, 0), 1 - h), w: size, h }
-      base.date = defaultDate(base)
+      base.date = autoDate(base)
     }
     const slot: Slot = { ...base, key: newKey(role) }
+    // A hand-placed date box stays hand-placed on its copies.
+    if (template && manualDate.current.has(template.key) && !dateColsRef.current[pageIndex]) manualDate.current.add(slot.key)
     setSlots((current) => [...current, slot])
     setSelected(slot.key)
+    setSelectedPart('qr')
     setDirty(true)
   }
 
@@ -380,6 +397,18 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   const toggleDate = (key: string, on: boolean) => {
     manualDate.current.delete(key)
     setSlots((current) => current.map((s) => (s.key === key ? { ...s, date: on ? defaultDate(s) : null } : s)))
+    if (!on && selected === key) setSelectedPart('qr')
+    setDirty(true)
+  }
+
+  // Every QR this person may edit: print the approval date on all of them, or on none.
+  const setAllDates = (on: boolean) => {
+    setSlots((current) => current.map((s) => {
+      if (!canEdit(s.role_code) || !!s.date === on) return s
+      manualDate.current.delete(s.key)
+      return { ...s, date: on ? defaultDate(s) : null }
+    }))
+    setSelectedPart('qr')
     setDirty(true)
   }
 
@@ -399,7 +428,9 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         addPlacement(clipboard.current.role_code, clipboard.current)
         e.preventDefault()
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && current && canEdit(current.role_code)) {
-        removeSlot(current.key)
+        // With the TGL box selected only the date goes; the QR stays.
+        if (selectedPart === 'date' && current.date) toggleDate(current.key, false)
+        else removeSlot(current.key)
         e.preventDefault()
       }
     }
@@ -413,6 +444,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
     const slot = slots.find((s) => s.key === key)
     if (!slot || !canEdit(slot.role_code) || (target === 'date' && !slot.date)) return
     setSelected(key)
+    setSelectedPart(target)
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
     drag.current = { key, target, mode, startX: e.clientX, startY: e.clientY, orig: slot }
   }
@@ -463,7 +495,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       const foundRoles = new Set(detected.map((d) => d.role_code))
       const fresh = detected.map((d) => ({ ...d, key: newKey(d.role_code) }))
       manualDate.current.clear()
-      setSlots((current) => [...current.filter((s) => !foundRoles.has(s.role_code)), ...fresh])
+      // Detection only adds a date where the page has a TANGGAL column.
+      setSlots((current) => [...current.filter((s) => !foundRoles.has(s.role_code)), ...fresh.map((f) => ({ ...f, date: f.date ?? null }))])
       goToPage(fresh[0].page)
       setSelected(null)
       setDirty(true)
@@ -563,16 +596,34 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                     const color = colorOf(s.role_code)
                     const editable = canEdit(s.role_code)
                     const b = s.date!
+                    const isSelected = selected === s.key && selectedPart === 'date'
                     return (
                       <div
                         key={`date-${s.key}`}
                         onPointerDown={editable ? (e) => onPointerDown(e, s.key, 'move', 'date') : undefined}
                         className={`absolute grid touch-none place-items-center ${editable ? 'cursor-move' : 'pointer-events-none opacity-45'}`}
-                        style={{ left: `${b.x * 100}%`, top: `${b.y * 100}%`, width: `${b.w * 100}%`, height: `${b.h * 100}%`, border: `2px dashed ${color}`, background: `${color}14` }}
-                        title="Tanggal persetujuan dicetak di sini"
+                        style={{
+                          left: `${b.x * 100}%`, top: `${b.y * 100}%`, width: `${b.w * 100}%`, height: `${b.h * 100}%`,
+                          border: `2px dashed ${color}`, background: `${color}14`,
+                          boxShadow: isSelected ? `0 0 0 3px #fff, 0 0 0 5px ${color}` : undefined,
+                          zIndex: isSelected ? 5 : undefined,
+                        }}
+                        title="Tanggal persetujuan dicetak di sini — geser bebas, atau hapus bila tidak perlu"
                       >
-                        <span className="pointer-events-none absolute left-0 top-0 -translate-y-full whitespace-nowrap rounded-t px-1.5 py-0.5 font-mono text-[10px] font-bold text-white" style={{ background: color }}>
-                          TGL {s.role_code}
+                        <span className="absolute left-0 top-0 flex -translate-y-full items-center gap-0.5 whitespace-nowrap rounded-t font-mono text-[10px] font-bold text-white" style={{ background: color }}>
+                          <span className="pointer-events-none px-1.5 py-0.5">TGL {s.role_code}</span>
+                          {editable && (
+                            <button
+                              type="button"
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => { e.stopPropagation(); toggleDate(s.key, false) }}
+                              className="mr-0.5 grid size-5 place-items-center rounded hover:bg-white/25"
+                              aria-label={`Hapus tanggal ${s.role_code}`}
+                              title="Hapus kotak tanggal (tanggal tidak dicetak)"
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          )}
                         </span>
                         <span className="pointer-events-none font-mono text-[10px] font-semibold" style={{ color }}>{sampleDate}</span>
                         {editable && (
@@ -592,7 +643,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                     const role = roles.find((r) => r.code === s.role_code)
                     const color = colorOf(s.role_code)
                     const editable = canEdit(s.role_code)
-                    const isSelected = selected === s.key
+                    const isSelected = selected === s.key && selectedPart === 'qr'
                     const multiple = countFor(s.role_code) > 1
                     return (
                       <div
@@ -664,11 +715,35 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
               </button>
             )}
             <p className="text-xs leading-5 text-muted-foreground">
-              Geser kotak <strong>QR</strong> ke kolom tanda tangan, tarik sudutnya untuk ukuran. Kotak <strong>TGL</strong> (putus-putus) ikut ke kolom <strong>TANGGAL</strong> di baris yang sama.
+              Geser kotak <strong>QR</strong> ke kolom tanda tangan, tarik sudutnya untuk ukuran. Kotak <strong>TGL</strong> (putus-putus) tempat tanggal approve dicetak — geser ke mana saja, atau hapus dengan ikon <Trash2 className="inline size-3" /> bila tidak perlu.
               {' '}Perlu tanda tangan di lebih dari satu tempat? Klik kotak, tekan <kbd className="rounded border border-border px-1 font-mono text-[10px]">Ctrl</kbd>+<kbd className="rounded border border-border px-1 font-mono text-[10px]">C</kbd>, gulir ke halaman tujuan, lalu <kbd className="rounded border border-border px-1 font-mono text-[10px]">Ctrl</kbd>+<kbd className="rounded border border-border px-1 font-mono text-[10px]">V</kbd> — atau pakai tombol salin.
             </p>
 
             {message && <p className={`rounded-xl border px-3 py-2.5 text-xs leading-5 ${message.ok ? 'border-emerald-600/25 bg-emerald-600/10 text-emerald-800' : 'border-amber-500/40 bg-amber-50 text-amber-900'}`}>{message.text}</p>}
+
+            {(() => {
+              const mineAll = slots.filter((s) => canEdit(s.role_code))
+              if (!mineAll.length) return null
+              const withDate = mineAll.filter((s) => s.date).length
+              return (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-foreground">Tanggal approve</p>
+                    <p className="text-[11px] text-muted-foreground">{withDate === 0 ? 'Tidak dicetak di QR mana pun' : `Dicetak di ${withDate} dari ${mineAll.length} QR`}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={withDate > 0}
+                    aria-label="Cetak tanggal approve di semua QR"
+                    onClick={() => setAllDates(withDate === 0)}
+                    className={`relative h-6 w-11 flex-none rounded-full transition ${withDate > 0 ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${withDate > 0 ? 'left-[22px]' : 'left-0.5'}`} />
+                  </button>
+                </div>
+              )
+            })()}
 
             <div className="flex flex-col gap-2">
               {myRoles.map((role) => {
@@ -699,7 +774,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                             <label className="mt-1 flex cursor-pointer items-center gap-1.5 text-[11px] text-foreground">
                               <input type="checkbox" checked={!!s.date} onChange={(e) => toggleDate(s.key, e.target.checked)} className="size-3.5 accent-[color:var(--primary)]" />
                               Cetak tanggal approve
-                              {s.date && <span className="text-muted-foreground">{dateCols[s.page] ? '· kolom TANGGAL' : '· geser kotak TGL'}</span>}
+                              {s.date && <span className="text-muted-foreground">{dateCols[s.page] && !manualDate.current.has(s.key) ? '· kolom TANGGAL' : '· posisi bebas'}</span>}
                             </label>
                           </li>
                         ))}

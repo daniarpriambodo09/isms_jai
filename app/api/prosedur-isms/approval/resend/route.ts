@@ -1,7 +1,7 @@
 // app/api/prosedur-isms/approval/resend/route.ts
 //
 // ism_admin only. mode 'resend' re-emails whoever the document is currently
-// waiting on (fresh link, the old one stops working); mode 'restart' starts
+// waiting on (same link when it goes to the same address; a fresh one — the old then says "replaced" — when the address changed); mode 'restart' starts
 // the whole approval cycle again from the first approver (e.g. after a
 // rejection, once the document has been fixed without a new revision).
 

@@ -1,5 +1,5 @@
 // components/kiosk/kiosk-shared.ts
-// Types, constants and pure helpers shared by LobbyView and SecurityView —
+// Types, constants and pure helpers shared by the kiosk views (LobbyView, used by both Admin Lobby and Pos Security) —
 // both render the same vendor_registrations data, just filtered/labeled
 // differently for their respective kiosk role.
 

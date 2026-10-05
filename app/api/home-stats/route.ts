@@ -19,9 +19,8 @@ async function count(sql: string): Promise<number> {
 }
 
 const DOCUMENT_TABLES = [
-  'procedure_documents', // procedures and working standards (kind)
+  'procedure_documents', // procedures, working standards and TMMIN standards (kind)
   'form_cs_documents',
-  'standard_isms_p14_documents',
   'education_documents',
   'documents',
 ]

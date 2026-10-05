@@ -15,6 +15,7 @@ import { getSmtpSettings } from '@/lib/smtp'
 import { ensureApprovalSchema, listPendingSteps, listRoles, reassignRole } from '@/lib/procedure-approval'
 import { DOC_KINDS, docKindInfo, isDocKind, type DocKind } from '@/lib/document-kinds'
 import { getApproverSetting } from '@/lib/special-area'
+import { checkAppUrl } from '@/lib/app-url-check'
 
 const kindOf = (value: unknown): DocKind => (isDocKind(value) ? value : 'procedure')
 
@@ -50,6 +51,8 @@ export async function GET(request: NextRequest) {
         pending: pending.filter((step) => step.kind === k).length,
       }])),
       smtpReady: Boolean(smtp?.host && smtp.port && smtp.senderEmail),
+      // App URL no longer matches this server's address (links in e-mails time out).
+      appUrlWarning: checkAppUrl(smtp?.appUrl),
     })
   } catch (error) {
     console.error('[prosedur-approver-roles/GET]', error)

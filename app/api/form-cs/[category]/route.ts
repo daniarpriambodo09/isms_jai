@@ -100,10 +100,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const result = await query<DocumentRow>(
       `INSERT INTO form_cs_documents
          (category, control_no, title, language, file_path, keterangan_type, keterangan_note, file_variant, file_kind, title_emphasis_from, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+       VALUES ($1::text, $2::text, $3, $4, $5, $6, $7, $8, $9, $10,
          -- another file of a control no. already listed stays with its row; a new control no. goes to the bottom
-         COALESCE((SELECT max(sort_order) FROM form_cs_documents WHERE category = $1 AND control_no = $2),
-                  (SELECT COALESCE(max(sort_order), 0) + 1 FROM form_cs_documents WHERE category = $1)))
+         COALESCE((SELECT max(sort_order) FROM form_cs_documents WHERE category = $1::text AND control_no = $2::text),
+                  (SELECT COALESCE(max(sort_order), 0) + 1 FROM form_cs_documents WHERE category = $1::text)))
        RETURNING ${SELECT_COLUMNS}`,
       [category, controlNo.trim().toUpperCase(), title.trim(), language.trim(), filePath, keteranganType, keteranganNote, fileVariant, fileKind, titleEmphasisFrom]
     )

@@ -118,7 +118,7 @@ export function documentHandlers(kind: DocKind) {
       try {
         created = (await query<DocumentRow>(
           `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, sort_order)
-           VALUES ($1, $2, $3, 1, $4, $5, $6, $7, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1))
+           VALUES ($1::text, $2, $3, 1, $4, $5, $6, $7, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
            RETURNING ${COLUMNS}`,
           [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note]
         )).rows[0]

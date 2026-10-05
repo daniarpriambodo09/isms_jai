@@ -23,6 +23,7 @@ export type EmailPreviewItem = { id: string; group: string; label: string; to: s
 const KIND_SAMPLE: Record<DocKind, { controlNo: string; title: string; roles: [string, string, string] }> = {
   procedure: { controlNo: 'P14-001', title: 'Prosedur Pengendalian Dokumen', roles: ['System Security Administrator', 'Information Assets Administrator', 'Penanggung Jawab Umum'] },
   working_standard: { controlNo: 'ISMS-OS-010-001', title: 'Standard Mengganti Password pada Windows 11', roles: ['Prepared', 'Checked', 'Approved 1'] },
+  review_form: { controlNo: '002/ISMS/10/2026', title: 'Form Review — ISMS-B-005 ISMS Division Profile', roles: ['Prepared', 'Checked (SSA)', 'Approval (IAA)'] },
   tmmin_standard: { controlNo: 'TMMIN-SR-001', title: 'Standard Requirement Keamanan Informasi TMMIN', roles: ['Prepared', 'Checked', 'Approved'] },
 }
 const PEOPLE = ['Isra Ramadhan', 'Naufal Aqil', 'Teguh Sunjoyo']

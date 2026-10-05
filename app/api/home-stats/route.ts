@@ -38,7 +38,8 @@ export async function GET() {
     visitsMonth,
     specialAreaApproved,
   ] = await Promise.all([
-    Promise.all(DOCUMENT_TABLES.map((table) => count(`SELECT count(*)::int AS n FROM ${table}`))),
+    // (Form Review records share procedure_documents but are not library documents.)
+    Promise.all(DOCUMENT_TABLES.map((table) => count(`SELECT count(*)::int AS n FROM ${table}${table === 'procedure_documents' ? " WHERE kind <> 'review_form'" : ''}`))),
     count(`SELECT count(*)::int AS n FROM procedure_documents WHERE kind = 'procedure' AND approval_status = 'approved'`),
     count(`SELECT count(*)::int AS n FROM procedure_documents WHERE kind = 'procedure' AND approval_status = 'pending'`),
     count(`SELECT count(*)::int AS n FROM photo_video_requests WHERE status = 'approved'`),

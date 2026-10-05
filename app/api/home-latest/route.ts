@@ -26,7 +26,7 @@ export async function GET() {
     const rows = (await query<Row>(
       `SELECT * FROM (
          SELECT CASE kind WHEN 'working_standard' THEN 'working' WHEN 'tmmin_standard' THEN 'standard' ELSE 'procedure' END AS kind, title, control_no AS code, uploaded_at, NULL::text AS slug
-           FROM procedure_documents WHERE approval_status IN ('approved', 'none') AND public_visible
+           FROM procedure_documents WHERE kind <> 'review_form' AND approval_status IN ('approved', 'none') AND public_visible
          UNION ALL SELECT CASE WHEN category = 'kontrol-cs' THEN 'cs' ELSE 'form' END, title, control_no, uploaded_at, NULL FROM form_cs_documents
          UNION ALL SELECT 'education', title, NULL, uploaded_at, NULL FROM education_documents
          UNION ALL SELECT 'department', d.title, NULL, d.uploaded_at,

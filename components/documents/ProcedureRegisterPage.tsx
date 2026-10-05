@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Download, Eye, EyeOff, FileText, Globe, Loader2, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, ClipboardCheck, Download, Eye, EyeOff, FileText, Globe, Loader2, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { BlueprintHero, HazardHero, IndexHero, latestUpload } from '@/components/page-hero'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
@@ -14,6 +15,7 @@ import { toast } from '@/components/toast'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
 import { ResubmitDialog } from '@/components/documents/ResubmitDialog'
+import { ReviewFormModal } from '@/components/documents/ReviewFormModal'
 import { NO_HEAD_CLASS, OrderCell, ReorderHint, moveItem, useDragReorder } from '@/components/documents/RowReorder'
 import { ProcedureApprovalCell, type ApprovalStep } from '@/components/documents/ProcedureApprovalCell'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -111,10 +113,21 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   const [query, setQuery] = useState('')
   // ?q= prefills the search (links in the admin emails and the bell open the
   // register already filtered to their document) — also when already here.
-  const qParam = useSearchParams().get('q')
+  const searchParams = useSearchParams()
+  const qParam = searchParams.get('q')
   useEffect(() => {
     if (qParam) setQuery(qParam)
   }, [qParam])
+  // Form Review: the form is filled in here, not uploaded (ReviewFormModal).
+  const isReviewForm = kind === 'review_form'
+  const [reviewForm, setReviewForm] = useState<{ editId?: number; prefill?: { docControlNo: string; docTitle: string; oldRevision: string }; notice?: string | null } | null>(null)
+  // ?docNo=&docTitle=&rev= (the "Form Review" button of a Prosedur ISMS row) opens a new form about that document.
+  const prefillTitle = isReviewForm ? searchParams.get('docTitle') : null
+  const prefillNo = searchParams.get('docNo') ?? ''
+  const prefillRev = searchParams.get('rev') ?? ''
+  useEffect(() => {
+    if (prefillTitle && isIsmsAdmin) setReviewForm({ prefill: { docControlNo: prefillNo, docTitle: prefillTitle, oldRevision: prefillRev ? `Revisi ${prefillRev}` : '' } })
+  }, [prefillTitle, prefillNo, prefillRev, isIsmsAdmin])
   const [viewing, setViewing] = useState<ProcedureDocument | null>(null)
   // true = show the generated signed PDF (QRs stamped), false = the uploaded original
   const [viewingSigned, setViewingSigned] = useState(false)
@@ -214,8 +227,13 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
     }
   }
 
-  const openAdd = () => { setEditing(null); setFormOpen(true) }
-  const openEdit = (document: ProcedureDocument) => { setEditing(document); setFormOpen(true) }
+  const openAdd = () => { if (isReviewForm) { setReviewForm({}); return } setEditing(null); setFormOpen(true) }
+  const openEdit = (document: ProcedureDocument) => { if (isReviewForm) { setReviewForm({ editId: document.id }); return } setEditing(document); setFormOpen(true) }
+  // After "Minta Revisi": an uploaded document gets its fixed file; a review form is corrected in its form.
+  const openResubmit = (document: ProcedureDocument) => {
+    if (isReviewForm) setReviewForm({ editId: document.id, notice: document.approvals.find((step) => step.status === 'rejected')?.decision_note ?? null })
+    else setResubmitting(document)
+  }
   const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredDocuments, 20)
   useEffect(() => { setPage(1) }, [query, statusFilter, setPage])
 
@@ -315,6 +333,21 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
           count={documents.length}
           action={isLoggedIn && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-md bg-[color:var(--p-900)] px-4 py-2.5 text-sm font-semibold text-accent shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Tambah Dokumen</button>}
         />
+      ) : isReviewForm ? (
+        <IndexHero
+          eyebrow="(F) — ISMS-F-001-001"
+          title="Form Review & Revisi Dokumen"
+          description="Form review dan revisi dokumen ISMS — diisi di portal, ditandatangani dengan QR oleh Prepared, Checked, dan Approval."
+          count={documents.length}
+          countLabel="form review tercatat"
+          updatedAt={latestUpload(documents)}
+          action={(
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/prosedur-isms" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"><ArrowLeft className="size-4" />Prosedur ISMS</Link>
+              {isIsmsAdmin && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Buat Form Review</button>}
+            </div>
+          )}
+        />
       ) : (
       <IndexHero
         eyebrow="(P) — Procedure register"
@@ -366,6 +399,11 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
               <button type="button" onClick={() => setBulkDeleteOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground transition hover:opacity-90"><Trash2 className="size-3.5" />Hapus Terpilih</button>
               <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
             </div>
+          )}
+          {kind === 'procedure' && isIsmsAdmin && (
+            <Link href="/form-review-dokumen" title="Form Review & Revisi Dokumen ISMS (ISMS-F-001-001) — isi di portal, tanda tangan QR" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
+              <ClipboardCheck className="size-3.5" />Form Review Dokumen
+            </Link>
           )}
           {isLoggedIn && <button type="button" onClick={handleExportCsv} disabled={filteredDocuments.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-3.5" />Export Excel</button>}
           <div className="relative w-full sm:w-80"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No. Kontrol atau dokumen..." aria-label={`Cari ${kindInfo.label}`} className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}</div>
@@ -452,7 +490,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                     isAdmin={isIsmsAdmin}
                     busy={busyId === document.id}
                     onResend={() => approvalAction(document, 'resend')}
-                    onRestart={() => setResubmitting(document)}
+                    onRestart={() => openResubmit(document)}
                     slotsCount={document.slots_count}
                     historyCount={document.history_count ?? 0}
                     onSlotsChanged={() => loadDocuments()}
@@ -500,6 +538,17 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                         {visibilityBusy.has(document.id) ? <Loader2 className="size-4 animate-spin" /> : document.public_visible ? <Globe className="size-4" /> : <EyeOff className="size-4" />}
                       </button>
                     )}
+                    {kind === 'procedure' && isIsmsAdmin && (
+                      <Link
+                        href={`/form-review-dokumen?docNo=${encodeURIComponent(document.control_no)}&docTitle=${encodeURIComponent(document.title)}&rev=${document.revision}`}
+                        aria-label={`Buat Form Review untuk ${document.title}`}
+                        title="Buat Form Review & Revisi untuk dokumen ini"
+                        data-label="Review"
+                        className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"
+                      >
+                        <ClipboardCheck className="size-4" />
+                      </Link>
+                    )}
                     {isLoggedIn && <>
                       <button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" data-label="Edit" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
                       <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" data-label="Hapus" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
@@ -528,7 +577,15 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
             : hasSignature(viewing) ? <span className="flex-none rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">File asli</span> : null}
         />
       )}
-      <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />
+      {!isReviewForm && <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />}
+      <ReviewFormModal
+        open={!!reviewForm}
+        editId={reviewForm?.editId}
+        prefill={reviewForm?.prefill}
+        notice={reviewForm?.notice}
+        onClose={() => setReviewForm(null)}
+        onSaved={(message) => { toast(message); loadDocuments() }}
+      />
       {resubmitting && (
         <ResubmitDialog
           kind={kind}

@@ -51,6 +51,8 @@ describe.skipIf(!enabled)('document registers (PostgreSQL + route handlers)', ()
 
   afterAll(async () => {
     const files: string[] = []
+    // files replaced by an edit (kept as earlier versions) go too
+    files.push(...(await db.query<{ file_path: string }>('SELECT v.file_path FROM procedure_document_versions v JOIN procedure_documents d ON d.id = v.document_id WHERE d.control_no LIKE $1', [`${TAG}%`])).rows.map((r) => r.file_path))
     for (const [table, column] of [['procedure_documents', 'control_no'], ['form_cs_documents', 'control_no'], ['education_documents', 'title'], ['documents', 'title']] as const) {
       files.push(...(await db.query<{ file_path: string }>(`DELETE FROM ${table} WHERE ${column} LIKE $1 RETURNING file_path`, [`${TAG}%`])).rows.map((r) => r.file_path))
     }
@@ -89,6 +91,27 @@ describe.skipIf(!enabled)('document registers (PostgreSQL + route handlers)', ()
     expect(res.status).toBe(400)
     expect((await res.json()).message).toContain('belum punya email')
     expect((await db.query('SELECT 1 FROM procedure_documents WHERE control_no = $1', [`${TAG}-R`])).rows).toHaveLength(0)
+  })
+
+  it('form review: fill in, read back, edit (new PDF), delete', async () => {
+    const route = await import('@/app/api/form-review/route')
+    const form = { formNo: `${TAG}-FR`, reviewRequestedAt: '2026-01-15', docControlNo: 'P14-001', docTitle: `${TAG} dokumen`, level: 3, docType: 'form', reasonPeriodic: true, periodMonth: 1, periodYear: 2026, result: 'revisi', detailRevisi: 'uji' }
+    const created = await route.POST(req('/api/x', 'POST', { form, approvalRoles: [] }))
+    expect(created.status).toBe(201)
+    const doc = (await created.json()).document as { id: number; file_path: string; public_visible: boolean }
+    expect(doc.public_visible).toBe(false) // an internal record unless the admin shows it
+    expect(fs.readFileSync(path.join(process.cwd(), 'storage', doc.file_path)).subarray(0, 5).toString()).toBe('%PDF-')
+
+    const read = await route.GET(req(`/api/x?form=${doc.id}`, 'GET'))
+    expect((await read.json()).form.docTitle).toBe(`${TAG} dokumen`)
+    expect((await route.GET(req(`/api/x?form=${doc.id}`, 'GET', undefined, false))).status).toBe(401)
+    expect((await route.POST(req('/api/x', 'POST', { form: { ...form, result: null }, approvalRoles: [] }))).status).toBe(400)
+
+    const edited = await route.PUT(req('/api/x', 'PUT', { id: doc.id, form: { ...form, detailRevisi: 'uji diubah' }, approvalRoles: [] }))
+    expect(edited.status).toBe(200)
+    expect((await edited.json()).document.file_path).not.toBe(doc.file_path) // regenerated
+    expect((await route.DELETE(req(`/api/x?id=${doc.id}`, 'DELETE'))).status).toBe(200)
+    expect((await db.query('SELECT 1 FROM document_review_forms WHERE document_id = $1', [doc.id])).rows).toHaveLength(0)
   })
 
   for (const category of ['form-aplikasi', 'kontrol-cs'] as const) {

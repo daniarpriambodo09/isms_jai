@@ -27,6 +27,7 @@ const PAGE_ICONS: Record<string, React.ReactNode> = {
   '/prosedur-isms': <BookOpen className="size-5" />,
   '/standard-isms-p14': <BookMarked className="size-5" />,
   '/working-standard': <BookMarked className="size-5" />,
+  '/form-review-dokumen': <FileText className="size-5" />,
   '/form-aplikasi': <FileText className="size-5" />,
   '/kontrol-cs': <LayoutGrid className="size-5" />,
   '/kebijakan-dasar-ISMS': <Shield className="size-5" />,
@@ -47,6 +48,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/prosedur-isms': 'Prosedur ISMS',
   '/standard-isms-p14': 'Standard Requirement TMMIN',
   '/working-standard': 'Working Standard',
+  '/form-review-dokumen': 'Form Review Dokumen',
   '/education': 'Education & Training',
   '/form-aplikasi': 'Form Aplikasi',
   '/kontrol-cs': 'Kontrol CS',
@@ -81,7 +83,7 @@ const PAGE_TITLES: Record<string, string> = {
 // Menu pages that render their own themed hero (components/page-hero.tsx);
 // the frame then shows only the breadcrumb row, not a duplicate giant title.
 const OWN_HERO_PREFIXES = [
-  '/kebijakan-dasar-ISMS', '/prosedur-isms', '/standard-isms-p14', '/working-standard', '/education',
+  '/kebijakan-dasar-ISMS', '/prosedur-isms', '/standard-isms-p14', '/working-standard', '/form-review-dokumen', '/education',
   '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/verifikasi-pengesahan', '/persetujuan-area-special', '/verifikasi-area-special',
   // Admin pages open with their own "Admin workspace" header or page heading.
   '/dashboard-admin', '/pengaturan', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-departemen', '/kelola-permintaan-foto-video',

@@ -5,7 +5,7 @@
 // and one approval engine (lib/procedure-approval.ts), and differ only in
 // where they are listed and what they are called. Client-safe.
 
-export const DOC_KINDS = ['procedure', 'working_standard', 'tmmin_standard'] as const
+export const DOC_KINDS = ['procedure', 'working_standard', 'tmmin_standard', 'review_form'] as const
 export type DocKind = (typeof DOC_KINDS)[number]
 
 export const DOC_KIND_INFO: Record<DocKind, {
@@ -24,6 +24,8 @@ export const DOC_KIND_INFO: Record<DocKind, {
 }> = {
   procedure: { key: 'procedure', label: 'Prosedur ISMS', short: 'Prosedur', noun: 'prosedur', path: '/prosedur-isms', api: '/api/prosedur-isms' },
   working_standard: { key: 'working_standard', label: 'Working Standard', short: 'Working Standard', noun: 'working standard', path: '/working-standard', api: '/api/working-standard' },
+  // Not uploaded but filled in on the portal (lib/review-form.ts); its PDF is generated.
+  review_form: { key: 'review_form', label: 'Form Review Dokumen', short: 'Form Review', noun: 'form review dokumen', path: '/form-review-dokumen', api: '/api/form-review' },
   tmmin_standard: { key: 'tmmin_standard', label: 'Standard Requirement TMMIN', short: 'Standard TMMIN', noun: 'standard requirement TMMIN', path: '/standard-isms-p14', api: '/api/standard-isms-p14' },
 }
 

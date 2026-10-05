@@ -29,6 +29,7 @@ const PLACEHOLDERS: Record<DocKind, { code: string; title: string }> = {
   procedure: { code: 'WPJU', title: 'Information Assets Administrator' },
   working_standard: { code: 'WS-APP3', title: 'Approved 3' },
   tmmin_standard: { code: 'TM-APP2', title: 'Approved 2' },
+  review_form: { code: 'FR-APP2', title: 'Approval 2' },
 }
 
 const inputClass = 'h-10 w-full min-w-0 rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
@@ -239,7 +240,7 @@ export default function KelolaPengesahanPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Approver Pengesahan Dokumen</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Atur jabatan pengesahan dan siapa yang menjabatnya. Prosedur ISMS, Working Standard, dan Standard Requirement TMMIN masing-masing punya daftar jabatan sendiri — jabatan bisa ditambah, diubah, dan dihapus. Saat ada pergantian jabatan, cukup ganti <strong>nama</strong> dan <strong>email</strong> di sini — permintaan yang sedang menunggu otomatis dikirim ulang ke orang baru, sedangkan riwayat tanda tangan sebelumnya tetap tercatat atas nama penyetuju lama.
+            Atur jabatan pengesahan dan siapa yang menjabatnya. Prosedur ISMS, Working Standard, Standard Requirement TMMIN, dan Form Review Dokumen masing-masing punya daftar jabatan sendiri — jabatan bisa ditambah, diubah, dan dihapus. Saat ada pergantian jabatan, cukup ganti <strong>nama</strong> dan <strong>email</strong> di sini — permintaan yang sedang menunggu otomatis dikirim ulang ke orang baru, sedangkan riwayat tanda tangan sebelumnya tetap tercatat atas nama penyetuju lama.
           </p>
         </div>
         <Link href={kindInfo.path} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">

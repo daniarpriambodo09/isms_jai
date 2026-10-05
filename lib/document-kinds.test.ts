@@ -17,6 +17,7 @@ describe('document kinds', () => {
     expect(isDocKind('procedure')).toBe(true)
     expect(isDocKind('working_standard')).toBe(true)
     expect(isDocKind('tmmin_standard')).toBe(true)
+    expect(isDocKind('review_form')).toBe(true)
     expect(isDocKind('working-standard')).toBe(false)
     expect(isDocKind(null)).toBe(false)
   })

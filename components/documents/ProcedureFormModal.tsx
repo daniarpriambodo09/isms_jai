@@ -22,6 +22,7 @@ type ApproverRole = { code: string; title: string; person_name: string; email: s
 const PLACEHOLDERS: Record<DocKind, { controlNo: string; title: string }> = {
   procedure: { controlNo: 'Contoh: P14-001', title: 'Contoh: Prosedur Pengendalian Dokumen' },
   working_standard: { controlNo: 'Contoh: ISMS-OS-010-001', title: 'Contoh: Standard Mengganti Password pada Windows 11' },
+  review_form: { controlNo: 'Contoh: 002/ISMS/10/2026', title: 'Contoh: Form Review — ISMS Division Profile' },
   tmmin_standard: { controlNo: 'Contoh: TMMIN-SR-001', title: 'Contoh: Standard Requirement Keamanan Informasi TMMIN' },
 }
 

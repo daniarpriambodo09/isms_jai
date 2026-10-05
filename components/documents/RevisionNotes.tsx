@@ -2,29 +2,46 @@
 
 // "Minta Revisi" notes on a procedure document, in two modes:
 //
-// - edit (approver, from the /pengesahan page): click anywhere on a page to
-//   drop a numbered marker, write what needs fixing next to it; markers can
-//   be dragged or removed; plus one general note. Nothing is signed.
+// - edit (approver, from the /pengesahan page): two kinds of marks, made
+//   straight on the page —
+//     · strike: drag across the words to cross them out, the way it is done
+//       on a hardcopy, then write what to put instead (leave it empty when
+//       the words simply have to go);
+//     · marker: click once to drop a numbered marker and write what needs
+//       fixing there.
+//   Marks can be moved (a strike also by its two ends) or removed; plus one
+//   general note. Nothing is signed.
 // - view (ISM Admin from the register, and approvers of the resubmitted
-//   document): the same markers and notes, read-only — click a note to jump
+//   document): the same marks and notes, read-only — click a note to jump
 //   to its spot.
 //
-// Marker positions are fractions (0–1) of the page as displayed, top-left
-// origin, like the QR placement editor.
+// Positions are fractions (0–1) of the page as displayed, top-left origin,
+// like the QR placement editor. A strike runs from (x, y) to (x2, y2).
 
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import { ChevronLeft, ChevronRight, Loader2, MapPin, MessageSquareText, Send, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Hand, Loader2, MapPin, MessageSquareText, Send, Strikethrough, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { PdfPages, loadPageRatios, scrollToPage, scrollToSpot } from '@/components/documents/PdfPages'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
-export type RevisionPin = { page: number; x: number; y: number; note: string }
+export type RevisionPin = { page: number; x: number; y: number; note: string; x2?: number | null; y2?: number | null }
 type Pin = RevisionPin & { key: string }
+type Strike = Pin & { x2: number; y2: number }
+type Line = { page: number; x: number; y: number; x2: number; y2: number }
+
+const isStrike = (pin: RevisionPin): pin is RevisionPin & { x2: number; y2: number } => typeof pin.x2 === 'number' && typeof pin.y2 === 'number'
 
 const PIN_COLOR = '#d6452f'
+const MAX_MARKS = 30
+// A drag shorter than this (px) is a click, not a strike.
+const DRAG_START = 5
+const MIN_STRIKE = 10
+// Small print needs enlarging before single words can be struck.
+const ZOOM_STEPS = [1, 1.5, 2, 2.5]
 let keySeq = 0
 const newKey = () => `pin-${Date.now().toString(36)}-${(keySeq++).toString(36)}`
+const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1)
 
 export function RevisionNotesDialog({
   mode,
@@ -62,11 +79,24 @@ export function RevisionNotesDialog({
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  // The strike being drawn right now (pointer still down).
+  const [draft, setDraft] = useState<Line | null>(null)
+  const [zoom, setZoom] = useState(1)
+  // Touch screens: one finger either marks the page ('mark': a sideways drag
+  // strikes, a tap drops a marker, up/down still scrolls) or just moves
+  // around it ('pan' — needed once the page is zoomed in). A mouse always marks.
+  const [coarse, setCoarse] = useState(false)
+  const [touchTool, setTouchTool] = useState<'mark' | 'pan'>('mark')
+  const marking = editing && (!coarse || touchTool === 'mark')
+  const zoomAnchor = useRef<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const pageRefs = useRef<(HTMLDivElement | null)[]>([])
   const initialPage = useRef<number | null>(initialPins[0]?.page ?? 0)
   const itemRefs = useRef<Record<string, HTMLElement | null>>({})
-  const drag = useRef<{ key: string; startX: number; startY: number; orig: Pin; moved: boolean } | null>(null)
+  // Moving an existing mark: the whole thing, or one end of a strike.
+  const drag = useRef<{ key: string; startX: number; startY: number; orig: Pin; moved: boolean; part: 'move' | 'a' | 'b' } | null>(null)
+  // A press on the page itself: becomes a strike when dragged, a marker when not.
+  const draw = useRef<{ page: number; pointerId: number; x: number; y: number; startX: number; startY: number; moved: boolean; touch: boolean } | null>(null)
 
   useEscapeClose(true, onClose)
 
@@ -90,7 +120,32 @@ export function RevisionNotesDialog({
     return () => { cancelled = true }
   }, [filePath, token])
 
+  useEffect(() => {
+    const query = window.matchMedia('(pointer: coarse)')
+    const update = () => setCoarse(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+
   const goToPage = (index: number) => scrollToPage(scrollRef, pageRefs, index)
+
+  // Zooming keeps the same part of the document in the middle of the view.
+  const changeZoom = (direction: 1 | -1) => {
+    const next = ZOOM_STEPS[ZOOM_STEPS.indexOf(zoom) + direction]
+    const root = scrollRef.current
+    if (!next || !root) return
+    zoomAnchor.current = (root.scrollTop + root.clientHeight / 2) / Math.max(root.scrollHeight, 1)
+    setZoom(next)
+  }
+
+  useLayoutEffect(() => {
+    const root = scrollRef.current
+    if (!root || zoomAnchor.current === null) return
+    root.scrollTop = zoomAnchor.current * root.scrollHeight - root.clientHeight / 2
+    root.scrollLeft = (root.scrollWidth - root.clientWidth) / 2
+    zoomAnchor.current = null
+  }, [zoom])
 
   // Once the pages are laid out, jump to the first marker's page.
   useEffect(() => {
@@ -105,27 +160,70 @@ export function RevisionNotesDialog({
     requestAnimationFrame(() => itemRefs.current[key]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
 
-  const addPin = (page: number, e: ReactMouseEvent<HTMLDivElement>) => {
+  const addMark = (mark: Omit<Pin, 'key' | 'note'>) => {
+    if (pins.length >= MAX_MARKS) { setError(`Maksimal ${MAX_MARKS} coretan/penanda.`); return }
+    const pin: Pin = { ...mark, key: newKey(), note: '' }
+    setError(null)
+    setPins((c) => [...c, pin])
+    select(pin.key)
+    // Let the new note's textarea take focus.
+    requestAnimationFrame(() => (itemRefs.current[pin.key]?.querySelector('textarea') as HTMLTextAreaElement | null)?.focus({ preventScroll: true }))
+  }
+
+  // ── drawing on the page: drag = strike, click = marker ──
+
+  // Where the strike being drawn ends: kept level when the drag is close to
+  // horizontal (a line through a row of text), free otherwise.
+  const strikeEnd = (d: NonNullable<typeof draw.current>, e: ReactPointerEvent, rect: DOMRect) => {
+    const dx = e.clientX - d.startX
+    const dy = e.clientY - d.startY
+    const level = d.touch || Math.abs(dy) <= Math.abs(dx) * 0.3
+    return { x2: clamp01(d.x + dx / rect.width), y2: level ? d.y : clamp01(d.y + dy / rect.height) }
+  }
+
+  const onPageDown = (page: number, e: ReactPointerEvent<HTMLDivElement>) => {
     const el = pageRefs.current[page]
-    if (!editing || !el) return
+    if (!el || (e.pointerType === 'mouse' && e.button !== 0)) return
     const rect = el.getBoundingClientRect()
     const x = (e.clientX - rect.left) / rect.width
     const y = (e.clientY - rect.top) / rect.height
     if (x < 0 || x > 1 || y < 0 || y > 1) return
-    if (pins.length >= 30) { setError('Maksimal 30 penanda.'); return }
-    const pin: Pin = { key: newKey(), page, x, y, note: '' }
-    setPins((c) => [...c, pin])
-    select(pin.key)
-    // Let the new note's textarea take focus.
-    requestAnimationFrame(() => (itemRefs.current[pin.key]?.querySelector('textarea') as HTMLTextAreaElement | null)?.focus())
+    el.setPointerCapture(e.pointerId)
+    draw.current = { page, pointerId: e.pointerId, x, y, startX: e.clientX, startY: e.clientY, moved: false, touch: e.pointerType === 'touch' }
   }
 
-  const onPinDown = (e: ReactPointerEvent, pin: Pin) => {
+  const onPageMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = draw.current
+    const el = d ? pageRefs.current[d.page] : null
+    if (!d || !el || e.pointerId !== d.pointerId) return
+    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < DRAG_START) return
+    d.moved = true
+    setDraft({ page: d.page, x: d.x, y: d.y, ...strikeEnd(d, e, el.getBoundingClientRect()) })
+  }
+
+  const onPageUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = draw.current
+    const el = d ? pageRefs.current[d.page] : null
+    if (!d || !el || e.pointerId !== d.pointerId) return
+    draw.current = null
+    setDraft(null)
+    if (!d.moved) { addMark({ page: d.page, x: d.x, y: d.y }); return }
+    const rect = el.getBoundingClientRect()
+    const end = strikeEnd(d, e, rect)
+    if (Math.hypot((end.x2 - d.x) * rect.width, (end.y2 - d.y) * rect.height) < MIN_STRIKE) return
+    addMark({ page: d.page, x: d.x, y: d.y, ...end })
+  }
+
+  const cancelDraw = () => { draw.current = null; setDraft(null) }
+
+  // ── moving existing marks ──
+
+  const onPinDown = (e: ReactPointerEvent, pin: Pin, part: 'move' | 'a' | 'b' = 'move') => {
     e.stopPropagation()
     select(pin.key)
     if (!editing) return
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    drag.current = { key: pin.key, startX: e.clientX, startY: e.clientY, orig: pin, moved: false }
+    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+    drag.current = { key: pin.key, startX: e.clientX, startY: e.clientY, orig: pin, moved: false, part }
   }
 
   const onPinMove = (e: ReactPointerEvent) => {
@@ -135,16 +233,31 @@ export function RevisionNotesDialog({
     const rect = stage.getBoundingClientRect()
     if (Math.abs(e.clientX - d.startX) + Math.abs(e.clientY - d.startY) > 3) d.moved = true
     if (!d.moved) return
-    const x = Math.min(Math.max(d.orig.x + (e.clientX - d.startX) / rect.width, 0), 1)
-    const y = Math.min(Math.max(d.orig.y + (e.clientY - d.startY) / rect.height, 0), 1)
-    setPins((c) => c.map((p) => (p.key === d.key ? { ...p, x, y } : p)))
+    const dx = (e.clientX - d.startX) / rect.width
+    const dy = (e.clientY - d.startY) / rect.height
+    const o = d.orig
+    let next: Partial<Pin>
+    if (!isStrike(o)) {
+      next = { x: clamp01(o.x + dx), y: clamp01(o.y + dy) }
+    } else if (d.part === 'a') {
+      next = { x: clamp01(o.x + dx), y: clamp01(o.y + dy) }
+    } else if (d.part === 'b') {
+      next = { x2: clamp01(o.x2 + dx), y2: clamp01(o.y2 + dy) }
+    } else {
+      // The whole strike moves as one; it stops when either end reaches the page edge.
+      const mx = Math.min(Math.max(dx, -Math.min(o.x, o.x2)), 1 - Math.max(o.x, o.x2))
+      const my = Math.min(Math.max(dy, -Math.min(o.y, o.y2)), 1 - Math.max(o.y, o.y2))
+      next = { x: o.x + mx, y: o.y + my, x2: o.x2 + mx, y2: o.y2 + my }
+    }
+    setPins((c) => c.map((p) => (p.key === d.key ? { ...p, ...next } : p)))
   }
 
   const removePin = (key: string) => setPins((c) => c.filter((p) => p.key !== key))
 
   const submit = async () => {
     if (!onSubmit) return
-    const empty = pins.findIndex((p) => !p.note.trim())
+    // A strike may go without text (= remove the words); a marker may not.
+    const empty = pins.findIndex((p) => !isStrike(p) && !p.note.trim())
     if (empty >= 0) {
       setError(`Isi catatan untuk penanda ${empty + 1}, atau hapus penandanya.`)
       scrollToSpot(scrollRef, pageRefs, pins[empty].page, pins[empty].y)
@@ -152,17 +265,44 @@ export function RevisionNotesDialog({
       return
     }
     if (!general.trim() && pins.length === 0) {
-      setError('Tambahkan minimal satu catatan — klik bagian dokumen yang perlu direvisi, atau isi catatan umum.')
+      setError('Tambahkan minimal satu catatan — coret kata yang salah, klik bagian dokumen yang perlu direvisi, atau isi catatan umum.')
       return
     }
     setSending(true)
     setError(null)
-    const message = await onSubmit(general.trim(), pins.map(({ page, x, y, note }) => ({ page, x, y, note: note.trim() })))
+    const message = await onSubmit(general.trim(), pins.map((p) => (
+      isStrike(p)
+        ? { page: p.page, x: p.x, y: p.y, x2: p.x2, y2: p.y2, note: p.note.trim() }
+        : { page: p.page, x: p.x, y: p.y, note: p.note.trim() }
+    )))
     setSending(false)
     if (message) setError(message)
   }
 
   const numberOf = (key: string) => pins.findIndex((p) => p.key === key) + 1
+  const strikeCount = pins.filter(isStrike).length
+
+  const strikeLine = (line: Line, key: string, opts: { active?: boolean; dashed?: boolean; pin?: Pin } = {}) => {
+    const coords = { x1: line.x * 100, y1: line.y * 100, x2: line.x2 * 100, y2: line.y2 * 100 }
+    return (
+      <g key={key}>
+        {opts.active && <line {...coords} stroke={PIN_COLOR} strokeOpacity={0.22} strokeWidth={10} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
+        <line {...coords} stroke={PIN_COLOR} strokeWidth={opts.active ? 3 : 2.5} strokeLinecap="round" strokeDasharray={opts.dashed ? '6 5' : undefined} vectorEffect="non-scaling-stroke" />
+        {/* wide invisible line: what the pointer actually grabs */}
+        {opts.pin && (
+          <line
+            {...coords}
+            stroke="transparent"
+            strokeWidth={18}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            style={{ pointerEvents: 'stroke', touchAction: 'none', cursor: editing ? 'move' : 'pointer' }}
+            onPointerDown={(e) => onPinDown(e, opts.pin!)}
+          />
+        )}
+      </g>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex bg-[color-mix(in_oklch,_var(--p-950)_70%,_transparent)] p-0 sm:p-6">
@@ -179,10 +319,32 @@ export function RevisionNotesDialog({
         <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[1fr_360px] lg:grid-rows-1">
           {/* Page */}
           <div className="flex min-h-0 flex-col bg-muted/40">
-            <div className="flex items-center justify-center gap-3 border-b border-border bg-card/60 px-4 py-2 text-sm">
-              <button type="button" disabled={pageIndex === 0} onClick={() => goToPage(pageIndex - 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman sebelumnya"><ChevronLeft className="size-4" /></button>
-              <span className="font-mono text-xs text-muted-foreground">Halaman {pageIndex + 1} / {pdf?.numPages ?? '–'}</span>
-              <button type="button" disabled={!pdf || pageIndex >= pdf.numPages - 1} onClick={() => goToPage(pageIndex + 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman berikutnya"><ChevronRight className="size-4" /></button>
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-b border-border bg-card/60 px-3 py-2 text-sm">
+              <div className="flex items-center gap-1.5">
+                <button type="button" disabled={pageIndex === 0} onClick={() => goToPage(pageIndex - 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman sebelumnya"><ChevronLeft className="size-4" /></button>
+                <span className="font-mono text-xs text-muted-foreground">Halaman {pageIndex + 1} / {pdf?.numPages ?? '–'}</span>
+                <button type="button" disabled={!pdf || pageIndex >= pdf.numPages - 1} onClick={() => goToPage(pageIndex + 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman berikutnya"><ChevronRight className="size-4" /></button>
+              </div>
+              <div className="flex items-center gap-1">
+                <button type="button" disabled={zoom === ZOOM_STEPS[0]} onClick={() => changeZoom(-1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Perkecil"><ZoomOut className="size-4" /></button>
+                <span className="w-10 text-center font-mono text-xs text-muted-foreground">{Math.round(zoom * 100)}%</span>
+                <button type="button" disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]} onClick={() => changeZoom(1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Perbesar"><ZoomIn className="size-4" /></button>
+              </div>
+              {editing && coarse && (
+                <div role="group" aria-label="Fungsi sentuhan" className="flex rounded-full border border-border bg-card p-0.5 text-xs font-semibold">
+                  {([['mark', 'Coret / tandai', Strikethrough], ['pan', 'Geser', Hand]] as const).map(([tool, label, Icon]) => (
+                    <button
+                      key={tool}
+                      type="button"
+                      aria-pressed={touchTool === tool}
+                      onClick={() => setTouchTool(tool)}
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${touchTool === tool ? 'bg-[#c2412c] text-white' : 'text-muted-foreground'}`}
+                    >
+                      <Icon className="size-3.5" /> {label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div
               ref={scrollRef}
@@ -202,24 +364,74 @@ export function RevisionNotesDialog({
                   scrollRef={scrollRef}
                   pageRefs={pageRefs}
                   onCurrentPage={setPageIndex}
-                  pageProps={(page) => ({ className: editing ? 'cursor-crosshair' : '', onClick: (e) => addPin(page, e) })}
-                  renderOverlay={(page) => pins.filter((p) => p.page === page).map((pin) => {
-                    const active = selected === pin.key
+                  zoom={zoom}
+                  pageProps={(page) => (marking ? {
+                    className: 'cursor-crosshair',
+                    // Touch: a sideways drag strikes, an up/down drag still scrolls.
+                    style: { touchAction: 'pan-y' },
+                    onPointerDown: (e) => onPageDown(page, e),
+                    onPointerMove: onPageMove,
+                    onPointerUp: onPageUp,
+                    onPointerCancel: cancelDraw,
+                  } : {})}
+                  renderOverlay={(page) => {
+                    const onPage = pins.filter((p) => p.page === page)
+                    const strikes = onPage.filter((p): p is Strike => isStrike(p))
+                    const drawing = draft?.page === page ? draft : null
                     return (
-                      <button
-                        key={pin.key}
-                        type="button"
-                        onPointerDown={(e) => onPinDown(e, pin)}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`absolute grid size-7 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full border-2 border-white text-[12px] font-bold text-white shadow-md transition-transform ${editing ? 'cursor-move' : 'cursor-pointer'} ${active ? 'z-10 scale-125' : ''}`}
-                        style={{ left: `${pin.x * 100}%`, top: `${pin.y * 100}%`, background: PIN_COLOR, boxShadow: active ? `0 0 0 4px ${PIN_COLOR}55` : undefined }}
-                        title={pin.note || 'Catatan belum diisi'}
-                        aria-label={`Penanda ${numberOf(pin.key)}`}
-                      >
-                        {numberOf(pin.key)}
-                      </button>
+                      <>
+                        {(strikes.length > 0 || drawing) && (
+                          <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            {strikes.map((s) => strikeLine(s, s.key, { active: selected === s.key, pin: s }))}
+                            {drawing && strikeLine(drawing, 'draft', { dashed: true })}
+                          </svg>
+                        )}
+                        {onPage.map((pin) => {
+                          const active = selected === pin.key
+                          if (!isStrike(pin)) {
+                            return (
+                              <button
+                                key={pin.key}
+                                type="button"
+                                onPointerDown={(e) => onPinDown(e, pin)}
+                                className={`absolute grid size-7 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full border-2 border-white text-[12px] font-bold text-white shadow-md transition-transform ${editing ? 'cursor-move' : 'cursor-pointer'} ${active ? 'z-10 scale-125' : ''}`}
+                                style={{ left: `${pin.x * 100}%`, top: `${pin.y * 100}%`, background: PIN_COLOR, boxShadow: active ? `0 0 0 4px ${PIN_COLOR}55` : undefined }}
+                                title={pin.note || 'Catatan belum diisi'}
+                                aria-label={`Penanda ${numberOf(pin.key)}`}
+                              >
+                                {numberOf(pin.key)}
+                              </button>
+                            )
+                          }
+                          // The number sits above the strike's left end, off the struck words themselves.
+                          const [lx, ly] = pin.x <= pin.x2 ? [pin.x, pin.y] : [pin.x2, pin.y2]
+                          return (
+                            <span key={pin.key}>
+                              <button
+                                type="button"
+                                onPointerDown={(e) => onPinDown(e, pin)}
+                                className={`absolute grid size-[18px] -translate-x-1/2 -translate-y-[calc(100%+5px)] touch-none place-items-center rounded-full border border-white text-[9.5px] font-bold leading-none text-white shadow-md ${editing ? 'cursor-move' : 'cursor-pointer'} ${active ? 'z-10' : ''}`}
+                                style={{ left: `${lx * 100}%`, top: `${ly * 100}%`, background: PIN_COLOR, boxShadow: active ? `0 0 0 3px ${PIN_COLOR}55` : undefined }}
+                                title={pin.note || 'Coretan — hapus bagian ini'}
+                                aria-label={`Coretan ${numberOf(pin.key)}`}
+                              >
+                                {numberOf(pin.key)}
+                              </button>
+                              {editing && active && (['a', 'b'] as const).map((part) => (
+                                <span
+                                  key={part}
+                                  role="presentation"
+                                  onPointerDown={(e) => onPinDown(e, pin, part)}
+                                  className="absolute z-20 size-3.5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 bg-white shadow"
+                                  style={{ left: `${(part === 'a' ? pin.x : pin.x2) * 100}%`, top: `${(part === 'a' ? pin.y : pin.y2) * 100}%`, borderColor: PIN_COLOR }}
+                                />
+                              ))}
+                            </span>
+                          )
+                        })}
+                      </>
                     )
-                  })}
+                  }}
                 />
               )}
             </div>
@@ -228,10 +440,12 @@ export function RevisionNotesDialog({
           {/* Notes */}
           <aside className="flex max-h-[50vh] min-h-0 flex-col gap-4 overflow-y-auto border-t border-border p-5 lg:max-h-none lg:border-l lg:border-t-0">
             {editing ? (
-              <p className="rounded-xl bg-[#fdf0ec] px-3 py-2.5 text-xs leading-5 text-[#7a2a1c]">
-                <MapPin className="mr-1 inline size-3.5" />
-                <strong>Klik bagian dokumen</strong> yang perlu diperbaiki untuk menaruh penanda bernomor, lalu tulis catatannya. Penanda bisa digeser. Dokumen <strong>tidak</strong> ditandatangani — setelah diperbaiki, Anda akan menerima email baru.
-              </p>
+              <div className="flex flex-col gap-1.5 rounded-xl bg-[#fdf0ec] px-3 py-2.5 text-xs leading-5 text-[#7a2a1c]">
+                <p><Strikethrough className="mr-1 inline size-3.5" /><strong>Coret:</strong> tarik garis melewati kata yang salah — seperti di hardcopy — lalu tulis penggantinya.</p>
+                <p><MapPin className="mr-1 inline size-3.5" /><strong>Penanda:</strong> klik sekali di bagian dokumen untuk menaruh nomor dan catatan.</p>
+                <p>Tulisan terlalu kecil? Perbesar dulu dengan tombol <ZoomIn className="inline size-3.5" />{coarse ? <>, dan pilih <strong>Geser</strong> untuk berpindah tanpa mencoret</> : null}. Coretan dan penanda bisa digeser.</p>
+                <p>Dokumen <strong>tidak</strong> ditandatangani — setelah diperbaiki, Anda akan menerima email baru.</p>
+              </div>
             ) : hint ? (
               <p className="rounded-xl bg-secondary px-3 py-2.5 text-xs leading-5 text-muted-foreground">{hint}</p>
             ) : null}
@@ -254,45 +468,56 @@ export function RevisionNotesDialog({
             </div>
 
             <div className="flex flex-col gap-2">
-              <p className="text-xs font-semibold text-foreground">Catatan di dokumen <span className="font-normal text-muted-foreground">({pins.length})</span></p>
+              <p className="text-xs font-semibold text-foreground">
+                Catatan di dokumen{' '}
+                <span className="font-normal text-muted-foreground">
+                  ({pins.length}{pins.length > 0 ? ` · ${strikeCount} coretan, ${pins.length - strikeCount} penanda` : ''})
+                </span>
+              </p>
               {pins.length === 0 && (
                 <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                  {editing ? 'Belum ada penanda — klik bagian dokumen yang perlu direvisi.' : 'Tidak ada catatan yang ditandai di dokumen.'}
+                  {editing ? 'Belum ada coretan atau penanda — tarik garis melewati kata yang salah, atau klik bagian yang perlu direvisi.' : 'Tidak ada catatan yang ditandai di dokumen.'}
                 </p>
               )}
-              {pins.map((pin, i) => (
-                <div
-                  key={pin.key}
-                  ref={(el) => { itemRefs.current[pin.key] = el }}
-                  onClick={() => setSelected(pin.key)}
-                  className={`rounded-xl border p-2.5 transition-colors ${selected === pin.key ? 'border-[#d6452f] bg-[#fdf0ec]' : 'border-border'}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="grid size-6 flex-none place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: PIN_COLOR }}>{i + 1}</span>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); scrollToSpot(scrollRef, pageRefs, pin.page, pin.y); setSelected(pin.key) }} className="flex-1 text-left text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">
-                      Halaman {pin.page + 1}
-                    </button>
-                    {editing && (
-                      <button type="button" onClick={(e) => { e.stopPropagation(); removePin(pin.key) }} aria-label={`Hapus penanda ${i + 1}`} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
-                        <Trash2 className="size-3.5" />
+              {pins.map((pin, i) => {
+                const strike = isStrike(pin)
+                return (
+                  <div
+                    key={pin.key}
+                    ref={(el) => { itemRefs.current[pin.key] = el }}
+                    onClick={() => setSelected(pin.key)}
+                    className={`rounded-xl border p-2.5 transition-colors ${selected === pin.key ? 'border-[#d6452f] bg-[#fdf0ec]' : 'border-border'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="grid size-6 flex-none place-items-center rounded-full text-[11px] font-bold text-white" style={{ background: PIN_COLOR }}>{i + 1}</span>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); scrollToSpot(scrollRef, pageRefs, pin.page, pin.y); setSelected(pin.key) }} className="flex flex-1 items-center gap-1.5 text-left text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">
+                        Halaman {pin.page + 1}
+                        <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${strike ? 'bg-[#f6ddd6] text-[#a83522]' : 'bg-secondary text-secondary-foreground'}`}>
+                          {strike ? <Strikethrough className="size-3" /> : <MapPin className="size-3" />} {strike ? 'Coret' : 'Penanda'}
+                        </span>
                       </button>
+                      {editing && (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); removePin(pin.key) }} aria-label={`Hapus ${strike ? 'coretan' : 'penanda'} ${i + 1}`} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    {editing ? (
+                      <textarea
+                        value={pin.note}
+                        onChange={(e) => setPins((c) => c.map((p) => (p.key === pin.key ? { ...p, note: e.target.value } : p)))}
+                        onFocus={() => setSelected(pin.key)}
+                        rows={2}
+                        maxLength={500}
+                        placeholder={strike ? 'Ganti dengan… (kosongkan bila cukup dihapus)' : 'Apa yang perlu direvisi di sini?'}
+                        className="mt-2 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/25"
+                      />
+                    ) : (
+                      <p className="mt-1.5 whitespace-pre-line text-sm text-foreground">{pin.note}</p>
                     )}
                   </div>
-                  {editing ? (
-                    <textarea
-                      value={pin.note}
-                      onChange={(e) => setPins((c) => c.map((p) => (p.key === pin.key ? { ...p, note: e.target.value } : p)))}
-                      onFocus={() => setSelected(pin.key)}
-                      rows={2}
-                      maxLength={500}
-                      placeholder="Apa yang perlu direvisi di sini?"
-                      className="mt-2 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/25"
-                    />
-                  ) : (
-                    <p className="mt-1.5 whitespace-pre-line text-sm text-foreground">{pin.note}</p>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {error && <p className="rounded-xl border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}

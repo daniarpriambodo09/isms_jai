@@ -179,6 +179,8 @@ export function ensureApprovalSchema() {
           note text NOT NULL,
           created_at timestamptz NOT NULL DEFAULT now()
         )`)
+      // A strike (words crossed out): the line runs from (x, y) to (x2, y2).
+      await query('ALTER TABLE procedure_revision_notes ADD COLUMN IF NOT EXISTS x2 real, ADD COLUMN IF NOT EXISTS y2 real')
     })().catch((error) => {
       schemaReady = null
       throw error
@@ -417,8 +419,15 @@ export async function getByToken(token: string): Promise<TokenView | null> {
 // ─── "Minta Revisi" notes ───
 
 // A revision note: pinned to a spot on the document (page + fractions,
-// top-left origin), or page null for the general note.
-export type RevisionNote = { page: number | null; x: number | null; y: number | null; note: string }
+// top-left origin), or page null for the general note. With x2/y2 it is a
+// strike — a line from (x, y) to (x2, y2) crossing words out, the way it is
+// done on a hardcopy; its note says what to write instead.
+export type RevisionNote = { page: number | null; x: number | null; y: number | null; note: string; x2?: number | null; y2?: number | null }
+
+export const isStrike = (n: { x2?: number | null; y2?: number | null }) => typeof n.x2 === 'number' && typeof n.y2 === 'number'
+
+// A strike sent without any text simply means "remove this".
+export const STRIKE_DEFAULT_NOTE = 'Hapus bagian yang dicoret.'
 
 const MAX_REVISION_NOTES = 30
 
@@ -429,21 +438,23 @@ export function parseRevisionNotes(raw: unknown): RevisionNote[] {
   const notes: RevisionNote[] = []
   for (const item of list) {
     const n = item as Record<string, unknown>
-    const text = typeof n.note === 'string' ? n.note.trim().slice(0, 500) : ''
-    if (!text) continue
     const pinned = Number.isInteger(n.page) && (n.page as number) >= 0 && (n.page as number) <= 500 && frac(n.x) && frac(n.y)
-    notes.push(pinned ? { page: n.page as number, x: n.x as number, y: n.y as number, note: text } : { page: null, x: null, y: null, note: text })
+    const strike = pinned && frac(n.x2) && frac(n.y2)
+    const text = (typeof n.note === 'string' ? n.note.trim().slice(0, 500) : '') || (strike ? STRIKE_DEFAULT_NOTE : '')
+    if (!text) continue
+    if (strike) notes.push({ page: n.page as number, x: n.x as number, y: n.y as number, x2: n.x2 as number, y2: n.y2 as number, note: text })
+    else notes.push(pinned ? { page: n.page as number, x: n.x as number, y: n.y as number, note: text } : { page: null, x: null, y: null, note: text })
     if (notes.length >= MAX_REVISION_NOTES) break
   }
   return notes
 }
 
 // Plain-text summary kept in decision_note (register, emails): the general
-// note first, then "1) Hal. 2: …" per pinned note.
+// note first, then "1) Hal. 2: …" per pinned note ("Hal. 2 (coret)" for a strike).
 export function summarizeRevisionNotes(general: string | null, notes: RevisionNote[]) {
   const lines: string[] = []
   if (general) lines.push(general)
-  notes.filter((n) => n.page !== null).forEach((n, i) => lines.push(`${i + 1}) Hal. ${(n.page as number) + 1}: ${n.note}`))
+  notes.filter((n) => n.page !== null).forEach((n, i) => lines.push(`${i + 1}) Hal. ${(n.page as number) + 1}${isStrike(n) ? ' (coret)' : ''}: ${n.note}`))
   return lines.join('\n').slice(0, 4000)
 }
 
@@ -454,7 +465,7 @@ export type RevisionRequest = {
   revision: number
   decidedAt: string
   general: string | null
-  pins: { page: number; x: number; y: number; note: string }[]
+  pins: { page: number; x: number; y: number; note: string; x2: number | null; y2: number | null }[]
 }
 
 // The most recent "Minta Revisi" on a document (in any cycle — a restart
@@ -468,12 +479,12 @@ export async function latestRevisionRequest(documentId: number): Promise<Revisio
     [documentId]
   )).rows[0]
   if (!step) return null
-  const rows = (await query<{ page: number | null; x: number | null; y: number | null; note: string }>(
-    'SELECT page, x, y, note FROM procedure_revision_notes WHERE approval_id = $1 ORDER BY seq',
+  const rows = (await query<{ page: number | null; x: number | null; y: number | null; x2: number | null; y2: number | null; note: string }>(
+    'SELECT page, x, y, x2, y2, note FROM procedure_revision_notes WHERE approval_id = $1 ORDER BY seq',
     [step.id]
   )).rows
   const general = rows.find((r) => r.page === null)?.note ?? null
-  const pins = rows.filter((r) => r.page !== null).map((r) => ({ page: r.page as number, x: r.x ?? 0, y: r.y ?? 0, note: r.note }))
+  const pins = rows.filter((r) => r.page !== null).map((r) => ({ page: r.page as number, x: r.x ?? 0, y: r.y ?? 0, note: r.note, x2: r.x2, y2: r.y2 }))
   return {
     approvalId: step.id,
     approverName: step.approver_name,
@@ -528,9 +539,9 @@ export async function decideByToken(
       const rows: RevisionNote[] = [...(general ? [{ page: null, x: null, y: null, note: general }] : []), ...pinned]
       for (const [seq, n] of rows.entries()) {
         await query(
-          `INSERT INTO procedure_revision_notes (approval_id, document_id, revision, seq, page, x, y, note)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [view.step.id, view.document.id, view.document.revision, seq, n.page, n.x, n.y, n.note]
+          `INSERT INTO procedure_revision_notes (approval_id, document_id, revision, seq, page, x, y, note, x2, y2)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [view.step.id, view.document.id, view.document.revision, seq, n.page, n.x, n.y, n.note, n.x2 ?? null, n.y2 ?? null]
         )
       }
       await query(
@@ -604,7 +615,7 @@ async function notifyAdmins(documentId: number, outcome: 'approved' | 'rejected'
       docNote: doc.note,
       steps: cycle.map((row) => ({ step: row.step, roleCode: row.role_code, roleTitle: row.role_title, name: row.approver_name ?? '-', status: row.status, decidedAt: row.decided_at })),
       revisionRequest: request
-        ? { by: request.approverName ?? '-', roleTitle: request.roleTitle, at: request.decidedAt, general: request.general, pins: request.pins.map((p) => ({ page: p.page, note: p.note })) }
+        ? { by: request.approverName ?? '-', roleTitle: request.roleTitle, at: request.decidedAt, general: request.general, pins: request.pins.map((p) => ({ page: p.page, note: p.note, x2: p.x2 })) }
         : null,
       placements: outcome === 'approved' ? { placed: cycle.filter((s) => placedRoles.has(s.role_code)).length, total: cycle.length } : undefined,
       // Opens the register already filtered to this document.
@@ -856,7 +867,7 @@ export async function listProcedureNotices(): Promise<ProcedureNotice[]> {
     if (!req) continue
     const ack = (await query<{ notice_ack_at: string | null }>('SELECT notice_ack_at FROM procedure_documents WHERE id = $1', [doc.id])).rows[0]?.notice_ack_at
     if (ack && new Date(ack) >= new Date(req.decidedAt)) continue
-    const first = req.pins[0] ? `Hal. ${req.pins[0].page + 1}: ${req.pins[0].note}` : req.general
+    const first = req.pins[0] ? `Hal. ${req.pins[0].page + 1}${isStrike(req.pins[0]) ? ' (coret)' : ''}: ${req.pins[0].note}` : req.general
     notices.push({
       kind: 'revision', docKind: doc.kind, documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision,
       at: req.decidedAt, by: req.approverName, roleTitle: req.roleTitle,

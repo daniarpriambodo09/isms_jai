@@ -19,6 +19,10 @@ export async function loadPageRatios(pdf: PDFDocumentProxy): Promise<number[]> {
   return ratios
 }
 
+const MAX_CANVAS_WIDTH = 3200
+// Width of the page column at 100%.
+const BASE_WIDTH = 760
+
 function PageCanvas({ pdf, index, root }: { pdf: PDFDocumentProxy; index: number; root: RefObject<HTMLDivElement | null> }) {
   const holderRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -43,7 +47,9 @@ function PageCanvas({ pdf, index, root }: { pdf: PDFDocumentProxy; index: number
       const page = await pdf.getPage(index + 1)
       if (cancelled) return
       const base = page.getViewport({ scale: 1 })
-      const viewport = page.getViewport({ scale: (width / base.width) * Math.min(window.devicePixelRatio || 1, 2) })
+      // Sharp on dense screens, but never a canvas wider than MAX_CANVAS_WIDTH (zoomed-in pages).
+      const pixelWidth = Math.min(width * Math.min(window.devicePixelRatio || 1, 2), MAX_CANVAS_WIDTH)
+      const viewport = page.getViewport({ scale: pixelWidth / base.width })
       const canvas = canvasRef.current!
       canvas.width = viewport.width
       canvas.height = viewport.height
@@ -68,6 +74,7 @@ export function PdfPages({
   onCurrentPage,
   renderOverlay,
   pageProps,
+  zoom = 1,
 }: {
   pdf: PDFDocumentProxy
   ratios: number[]
@@ -78,6 +85,8 @@ export function PdfPages({
   onCurrentPage?: (index: number) => void
   renderOverlay: (index: number) => ReactNode
   pageProps?: (index: number) => HTMLAttributes<HTMLDivElement>
+  /** 1 = fits the container (up to 760px); above that the column grows and the container scrolls sideways. */
+  zoom?: number
 }) {
   const report = useCallback(() => {
     const root = scrollRef.current
@@ -101,7 +110,7 @@ export function PdfPages({
   }, [scrollRef, report])
 
   return (
-    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-3">
+    <div className="mx-auto flex flex-col gap-3" style={{ width: `${zoom * 100}%`, maxWidth: BASE_WIDTH * zoom }}>
       {ratios.map((ratio, i) => {
         const extra = pageProps?.(i) ?? {}
         return (

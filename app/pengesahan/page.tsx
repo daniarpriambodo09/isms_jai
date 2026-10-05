@@ -236,14 +236,14 @@ function PengesahanContent() {
                   {view.revisionRequest.pins.map((pin, i) => (
                     <li key={i} className="flex gap-2 text-sm text-foreground">
                       <span className="mt-0.5 grid size-5 flex-none place-items-center rounded-full bg-[#d6452f] text-[10px] font-bold text-white">{i + 1}</span>
-                      <span><span className="text-xs text-muted-foreground">Hal. {pin.page + 1} — </span>{pin.note}</span>
+                      <span><span className="text-xs text-muted-foreground">Hal. {pin.page + 1}{typeof pin.x2 === 'number' ? ' · coret' : ''} — </span>{pin.note}</span>
                     </li>
                   ))}
                 </ol>
               )}
               {view.revisionRequest.pins.length > 0 && (
                 <button type="button" onClick={() => setNotesMode('view')} className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#c2412c]/40 bg-card px-3.5 py-2 text-xs font-semibold text-[#a83522] transition hover:bg-[#fdf0ec]">
-                  <MapPin className="size-3.5" /> Lihat penanda di dokumen
+                  <MapPin className="size-3.5" /> Lihat coretan & penanda di dokumen
                 </button>
               )}
             </section>
@@ -260,7 +260,7 @@ function PengesahanContent() {
               </p>
               <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                 <PencilLine className="mt-0.5 size-3.5 flex-none text-[#c2412c]" />
-                <span>Masih ada yang perlu diperbaiki? Pilih <strong className="text-foreground">Minta Revisi</strong> — tandai langsung bagian dokumennya dan tulis catatannya. QR tidak diberikan.</span>
+                <span>Masih ada yang perlu diperbaiki? Pilih <strong className="text-foreground">Minta Revisi</strong> — coret kata yang salah atau tandai bagian dokumennya, lalu tulis perbaikannya. QR tidak diberikan.</span>
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button type="button" onClick={() => setPlacing('approve')} disabled={submitting !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50">
@@ -343,7 +343,7 @@ function PengesahanContent() {
           heading={`${document.control_no} — ${document.title}`}
           subheading={`Catatan dari ${view.revisionRequest.approverName ?? '-'} · Rev. ${view.revisionRequest.revision}`}
           hint={view.revisionRequest.revision !== document.revision || previousCycle
-            ? 'Penanda dibuat pada file sebelum diperbaiki — posisinya ditampilkan di file terbaru, bisa sedikit bergeser bila tata letaknya berubah.'
+            ? 'Coretan dan penanda dibuat pada file sebelum diperbaiki — posisinya ditampilkan di file terbaru, bisa sedikit bergeser bila tata letaknya berubah.'
             : undefined}
           initialGeneral={view.revisionRequest.general}
           initialPins={view.revisionRequest.pins}

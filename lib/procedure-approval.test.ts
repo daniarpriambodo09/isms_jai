@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   APPROVAL_LINK_DAYS, MAX_SLOTS_PER_ROLE, QR_ADJUST_HOURS,
-  canPlaceOwnSlots, linkExpired, parseRevisionNotes, parseSlots, qrAdjustableUntil, summarizeRevisionNotes,
+  canPlaceOwnSlots, isStrike, linkExpired, parseRevisionNotes, STRIKE_DEFAULT_NOTE, parseSlots, qrAdjustableUntil, summarizeRevisionNotes,
   type TokenView,
 } from './procedure-approval'
 
@@ -53,6 +53,21 @@ describe('revision notes', () => {
       { page: 1, x: 0.5, y: 0.5, note: 'Ganti nomor revisi' },
       { page: null, x: null, y: null, note: 'pin di luar halaman' },
     ])
+  })
+
+  it('keeps a strike with both ends, and gives an empty one the default note', () => {
+    const notes = parseRevisionNotes([
+      { page: 0, x: 0.2, y: 0.3, x2: 0.4, y2: 0.3, note: ' Ganti dengan: 2026 ' },
+      { page: 0, x: 0.2, y: 0.5, x2: 0.6, y2: 0.5, note: '' },
+      { page: 0, x: 0.2, y: 0.5, x2: 7, y2: 0.5, note: 'ujung di luar halaman' },
+    ])
+    expect(notes).toEqual([
+      { page: 0, x: 0.2, y: 0.3, x2: 0.4, y2: 0.3, note: 'Ganti dengan: 2026' },
+      { page: 0, x: 0.2, y: 0.5, x2: 0.6, y2: 0.5, note: STRIKE_DEFAULT_NOTE },
+      { page: 0, x: 0.2, y: 0.5, note: 'ujung di luar halaman' },
+    ])
+    expect(notes.map(isStrike)).toEqual([true, true, false])
+    expect(summarizeRevisionNotes(null, notes)).toBe(`1) Hal. 1 (coret): Ganti dengan: 2026\n2) Hal. 1 (coret): ${STRIKE_DEFAULT_NOTE}\n3) Hal. 1: ujung di luar halaman`)
   })
 
   it('limits note length and count', () => {

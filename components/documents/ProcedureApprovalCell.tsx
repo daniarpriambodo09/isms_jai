@@ -153,7 +153,7 @@ export function ProcedureApprovalCell({
           filePath={notes.document.file_path}
           heading={`${notes.document.control_no} — ${notes.document.title}`}
           subheading={`Catatan dari ${notes.revisionRequest.approverName ?? '-'} (${notes.revisionRequest.roleTitle}) · Rev. ${notes.revisionRequest.revision}`}
-          hint="Perbaiki bagian yang ditandai, lalu Edit dokumen dan unggah file perbaikannya — pengesahan dimulai ulang dan approver melihat catatan ini di samping dokumen baru."
+          hint="Perbaiki bagian yang dicoret atau ditandai, lalu Edit dokumen dan unggah file perbaikannya — pengesahan dimulai ulang dan approver melihat catatan ini di samping dokumen baru."
           initialGeneral={notes.revisionRequest.general}
           initialPins={notes.revisionRequest.pins}
           onClose={() => setNotes(null)}

@@ -412,7 +412,7 @@ export type ProcedureResultEmailData = {
   docNote: string | null
   steps: { step: number; roleCode: string; roleTitle: string; name: string; status: string; decidedAt: string | null }[]
   // outcome 'rejected': the request itself
-  revisionRequest?: { by: string; roleTitle: string; at: string; general: string | null; pins: { page: number; note: string }[] } | null
+  revisionRequest?: { by: string; roleTitle: string; at: string; general: string | null; pins: { page: number; note: string; x2?: number | null }[] } | null
   // outcome 'approved': how many approvers' QR land on the document itself
   placements?: { placed: number; total: number }
   registerUrl: string
@@ -490,12 +490,12 @@ export function buildProcedureResultEmail(data: ProcedureResultEmailData): { sub
             <table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="width:22px;height:22px;border-radius:50%;background:#d6452f;font-family:${SANS};font-size:11px;font-weight:bold;color:#ffffff;">${i + 1}</td></tr></table>
           </td>
           <td style="padding:10px 14px 10px 6px;vertical-align:top;${i ? 'border-top:1px solid #f0d9d1;' : ''}">
-            <span style="display:inline-block;padding:1px 7px;border-radius:3px;background:#f6e4de;font-family:${SANS};font-size:10.5px;font-weight:bold;color:${REV_RED};">Halaman ${pin.page + 1}</span>
+            <span style="display:inline-block;padding:1px 7px;border-radius:3px;background:#f6e4de;font-family:${SANS};font-size:10.5px;font-weight:bold;color:${REV_RED};">Halaman ${pin.page + 1}${typeof pin.x2 === 'number' ? ' &middot; Coret' : ''}</span>
             <p style="margin:4px 0 0;font-family:${SANS};font-size:13.5px;color:${MEMO_INK};line-height:1.55;">${escapeHtml(pin.note)}</p>
           </td>
         </tr>`).join('')}
       </table>
-      <p style="margin:8px 0 0;font-family:${SANS};font-size:11.5px;color:${MUTED};">Nomor di atas sama dengan penanda merah pada halaman dokumen &mdash; buka <em>Lihat catatan di dokumen</em> di register untuk melihat letaknya.</p>` : ''}
+      <p style="margin:8px 0 0;font-family:${SANS};font-size:11.5px;color:${MUTED};">Nomor di atas sama dengan penanda dan coretan merah pada halaman dokumen &mdash; buka <em>Lihat catatan di dokumen</em> di register untuk melihat letaknya.</p>` : ''}
     </td></tr>` : ''
 
   // 4) The whole signing chain.

@@ -18,7 +18,10 @@
 //    printed as static ink in the signature area (baked in when he was the
 //    standing approver). Since the actual approver can now be someone else,
 //    that name/title is covered with a white rectangle and replaced with
-//    whoever is actually recorded as having decided the request.
+//    whoever is actually recorded as having decided the request. The cover
+//    stays strictly INSIDE the name cell — the ruled line between the
+//    signature cell (QR) and the name cell is the template's own and must
+//    stay visible.
 // 2. "MENYETUJUI, 撮影・録音許可" ("approving, permission to record") only
 //    reads correctly when the request was actually approved, so it's left
 //    as the template's own untouched text for an approval. Only a
@@ -178,16 +181,20 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   text(tujuanFit.text, VALUE_X, 462.7, { f: bold, size: tujuanFit.size })
 
   // ---------- Right-hand box ----------
-  // The column's actual border lines are at x≈462 (left) and x≈561
-  // (right) — measured with a 1pt grid rendered directly over the
-  // template, not eyeballed off a coarse one. (An earlier pass had this
-  // at x=430, ~30pt too far left, which is why every white cover
-  // rectangle kept visibly bleeding into the left table's own cells no
-  // matter how it was resized — the fix was never the rectangle's size,
-  // it was this constant.) Kept a couple points inside those lines so a
-  // cover rectangle never touches, let alone erases, the border itself.
-  const RIGHT_COL_X = 465
-  const RIGHT_COL_W = 92
+  // Ruled lines of this column, measured by scanning the rendered template
+  // for dark pixels (0.1pt steps) — not eyeballed off a grid:
+  //   vertical borders   x = 462.8–464.2 (left) and 562.8–563.5 (right)
+  //   horizontal lines   y = 590.7–591.3  above "MENYETUJUI"
+  //                      y = 559.8–560.5  below it / top of the signature cell
+  //                      y = 498.2–498.9  between signature cell and name cell
+  //                      y = 452.0–452.7  bottom border
+  // Everything drawn or covered below stays at least 1pt inside those lines,
+  // so no cover rectangle touches a border and the QR never sits on one.
+  const RIGHT_COL_X = 466
+  const RIGHT_COL_W = 95
+  const HEADER_CELL = { top: 589.7, bottom: 561.5 }   // "MENYETUJUI, 撮影・録音許可"
+  const SIGN_CELL = { top: 559.8, bottom: 498.9 }     // blank cell for the signature (QR)
+  const NAME_CELL = { top: 497.2, bottom: 453.7 }     // approver's name + title
 
   // Serial No. Kamera — centered in its blank cell (no ruled line/colon on
   // the template; the whole cell is the fill-in area).
@@ -211,10 +218,10 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   // "approving" text unchanged on a rejection would misrepresent it.
   const isApproved = data.status === 'approved'
   if (!isApproved) {
-    coverWhite(RIGHT_COL_X, 595, RIGHT_COL_W, 35)
+    coverWhite(RIGHT_COL_X, HEADER_CELL.top, RIGHT_COL_W, HEADER_CELL.top - HEADER_CELL.bottom)
     const statusLabel = 'DITOLAK'
     const statusWidth = bold.widthOfTextAtSize(statusLabel, 11)
-    text(statusLabel, RIGHT_COL_X + (RIGHT_COL_W - statusWidth) / 2, 578, { f: bold, size: 11, color: CRIMSON })
+    text(statusLabel, RIGHT_COL_X + (RIGHT_COL_W - statusWidth) / 2, (HEADER_CELL.top + HEADER_CELL.bottom) / 2 - 11 * 0.36, { f: bold, size: 11, color: CRIMSON })
   }
 
   // QR (the "signature") only makes sense for an approval — a rejection
@@ -223,50 +230,67 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   if (isApproved) {
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 300 })
     const qrImage = await pdf.embedPng(Buffer.from(qrDataUrl.split(',')[1], 'base64'))
-    const qrSize = 44
+    // Centered in the signature cell, clear of the lines above and below it.
+    const qrSize = 50
     const qrX = RIGHT_COL_X + (RIGHT_COL_W - qrSize) / 2
-    const qrYAbs = 553 // top edge, measured down from here
-    page.drawImage(qrImage, { x: qrX, y: toLocal(qrYAbs) - qrSize, width: qrSize, height: qrSize })
+    const qrTop = (SIGN_CELL.top + SIGN_CELL.bottom) / 2 + qrSize / 2
+    page.drawImage(qrImage, { x: qrX, y: toLocal(qrTop) - qrSize, width: qrSize, height: qrSize })
   }
 
   // "TEGUH SUNJOYO" and "(Information Assets Administrator)" are static
   // ink naming the approver at the time this template was printed — cover
   // and replace with whoever actually decided this request (see file
-  // header comment). One cover for the whole name+title zone (instead of
-  // two fixed-height ones) since a long name now wraps onto a second
-  // line rather than overflowing past the column's own border — how many
-  // lines it takes shifts where the title starts, so the covered area and
-  // the title's position both need to flex with it.
-  coverWhite(RIGHT_COL_X, 505, RIGHT_COL_W, 52)
+  // header comment). The cover is the name cell's interior only, so the
+  // ruled line under the QR and the bottom border stay intact.
+  coverWhite(RIGHT_COL_X, NAME_CELL.top, RIGHT_COL_W, NAME_CELL.top - NAME_CELL.bottom)
 
   const centeredAt = (value: string, size: number, yAbs: number, f = font) => {
     const w = f.widthOfTextAtSize(value, size)
     text(value, RIGHT_COL_X + Math.max(2, (RIGHT_COL_W - w) / 2), yAbs, { f, size })
   }
 
+  // Name (up to 2 lines) and title (up to 2 lines, in parentheses like the
+  // template's own "(Information Assets Administrator)") form one block,
+  // centered vertically in the name cell however many lines it takes.
   const NAME_SIZE = 8.5
-  const nameLines = wrapToWidth(bold, data.approverFullName, RIGHT_COL_W - 6, NAME_SIZE).slice(0, 2)
-  nameLines.forEach((line, i) => centeredAt(line, NAME_SIZE, 500 - i * 9, bold))
+  const NAME_LEADING = 9.5
+  const TITLE_GAP = 3
+  const ASCENT = 0.74 // baseline sits this fraction of the font size below a line's top
+  const nameLines = wrapToWidth(bold, data.approverFullName, RIGHT_COL_W - 8, NAME_SIZE).slice(0, 2)
+  // A long title shrinks a little before it is ever cut off at two lines.
+  let TITLE_SIZE = 7.5
+  const wrapTitle = () => (data.approverTitle ? wrapToWidth(font, `(${data.approverTitle})`, RIGHT_COL_W - 8, TITLE_SIZE) : [])
+  while (TITLE_SIZE > 6 && wrapTitle().length > 2) TITLE_SIZE -= 0.5
+  const titleLines = wrapTitle().slice(0, 2)
+  const TITLE_LEADING = TITLE_SIZE + 1
+  const blockHeight = nameLines.length * NAME_LEADING + (titleLines.length ? TITLE_GAP + titleLines.length * TITLE_LEADING : 0)
 
-  if (data.approverTitle) {
-    // Matches the template's own convention — "(Information Assets
-    // Administrator)" was printed in parentheses under TEGUH SUNJOYO.
-    const titleTop = 500 - nameLines.length * 9 - 6
-    const titleLines = wrapToWidth(font, `(${data.approverTitle})`, RIGHT_COL_W - 6, 7.5).slice(0, 2)
-    titleLines.forEach((line, i) => centeredAt(line, 7.5, titleTop - i * 9.5))
+  let lineTop = (NAME_CELL.top + NAME_CELL.bottom) / 2 + blockHeight / 2
+  for (const line of nameLines) {
+    centeredAt(line, NAME_SIZE, lineTop - NAME_SIZE * ASCENT, bold)
+    lineTop -= NAME_LEADING
+  }
+  lineTop -= TITLE_GAP
+  for (const line of titleLines) {
+    centeredAt(line, TITLE_SIZE, lineTop - TITLE_SIZE * ASCENT)
+    lineTop -= TITLE_LEADING
   }
 
   // ---------- Verification footnote, printed in the margin below the form ----------
-  // Sits just under the table's own bottom border, in the blank margin
-  // left after cropping out the dashed cut-line and the template's
-  // second (identical, unused) copy.
-  const footY = toLocal(450.7) - 4
-  page.drawText(`Kode Verifikasi: ${data.verificationCode}`, {
-    x: 30, y: footY, size: 7, font: bold, color: rgb(0.35, 0.35, 0.35),
-  })
-  page.drawText(`Verifikasi keaslian: ${verifyUrl}`, {
-    x: 30, y: footY - 9, size: 6.5, font, color: rgb(0.45, 0.45, 0.45),
-  })
+  // The only free strip is between the table's bottom border (y = 451.6)
+  // and the page frame's bottom line (y = 437.7) — 13.9pt, enough for ONE
+  // line. Two stacked lines used to touch the table above and run through
+  // the frame below, so code and link now share a single line, centered in
+  // that strip; a very long link shrinks instead of leaving the frame.
+  const FOOT_SIZE = 6.5
+  const FOOT_X = 34
+  const FOOT_RIGHT = 560
+  const footBaseline = toLocal((451.6 + 437.7) / 2) - FOOT_SIZE * 0.36
+  const codeLabel = `Kode Verifikasi: ${data.verificationCode}`
+  page.drawText(codeLabel, { x: FOOT_X, y: footBaseline, size: FOOT_SIZE, font: bold, color: rgb(0.35, 0.35, 0.35) })
+  const linkX = FOOT_X + bold.widthOfTextAtSize(codeLabel, FOOT_SIZE) + 12
+  const link = fitOneLine(font, `Verifikasi keaslian: ${verifyUrl}`, FOOT_RIGHT - linkX, FOOT_SIZE, 4.5)
+  page.drawText(link.text, { x: linkX, y: footBaseline, size: link.size, font, color: rgb(0.45, 0.45, 0.45) })
 
   return pdf.save()
 }

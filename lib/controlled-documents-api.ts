@@ -15,6 +15,7 @@ import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
 import { currentStepsFor, ensureApprovalSchema, historyCounts, normalizeRoleCodes, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
+import { parseOrderedIds } from '@/lib/ordered-ids'
 
 type DocumentRow = {
   id: number
@@ -72,7 +73,7 @@ export function documentHandlers(kind: DocKind) {
       const result = await query<DocumentRow>(
         `SELECT ${COLUMNS} FROM procedure_documents
          WHERE kind = $1 ${onlyPublished ? "AND approval_status IN ('approved', 'none') AND public_visible" : ''}
-         ORDER BY control_no ASC, id ASC`,
+         ORDER BY sort_order ASC NULLS LAST, control_no ASC, id ASC`,
         [kind]
       )
       return NextResponse.json({ documents: await withApprovals(result.rows), verifyBase: await verifyBaseUrl(request.nextUrl.origin) })
@@ -116,8 +117,8 @@ export function documentHandlers(kind: DocKind) {
       let created: DocumentRow
       try {
         created = (await query<DocumentRow>(
-          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note)
-           VALUES ($1, $2, $3, 1, $4, $5, $6, $7)
+          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, sort_order)
+           VALUES ($1, $2, $3, 1, $4, $5, $6, $7, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1))
            RETURNING ${COLUMNS}`,
           [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note]
         )).rows[0]
@@ -232,7 +233,7 @@ export function documentHandlers(kind: DocKind) {
     }
   }
 
-  // ISM Admin: show / hide documents on the visitors' page.
+  // ISM Admin: show / hide documents on the visitors' page, or set the order.
   // Body: { ids: number[], publicVisible: boolean }. Only final documents ever
   // reach visitors, whatever this is set to.
   async function PATCH(request: NextRequest) {
@@ -243,6 +244,25 @@ export function documentHandlers(kind: DocKind) {
 
     try {
       const body = await request.json().catch(() => ({}))
+
+      // { order: number[] } — the register's order set by hand: every document
+      // of this kind, top to bottom (drag a row, or up / down).
+      if (body.order !== undefined) {
+        const order = parseOrderedIds(body.order)
+        if (!order) return NextResponse.json({ message: 'Urutan dokumen tidak valid.' }, { status: 400 })
+        const total = Number((await query<{ n: string }>('SELECT count(*) AS n FROM procedure_documents WHERE kind = $1', [kind])).rows[0].n)
+        const known = Number((await query<{ n: string }>('SELECT count(*) AS n FROM procedure_documents WHERE kind = $1 AND id = ANY($2)', [kind, order])).rows[0].n)
+        if (known !== order.length || total !== order.length) {
+          return NextResponse.json({ message: 'Daftar dokumen sudah berubah — muat ulang halaman lalu coba lagi.' }, { status: 409 })
+        }
+        await query(
+          'UPDATE procedure_documents d SET sort_order = v.position FROM unnest($1::int[]) WITH ORDINALITY AS v(id, position) WHERE d.id = v.id AND d.kind = $2',
+          [order, kind]
+        )
+        await logActivity(session, 'update', 'procedure_document', null, `Mengubah urutan ${order.length} dokumen ${info.label}`)
+        return NextResponse.json({ updated: order.length })
+      }
+
       const ids: number[] = Array.isArray(body.ids) ? body.ids.filter((id: unknown) => Number.isInteger(id) && (id as number) > 0).slice(0, 500) : []
       if (ids.length === 0 || typeof body.publicVisible !== 'boolean') {
         return NextResponse.json({ message: 'Pilih dokumen dan tentukan tampil / sembunyikan.' }, { status: 400 })

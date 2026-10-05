@@ -3,6 +3,7 @@ import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
+import { parseOrderedIds } from '@/lib/ordered-ids'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 type KeteranganType = 'none' | 'plain-note' | 'web-base-approval' | 'list-all-daftar'
@@ -54,7 +55,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       `SELECT ${SELECT_COLUMNS}
        FROM form_cs_documents
        WHERE category = $1
-       ORDER BY control_no ASC, file_variant ASC NULLS FIRST, id ASC`,
+       ORDER BY sort_order ASC NULLS LAST, control_no ASC, file_variant ASC NULLS FIRST, id ASC`,
       [category]
     )
     return NextResponse.json({ documents: result.rows })
@@ -98,8 +99,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const filePath = await saveDocumentFile(file)
     const result = await query<DocumentRow>(
       `INSERT INTO form_cs_documents
-         (category, control_no, title, language, file_path, keterangan_type, keterangan_note, file_variant, file_kind, title_emphasis_from)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         (category, control_no, title, language, file_path, keterangan_type, keterangan_note, file_variant, file_kind, title_emphasis_from, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+         -- another file of a control no. already listed stays with its row; a new control no. goes to the bottom
+         COALESCE((SELECT max(sort_order) FROM form_cs_documents WHERE category = $1 AND control_no = $2),
+                  (SELECT COALESCE(max(sort_order), 0) + 1 FROM form_cs_documents WHERE category = $1)))
        RETURNING ${SELECT_COLUMNS}`,
       [category, controlNo.trim().toUpperCase(), title.trim(), language.trim(), filePath, keteranganType, keteranganNote, fileVariant, fileKind, titleEmphasisFrom]
     )
@@ -186,5 +190,34 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   } catch (error) {
     console.error('[form-cs/DELETE]', error)
     return NextResponse.json({ message: `Gagal menghapus ${categoryLabel(category)}.` }, { status: 500 })
+  }
+}
+
+// Admin only — the order of the list, set by hand (drag a row, or up / down).
+// Body: { order: number[] } = every file of this category, top to bottom
+// (the files of one control no. travel together as a row).
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ category: string }> }) {
+  const session = getIsmsAdminFromRequest(request)
+  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  const category = await getCategory(params)
+  if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
+  try {
+    const body = await request.json().catch(() => ({}))
+    const order = parseOrderedIds(body.order)
+    if (!order) return NextResponse.json({ message: 'Urutan dokumen tidak valid.' }, { status: 400 })
+    const total = Number((await query<{ n: string }>('SELECT count(*) AS n FROM form_cs_documents WHERE category = $1', [category])).rows[0].n)
+    const known = Number((await query<{ n: string }>('SELECT count(*) AS n FROM form_cs_documents WHERE category = $1 AND id = ANY($2)', [category, order])).rows[0].n)
+    if (known !== order.length || total !== order.length) {
+      return NextResponse.json({ message: 'Daftar dokumen sudah berubah — muat ulang halaman lalu coba lagi.' }, { status: 409 })
+    }
+    await query(
+      'UPDATE form_cs_documents d SET sort_order = v.position FROM unnest($1::int[]) WITH ORDINALITY AS v(id, position) WHERE d.id = v.id AND d.category = $2',
+      [order, category]
+    )
+    await logActivity(session, 'update', 'form_cs_document', null, `Mengubah urutan ${order.length} dokumen ${categoryLabel(category)}`)
+    return NextResponse.json({ updated: order.length })
+  } catch (error) {
+    console.error('[form-cs/PATCH]', error)
+    return NextResponse.json({ message: 'Gagal menyimpan urutan dokumen.' }, { status: 500 })
   }
 }

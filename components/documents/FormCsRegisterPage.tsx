@@ -15,6 +15,9 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { VendorRegistrationsPanel } from '@/components/documents/VendorRegistrationsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
+import { moveItem } from '@/lib/ordered-ids'
+import { toast } from '@/components/toast'
+import { ReorderHint } from '@/components/documents/RowReorder'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 
@@ -68,6 +71,24 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
       ? documents.filter((document) => `${document.control_no} ${document.title} ${document.language}`.toLowerCase().includes(keyword))
       : documents
   }, [documents, query])
+
+  // The admin arranges the rows (one per control no.) by hand while the
+  // whole list is shown; the files of a control no. travel together.
+  const canReorder = isLoggedIn && !query.trim()
+  const moveRow = async (key: string, to: number) => {
+    const keys = Array.from(new Set(documents.map((d) => d.control_no)))
+    const from = keys.indexOf(key)
+    if (from < 0 || to < 0 || to >= keys.length || from === to) return
+    const next = moveItem(keys, from, to).flatMap((k) => documents.filter((d) => d.control_no === k))
+    setDocuments(next) // shown at once; saved in the background
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/form-cs/${category}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: next.map((d) => d.id) }) })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? 'Gagal menyimpan urutan dokumen.')
+    } catch (orderError) {
+      toast(orderError instanceof Error ? orderError.message : 'Gagal menyimpan urutan dokumen.', 'error')
+      loadDocuments()
+    }
+  }
 
   const editableDocument: EditableFormCsDocument | undefined = editing
     ? {
@@ -209,6 +230,8 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
         </div>
       </div>
 
+      {isLoggedIn && <div className="-mt-2"><ReorderHint active={!query.trim()} /></div>}
+
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       {loading ? (
@@ -225,6 +248,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
           selectedIds={selectedIds}
           onToggleRow={toggleRow}
           onToggleAll={toggleAll}
+          onMoveRow={canReorder ? moveRow : undefined}
         />
       )}
 

@@ -14,7 +14,7 @@ import { toast } from '@/components/toast'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
 import { ResubmitDialog } from '@/components/documents/ResubmitDialog'
-import { NO_HEAD_CLASS, OrderCell } from '@/components/documents/RowReorder'
+import { NO_HEAD_CLASS, OrderCell, ReorderHint, moveItem, useDragReorder } from '@/components/documents/RowReorder'
 import { ProcedureApprovalCell, type ApprovalStep } from '@/components/documents/ProcedureApprovalCell'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
@@ -273,6 +273,25 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   // "No." of each row (documents sharing a title are one row), across pages.
   const rowNumbers = useMemo(() => new Map(groupByTitle(filteredDocuments).map((group, i) => [group.key, i + 1])), [filteredDocuments])
 
+  // The order is the admin's to set (drag a row, or up / down) while the
+  // whole register is shown — no search, no status filter.
+  const allGroups = useMemo(() => groupByTitle(documents), [documents])
+  const canReorder = isIsmsAdmin && !query.trim() && statusFilter === 'all' && allGroups.length > 1
+  const moveGroup = async (fromKey: string, to: number) => {
+    const from = allGroups.findIndex((g) => g.key === fromKey)
+    if (from < 0 || to < 0 || to >= allGroups.length || from === to) return
+    const next = moveItem(allGroups, from, to).flatMap((g) => g.docs)
+    setDocuments(next) // shown at once; saved in the background
+    try {
+      const res = await fetch(listApi, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order: next.map((d) => d.id) }) })
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? 'Gagal menyimpan urutan dokumen.')
+    } catch (orderError) {
+      toast(orderError instanceof Error ? orderError.message : 'Gagal menyimpan urutan dokumen.', 'error')
+      loadDocuments()
+    }
+  }
+  const dragReorder = useDragReorder((fromKey, toKey) => moveGroup(fromKey, allGroups.findIndex((g) => g.key === toKey)))
+
   const editableDocument: EditableProcedure | undefined = editing ? {
     id: editing.id,
     controlNo: editing.control_no,
@@ -355,11 +374,12 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
 
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
+      {isIsmsAdmin && <div className="-mt-2"><ReorderHint active={!query.trim() && statusFilter === 'all'} /></div>}
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="doc-table w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}<th className={NO_HEAD_CLASS}>No.</th>{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
         {loading && <TableSkeletonRows columns={isLoggedIn ? 9 : 8} />}
         {!loading && filteredDocuments.length === 0 && <tr><td colSpan={9} className="px-5 py-16 text-center"><EmptyState filtered={!!query || statusFilter !== 'all'} onClear={() => { setQuery(''); setStatusFilter('all') }} onAdd={isLoggedIn ? openAdd : undefined} /></td></tr>}
         {groupByTitle(pageItems).map((group, index) => (
-          <tr key={group.key} onClick={(event) => onRowClick(event, () => openDocument(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+          <tr key={group.key} {...(canReorder ? dragReorder.row(group.key) : {})} onClick={(event) => onRowClick(event, () => openDocument(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''} ${dragReorder.rowClass(group.key)}`}>
             {isLoggedIn && (
               <td data-cell="select" className="px-4 py-4 align-top">
                 <div className="flex flex-col gap-1.5">
@@ -367,7 +387,14 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                 </div>
               </td>
             )}
-            <td data-cell="no" className="px-4 py-4 align-top"><OrderCell number={rowNumbers.get(group.key) ?? index + 1} label={group.title} /></td>
+            <td data-cell="no" className="px-4 py-4 align-top"><OrderCell
+              number={rowNumbers.get(group.key) ?? index + 1}
+              label={group.title}
+              reorder={canReorder ? (() => {
+                const position = allGroups.findIndex((g) => g.key === group.key)
+                return { handleProps: dragReorder.handle(group.key), canUp: position > 0, canDown: position < allGroups.length - 1, onUp: () => moveGroup(group.key, position - 1), onDown: () => moveGroup(group.key, position + 1) }
+              })() : undefined}
+            /></td>
             <td data-cell="code" className="px-4 py-4 align-top font-semibold text-accent-foreground">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => (

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { onRowClick } from '@/lib/row-click'
 import { Eye, FileSpreadsheet, Pencil, Trash2, ShieldCheck, UserPlus } from 'lucide-react'
+import { OrderCell, useDragReorder } from '@/components/documents/RowReorder'
 
 export type FormCsDocument = {
   id: number
@@ -168,6 +169,7 @@ export function FormCsSpreadsheetTable({
   selectedIds,
   onToggleRow,
   onToggleAll,
+  onMoveRow,
 }: {
   documents: FormCsDocument[]
   groupHeaders: FormCsGroupHeader[]
@@ -179,8 +181,14 @@ export function FormCsSpreadsheetTable({
   selectedIds?: Set<number>
   onToggleRow?: (row: Row) => void
   onToggleAll?: () => void
+  /** Given when the admin may arrange the rows: moves the row `key` to position `to`. */
+  onMoveRow?: (key: string, to: number) => void
 }) {
   const rows = groupRows(documents)
+  const dragReorder = useDragReorder((fromKey, toKey) => onMoveRow?.(fromKey, rows.findIndex((r) => r.key === toKey)))
+  const reorderFor = (row: Row, index: number) => (onMoveRow
+    ? { handleProps: dragReorder.handle(row.key), canUp: index > 0, canDown: index < rows.length - 1, onUp: () => onMoveRow(row.key, index - 1), onDown: () => onMoveRow(row.key, index + 1) }
+    : undefined)
   const showSelection = isLoggedIn && !!selectedIds && !!onToggleRow && !!onToggleAll
   const allSelected = showSelection && rows.length > 0 && rows.every((row) => row.files.every((f) => selectedIds!.has(f.id)))
 
@@ -218,7 +226,7 @@ export function FormCsSpreadsheetTable({
                   className="size-4 rounded border-border"
                 />
               )}
-              <span className="grid min-w-6 place-items-center rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-muted-foreground">{index + 1}</span>
+              <OrderCell number={index + 1} label={row.controlNo} reorder={reorderFor(row, index)} />
               <span className="font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></span>
             </div>
             <div className="mt-2 flex flex-col gap-3">
@@ -284,7 +292,7 @@ export function FormCsSpreadsheetTable({
             {rows.map((row, index) => {
               const titleGroups = groupFilesByTitle(row.files)
               return (
-              <tr key={row.key} onClick={(event) => onRowClick(event, () => onView(row.files[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
+              <tr key={row.key} {...(onMoveRow ? dragReorder.row(row.key) : {})} onClick={(event) => onRowClick(event, () => onView(row.files[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''} ${dragReorder.rowClass(row.key)}`}>
                 {showSelection && (
                   <td data-cell="select" className="px-4 py-3 align-top">
                     <input
@@ -296,7 +304,7 @@ export function FormCsSpreadsheetTable({
                     />
                   </td>
                 )}
-                <td data-cell="no" className="w-px whitespace-nowrap px-4 py-3 align-top font-mono text-[13px] font-semibold tabular-nums text-muted-foreground">{index + 1}</td>
+                <td data-cell="no" className="w-px whitespace-nowrap px-4 py-3 align-top"><OrderCell number={index + 1} label={row.controlNo} reorder={reorderFor(row, index)} /></td>
                 <td data-cell="code" className="px-4 py-3 align-top font-semibold text-accent-foreground"><Highlight text={row.controlNo} keyword={query} /></td>
                 {/* Nama Dokumen / Lang / File / Aksi are rendered one line per title
                     group (files sharing an identical title, grouped by groupFilesByTitle)

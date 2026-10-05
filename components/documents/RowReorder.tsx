@@ -95,3 +95,15 @@ export function OrderCell({
     </div>
   )
 }
+
+/** One line telling the admin the list can be arranged (or why not right now). */
+export function ReorderHint({ active }: { active: boolean }) {
+  return (
+    <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+      <GripVertical className="mt-0.5 size-3.5 flex-none" />
+      {active
+        ? <span>Urutan bisa diatur: tarik baris lewat ikon <strong className="text-foreground">⋮⋮</strong> di kolom No., atau pakai panah naik/turun. Dokumen baru masuk di paling bawah.</span>
+        : <span>Kosongkan pencarian/filter untuk mengatur urutan dokumen.</span>}
+    </p>
+  )
+}

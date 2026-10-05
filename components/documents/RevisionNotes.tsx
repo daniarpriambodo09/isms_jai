@@ -25,6 +25,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as Reac
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ChevronLeft, ChevronRight, Hand, Loader2, MapPin, MessageSquareText, Send, Strikethrough, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { loadPdfJs } from '@/lib/pdfjs-loader'
 import { PdfPages, loadPageRatios, scrollToPage, scrollToSpot } from '@/components/documents/PdfPages'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -47,8 +48,7 @@ const newKey = () => `pin-${Date.now().toString(36)}-${(keySeq++).toString(36)}`
 const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1)
 
 async function loadPdf(filePath: string, token?: string) {
-  const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`
+  const pdfjs = await loadPdfJs()
   const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(filePath)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
   if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')
   const loaded = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise

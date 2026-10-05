@@ -56,5 +56,12 @@
     "overrides": {
       "hono": "4.12.25"
     }
-  }
+  },
+  "browserslist": [
+    "chrome >= 90",
+    "edge >= 90",
+    "firefox >= 90",
+    "safari >= 14",
+    "ios_saf >= 14"
+  ]
 }

@@ -31,6 +31,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ChevronLeft, ChevronRight, Copy, Crosshair, Eye, Loader2, Lock, MousePointerClick, Save, Trash2, Wand2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { loadPdfJs } from '@/lib/pdfjs-loader'
 import { PdfPages, loadPageRatios, scrollToPage, scrollToSpot } from '@/components/documents/PdfPages'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -61,7 +62,7 @@ const ROLE_KEYWORDS: Record<string, string[]> = {
 }
 
 async function pagePhrases(pdf: PDFDocumentProxy, pageIndex: number): Promise<Phrase[]> {
-  const pdfjs = await import('pdfjs-dist')
+  const pdfjs = await loadPdfJs()
   const page = await pdf.getPage(pageIndex + 1)
   const viewport = page.getViewport({ scale: 1 })
   const content = await page.getTextContent()
@@ -252,8 +253,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         setEditableRoles(editable)
         setSlots(saved)
         if (approverMode && !data.editable) setMessage({ ok: false, text: 'Posisi tanda tangan tidak dapat diubah lagi untuk link ini.' })
-        const pdfjs = await import('pdfjs-dist')
-        pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`
+        const pdfjs = await loadPdfJs()
         // Approvers have no session: their token opens the not-yet-published file.
         const file = await fetch(`${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(data.document.file_path)}${approverMode ? `&token=${encodeURIComponent(token!)}` : ''}`)
         if (!file.ok) throw new Error('File PDF tidak dapat dimuat.')

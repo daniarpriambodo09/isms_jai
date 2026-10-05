@@ -10,6 +10,8 @@ import { ThemeApplier } from '@/components/theme-applier'
 import { Toaster } from '@/components/toast'
 import { AdminWelcome } from '@/components/admin-welcome'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
+import { BROWSER_BOOT_SCRIPT } from '@/lib/browser-boot'
+import { AppReady } from '@/components/app-ready'
 import { API_BASE_PATH } from '@/lib/config'
 
 // Metadata URLs don't get the basePath automatically.
@@ -50,6 +52,8 @@ export default function RootLayout({
   return (
     <html lang="id" className="bg-background" suppressHydrationWarning>
       <head>
+        {/* First: polyfills for older phones + the "page cannot load" notice (plain ES5). */}
+        <script dangerouslySetInnerHTML={{ __html: BROWSER_BOOT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body className="antialiased">
@@ -59,6 +63,7 @@ export default function RootLayout({
           <ThemeApplier />
           <Toaster />
           <AdminWelcome />
+          <AppReady />
         </AuthProvider>
       </body>
     </html>

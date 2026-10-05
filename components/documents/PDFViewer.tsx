@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { Download } from 'lucide-react';
 import { API_BASE_PATH } from '@/lib/config';
+import { loadPdfJs } from '@/lib/pdfjs-loader';
 import { PdfPages, loadPageRatios } from '@/components/documents/PdfPages';
 
 interface PDFViewerProps {
@@ -68,8 +69,7 @@ export default function PDFViewer({ filePath, fileName, sourceUrl }: PDFViewerPr
         // No inline PDF viewer (Android Chrome), or a touch device: draw the pages ourselves.
         const drawPages = !navigator.pdfViewerEnabled || window.matchMedia('(pointer: coarse)').matches;
         if (drawPages) {
-          const pdfjs = await import('pdfjs-dist');
-          pdfjs.GlobalWorkerOptions.workerSrc = `${API_BASE_PATH}/api/pdf-worker`;
+          const pdfjs = await loadPdfJs();
           loaded = await pdfjs.getDocument({ data: new Uint8Array(await pdfBlob.arrayBuffer()) }).promise;
           const pageRatios = await loadPageRatios(loaded);
           if (cancelled) return;

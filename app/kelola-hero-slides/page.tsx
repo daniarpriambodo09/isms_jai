@@ -54,6 +54,13 @@ export default function KelolaHeroSlidesPage() {
 
   useEffect(() => { if (isLoggedIn) load() }, [isLoggedIn, load])
 
+  // Every hook stays above this early return (React needs the same hooks on each render).
+  const filteredSlides = useMemo(() => {
+    const value = query.trim().toLowerCase()
+    if (!value) return slides
+    return slides.filter((s) => s.title.toLowerCase().includes(value) || (s.description ?? '').toLowerCase().includes(value))
+  }, [slides, query])
+
   if (!isLoading && !isLoggedIn) {
     return <AdminGate />
   }
@@ -82,12 +89,6 @@ export default function KelolaHeroSlidesPage() {
     ])
     load()
   }
-
-  const filteredSlides = useMemo(() => {
-    const value = query.trim().toLowerCase()
-    if (!value) return slides
-    return slides.filter((s) => s.title.toLowerCase().includes(value) || (s.description ?? '').toLowerCase().includes(value))
-  }, [slides, query])
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {

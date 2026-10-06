@@ -13,6 +13,9 @@ import {
   buildProcedureApprovalEmail,
   buildProcedureResultEmail,
   buildReviewDigestEmail,
+  buildPhotoPendingDigestEmail,
+  buildPhotoRequestAdminEmail,
+  buildPhotoResultEmail,
   buildSpecialAreaApprovalEmail,
   buildVisitorApprovalEmail,
   type ProcedureChainStep,
@@ -40,6 +43,10 @@ export const EMAIL_PREVIEWS: EmailPreviewItem[] = [
   ...(Object.keys(DOC_KIND_INFO) as DocKind[]).flatMap((kind) =>
     DOC_VARIANTS.map(([variant, label, to]) => ({ id: `${kind}:${variant}`, group: DOC_KIND_INFO[kind].label, label, to }))),
   { id: 'photo:request', group: 'Izin Foto/Video', label: 'Permintaan persetujuan (Visitor)', to: 'PIC Approver' },
+  { id: 'photo:admin', group: 'Izin Foto/Video', label: 'Pengajuan Internal baru', to: 'Admin ISM' },
+  { id: 'photo:digest', group: 'Izin Foto/Video', label: 'Pengingat harian: pengajuan belum diputuskan', to: 'Admin ISM' },
+  { id: 'photo:result', group: 'Izin Foto/Video', label: 'Hasil keputusan (disetujui)', to: 'Pemohon' },
+  { id: 'photo:result-rejected', group: 'Izin Foto/Video', label: 'Hasil keputusan (ditolak, Visitor)', to: 'Pemohon' },
   { id: 'special:request', group: 'Izin Area Special', label: 'Permintaan persetujuan', to: 'Approver' },
   { id: 'review:digest', group: 'Review Dokumen', label: 'Pengingat mingguan review dokumen', to: 'Admin ISM' },
 ]
@@ -94,7 +101,29 @@ export function renderEmailPreview(id: string, origin: string): { subject: strin
   const at = (hours: number) => new Date(now + hours * 3_600_000).toISOString()
 
   let mail: { subject: string; html: string }
-  if (group === 'photo') {
+  if (group === 'photo' && variant === 'admin') {
+    mail = buildPhotoRequestAdminEmail({
+      requesterName: 'Naufal Aqil', nik: '12345', deptOrCompany: 'PGA - GAGS', location: 'Genba A', objective: 'Dokumentasi kegiatan 5S',
+      fromAt: at(2), toAt: at(4), picApprove: 'Teguh Sunjoyo', cameraControlNo: 'CAM-PGA-01', photoIdNo: 'PH-07',
+      reviewUrl: `${base}/kelola-permintaan-foto-video?status=pending&type=internal`, pendingCount: 2,
+    })
+  } else if (group === 'photo' && variant === 'digest') {
+    mail = buildPhotoPendingDigestEmail({
+      items: [
+        { requesterName: 'Naufal Aqil', deptOrCompany: 'PGA - GAGS', location: 'Genba A', fromAt: at(-30), submittedAt: at(-50), lapsed: true },
+        { requesterName: 'Isra Ramadhan', deptOrCompany: 'PGA - IT', location: 'Server Room', fromAt: at(20), submittedAt: at(-6), lapsed: false },
+      ],
+      reviewUrl: `${base}/kelola-permintaan-foto-video?status=pending&type=internal`,
+    })
+  } else if (group === 'photo' && variant.startsWith('result')) {
+    const rejected = variant === 'result-rejected'
+    mail = buildPhotoResultEmail({
+      requesterName: rejected ? 'Fadil' : 'Naufal Aqil', approved: !rejected, location: 'Genba A', fromAt: at(2), toAt: at(4),
+      decidedBy: rejected ? 'Teguh Sunjoyo' : 'admin_ism', note: rejected ? 'Area sedang audit pelanggan, ajukan ulang minggu depan.' : null,
+      referenceCode: '42-A1B2C3D4E5', statusUrl: `${base}/ijin-foto-video?type=${rejected ? 'visitor' : 'internal'}&ref=42-A1B2C3D4E5`,
+      pdfUrl: null, visitor: rejected,
+    })
+  } else if (group === 'photo') {
     mail = buildVisitorApprovalEmail({
       approverName: 'Teguh Sunjoyo', requesterName: 'Fadil', deptOrCompany: 'PEMI', dept: 'PGA', fromAt: at(1), toAt: at(2),
       location: 'Genba A', objective: 'Dokumentasi laporan', picJai: 'Naufal Aqil',

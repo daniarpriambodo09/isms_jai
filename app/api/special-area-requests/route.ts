@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { recordNotification } from '@/lib/admin-notifications'
 import { SELECT_COLUMNS, ensureSpecialAreaSchema, getRequest, sendApprovalRequest } from '@/lib/special-area'
 import type { SpecialAreaRequest } from '@/lib/special-area-shared'
 
@@ -65,6 +66,13 @@ export async function POST(request: NextRequest) {
     const id = inserted.rows[0].id
     const emailError = await sendApprovalRequest(id)
     await logActivity(session, 'create', 'special_area_request', id, `Mengajukan ijin masuk area special "${area}" untuk "${requesterName}"`)
+    // Info in the ISM Admin bell; a failed e-mail shows live under "Perlu tindakan" instead.
+    await recordNotification({
+      kind: 'special_new', category: 'special', historyOnly: !!emailError,
+      title: `Izin Area Special baru — ${requesterName}`,
+      body: `${orgCompany} · ${area} · diajukan dari ${session.role === 'security' ? 'Pos Security' : session.role === 'lobby' ? 'Lobby' : session.username}${emailError ? ' · email ke approver gagal' : ''}`,
+      href: '/kelola-izin-area-special',
+    })
     return NextResponse.json({ request: await getRequest(id), emailError }, { status: 201 })
   } catch (error) {
     console.error('[special-area-requests/POST]', error)

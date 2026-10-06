@@ -6,11 +6,13 @@
 // idempotent (recorded in app_settings), so restarts or several checks a day
 // never send twice. On working days until 17:00 WIB it also reminds approvers
 // who have had a pending request for a few days (each step remembers when it
-// was last reminded, so this is idempotent too).
+// was last reminded, so this is idempotent too), and — once a day — tells the
+// ISM Admins about Ijin Foto/Video Internal requests still waiting for them.
 
 import 'server-only'
 import { sendWeeklyReviewDigest } from '@/lib/document-review'
 import { sendApprovalReminders } from '@/lib/procedure-approval'
+import { sendPhotoPendingDigest } from '@/lib/photo-notify'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -38,6 +40,13 @@ async function tick() {
     if (failed) console.warn(`[jobs] ${failed} approval reminder(s) could not be sent — will retry next hour`)
   } catch (error) {
     console.error('[jobs] approval reminders', error)
+  }
+  try {
+    const result = await sendPhotoPendingDigest()
+    if (result === 'sent') console.log('[jobs] daily reminder of undecided photo/video requests sent to ISM Admins')
+    if (result === 'failed') console.warn('[jobs] photo/video reminder could not be sent — will retry next hour')
+  } catch (error) {
+    console.error('[jobs] photo/video reminder', error)
   }
 }
 

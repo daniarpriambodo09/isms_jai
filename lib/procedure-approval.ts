@@ -32,6 +32,7 @@ import { API_BASE_PATH } from '@/lib/config'
 import { isDeliverableEmail } from '@/lib/email-address'
 import { docKindInfo, type DocKind } from '@/lib/document-kinds'
 import { reviewFormSummary, type ReviewFormData } from '@/lib/review-form'
+import { recordNotification } from '@/lib/admin-notifications'
 
 export type ApproverRole = {
   code: string
@@ -370,7 +371,26 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
     `UPDATE procedure_approvals SET notified_at = CASE WHEN $1::text IS NULL THEN now() ELSE NULL END, email_error = $1 WHERE id = $2`,
     [error, stepId]
   )
+  // Shown live under "Perlu tindakan" while it lasts — history only here.
+  if (error) await recordStepEvent(stepId, 'esign_mailfail', (doc, who) => ({ title: `Email pengesahan gagal terkirim — ${doc}`, body: `${who} · ${error}` }))
   return { sent: error === null, error }
+}
+
+// A history entry about one signing step, worded by `describe` from the document and the approver.
+async function recordStepEvent(stepId: number, kind: string, describe: (doc: string, who: string) => { title: string; body: string }) {
+  try {
+    const row = (await query<{ control_no: string; title: string; kind: DocKind; approver_name: string | null; role_title: string }>(
+      `SELECT d.control_no, d.title, d.kind, a.approver_name, a.role_title
+       FROM procedure_approvals a JOIN procedure_documents d ON d.id = a.document_id WHERE a.id = $1`,
+      [stepId]
+    )).rows[0]
+    if (!row) return
+    const info = docKindInfo(row.kind)
+    const text = describe(`${row.control_no} · ${row.title}`, `${row.approver_name ?? row.role_title} (${row.role_title})`)
+    await recordNotification({ kind, category: 'esign', historyOnly: true, ...text, href: `${info.path}?q=${encodeURIComponent(row.control_no)}` })
+  } catch (error) {
+    console.error('[procedure-approval/recordStepEvent]', (error as Error).message)
+  }
 }
 
 // reminder: this is a follow-up of a request already sent (see sendApprovalReminders).
@@ -501,6 +521,10 @@ export async function sendApprovalReminders(now = Date.now()): Promise<{ sent: n
     const error = await emailStep(row.id, row.token, { count: row.reminder_count + 1, waitingDays })
     if (error) { failed++; continue }
     await query('UPDATE procedure_approvals SET reminded_at = now(), reminder_count = reminder_count + 1 WHERE id = $1', [row.id])
+    // That was the last reminder: from now on it shows under "Perlu tindakan" in the bell.
+    if (row.reminder_count + 1 >= REMINDER_MAX) {
+      await recordStepEvent(row.id, 'esign_stuck', (doc, who) => ({ title: `Approver belum tanda tangan setelah ${REMINDER_MAX} pengingat — ${doc}`, body: who }))
+    }
     sent++
   }
   return { sent, failed }
@@ -756,6 +780,20 @@ export async function decideByToken(
   })
 
   if (outcome === 'already') return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
+  // History of the signing (the bell already shows approved / revision notices live).
+  {
+    const kindInfo = docKindInfo(view.document.kind)
+    const docLabel = `${view.document.control_no} · ${view.document.title}`
+    const who = `${view.step.approver_name ?? view.step.role_title} (${view.step.role_title})`
+    await recordNotification({
+      kind: outcome === 'rejected' ? 'esign_rejected' : outcome === 'approved' ? 'esign_approved' : 'esign_step',
+      category: 'esign',
+      historyOnly: true,
+      title: outcome === 'rejected' ? `${kindInfo.short} perlu revisi — ${docLabel}` : outcome === 'approved' ? `${kindInfo.short} disahkan — ${docLabel}` : `${kindInfo.short} disetujui ${who} — ${docLabel}`,
+      body: outcome === 'rejected' ? `Diminta oleh ${who}` : outcome === 'approved' ? `Tanda tangan terakhir oleh ${who}` : 'Diteruskan ke approver berikutnya',
+      href: `${kindInfo.path}?q=${encodeURIComponent(view.document.control_no)}`,
+    })
+  }
   if (outcome === 'rejected') {
     await notifyAdmins(view.document.id, 'rejected')
     return { ok: true, message: 'Permintaan revisi terkirim. Admin ISM menerima pemberitahuan beserta catatan Anda.' }

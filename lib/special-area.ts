@@ -20,6 +20,7 @@ import { buildSpecialAreaApprovalEmail, LOGO_CID } from '@/lib/email-templates'
 import { API_BASE_PATH } from '@/lib/config'
 import { ensureApprovalSchema } from '@/lib/procedure-approval'
 import { SPECIAL_AREAS, type SpecialAreaRequest } from '@/lib/special-area-shared'
+import { recordNotification } from '@/lib/admin-notifications'
 
 // ─── approver setting ───
 // Who approves special-area requests is its own setting (app_settings key
@@ -242,6 +243,12 @@ export async function decideByToken(token: string, action: 'approve' | 'reject',
     [status, note, code, req.id]
   )
   if (!updated.rows.length) return { ok: false, message: 'Pengajuan ini sudah diproses sebelumnya.' }
+  await recordNotification({
+    kind: `special_${status}`, category: 'special',
+    title: `Izin Area Special ${status === 'approved' ? 'disetujui' : 'ditolak'} — ${req.requester_name}`,
+    body: `${req.area} · oleh ${req.approver_name ?? 'approver'}${note ? ` · "${note.slice(0, 120)}"` : ''}`,
+    href: '/kelola-izin-area-special',
+  })
   return { ok: true, message: action === 'approve' ? 'Terima kasih — pengajuan disetujui. Surat izin ber-QR sudah tersedia.' : 'Pengajuan ditolak.' }
 }
 

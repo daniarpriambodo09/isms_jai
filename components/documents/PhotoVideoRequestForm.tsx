@@ -35,25 +35,27 @@ const STATUS_TONE: Record<LookupRequest['status'], string> = { pending: 'bg-[#ff
 // shown right after submitting, and cancel it themselves while it's still
 // pending. Kept collapsed by default so it doesn't crowd the form for the
 // common case of a first-time submission.
-function StatusLookup({ isInternal }: { isInternal: boolean }) {
-  const [open, setOpen] = useState(false)
+// initialRef: opened from a status link (?ref=… in the e-mail or the one shown
+// after submitting) — the lookup opens and checks that request right away.
+function StatusLookup({ isInternal, initialRef }: { isInternal: boolean; initialRef?: string | null }) {
+  const [open, setOpen] = useState(!!initialRef)
   const [mode, setMode] = useState<'ref' | 'nik'>('ref')
   const [nik, setNik] = useState('')
-  const [ref, setRef] = useState('')
+  const [ref, setRef] = useState(initialRef ?? '')
   const [results, setResults] = useState<LookupRequest[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [cancelingId, setCancelingId] = useState<number | null>(null)
   const [cancelError, setCancelError] = useState<string | null>(null)
 
-  const search = async () => {
-    const value = mode === 'nik' ? nik.trim() : ref.trim()
+  const search = async (override?: string) => {
+    const value = override ?? (mode === 'nik' ? nik.trim() : ref.trim())
     if (!value) return
     setSearching(true)
     setError(null)
     setCancelError(null)
     try {
-      const param = mode === 'nik' ? `nik=${encodeURIComponent(value)}` : `ref=${encodeURIComponent(value)}`
+      const param = mode === 'nik' && override === undefined ? `nik=${encodeURIComponent(value)}` : `ref=${encodeURIComponent(value)}`
       const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/lookup?${param}`, { cache: 'no-store' })
       const data = await res.json()
       if (!res.ok) { setError(data?.message ?? 'Gagal memuat status.'); setResults(null); return }
@@ -64,6 +66,12 @@ function StatusLookup({ isInternal }: { isInternal: boolean }) {
       setSearching(false)
     }
   }
+
+  // Opened from a status link: check it straight away (once).
+  useEffect(() => {
+    if (initialRef) void search(initialRef.trim())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRef])
 
   const cancelRequest = async (id: number) => {
     // Cancelling needs the full secret reference code, not just the id.
@@ -105,7 +113,7 @@ function StatusLookup({ isInternal }: { isInternal: boolean }) {
             ) : (
               <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Contoh: 42-A1B2C3D4E5" className={inputClass} />
             )}
-            <button type="button" onClick={search} disabled={searching || !(mode === 'nik' ? nik.trim() : ref.trim())} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" onClick={() => search()} disabled={searching || !(mode === 'nik' ? nik.trim() : ref.trim())} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
               <Search className="size-4" /> {searching ? 'Mencari...' : 'Cek'}
             </button>
           </div>
@@ -157,6 +165,13 @@ function nowTimeStr() {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+// "Sampai Jam" starts one hour after "Dari Jam" (kept within the same day).
+function hourAfter(time: string) {
+  const [h, m] = time.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return ''
+  return h >= 23 ? '23:59' : `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 function Field({ label, span = 1, children }: { label: string; span?: 1 | 2; children: React.ReactNode }) {
   return (
     <div className={span === 2 ? 'sm:col-span-2' : undefined}>
@@ -195,9 +210,11 @@ function useCurrentStep() {
   return step
 }
 
-export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visitor' }) {
+export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: 'internal' | 'visitor'; initialRef?: string | null }) {
   const currentStep = useCurrentStep()
   const isInternal = locale === 'internal'
+  const [requesterEmail, setRequesterEmail] = useState('')
+  const [linkCopied, setLinkCopied] = useState(false)
 
   const [nik, setNik] = useState('')
   const [requesterName, setRequesterName] = useState('')
@@ -215,7 +232,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [fromDate, setFromDate] = useState(todayDateStr)
   const [fromTime, setFromTime] = useState(nowTimeStr)
   const [toDate, setToDate] = useState(todayDateStr)
-  const [toTime, setToTime] = useState('')
+  const [toTime, setToTime] = useState(() => hourAfter(nowTimeStr()))
   const [location, setLocation] = useState('')
   const [objective, setObjective] = useState('')
   const [departments, setDepartments] = useState<Department[]>([])
@@ -224,7 +241,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const [photoIds, setPhotoIds] = useState<PhotoIdItem[]>([])
   const [visitorApprover, setVisitorApprover] = useState<VisitorApprover | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [successInfo, setSuccessInfo] = useState<{ id: number; referenceCode: string; submittedAt: string } | null>(null)
+  const [successInfo, setSuccessInfo] = useState<{ id: number; referenceCode: string; submittedAt: string; emailed: boolean } | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -288,8 +305,8 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const availablePhotoIds = photoIds.filter(matchesCameraScope)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPicJai(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
-    setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(''); setLocation(''); setObjective('')
+    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPicJai(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
+    setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(hourAfter(nowTimeStr())); setLocation(''); setObjective('')
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -305,6 +322,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
       const payload = {
         requestType: locale,
         requesterName,
+        requesterEmail: requesterEmail.trim() || null,
         deptOrCompany,
         fromAt: fromDate && fromTime ? new Date(`${fromDate}T${fromTime}`).toISOString() : '',
         toAt: toDate && toTime ? new Date(`${toDate}T${toTime}`).toISOString() : '',
@@ -324,7 +342,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) { setError(data?.message ?? 'Gagal mengirim pengajuan.'); return }
-      setSuccessInfo({ id: data?.request?.id, referenceCode: data?.referenceCode ?? `#${data?.request?.id}`, submittedAt: data?.request?.submitted_at ?? new Date().toISOString() })
+      setSuccessInfo({ id: data?.request?.id, referenceCode: data?.referenceCode ?? `#${data?.request?.id}`, submittedAt: data?.request?.submitted_at ?? new Date().toISOString(), emailed: !!requesterEmail.trim() })
       resetForm()
     } catch {
       setError('Tidak dapat menghubungi server.')
@@ -336,7 +354,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
   const heading = isInternal ? 'Pengajuan Ijin Pengambilan Foto/Video' : 'Registration for Recording Photo/Video'
   const subheading = isInternal ? 'Berlaku untuk seluruh Dept./Section' : 'For visitor / non-employee'
   const submitLabel = isInternal ? 'Kirim Pengajuan' : 'Submit Registration'
-  const noteText = isInternal ? 'Lengkapi seluruh kolom di bawah sebelum mengirim.' : 'Please complete every field before submitting.'
+  const noteText = isInternal ? 'Lengkapi seluruh kolom di atas sebelum mengirim.' : 'Please complete every field above before submitting.'
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -380,7 +398,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
           <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary"><Users className="size-4" /></span>
           <p className="portal-eyebrow">{isInternal ? 'Data Pemohon' : 'Requester Details'}</p>
         </div>
-        <StatusLookup isInternal={isInternal} />
+        <StatusLookup key={initialRef ?? 'none'} isInternal={isInternal} initialRef={initialRef} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isInternal && (
             <Field label="NIK">
@@ -424,6 +442,12 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
               <input value={dept} onChange={(e) => setDept(e.target.value)} required className={inputClass} />
             </Field>
           )}
+          <Field label={isInternal ? 'Email (opsional)' : 'Email (optional)'} span={2}>
+            <input type="email" value={requesterEmail} onChange={(e) => setRequesterEmail(e.target.value)} placeholder={isInternal ? 'nama@jai.co.id' : 'name@company.com'} autoComplete="email" className={inputClass} />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {isInternal ? 'Isi bila ingin menerima hasil keputusan (disetujui/ditolak) lewat email.' : 'Fill in to receive the decision (approved/rejected) by email.'}
+            </p>
+          </Field>
         </div>
 
         <div className="my-7 h-px bg-border" />
@@ -521,7 +545,7 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Pengajuan akan berstatus Menunggu sampai disetujui atau ditolak oleh Admin ISM. Cek statusnya dengan nomor referensi setelah mengirim.
+                Pengajuan akan berstatus Menunggu sampai disetujui atau ditolak oleh Admin ISM (Admin ISM langsung menerima email). Setelah mengirim, Anda mendapat link status pengajuan.
               </p>
             </Field>
           ) : (
@@ -549,7 +573,12 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
           <Field label={isInternal ? 'Dari Jam' : 'From Time'}>
             <div className="relative">
               <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} required className={`${inputClass} pl-10`} />
+              <input type="time" value={fromTime} onChange={(e) => {
+                const next = e.target.value
+                setFromTime(next)
+                // On the same day the end can't come before the start: push it to an hour later.
+                if (fromDate === toDate && next && (!toTime || toTime <= next)) setToTime(hourAfter(next))
+              }} required className={`${inputClass} pl-10`} />
             </div>
           </Field>
           <Field label={isInternal ? 'Sampai Jam' : 'To Time'}>
@@ -590,16 +619,33 @@ export function PhotoVideoRequestForm({ locale }: { locale: 'internal' | 'visito
               <CheckCircle2 className="size-4 flex-none" />
               {isInternal ? 'Pengajuan terkirim' : 'Registration submitted'} &middot; {new Date(successInfo.submittedAt).toLocaleString('id-ID')}
             </p>
-            {successInfo.id != null && (
-              <p className="mt-2 pl-6 text-xs">
-                {isInternal ? 'Kode referensi: ' : 'Reference code: '}
-                <strong className="font-mono text-sm select-all">{successInfo.referenceCode}</strong>
-                <br />
-                {isInternal
-                  ? 'Simpan kode ini untuk cek status atau membatalkan pengajuan lewat "Cek status pengajuan saya" di atas.'
-                  : 'Save this code to check the status or cancel your registration via "Cek status pengajuan saya" above.'}
-              </p>
-            )}
+            {successInfo.id != null && (() => {
+              // A link that opens this page with the status already checked — easy to keep or forward.
+              const statusLink = typeof window === 'undefined' ? '' : `${window.location.origin}${API_BASE_PATH}/ijin-foto-video?type=${locale}&ref=${encodeURIComponent(successInfo.referenceCode)}`
+              const copyLink = async () => {
+                try { await navigator.clipboard.writeText(statusLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000) } catch { /* the link is selectable below */ }
+              }
+              return (
+                <div className="mt-2 pl-6 text-xs">
+                  <p>
+                    {isInternal ? 'Kode referensi: ' : 'Reference code: '}
+                    <strong className="font-mono text-sm select-all">{successInfo.referenceCode}</strong>
+                  </p>
+                  <p className="mt-1.5">{isInternal ? 'Link status pengajuan Anda — simpan atau bagikan:' : 'Your status link — keep or share it:'}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <a href={statusLink} className="min-w-0 break-all font-mono text-[11px] underline">{statusLink}</a>
+                    <button type="button" onClick={copyLink} className="rounded-md border border-accent/40 bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary">
+                      {linkCopied ? (isInternal ? 'Tersalin ✓' : 'Copied ✓') : (isInternal ? 'Salin link' : 'Copy link')}
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-muted-foreground">
+                    {successInfo.emailed
+                      ? (isInternal ? 'Hasil keputusan juga akan dikirim ke email Anda.' : 'The decision will also be sent to your email.')
+                      : (isInternal ? 'Buka link ini (atau "Cek status pengajuan saya" di atas) untuk melihat hasilnya atau membatalkan pengajuan.' : 'Open this link (or "Cek status pengajuan saya" above) to see the decision or cancel the request.')}
+                  </p>
+                </div>
+              )
+            })()}
           </div>
         )}
       </form>

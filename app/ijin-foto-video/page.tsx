@@ -43,7 +43,8 @@ function IjinFotoVideoContent() {
         {locale === 'visitor' && adminUser?.role === 'ism_admin' && <VisitorApproverSettings />}
       </div>
 
-      <PhotoVideoRequestForm locale={locale} />
+      {/* ?ref=… (status link from the e-mail / after submitting) opens the status check right away. */}
+      <PhotoVideoRequestForm locale={locale} initialRef={searchParams.get('ref')} />
     </div>
   )
 }

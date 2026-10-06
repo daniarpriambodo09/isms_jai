@@ -1293,3 +1293,176 @@ export function buildReviewDigestEmail(data: { months: number; overdue: ReviewDi
     }, body),
   }
 }
+
+
+// ─── Ijin Foto/Video: notices to the ISM Admin and the requester ───
+// Same look as the request e-mail the PIC gets (navy-to-teal header, orange
+// ribbon), so everything about photo/video permits reads as one family.
+
+function photoEmailFrame(opts: { title: string; subtitle: string; preheader: string; ribbon?: string }, body: string) {
+  return `
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eef2f4;font-family:${SANS};">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f4;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(18,40,58,0.16);">
+          <tr><td style="background:${opts.ribbon ?? ACCENT};height:6px;line-height:6px;font-size:0;">&nbsp;</td></tr>
+          <tr>
+            <td style="background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 45%, ${TEAL} 100%);background-color:${NAVY};padding:24px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                <td style="vertical-align:middle;"><span style="display:inline-block;background:#ffffff;border-radius:8px;padding:6px 10px;line-height:0;"><img src="cid:${LOGO_CID}" alt="YAZAKI" width="72" style="display:block;border:0;outline:none;height:auto;" /></span></td>
+                <td align="right" style="vertical-align:middle;"><span style="display:inline-block;border:1px solid rgba(255,255,255,0.35);border-radius:999px;padding:5px 12px;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;">Ijin Foto/Video</span></td>
+              </tr></table>
+              <p style="margin:16px 0 0;color:#ffffff;font-size:20px;font-weight:bold;line-height:1.3;">${opts.title}</p>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.78);font-size:12px;">${opts.subtitle}</p>
+            </td>
+          </tr>
+          ${body}
+          <tr><td style="background:${NAVY};padding:18px 32px;"><p style="margin:0;font-size:11px;color:rgba(255,255,255,0.7);text-align:center;">Email ini dikirim otomatis oleh <strong style="color:#ffffff;">Portal ISMS</strong> &middot; PT. Jatim Autocomp Indonesia</p></td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+function photoDetailRows(rows: [string, string][]) {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:12px;overflow:hidden;">
+      ${rows.map(([label, value], i) => `
+      <tr>
+        <td style="padding:11px 8px 11px 16px;background:${i % 2 ? '#f6f9fa' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:12.5px;color:${MUTED};width:140px;vertical-align:top;">${label}</td>
+        <td style="padding:11px 16px 11px 0;background:${i % 2 ? '#f6f9fa' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:13.5px;color:${TEXT};font-weight:600;vertical-align:top;">${value}</td>
+      </tr>`).join('')}
+    </table>`
+}
+
+function photoButton(href: string, label: string, color = NAVY) {
+  return `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${color};color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;">${label}</a>`
+}
+
+export type PhotoRequestSummary = {
+  requesterName: string
+  nik: string | null
+  deptOrCompany: string
+  location: string
+  objective: string
+  fromAt: string
+  toAt: string
+  picApprove: string | null
+  cameraControlNo: string | null
+  photoIdNo: string | null
+}
+
+/** To the ISM Admins when an Internal request comes in — they are the ones who decide it. */
+export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & { reviewUrl: string; pendingCount: number }): { subject: string; html: string } {
+  const e = escapeHtml
+  const body = `
+    <tr><td style="padding:28px 32px 6px;">
+      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Yth. Admin ISM,</p>
+      <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">Ada <strong>pengajuan ijin pengambilan foto/video Internal</strong> baru yang menunggu keputusan Anda:</p>
+    </td></tr>
+    <tr><td style="padding:0 32px;">${photoDetailRows([
+      ['Nama', `${e(data.requesterName)}${data.nik ? `<br><span style="font-weight:normal;color:${MUTED};font-size:12px;">NIK ${e(data.nik)}</span>` : ''}`],
+      ['Dept./Seksi', e(data.deptOrCompany)],
+      ['Waktu', `${fmtDateTime(data.fromAt)} &ndash;<br>${fmtDateTime(data.toAt)}`],
+      ['Lokasi', e(data.location)],
+      ['Tujuan', e(data.objective)],
+      ['Kamera / ID', `${e(data.cameraControlNo ?? '-')} &middot; ${e(data.photoIdNo ?? '-')}`],
+      ['PIC Approve', e(data.picApprove ?? '-')],
+    ])}</td></tr>
+    <tr><td align="center" style="padding:24px 32px 6px;">${photoButton(data.reviewUrl, '&#9654;&nbsp; Tinjau Pengajuan')}</td></tr>
+    <tr><td style="padding:10px 32px 26px;"><p style="margin:0;font-size:11.5px;color:${MUTED};text-align:center;line-height:1.6;">${data.pendingCount > 1 ? `Saat ini ada <strong>${data.pendingCount} pengajuan Internal</strong> yang menunggu keputusan. ` : ''}Pemohon menerima kabar setelah Anda memutuskan (bila ia mengisi email).</p></td></tr>`
+  return {
+    subject: `[Perlu keputusan] Ijin Foto/Video Internal — ${data.requesterName} (${data.deptOrCompany})`,
+    html: photoEmailFrame({ title: 'Pengajuan Foto/Video Baru', subtitle: 'Internal &middot; menunggu keputusan Admin ISM', preheader: `${data.requesterName} mengajukan ijin foto/video di ${data.location}.` }, body),
+  }
+}
+
+export type PhotoPendingItem = { requesterName: string; deptOrCompany: string; location: string; fromAt: string; submittedAt: string; lapsed: boolean }
+
+/** Daily nudge while Internal requests stay undecided (lib/photo-notify.ts, run by lib/jobs.ts). */
+export function buildPhotoPendingDigestEmail(data: { items: PhotoPendingItem[]; reviewUrl: string }): { subject: string; html: string } {
+  const e = escapeHtml
+  const rows = data.items.map((item) => `
+    <tr>
+      <td style="padding:10px 12px;border-top:1px solid ${BORDER};vertical-align:top;">
+        <span style="font-size:13.5px;font-weight:bold;color:${TEXT};">${e(item.requesterName)}</span><br>
+        <span style="font-size:12px;color:${MUTED};">${e(item.deptOrCompany)} &middot; ${e(item.location)}</span>
+      </td>
+      <td style="padding:10px 12px;border-top:1px solid ${BORDER};vertical-align:top;text-align:right;font-size:11.5px;white-space:nowrap;color:${item.lapsed ? RED : MUTED};font-weight:${item.lapsed ? 'bold' : 'normal'};">
+        ${item.lapsed ? 'Periode terlewat' : `Mulai ${fmtDate(item.fromAt)}`}<br><span style="color:${MUTED};font-weight:normal;">diajukan ${fmtDate(item.submittedAt)}</span>
+      </td>
+    </tr>`).join('')
+  const lapsed = data.items.filter((item) => item.lapsed).length
+  const body = `
+    <tr><td style="padding:26px 32px 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">
+      Ada <strong>${data.items.length} pengajuan ijin foto/video Internal</strong> yang belum diputuskan${lapsed ? `, <strong style="color:${RED};">${lapsed} di antaranya periodenya sudah lewat</strong>` : ''}. Pemohon belum bisa memakai kamera sebelum ada keputusan.
+    </td></tr>
+    <tr><td style="padding:0 32px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:12px;border-collapse:separate;">${rows}</table></td></tr>
+    <tr><td align="center" style="padding:24px 32px 28px;">${photoButton(data.reviewUrl, 'Buka Permintaan Foto/Video')}</td></tr>`
+  return {
+    subject: `[Pengingat] ${data.items.length} pengajuan foto/video Internal menunggu keputusan`,
+    html: photoEmailFrame({ title: 'Pengajuan Menunggu Keputusan', subtitle: 'Pengingat harian &middot; Admin ISM', preheader: `${data.items.length} pengajuan foto/video Internal belum diputuskan.` }, body),
+  }
+}
+
+/** To the requester (when they left an e-mail address) once their request is decided. */
+export function buildPhotoResultEmail(data: {
+  requesterName: string
+  approved: boolean
+  location: string
+  fromAt: string
+  toAt: string
+  decidedBy: string | null
+  note: string | null
+  referenceCode: string
+  statusUrl: string
+  pdfUrl: string | null
+  visitor: boolean
+}): { subject: string; html: string } {
+  const e = escapeHtml
+  const en = data.visitor
+  const verdict = data.approved ? (en ? 'APPROVED' : 'DISETUJUI') : (en ? 'REJECTED' : 'DITOLAK')
+  const color = data.approved ? GREEN : RED
+  const rows: [string, string][] = [
+    [en ? 'Period' : 'Waktu', `${fmtDateTime(data.fromAt)} &ndash;<br>${fmtDateTime(data.toAt)}`],
+    [en ? 'Location' : 'Lokasi', e(data.location)],
+    [en ? 'Decided by' : 'Diputuskan oleh', e(data.decidedBy ?? '-')],
+  ]
+  if (data.note) rows.push([en ? 'Note' : 'Catatan', `<span style="font-weight:normal;font-style:italic;">&ldquo;${e(data.note)}&rdquo;</span>`])
+  rows.push([en ? 'Reference code' : 'Kode referensi', `<span style="font-family:'Courier New',Courier,monospace;">${e(data.referenceCode)}</span>`])
+  const body = `
+    <tr><td style="padding:28px 32px 4px;">
+      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">${en ? 'Dear' : 'Yth.'} <strong>${e(data.requesterName)}</strong>,</p>
+      <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">${en
+        ? `Your photo/video recording request at <strong>${e(data.location)}</strong> has been processed:`
+        : `Pengajuan ijin pengambilan foto/video Anda di <strong>${e(data.location)}</strong> sudah diproses:`}</p>
+    </td></tr>
+    <tr><td align="center" style="padding:0 32px 18px;">
+      <span style="display:inline-block;padding:10px 26px;border-radius:999px;background:${color};color:#ffffff;font-size:15px;font-weight:bold;letter-spacing:0.12em;">${data.approved ? '&#10003;' : '&#10007;'}&nbsp; ${verdict}</span>
+    </td></tr>
+    <tr><td style="padding:0 32px;">${photoDetailRows(rows)}</td></tr>
+    <tr><td align="center" style="padding:24px 32px 4px;">
+      ${data.pdfUrl ? `${photoButton(data.pdfUrl, en ? 'Download permit (PDF)' : 'Unduh surat izin (PDF)', GREEN)}&nbsp;&nbsp;` : ''}${photoButton(data.statusUrl, en ? 'View status' : 'Lihat status')}
+    </td></tr>
+    <tr><td style="padding:14px 32px 26px;"><p style="margin:0;font-size:11.5px;color:${MUTED};text-align:center;line-height:1.6;">${data.approved
+      ? (en ? 'Please follow the security rules of the area while recording.' : 'Mohon tetap mematuhi aturan keamanan area selama pengambilan foto/video.')
+      : (en ? 'You may submit a new request after addressing the note above.' : 'Anda dapat mengajukan ulang setelah menyesuaikan catatan di atas.')}</p></td></tr>`
+  return {
+    subject: en
+      ? `Photo/video request ${data.approved ? 'approved' : 'rejected'} — ${data.location}`
+      : `Ijin foto/video ${data.approved ? 'DISETUJUI' : 'DITOLAK'} — ${data.location}`,
+    html: photoEmailFrame({
+      title: en ? 'Your Request Has Been Processed' : 'Hasil Pengajuan Foto/Video',
+      subtitle: en ? `Reference ${e(data.referenceCode)}` : `Kode referensi ${e(data.referenceCode)}`,
+      preheader: en ? `Your request was ${data.approved ? 'approved' : 'rejected'}.` : `Pengajuan Anda ${data.approved ? 'disetujui' : 'ditolak'}.`,
+      ribbon: color,
+    }, body),
+  }
+}

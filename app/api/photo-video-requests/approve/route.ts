@@ -15,6 +15,7 @@ import { randomBytes } from 'crypto'
 import { query } from '@/lib/db'
 import { isRateLimited } from '@/lib/rate-limit'
 import { API_BASE_PATH } from '@/lib/config'
+import { notifyPhotoDecision } from '@/lib/photo-notify'
 
 type Action = 'approve' | 'reject'
 
@@ -115,6 +116,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Pengajuan ini sudah diputuskan sebelumnya — link ini tidak berlaku lagi.' }, { status: 409 })
     }
 
+    // The admin learns of the PIC's decision in the bell; the requester by e-mail.
+    await notifyPhotoDecision(row.id, 'email')
     return NextResponse.json({ id: row.id, code: verificationCode })
   } catch (error) {
     console.error('[photo-video-requests/approve/POST]', error)

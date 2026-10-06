@@ -7,6 +7,8 @@ import { getSmtpSettings, sendMail } from '@/lib/smtp'
 import { buildVisitorApprovalEmail, LOGO_CID } from '@/lib/email-templates'
 import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { isRateLimited } from '@/lib/rate-limit'
+import { isDeliverableEmail } from '@/lib/email-address'
+import { notifyNewPhotoRequest } from '@/lib/photo-notify'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -105,6 +107,11 @@ export async function POST(request: NextRequest) {
     if (!fromAt || Number.isNaN(Date.parse(fromAt))) return NextResponse.json({ message: 'Tanggal/jam mulai tidak valid.' }, { status: 400 })
     if (!toAt || Number.isNaN(Date.parse(toAt))) return NextResponse.json({ message: 'Tanggal/jam selesai tidak valid.' }, { status: 400 })
     if (new Date(toAt).getTime() < new Date(fromAt).getTime()) return NextResponse.json({ message: 'Tanggal/jam selesai harus setelah mulai.' }, { status: 400 })
+    // Optional: where to send the decision.
+    const requesterEmail = typeof body.requesterEmail === 'string' && body.requesterEmail.trim() ? body.requesterEmail.trim().slice(0, 255) : null
+    if (requesterEmail && !isDeliverableEmail(requesterEmail)) {
+      return NextResponse.json({ message: requestType === 'visitor' ? 'Email address is not valid.' : 'Alamat email tidak valid (contoh: nama@jai.co.id).' }, { status: 400 })
+    }
 
     let nik: string | null = null
     let dept: string | null = null
@@ -191,10 +198,10 @@ export async function POST(request: NextRequest) {
 
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
-         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token, requester_email)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
        RETURNING id`,
-      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken]
+      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,
@@ -204,6 +211,8 @@ export async function POST(request: NextRequest) {
     if (requestType === 'visitor') {
       await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken })
     }
+    // Bell + (Internal) e-mail to the ISM Admins who decide it.
+    await notifyNewPhotoRequest(created.rows[0].id)
 
     return NextResponse.json({ request: created.rows[0], referenceCode: `${created.rows[0].id}-${refToken}` }, { status: 201 })
   } catch (error) {

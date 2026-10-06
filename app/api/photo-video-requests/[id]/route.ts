@@ -3,6 +3,8 @@ import { randomBytes } from 'crypto'
 import { getIsmsAdminFromRequest, getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { notifyPhotoDecision } from '@/lib/photo-notify'
+import { recordNotification } from '@/lib/admin-notifications'
 
 type Status = 'approved' | 'rejected'
 const DECISION_STATUSES: Status[] = ['approved', 'rejected']
@@ -75,6 +77,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         : 'Pengajuan tidak ditemukan.'
       return NextResponse.json({ message }, { status: existing.rows.length > 0 ? 409 : 404 })
     }
+    // History entry + the result e-mail to the requester (when they left an address).
+    await notifyPhotoDecision(Number(id), 'admin')
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     return NextResponse.json({ request: result.rows[0] })
   } catch (error) {
@@ -109,7 +113,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       [id]
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan atau belum disetujui.' }, { status: 404 })
-    const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
+    const result = await query<{ requester_name: string; location: string }>(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
+    // Shown live in the bell ("sudah diambil") until acknowledged — history only here.
+    await recordNotification({
+      kind: 'photo_taken', category: 'photo', historyOnly: true,
+      title: `Foto/video sudah diambil — ${result.rows[0]?.requester_name ?? ''}`,
+      body: `${result.rows[0]?.location ?? ''} · ditandai oleh ${admin.username}`, href: '/kelola-permintaan-foto-video',
+    })
     return NextResponse.json({ request: result.rows[0] })
   }
 

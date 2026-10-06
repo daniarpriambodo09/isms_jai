@@ -19,7 +19,7 @@ import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { buildSpecialAreaApprovalEmail, LOGO_CID } from '@/lib/email-templates'
 import { API_BASE_PATH } from '@/lib/config'
 import { ensureApprovalSchema } from '@/lib/procedure-approval'
-import { SPECIAL_AREAS, type SpecialAreaRequest } from '@/lib/special-area-shared'
+import { SPECIAL_AREAS, parseEscortList, type Escort, type SpecialAreaRequest } from '@/lib/special-area-shared'
 import { recordNotification } from '@/lib/admin-notifications'
 
 // ─── approver setting ───
@@ -97,6 +97,32 @@ export async function resetAreaList() {
   await query('DELETE FROM app_settings WHERE key = $1', [AREAS_KEY])
 }
 
+// ─── PIC Pendamping ───
+// The employees Lobby / Pos Security pick from when they assign who
+// accompanies a guest inside the area (app_settings key
+// 'special_area_escorts', kept by the ISM Admin). Lobby / Security can still
+// type a name that isn't on it. Requests keep the name they were given.
+
+const ESCORTS_KEY = 'special_area_escorts'
+
+export async function getEscortList(): Promise<{ escorts: Escort[]; updatedAt: string | null; updatedBy: string | null }> {
+  await ensureSettingsTable()
+  const row = (await query<{ value: { escorts?: unknown }; updated_at: string; updated_by: string | null }>(
+    'SELECT value, updated_at, updated_by FROM app_settings WHERE key = $1', [ESCORTS_KEY]
+  )).rows[0]
+  const parsed = parseEscortList(row?.value?.escorts ?? [])
+  return { escorts: 'error' in parsed ? [] : parsed.escorts, updatedAt: row?.updated_at ?? null, updatedBy: row?.updated_by ?? null }
+}
+
+export async function saveEscortList(escorts: Escort[], username: string) {
+  await ensureSettingsTable()
+  await query(
+    `INSERT INTO app_settings (key, value, updated_at, updated_by) VALUES ($1, $2, now(), $3)
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by`,
+    [ESCORTS_KEY, JSON.stringify({ escorts }), username]
+  )
+}
+
 export async function resolveApprover(): Promise<ResolvedApprover> {
   const { setting } = await getApproverSetting()
   if (setting.mode === 'custom') {
@@ -123,7 +149,7 @@ export async function resendAllPending() {
 
 export const SELECT_COLUMNS = `id, requester_name, org_company, department, from_at, to_at, area, purpose, id_card_no,
   status, submitted_at, submitted_by, approver_name, approver_title, notified_at, email_error,
-  decided_at, decision_note, verification_code`
+  decided_at, decision_note, verification_code, escort_name, escort_dept, escort_set_by, escort_set_at`
 
 let ready: Promise<void> | null = null
 
@@ -157,6 +183,10 @@ export function ensureSpecialAreaSchema() {
           CONSTRAINT special_area_requests_dates_check CHECK (to_at >= from_at)
         )`)
       await query('CREATE INDEX IF NOT EXISTS special_area_requests_status_idx ON special_area_requests (status, submitted_at DESC)')
+      // PIC Pendamping (migration 0015) — also here so a database created by this code has it.
+      await query(`ALTER TABLE special_area_requests
+        ADD COLUMN IF NOT EXISTS escort_name varchar(150), ADD COLUMN IF NOT EXISTS escort_dept varchar(150),
+        ADD COLUMN IF NOT EXISTS escort_set_by varchar(100), ADD COLUMN IF NOT EXISTS escort_set_at timestamptz`)
     })().catch((error) => { ready = null; throw error })
   }
   return ready

@@ -28,6 +28,8 @@ export function SpecialAreaRequestsPanel() {
   useKioskAutoRefresh(load)
 
   const pending = requests.filter((r) => r.status === 'pending').length
+  // Approved permits still in force that nobody has been assigned to accompany yet.
+  const noEscort = requests.filter((r) => r.status === 'approved' && !r.escort_name && Date.parse(r.to_at) > Date.now()).length
 
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -36,9 +38,10 @@ export function SpecialAreaRequestsPanel() {
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex min-w-0 flex-1 basis-60 items-center gap-3 text-left">
           <span className="grid size-9 flex-shrink-0 place-items-center rounded-lg bg-[#c7161e] text-white"><ShieldAlert className="size-4" /></span>
           <div>
-            <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-foreground">
               Izin Masuk Area Special Security
               {pending > 0 && <span className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[10px] font-bold text-[#8a6100]">{pending} menunggu</span>}
+              {noEscort > 0 && <span className="rounded-full border border-amber-500/50 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">{noEscort} belum ada PIC pendamping</span>}
             </p>
             <p className="text-xs text-muted-foreground">Form ISMS-F-006-001 — disetujui approver via email (e-sign)</p>
           </div>

@@ -68,4 +68,45 @@ export type SpecialAreaRequest = {
   decided_at: string | null
   decision_note: string | null
   verification_code: string | null
+  /** PIC Pendamping — filled in by Lobby / Pos Security, at submission or later. */
+  escort_name: string | null
+  escort_dept: string | null
+  escort_set_by: string | null
+  escort_set_at: string | null
+}
+
+export const ESCORT_NAME_MAX = 150
+export const ESCORT_LIST_MAX = 300
+
+export type Escort = { name: string; dept: string | null }
+
+const cleanText = (v: unknown, max = ESCORT_NAME_MAX) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '')
+
+/** The PIC Pendamping picked for one request, trimmed (name null = cleared). */
+export function parseEscort(body: { escortName?: unknown; escortDept?: unknown }) {
+  const name = cleanText(body.escortName)
+  const dept = cleanText(body.escortDept)
+  return { name: name || null, dept: name ? dept || null : null }
+}
+
+/**
+ * The list of employees Lobby / Security pick the PIC Pendamping from (set by
+ * the ISM Admin): empty rows dropped, duplicates (same name + dept) refused.
+ */
+export function parseEscortList(raw: unknown): { escorts: Escort[] } | { error: string } {
+  if (!Array.isArray(raw)) return { error: 'Daftar PIC pendamping tidak valid.' }
+  const escorts: Escort[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const row = (item ?? {}) as { name?: unknown; dept?: unknown }
+    const name = cleanText(row.name)
+    const dept = cleanText(row.dept)
+    if (!name) continue
+    const key = `${name}|${dept}`.toLowerCase()
+    if (seen.has(key)) return { error: `"${name}${dept ? ` (${dept})` : ''}" tertulis dua kali.` }
+    seen.add(key)
+    escorts.push({ name, dept: dept || null })
+  }
+  if (escorts.length > ESCORT_LIST_MAX) return { error: `Maksimal ${ESCORT_LIST_MAX} nama.` }
+  return { escorts }
 }

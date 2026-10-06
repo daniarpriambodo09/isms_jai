@@ -62,7 +62,8 @@ export function ActiveCardsWidget({
           const meta = CARD_META[type]
           const items = active.filter((r) => r.current_card_type === type)
           return (
-            <div key={type} className="bg-card p-4">
+            // On a phone (two columns) a lone last card spans the row instead of leaving an empty grey cell.
+            <div key={type} className="bg-card p-4 max-sm:odd:last:col-span-full">
               <div className="mb-2.5 flex items-center justify-between gap-2">
                 <span
                   className="rounded-full px-2.5 py-0.5 text-[10px] font-bold"

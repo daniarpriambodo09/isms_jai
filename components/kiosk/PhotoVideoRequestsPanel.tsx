@@ -63,12 +63,13 @@ export function PhotoVideoRequestsPanel({ canSubmit = true }: { canSubmit?: bool
 
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-      <div className="flex items-center gap-2 px-5 py-4">
+      {/* On a phone the actions drop under the title instead of squeezing it to one word per line. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-3 px-4 py-4 sm:px-5">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="flex flex-1 items-center gap-3 text-left"
+          className="flex min-w-0 flex-1 basis-60 items-center gap-3 text-left"
         >
           <span
             className="grid size-9 flex-shrink-0 place-items-center rounded-lg text-white"
@@ -78,21 +79,23 @@ export function PhotoVideoRequestsPanel({ canSubmit = true }: { canSubmit?: bool
           </span>
           <div>
             <p className="text-sm font-semibold text-foreground">Izin Foto/Video</p>
-            <p className="text-xs text-muted-foreground">Rekap pengajuan izin foto/video, Internal &amp; Visitor — persetujuan hanya diproses oleh Admin ISM</p>
+            <p className="text-xs text-muted-foreground">Rekap pengajuan izin foto/video Internal &amp; Visitor — Visitor disetujui PIC Approve lewat email, Internal oleh Admin ISM</p>
           </div>
         </button>
-        {canSubmit && (
-          <button
-            type="button"
-            onClick={() => setFormOpen(true)}
-            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
-          >
-            <UserPlus className="size-3.5" />Ajukan Izin Foto/Video
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          {canSubmit && (
+            <button
+              type="button"
+              onClick={() => setFormOpen(true)}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5 sm:flex-none"
+            >
+              <UserPlus className="size-3.5" />Ajukan Izin Foto/Video
+            </button>
+          )}
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? 'Tutup rekap' : 'Buka rekap'} className="ml-auto grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary">
+            <ChevronDown className={`size-5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
           </button>
-        )}
-        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label={open ? 'Tutup rekap' : 'Buka rekap'} className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary">
-          <ChevronDown className={`size-5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-        </button>
+        </div>
       </div>
 
       {open && (

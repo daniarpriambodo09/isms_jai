@@ -189,7 +189,9 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
         <ControlPanelHero
           title={title}
           count={documents.length}
-          groups={groupHeaders.length}
+          pdf={documents.filter((d) => d.file_kind !== 'xls').length}
+          xls={documents.filter((d) => d.file_kind === 'xls').length}
+          updatedAt={documents.reduce<string | null>((latest, d) => (!latest || d.uploaded_at > latest ? d.uploaded_at : latest), null)}
           action={isLoggedIn && (
             <>
               <button type="button" onClick={() => setGroupHeaderModalOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-white/10">

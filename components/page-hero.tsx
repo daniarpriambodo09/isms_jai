@@ -280,13 +280,15 @@ export function PaperHero({ title, count, action }: WithAction & { title: string
 }
 
 // ─── Kontrol CS — control room panel ───
-export function ControlPanelHero({ title, count, groups, action, children }: WithAction & { title: string; count: number; groups: number; children?: ReactNode }) {
+// The tiles are real figures from the register: how many documents, how many
+// of them are PDF / Excel files, and when the last one was uploaded.
+export function ControlPanelHero({ title, count, pdf, xls, updatedAt, action, children }: WithAction & { title: string; count: number; pdf: number; xls: number; updatedAt: string | null; children?: ReactNode }) {
   const now = useNow(1000)
   const tiles: [string, ReactNode][] = [
     ['Dokumen', count],
-    ['Grup', groups],
-    ['Standar', 'ISO 27001'],
-    ['Status', <span key="s" className="text-emerald-300">OK</span>],
+    ['File PDF', pdf],
+    ['File Excel', xls],
+    ['Pembaruan terakhir', updatedAt ? new Date(updatedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '—'],
   ]
   return (
     <section className="overflow-hidden rounded-2xl bg-[color:var(--p-900)] text-primary-foreground shadow-xl">

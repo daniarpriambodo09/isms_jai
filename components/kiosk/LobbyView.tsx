@@ -11,6 +11,8 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
+import { Pagination } from '@/components/pagination'
+import { usePagination } from '@/hooks/usePagination'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
 import { CARD_BARCODE_FIELD, formatDateTime, stationOf, inputClass, labelClass, useKioskAutoRefresh, type Registration } from '@/components/kiosk/kiosk-shared'
@@ -510,6 +512,20 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
       )
     })
   }, [registrations, tableQuery, filterMonth, filterYear])
+  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredRegistrations, 20)
+  const emptyMessage = loading
+    ? null
+    : registrations.length === 0 ? 'Belum ada pendaftaran.' : filteredRegistrations.length === 0 ? 'Tidak ada yang cocok dengan pencarian.' : null
+
+  // The detail panel sits above the list: when a row far down is tapped
+  // (on a phone especially), bring the panel into view.
+  const detailRef = useRef<HTMLDivElement>(null)
+  const selectedId = selected?.id
+  useEffect(() => {
+    if (selectedId == null) return
+    const el = detailRef.current
+    if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [selectedId])
 
   const handleExportCsv = () => {
     downloadExcel(
@@ -605,21 +621,22 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="flex items-center justify-between border-b border-border bg-primary px-6 py-4 text-primary-foreground">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-white/15"><ShieldCheck className="size-5" /></span>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/65">PT. Jatim Autocomp Indonesia</p>
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-primary px-4 py-4 text-primary-foreground sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-10 flex-shrink-0 place-items-center rounded-xl bg-white/15"><ShieldCheck className="size-5" /></span>
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/65">PT. Jatim Autocomp Indonesia</p>
             <h1 className="text-lg font-bold">{stationName}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        {/* On a phone the two buttons shrink to their icons. */}
+        <div className="flex flex-shrink-0 items-center gap-2">
           <span className="hidden text-xs text-primary-foreground/75 sm:inline">{adminUser?.username}</span>
-          <button onClick={() => setPasswordModalOpen(true)} className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs transition-colors hover:bg-primary-foreground/10">
-            <KeyRound className="size-4" />Ganti Password
+          <button onClick={() => setPasswordModalOpen(true)} aria-label="Ganti Password" title="Ganti Password" className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-2.5 py-2 text-xs transition-colors hover:bg-primary-foreground/10 sm:px-3">
+            <KeyRound className="size-4" /><span className="hidden sm:inline">Ganti Password</span>
           </button>
-          <button onClick={() => logout()} className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-3 py-2 text-xs transition-colors hover:bg-primary-foreground/10">
-            <LogOut className="size-4" />Logout
+          <button onClick={() => logout()} aria-label="Logout" title="Logout" className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-2.5 py-2 text-xs transition-colors hover:bg-primary-foreground/10 sm:px-3">
+            <LogOut className="size-4" /><span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </header>
@@ -644,7 +661,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         </div>
 
         {selected && (
-          <div className="mb-6">
+          <div ref={detailRef} className="mb-6 scroll-mt-4">
             <DetailPanel registration={selected} onClose={() => setSelected(null)} onChanged={load} />
           </div>
         )}
@@ -654,8 +671,9 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
             <p className="portal-eyebrow">Semua Pendaftaran</p>
             <p className="mt-1 text-sm text-muted-foreground">{filteredRegistrations.length} data</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
+          {/* A neat 2 × 2 grid on a phone, one row from tablet width up. */}
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <button type="button" onClick={() => load()} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
             {QUICK_REGISTER_TYPES.map((type) => {
@@ -665,7 +683,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                   key={type}
                   type="button"
                   onClick={() => setQuickCardOpen(type)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5 sm:px-4"
                 >
                   <Icon className="size-4" />Daftarkan {QUICK_CARD_LABEL[type]}
                 </button>
@@ -724,7 +742,52 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         {listError && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{listError}</p>}
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="overflow-x-auto">
+          {/* Phone: one card per guest, everything visible without sliding sideways. */}
+          <div className="md:hidden">
+            {loading && <div className="px-5 py-14 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></div>}
+            {emptyMessage && <p className="px-5 py-14 text-center text-sm text-muted-foreground">{emptyMessage}</p>}
+            {!loading && pageItems.length > 0 && (
+              <>
+                <label className="flex items-center gap-3 border-b border-border bg-secondary/55 px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} className="size-4 rounded border-border" />Pilih semua
+                </label>
+                <ul className="divide-y divide-border">
+                  {pageItems.map((r) => {
+                    const status = statusOf(r)
+                    return (
+                      <li key={r.id} onClick={() => setSelected(r)} className={`flex cursor-pointer gap-3 px-4 py-3.5 transition-colors active:bg-secondary/40 ${selected?.id === r.id ? 'bg-secondary/40' : ''}`}>
+                        <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} onClick={(e) => e.stopPropagation()} aria-label={`Pilih ${r.full_name}`} className="mt-1 size-4 flex-shrink-0 rounded border-border" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 break-words font-semibold text-foreground">{r.full_name}</p>
+                            <span className="flex-shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{stationOf(r) === 'security' ? 'Security' : 'Lobby'}</span>
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(r.registered_at)}</p>
+                          <p className="mt-1 break-words text-xs text-muted-foreground">
+                            {r.pic_jai && <>PIC: <span className="text-foreground">{r.pic_jai}</span> · </>}{r.company_remark}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                            {r.current_card_type && <span className="font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">{r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}</span>}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(event) => { event.stopPropagation(); setPendingDelete(r) }}
+                          aria-label={`Hapus pendaftaran ${r.full_name}`}
+                          title="Hapus pendaftaran"
+                          className="grid size-8 flex-shrink-0 place-items-center self-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-secondary/55">
                 <tr>
@@ -746,7 +809,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                 {!loading && registrations.length > 0 && filteredRegistrations.length === 0 && (
                   <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
                 )}
-                {filteredRegistrations.map((r, index) => {
+                {pageItems.map((r, index) => {
                   const status = statusOf(r)
                   return (
                     <tr
@@ -787,6 +850,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
               </tbody>
             </table>
           </div>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredRegistrations.length} pageSize={pageSize} />
         </div>
       </main>
 

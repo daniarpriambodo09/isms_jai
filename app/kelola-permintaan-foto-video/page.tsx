@@ -11,6 +11,8 @@ import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Pagination } from '@/components/pagination'
+import { usePagination } from '@/hooks/usePagination'
 
 const STATUS_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Semua' },
@@ -125,6 +127,7 @@ function KelolaPermintaanFotoVideoContent() {
       req.location.toLowerCase().includes(value)
     )
   }, [requests, query])
+  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredRequests, 20)
 
   if (!isLoading && !isLoggedIn) {
     return <AdminGate />
@@ -207,7 +210,7 @@ function KelolaPermintaanFotoVideoContent() {
               {!loading && requests.length > 0 && filteredRequests.length === 0 && (
                 <tr><td colSpan={9} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
               )}
-              {filteredRequests.map((req, index) => (
+              {!loading && pageItems.map((req, index) => (
                 <tr key={req.id} className={index % 2 ? 'bg-secondary/20' : ''}>
                   <td data-label="Diajukan" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.submitted_at)}</td>
                   <td data-label="Tipe" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.request_type === 'internal' ? 'Internal' : 'Visitor'}</td>
@@ -229,28 +232,29 @@ function KelolaPermintaanFotoVideoContent() {
                       </span>
                     )}
                   </td>
-                  <td data-cell="actions" className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap">
+                  <td data-cell="actions" className="w-px px-4 py-3">
+                    {/* Fixed slots on a wide screen — main button, "sudah diambil", PDF, delete — so the
+                        buttons line up row after row instead of wrapping unevenly; a plain row on a phone. */}
+                    <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap min-[681px]:grid min-[681px]:grid-cols-[4.5rem_7.5rem_2rem_2rem]">
                       {isIsmAdmin && req.status === 'pending' ? (
-                        <button type="button" onClick={() => setSelected(req)} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90">
+                        <button type="button" onClick={() => setSelected(req)} className="rounded-md bg-primary px-3 py-1.5 text-center text-xs font-semibold text-primary-foreground transition hover:opacity-90">
                           Tinjau
                         </button>
                       ) : (
-                        <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                        <button type="button" onClick={() => setSelected(req)} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-foreground transition hover:bg-secondary">
                           Lihat
                         </button>
                       )}
-                      {isIsmAdmin && req.status === 'approved' && !req.taken_at && (
-                        <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                      {isIsmAdmin && req.status === 'approved' && !req.taken_at ? (
+                        <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-foreground transition hover:bg-secondary">
                           Sudah Diambil
                         </button>
-                      )}
-                      {isIsmAdmin && req.status === 'approved' && req.taken_at && (
-                        <button type="button" onClick={() => unmarkTaken(req)} disabled={unmarkingId === req.id} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60">
+                      ) : isIsmAdmin && req.status === 'approved' && req.taken_at ? (
+                        <button type="button" onClick={() => unmarkTaken(req)} disabled={unmarkingId === req.id} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-muted-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60">
                           {unmarkingId === req.id ? 'Membatalkan...' : 'Batalkan Tanda'}
                         </button>
-                      )}
-                      {req.request_type === 'visitor' && req.status !== 'pending' && (
+                      ) : <span className="hidden min-[681px]:block" />}
+                      {req.request_type === 'visitor' && req.status !== 'pending' ? (
                         <a
                           href={`${API_BASE_PATH}/api/photo-video-requests/${req.id}/pdf`}
                           target="_blank"
@@ -261,7 +265,7 @@ function KelolaPermintaanFotoVideoContent() {
                         >
                           <Eye className="size-3.5" />
                         </a>
-                      )}
+                      ) : <span className="hidden min-[681px]:block" />}
                       {isIsmAdmin && (
                         <button type="button" onClick={() => setPendingDelete(req)} aria-label={`Hapus pengajuan ${req.requester_name}`} title="Hapus pengajuan" className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
                       )}
@@ -272,6 +276,7 @@ function KelolaPermintaanFotoVideoContent() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredRequests.length} pageSize={pageSize} />
       </div>
 
       {selected && (

@@ -80,16 +80,54 @@ export const THEME_VARS: Record<string, [string, ThemeFamily]> = {
   '--a-bright': ['oklch(0.75 0.18 50)', 'accent'],
 }
 
-export type ThemePreset = { id: string; name: string; description: string; params: ThemeParams }
+// Ready-made palettes for Kelola Tema, grouped by the colour of the brand
+// (primary) family. Each one is just six numbers — hue and saturation of the
+// primary, accent and neutral families — from which every colour of the
+// portal is derived (computeThemeVars), so all of them keep the same
+// contrast between text and background as the original theme.
+export const THEME_GROUPS = ['Biru', 'Hijau & Teal', 'Merah & Hangat', 'Ungu & Merah Muda', 'Netral'] as const
+export type ThemeGroup = (typeof THEME_GROUPS)[number]
+export type ThemePreset = { id: string; group: ThemeGroup; name: string; description: string; params: ThemeParams }
 
 export const THEME_PRESETS: ThemePreset[] = [
-  { id: 'teal-klasik', name: 'Teal Klasik', description: 'Warna asli portal — teal, cream, aksen oranye.', params: DEFAULT_THEME },
-  { id: 'navy-gold', name: 'Navy & Emas', description: 'Biru navy korporat dengan aksen emas.', params: { primaryHue: 258, primaryChroma: 1.05, accentHue: 80, accentChroma: 1, neutralHue: 88, neutralChroma: 0.8 } },
-  { id: 'forest-amber', name: 'Hutan & Amber', description: 'Hijau tua alami dengan aksen amber hangat.', params: { primaryHue: 150, primaryChroma: 0.95, accentHue: 62, accentChroma: 1, neutralHue: 95, neutralChroma: 1 } },
-  { id: 'ocean-coral', name: 'Samudra & Koral', description: 'Biru laut cerah dengan aksen koral.', params: { primaryHue: 235, primaryChroma: 1.15, accentHue: 32, accentChroma: 1.05, neutralHue: 80, neutralChroma: 0.7 } },
-  { id: 'plum-rose', name: 'Plum & Mawar', description: 'Ungu plum elegan dengan aksen mawar.', params: { primaryHue: 318, primaryChroma: 0.95, accentHue: 12, accentChroma: 1, neutralHue: 70, neutralChroma: 0.7 } },
-  { id: 'burgundy-sand', name: 'Burgundy & Pasir', description: 'Merah anggur klasik dengan aksen pasir keemasan.', params: { primaryHue: 20, primaryChroma: 1, accentHue: 85, accentChroma: 0.85, neutralHue: 75, neutralChroma: 1.1 } },
-  { id: 'charcoal-lime', name: 'Arang & Lime', description: 'Hampir monokrom dengan aksen lime berani.', params: { primaryHue: 205, primaryChroma: 0.15, accentHue: 125, accentChroma: 1.25, neutralHue: 95, neutralChroma: 0.45 } },
+  // ── Biru ──
+  { id: 'navy-gold', group: 'Biru', name: 'Navy & Emas', description: 'Biru navy korporat dengan aksen emas.', params: { primaryHue: 258, primaryChroma: 1.05, accentHue: 80, accentChroma: 1, neutralHue: 88, neutralChroma: 0.8 } },
+  { id: 'navy-coral', group: 'Biru', name: 'Navy & Koral', description: 'Navy tegas dengan aksen koral hangat.', params: { primaryHue: 262, primaryChroma: 1, accentHue: 30, accentChroma: 1.05, neutralHue: 85, neutralChroma: 0.85 } },
+  { id: 'ocean-coral', group: 'Biru', name: 'Samudra & Koral', description: 'Biru laut cerah dengan aksen koral.', params: { primaryHue: 235, primaryChroma: 1.15, accentHue: 32, accentChroma: 1.05, neutralHue: 80, neutralChroma: 0.7 } },
+  { id: 'royal-orange', group: 'Biru', name: 'Biru Royal & Jingga', description: 'Biru terang yang berani dengan aksen jingga.', params: { primaryHue: 255, primaryChroma: 1.25, accentHue: 52, accentChroma: 1.1, neutralHue: 250, neutralChroma: 0.35 } },
+  { id: 'sky-sunflower', group: 'Biru', name: 'Langit & Bunga Matahari', description: 'Biru langit dengan aksen kuning cerah.', params: { primaryHue: 232, primaryChroma: 1.05, accentHue: 92, accentChroma: 1.1, neutralHue: 95, neutralChroma: 0.6 } },
+  { id: 'indigo-amber', group: 'Biru', name: 'Indigo & Amber', description: 'Indigo dalam dengan aksen amber.', params: { primaryHue: 278, primaryChroma: 1.05, accentHue: 72, accentChroma: 1.05, neutralHue: 85, neutralChroma: 0.7 } },
+  { id: 'midnight-cyan', group: 'Biru', name: 'Tengah Malam & Cyan', description: 'Biru gelap dengan aksen cyan segar.', params: { primaryHue: 266, primaryChroma: 0.9, accentHue: 210, accentChroma: 1.2, neutralHue: 240, neutralChroma: 0.5 } },
+  { id: 'steel-tangerine', group: 'Biru', name: 'Baja & Jeruk', description: 'Biru keabuan yang tenang dengan aksen jeruk.', params: { primaryHue: 245, primaryChroma: 0.55, accentHue: 48, accentChroma: 1.15, neutralHue: 240, neutralChroma: 0.4 } },
+  // ── Hijau & Teal ──
+  { id: 'teal-klasik', group: 'Hijau & Teal', name: 'Teal Klasik', description: 'Warna asli portal — teal, cream, aksen oranye.', params: DEFAULT_THEME },
+  { id: 'teal-rose', group: 'Hijau & Teal', name: 'Teal & Mawar', description: 'Teal dengan aksen merah mawar.', params: { primaryHue: 198, primaryChroma: 1, accentHue: 8, accentChroma: 1, neutralHue: 80, neutralChroma: 0.8 } },
+  { id: 'aqua-fuchsia', group: 'Hijau & Teal', name: 'Aqua & Fuchsia', description: 'Aqua segar dengan aksen fuchsia.', params: { primaryHue: 212, primaryChroma: 1.1, accentHue: 345, accentChroma: 1.05, neutralHue: 220, neutralChroma: 0.45 } },
+  { id: 'forest-amber', group: 'Hijau & Teal', name: 'Hutan & Amber', description: 'Hijau tua alami dengan aksen amber hangat.', params: { primaryHue: 150, primaryChroma: 0.95, accentHue: 62, accentChroma: 1, neutralHue: 95, neutralChroma: 1 } },
+  { id: 'emerald-gold', group: 'Hijau & Teal', name: 'Zamrud & Emas', description: 'Hijau zamrud dengan aksen emas.', params: { primaryHue: 162, primaryChroma: 1.15, accentHue: 88, accentChroma: 1.05, neutralHue: 95, neutralChroma: 0.8 } },
+  { id: 'pine-terracotta', group: 'Hijau & Teal', name: 'Pinus & Terakota', description: 'Hijau pinus dengan aksen terakota.', params: { primaryHue: 172, primaryChroma: 0.8, accentHue: 40, accentChroma: 1.05, neutralHue: 80, neutralChroma: 1 } },
+  { id: 'olive-brick', group: 'Hijau & Teal', name: 'Zaitun & Bata', description: 'Hijau zaitun dengan aksen merah bata.', params: { primaryHue: 122, primaryChroma: 0.7, accentHue: 30, accentChroma: 1, neutralHue: 95, neutralChroma: 1.1 } },
+  { id: 'sage-peach', group: 'Hijau & Teal', name: 'Sage & Persik', description: 'Hijau sage lembut dengan aksen persik.', params: { primaryHue: 152, primaryChroma: 0.5, accentHue: 50, accentChroma: 0.85, neutralHue: 90, neutralChroma: 0.9 } },
+  // ── Merah & Hangat ──
+  { id: 'burgundy-sand', group: 'Merah & Hangat', name: 'Burgundy & Pasir', description: 'Merah anggur klasik dengan aksen pasir keemasan.', params: { primaryHue: 20, primaryChroma: 1, accentHue: 85, accentChroma: 0.85, neutralHue: 75, neutralChroma: 1.1 } },
+  { id: 'crimson-slate', group: 'Merah & Hangat', name: 'Merah & Batu', description: 'Merah tegas dengan aksen biru keabuan.', params: { primaryHue: 25, primaryChroma: 1.15, accentHue: 245, accentChroma: 0.7, neutralHue: 250, neutralChroma: 0.35 } },
+  { id: 'maroon-gold', group: 'Merah & Hangat', name: 'Marun & Emas', description: 'Marun gelap dengan aksen emas.', params: { primaryHue: 12, primaryChroma: 0.9, accentHue: 86, accentChroma: 1.05, neutralHue: 80, neutralChroma: 0.9 } },
+  { id: 'terracotta-teal', group: 'Merah & Hangat', name: 'Terakota & Teal', description: 'Terakota hangat dengan aksen teal.', params: { primaryHue: 42, primaryChroma: 0.95, accentHue: 198, accentChroma: 1, neutralHue: 85, neutralChroma: 1 } },
+  { id: 'espresso-orange', group: 'Merah & Hangat', name: 'Espresso & Jingga', description: 'Cokelat kopi dengan aksen jingga.', params: { primaryHue: 52, primaryChroma: 0.6, accentHue: 55, accentChroma: 1.2, neutralHue: 85, neutralChroma: 1.1 } },
+  { id: 'cocoa-cream', group: 'Merah & Hangat', name: 'Kakao & Krem', description: 'Cokelat lembut dengan aksen krem keemasan.', params: { primaryHue: 62, primaryChroma: 0.7, accentHue: 88, accentChroma: 0.9, neutralHue: 88, neutralChroma: 1.2 } },
+  // ── Ungu & Merah Muda ──
+  { id: 'plum-rose', group: 'Ungu & Merah Muda', name: 'Plum & Mawar', description: 'Ungu plum elegan dengan aksen mawar.', params: { primaryHue: 318, primaryChroma: 0.95, accentHue: 12, accentChroma: 1, neutralHue: 70, neutralChroma: 0.7 } },
+  { id: 'violet-lime', group: 'Ungu & Merah Muda', name: 'Violet & Lime', description: 'Ungu violet dengan aksen lime.', params: { primaryHue: 296, primaryChroma: 1, accentHue: 125, accentChroma: 1.15, neutralHue: 300, neutralChroma: 0.3 } },
+  { id: 'grape-gold', group: 'Ungu & Merah Muda', name: 'Anggur & Emas', description: 'Ungu anggur dengan aksen emas.', params: { primaryHue: 305, primaryChroma: 1.05, accentHue: 85, accentChroma: 1.05, neutralHue: 80, neutralChroma: 0.7 } },
+  { id: 'lavender-mint', group: 'Ungu & Merah Muda', name: 'Lavender & Mint', description: 'Lavender lembut dengan aksen mint.', params: { primaryHue: 290, primaryChroma: 0.6, accentHue: 168, accentChroma: 0.85, neutralHue: 290, neutralChroma: 0.3 } },
+  { id: 'magenta-teal', group: 'Ungu & Merah Muda', name: 'Magenta & Teal', description: 'Magenta berani dengan aksen teal.', params: { primaryHue: 340, primaryChroma: 1.05, accentHue: 196, accentChroma: 1.05, neutralHue: 330, neutralChroma: 0.3 } },
+  { id: 'berry-peach', group: 'Ungu & Merah Muda', name: 'Beri & Persik', description: 'Merah beri dengan aksen persik.', params: { primaryHue: 355, primaryChroma: 0.95, accentHue: 55, accentChroma: 0.95, neutralHue: 60, neutralChroma: 0.8 } },
+  // ── Netral ──
+  { id: 'charcoal-lime', group: 'Netral', name: 'Arang & Lime', description: 'Hampir monokrom dengan aksen lime berani.', params: { primaryHue: 205, primaryChroma: 0.15, accentHue: 125, accentChroma: 1.25, neutralHue: 95, neutralChroma: 0.45 } },
+  { id: 'graphite-orange', group: 'Netral', name: 'Grafit & Jingga', description: 'Abu grafit dengan aksen jingga.', params: { primaryHue: 250, primaryChroma: 0.15, accentHue: 50, accentChroma: 1.25, neutralHue: 250, neutralChroma: 0.25 } },
+  { id: 'graphite-blue', group: 'Netral', name: 'Grafit & Biru', description: 'Abu grafit dengan aksen biru.', params: { primaryHue: 250, primaryChroma: 0.12, accentHue: 250, accentChroma: 1.2, neutralHue: 250, neutralChroma: 0.3 } },
+  { id: 'ink-red', group: 'Netral', name: 'Tinta & Merah', description: 'Hitam tinta dengan aksen merah.', params: { primaryHue: 265, primaryChroma: 0.2, accentHue: 25, accentChroma: 1.25, neutralHue: 265, neutralChroma: 0.2 } },
+  { id: 'stone-emerald', group: 'Netral', name: 'Batu & Zamrud', description: 'Abu hangat dengan aksen hijau zamrud.', params: { primaryHue: 80, primaryChroma: 0.15, accentHue: 160, accentChroma: 1.15, neutralHue: 85, neutralChroma: 0.7 } },
 ]
 
 export type Harmony = 'complementary' | 'analogous' | 'triadic'

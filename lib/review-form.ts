@@ -123,3 +123,23 @@ export function reviewBoxes(roleTitles: string[]): (ReviewBox | null)[] {
   const order: ReviewBox[] = ['prepared', 'checked', 'approval']
   return boxes.map((box) => { if (box) return box; const free = order.find((b) => !taken.has(b)); if (free) taken.add(free); return free ?? null })
 }
+
+/** The filled-in form in words, for the approval e-mail's "Ringkasan form". */
+export function reviewFormSummary(data: ReviewFormData) {
+  const reasons: string[] = []
+  if (data.reasonNew) reasons.push('Pembuatan baru')
+  if (data.reasonPeriodic) reasons.push(`Review berkala${data.periodMonth && data.periodYear ? ` ${REVIEW_MONTHS[data.periodMonth - 1]} ${data.periodYear}` : ''}`)
+  if (data.standardsChange) reasons.push(`Perubahan standards: ${data.standardsChange}`)
+  if (data.regulationChange) reasons.push(`Perubahan regulasi: ${data.regulationChange}`)
+  if (data.requestFrom) reasons.push(`Permintaan dari: ${data.requestFrom}`)
+  const result = REVIEW_RESULTS.find(([key]) => key === data.result)?.[1] ?? '-'
+  return {
+    formNo: data.formNo,
+    docControlNo: data.docControlNo,
+    docTitle: data.docTitle,
+    oldRevision: data.oldRevision,
+    reasons,
+    result: data.result === 'ditarik' && data.withdrawnFrom ? `${result} mulai ${data.withdrawnFrom.split('-').reverse().join('-')}` : result,
+    detailRevisi: data.detailRevisi,
+  }
+}

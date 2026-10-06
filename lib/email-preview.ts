@@ -79,6 +79,9 @@ function documentEmail(kind: DocKind, variant: string, base: string) {
       ? { round: 2, by: request.by, at: request.at, general: request.general, pins: [{ page: 0, note: 'Ganti dengan: 12 digit', strike: true }, { page: 1, note: 'Tambahkan nomor revisi di sini', strike: false }], fileChanged: true }
       : null,
     reminder: variant === 'reminder' ? { count: 1, waitingDays: 3 } : null,
+    reviewForm: kind === 'review_form'
+      ? { formNo: sample.controlNo, docControlNo: 'ISMS-B-005', docTitle: 'ISMS Division Profile or Company Profile', oldRevision: 'Revisi 6', reasons: ['Review berkala Oktober 2026', 'Perubahan standards: ISO/IEC 27001:2022'], result: 'Tidak relevan dan perlu revisi', detailRevisi: 'Penyesuaian struktur organisasi dan alur persetujuan dokumen melalui Portal ISMS.' }
+      : null,
   })
 }
 

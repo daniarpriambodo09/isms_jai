@@ -31,6 +31,7 @@ import { buildProcedureApprovalEmail, buildProcedureResultEmail, LOGO_CID } from
 import { API_BASE_PATH } from '@/lib/config'
 import { isDeliverableEmail } from '@/lib/email-address'
 import { docKindInfo, type DocKind } from '@/lib/document-kinds'
+import { reviewFormSummary, type ReviewFormData } from '@/lib/review-form'
 
 export type ApproverRole = {
   code: string
@@ -395,8 +396,14 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
     const requests = await revisionRequests(doc.id)
     const lastRequest = requests[0] ?? null
 
+    // A Form Review carries what was filled in, so the mail can summarise it.
+    const reviewForm = doc.kind === 'review_form'
+      ? await query<{ data: ReviewFormData }>('SELECT data FROM document_review_forms WHERE document_id = $1', [doc.id]).then((r) => r.rows[0]?.data ?? null).catch(() => null)
+      : null
+
     const base = resolveAppBaseUrl(settings.appUrl)
     const { subject, html } = buildProcedureApprovalEmail({
+      reviewForm: reviewForm ? reviewFormSummary(reviewForm) : null,
       reminder,
       resubmission: lastRequest
         ? {

@@ -19,6 +19,7 @@ import {
   type Harmony,
   type NeutralTone,
   type ThemeParams,
+  THEME_GROUPS,
 } from '@/lib/theme'
 
 type StoredTheme = { params: ThemeParams; presetId: string | null; updatedAt: string | null; updatedBy: string | null }
@@ -184,8 +185,21 @@ export default function KelolaTemaPage() {
           </div>
 
           {mode === 'preset' ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {THEME_PRESETS.map((preset) => {
+            <div className="flex flex-col gap-6">
+              {/* Jump to a colour family — there are many palettes. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">{THEME_PRESETS.length} palet:</span>
+                {THEME_GROUPS.map((group) => (
+                  <a key={group} href={`#palet-${THEME_GROUPS.indexOf(group)}`} className="rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                    {group} <span className="font-normal text-muted-foreground">{THEME_PRESETS.filter((preset) => preset.group === group).length}</span>
+                  </a>
+                ))}
+              </div>
+              {THEME_GROUPS.map((group, groupIndex) => (
+              <section key={group} id={`palet-${groupIndex}`} className="scroll-mt-28">
+              <p className="portal-eyebrow mb-3">{group}</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {THEME_PRESETS.filter((preset) => preset.group === group).map((preset) => {
                 const active = presetId === preset.id
                 return (
                   <button
@@ -205,6 +219,9 @@ export default function KelolaTemaPage() {
                   </button>
                 )
               })}
+              </div>
+              </section>
+              ))}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.2fr_1fr]">

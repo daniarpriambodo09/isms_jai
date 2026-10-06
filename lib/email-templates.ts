@@ -299,6 +299,8 @@ type SheetLook = {
   tiles: [string, string][]
   /** Drawn with the blueprint frame instead of the sheet (Standard Requirement TMMIN). */
   blueprint?: boolean
+  /** Drawn with the checklist frame (Form Review Dokumen). */
+  form?: boolean
 }
 const SHEET_LOOKS: Record<string, SheetLook> = {
   working_standard: {
@@ -311,6 +313,12 @@ const SHEET_LOOKS: Record<string, SheetLook> = {
     plateTitle: 'No. Dokumen',
     tiles: [],
     blueprint: true,
+  },
+  review_form: {
+    bg: '#edf3ef', dark: '#17352a', dark2: '#21483a', accent: '#2f9e6b', accentDark: '#1d7a50', plateText: '#0f3a26', line: '#d3e3d9', panel: '#f2f8f4',
+    plateTitle: 'Form No.',
+    tiles: [],
+    form: true,
   },
 }
 
@@ -506,37 +514,118 @@ function blueprintDetails(look: SheetLook, rows: [string, string][]) {
     </table>`
 }
 
-// The signing chain as boxed steps joined by arrows.
-function blueprintChain(look: SheetLook, chain: ProcedureChainStep[]) {
-  const boxes = chain.map((step, i) => {
-    const current = step.state === 'current'
-    const done = step.state === 'done'
-    const box = current
-      ? `background:${look.dark};border:2px solid ${look.dark};`
-      : done ? `background:#ffffff;border:2px solid ${GREEN};` : `background:#ffffff;border:1px dashed #9aa3c2;`
-    const caption = current ? look.accent : done ? GREEN : MUTED
-    const ink = current ? '#ffffff' : look.dark
-    const sub = current ? '#b9c3e0' : MUTED
-    const status = done ? `&#10003; ${fmtDate(step.decidedAt)}` : current ? '&#9679; Giliran Anda' : 'Menunggu'
-    const arrow = i < chain.length - 1 ? `<td width="18" align="center" style="font-family:${BP_MONO};font-size:14px;color:${look.accentDark};">&rarr;</td>` : ''
-    return `
-      <td valign="top" style="${box}padding:9px 10px;">
-        <p style="margin:0;font-family:${BP_MONO};font-size:9px;letter-spacing:0.14em;color:${caption};">STEP ${String(i + 1).padStart(2, '0')}</p>
-        <p style="margin:5px 0 0;font-size:12.5px;font-weight:bold;color:${ink};line-height:1.3;">${escapeHtml(step.name)}</p>
-        <p style="margin:2px 0 0;font-size:10.5px;color:${sub};line-height:1.35;">${escapeHtml(step.roleTitle)}</p>
-        <p style="margin:6px 0 0;font-family:${BP_MONO};font-size:10px;font-weight:bold;color:${caption};">${status}</p>
-      </td>${arrow}`
-  }).join('')
+// ─── Form Review & Revisi Dokumen: the "checklist" ───
+// Its own frame: a clean white sheet under a green rule, the form number on a
+// stamp at the top right, and the filled-in form summarised as ticked lines —
+// so an approver sees what they are signing without opening the PDF, and the
+// mail looks like none of the other registers'.
+const FORM_INK = '#17352a'
+
+function formEmailFrame(look: SheetLook, opts: FrameOptions, body: string) {
+  const statusColor = opts.sealColor ?? look.accentDark
+  const preheader = opts.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(opts.preheader)}</div>` : ''
   return `
-    <p style="margin:0 0 8px;font-family:${BP_MONO};font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:${look.accentDark};">&#9654; Alur Pengesahan</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${boxes}</tr></table>`
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:${look.bg};font-family:Arial,Helvetica,sans-serif;">
+  ${preheader}
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look.bg};padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid ${look.line};border-radius:14px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;">
+          <tr><td style="height:8px;line-height:8px;font-size:0;background:${look.accentDark};">&nbsp;</td></tr>
+
+          <!-- Logo, form code and the form-number stamp -->
+          <tr>
+            <td style="padding:22px 28px 0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:top;">
+                    <img src="cid:${LOGO_CID}" alt="YAZAKI" width="86" style="display:block;border:0;outline:none;height:auto;" />
+                    <p style="margin:8px 0 0;font-size:10px;font-weight:bold;letter-spacing:0.14em;color:${look.accentDark};">ISMS-F-001-001</p>
+                  </td>
+                  <td align="right" style="vertical-align:top;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" style="border:2px dashed ${look.accent};border-radius:10px;background:${look.panel};">
+                      <tr><td style="padding:8px 14px;text-align:center;">
+                        <p style="margin:0;font-size:9px;font-weight:bold;letter-spacing:0.16em;text-transform:uppercase;color:${look.accentDark};">${opts.tabTitle ?? look.plateTitle}</p>
+                        <p style="margin:3px 0 0;font-family:'Courier New',Courier,monospace;font-size:15px;font-weight:bold;color:${FORM_INK};">${escapeHtml(opts.controlNo)}</p>
+                      </td></tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Title + status chip -->
+          <tr>
+            <td style="padding:18px 28px 18px;border-bottom:1px solid ${look.line};">
+              <p style="margin:0;font-size:10.5px;font-weight:bold;letter-spacing:0.16em;text-transform:uppercase;color:${look.accent};">${opts.kicker}</p>
+              <p style="margin:7px 0 0;font-size:24px;font-weight:bold;color:${FORM_INK};line-height:1.25;">${opts.heading}</p>
+              <p style="margin:6px 0 12px;font-size:12.5px;color:${MUTED};">${opts.subheading}</p>
+              <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+                <td style="background:${statusColor};border-radius:999px;padding:6px 14px;font-size:10.5px;font-weight:bold;letter-spacing:0.1em;text-transform:uppercase;color:#ffffff;">${/^&#10003;/.test(opts.seal) ? '' : '&#10003;&nbsp; '}${opts.seal.replace(/<br>/g, ' ')}</td>
+              </tr></table>
+            </td>
+          </tr>
+
+          ${body}
+
+          <tr>
+            <td style="background:${look.panel};border-top:1px solid ${look.line};padding:16px 28px;">
+              <p style="margin:0;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">${opts.footerLabel ?? 'Pengesahan Form Review Dokumen'} &middot; dikirim otomatis oleh <strong style="color:${FORM_INK};">Portal ISMS</strong> &middot; PT. Jatim Autocomp Indonesia</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+export type ReviewFormSummary = {
+  formNo: string
+  docControlNo: string
+  docTitle: string
+  oldRevision: string
+  reasons: string[]
+  result: string
+  detailRevisi: string
+}
+
+// The filled-in form as ticked lines (the e-mail's own reading of the PDF).
+function reviewSummaryBlock(look: SheetLook, s: ReviewFormSummary) {
+  const line = (label: string, value: string) => `
+      <tr>
+        <td style="padding:7px 0;width:150px;vertical-align:top;font-size:11px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:${MUTED};">${label}</td>
+        <td style="padding:7px 0;vertical-align:top;font-size:13.5px;color:${FORM_INK};line-height:1.55;">${value}</td>
+      </tr>`
+  const tick = (text: string) => `<span style="display:inline-block;margin:0 6px 4px 0;padding:3px 10px 3px 8px;border-radius:999px;background:${look.panel};border:1px solid ${look.line};font-size:12.5px;"><span style="color:${look.accentDark};font-weight:bold;">&#9745;</span>&nbsp;${escapeHtml(text)}</span>`
+  return `
+    <tr><td style="padding:0 32px 22px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${look.line};border-left:4px solid ${look.accent};border-radius:8px;">
+        <tr><td style="padding:14px 18px 8px;">
+          <p style="margin:0 0 6px;font-size:10.5px;font-weight:bold;letter-spacing:0.14em;text-transform:uppercase;color:${look.accentDark};">Ringkasan form</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            ${line('Dokumen direview', `<strong>${escapeHtml([s.docControlNo, s.docTitle].filter(Boolean).join(' — '))}</strong>${s.oldRevision ? `<br><span style="font-size:12px;color:${MUTED};">Revisi lama: ${escapeHtml(s.oldRevision)}</span>` : ''}`)}
+            ${s.reasons.length ? line('Alasan review', s.reasons.map(tick).join('')) : ''}
+            ${line('Hasil review', tick(s.result))}
+            ${s.detailRevisi ? line('Detail revisi', `<span style="font-style:italic;">&ldquo;${escapeHtml(s.detailRevisi)}&rdquo;</span>`) : ''}
+          </table>
+        </td></tr>
+      </table>
+    </td></tr>`
 }
 
 // The frame of a register's e-mails: the memo for Prosedur ISMS, the sheet
-// for Working Standard, the blueprint for Standard Requirement TMMIN.
+// for Working Standard, the blueprint for Standard Requirement TMMIN, the
+// checklist for Form Review Dokumen.
 function documentEmailFrame(kind: DocKindLook, opts: FrameOptions, body: string) {
   const look = sheetLook(kind)
   if (!look) return procedureEmailFrame(opts, body)
+  if (look.form) return formEmailFrame(look, opts, body)
   return look.blueprint ? blueprintEmailFrame(look, opts, body) : sheetEmailFrame(look, opts, body)
 }
 
@@ -566,39 +655,72 @@ function detailTable(rows: [string, string][], look: SheetLook | null = null) {
 
 export type ProcedureChainStep = { roleTitle: string; name: string; state: 'done' | 'current' | 'waiting'; decidedAt: string | null }
 
-// The signing chain drawn as a row of stamps: ✓ signed, current (you), queued.
+// The signing chain as a timeline: a segmented progress bar, then one row per
+// signer joined by a thin rail — ✓ signed (with the date), the recipient's own
+// step lifted out as a highlighted card, the rest queued. Same layout for
+// every register, in that register's colours.
 function chainRow(chain: ProcedureChainStep[], look: SheetLook | null = null) {
-  if (look?.blueprint) return blueprintChain(look, chain)
-  const width = Math.floor(100 / Math.max(chain.length, 1))
-  // Sheets: square tiles, the current one in the accent colour.
-  const shape = look ? 'border-radius:7px;' : 'border-radius:50%;'
-  const currentColor = look ? look.accentDark : NAVY
-  const cells = chain.map((step, i) => {
-    const circle =
-      step.state === 'done'
-        ? `background:${GREEN};color:#ffffff;border:2px solid ${GREEN};`
-        : step.state === 'current'
-          ? (look ? `background:${look.accent};color:${look.dark};border:2px solid ${look.accent};` : `background:${NAVY};color:#ffffff;border:2px solid ${NAVY};`)
-          : `background:#ffffff;color:${MUTED};border:2px dashed ${look ? look.line : MEMO_LINE};`
-    const mark = step.state === 'done' ? '&#10003;' : String(i + 1)
-    const status =
-      step.state === 'done'
-        ? `<span style="color:${GREEN};">Disetujui ${fmtDate(step.decidedAt)}</span>`
-        : step.state === 'current'
-          ? `<span style="color:${currentColor};font-weight:bold;">&#9679; Giliran Anda</span>`
-          : `<span style="color:${MUTED};">Menunggu</span>`
+  const font = 'Arial,Helvetica,sans-serif'
+  const capFont = look?.blueprint ? BP_MONO : font
+  const strong = look ? look.accentDark : NAVY
+  const tint = look ? look.panel : '#eef3f7'
+  const line = look ? look.line : MEMO_LINE
+  const ink = look ? look.dark : MEMO_INK
+  const shape = look?.blueprint ? '6px' : '50%'
+  const total = chain.length
+  const current = chain.findIndex((step) => step.state === 'current')
+  const signed = chain.filter((step) => step.state === 'done').length
+  const counter = current >= 0 ? `Langkah ${current + 1} dari ${total}` : `${signed} dari ${total} selesai`
+
+  const bar = chain.map((step) => `
+        <td style="padding:0 2px;"><div style="height:6px;line-height:6px;font-size:0;border-radius:3px;background:${step.state === 'done' ? GREEN : step.state === 'current' ? strong : line};">&nbsp;</div></td>`).join('')
+
+  const pillBase = `display:inline-block;padding:5px 11px;border-radius:999px;font-family:${font};font-size:10.5px;font-weight:bold;white-space:nowrap;`
+  const rows = chain.map((step, i) => {
+    const isCurrent = step.state === 'current'
+    const isDone = step.state === 'done'
+    const badge = isDone
+      ? `background:${GREEN};color:#ffffff;border:2px solid ${GREEN};`
+      : isCurrent ? `background:${strong};color:#ffffff;border:2px solid ${strong};` : `background:#ffffff;color:${MUTED};border:2px dashed ${line};`
+    const pill = isDone
+      ? `<span style="${pillBase}background:#e6f2ea;color:${GREEN};">&#10003; Disetujui</span><p style="margin:4px 2px 0;font-family:${font};font-size:10.5px;color:${MUTED};">${fmtDate(step.decidedAt)}</p>`
+      : isCurrent
+        ? `<span style="${pillBase}background:${strong};color:#ffffff;letter-spacing:0.08em;text-transform:uppercase;">&#9998; Giliran Anda</span>`
+        : `<span style="${pillBase}background:#ffffff;border:1px solid ${line};color:${MUTED};">Menunggu</span>`
+    const card = isCurrent
+      ? `background:${tint};border:1px solid ${line};border-left:4px solid ${strong};`
+      : 'border:1px solid transparent;border-left:4px solid transparent;'
+    // the rail runs under the badge's centre: 4px edge + 12px padding + 16px half-badge − 1px
+    const rail = i < total - 1
+      ? `<tr><td style="padding:0;"><div style="width:2px;height:12px;line-height:12px;font-size:0;margin-left:31px;background:${isDone ? GREEN : line};">&nbsp;</div></td></tr>`
+      : ''
     return `
-      <td align="center" valign="top" width="${width}%" style="padding:0 4px;">
-        <div style="width:34px;height:34px;line-height:34px;${shape}font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;text-align:center;${circle}">${mark}</div>
-        <p style="margin:8px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:${MEMO_INK};line-height:1.3;">${escapeHtml(step.name)}</p>
-        <p style="margin:2px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};line-height:1.35;">${escapeHtml(step.roleTitle)}</p>
-        <p style="margin:4px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;line-height:1.35;">${status}</p>
-      </td>`
+      <tr><td style="padding:0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${card}border-radius:10px;">
+          <tr>
+            <td valign="middle" style="padding:10px 0 10px 12px;width:32px;">
+              <div style="width:32px;height:32px;line-height:32px;border-radius:${shape};text-align:center;font-family:${font};font-size:13px;font-weight:bold;${badge}">${isDone ? '&#10003;' : i + 1}</div>
+            </td>
+            <td valign="middle" style="padding:10px 12px;">
+              <p style="margin:0;font-family:${font};font-size:14px;font-weight:bold;color:${ink};line-height:1.3;">${escapeHtml(step.name)}</p>
+              <p style="margin:2px 0 0;font-family:${capFont};font-size:11px;color:${MUTED};letter-spacing:0.04em;line-height:1.35;">${escapeHtml(step.roleTitle)}</p>
+            </td>
+            <td align="right" valign="middle" style="padding:10px 12px 10px 4px;">${pill}</td>
+          </tr>
+        </table>
+      </td></tr>${rail}`
   }).join('')
+
   return `
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${look ? look.panel : MEMO_PAPER};border:1px solid ${look ? look.line : MEMO_LINE};${look ? `border-top:3px solid ${look.accent};` : ''}border-radius:6px;">
-      <tr><td style="padding:14px 16px 4px;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;color:${MUTED};letter-spacing:0.14em;text-transform:uppercase;">Alur Pengesahan</td></tr>
-      <tr><td style="padding:10px 8px 16px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table></td></tr>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid ${line};border-radius:12px;">
+      <tr><td style="padding:16px 18px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="font-family:${capFont};font-size:10.5px;font-weight:bold;color:${strong};letter-spacing:0.14em;text-transform:uppercase;">Alur Pengesahan</td>
+          <td align="right" style="font-family:${capFont};font-size:11px;font-weight:bold;color:${MUTED};">${counter}</td>
+        </tr></table>
+      </td></tr>
+      <tr><td style="padding:10px 16px 14px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${bar}</tr></table></td></tr>
+      <tr><td style="padding:0 10px 12px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table></td></tr>
     </table>`
 }
 
@@ -616,6 +738,8 @@ export type ProcedureApprovalEmailData = {
   reviewUrl: string
   /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
   kind?: DocKindLook
+  /** Form Review Dokumen: what the form says, shown in the mail. */
+  reviewForm?: ReviewFormSummary | null
   /** A follow-up of a request the approver hasn't decided on: which reminder, and how long it has waited. */
   reminder?: { count: number; waitingDays: number } | null
   /** Sent again after a "Minta Revisi": what was asked, by whom; round = 2 for the first re-submission. */
@@ -645,7 +769,9 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   const re = data.resubmission ?? null
   const look = sheetLook(kind)
   // The button: navy with a gold foot on the memo, the accent colour on a sheet.
-  const buttonStyle = look?.blueprint
+  const buttonStyle = look?.form
+    ? `background:${look.accentDark};color:#ffffff;border-radius:10px;border-bottom:3px solid ${re ? '#1f7a4d' : look.dark};`
+    : look?.blueprint
     ? `background:${look.accent};color:${look.dark};border-bottom:4px solid ${re ? '#1f7a4d' : look.dark};letter-spacing:0.1em;`
     : look
     ? `background:${look.accent};color:${look.dark};border-radius:6px;border-bottom:3px solid ${re ? '#1f7a4d' : look.accentDark};`
@@ -690,22 +816,29 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
       </td>
     </tr>` : ''
 
+  // Form Review: say what it is about in plain words — not "dokumen form review dokumen Form Review — …".
+  const rf = data.reviewForm ?? null
+  const reviewed = rf ? escapeHtml([rf.docControlNo, rf.docTitle].filter(Boolean).join(' — ')) : ''
+  const askLine = rf
+    ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya telah saya lampirkan pada email ini, dan ringkasannya ada di bawah.</p>`
+    : null
+
   const body = `${reminderBanner}${resubmitBanner}
     <tr>
       <td style="padding:20px 32px 6px;">
         <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Yth. Bapak/Ibu <strong>${escapeHtml(data.approverName)}</strong>,</p>
-        ${re
+        ${askLine ?? (re
           ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah ${re.fileChanged ? 'diperbaiki sesuai catatan revisi dan ' : ''}saya lampirkan pada email ini.</p>`
-          : `<p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>`}
+          : `<p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>`)}
         <p style="${para}">Apabila terdapat hal yang perlu disesuaikan atau diperbaiki, mohon arahan lebih lanjut agar dapat segera saya tindak lanjuti.</p>
         <p style="margin:0 0 20px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;">Terima kasih atas perhatian dan kerja samanya.</p>
       </td>
     </tr>
-    <tr><td style="padding:0 32px 22px;">${detailTable(rows, look)}</td></tr>
+    ${rf && look ? reviewSummaryBlock(look, rf) : `<tr><td style="padding:0 32px 22px;">${detailTable(rows, look)}</td></tr>`}
     <tr><td style="padding:0 32px;">${chainRow(data.chain, look)}</td></tr>
     <tr>
       <td align="center" style="padding:26px 32px 6px;">
-        <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;${buttonStyle}">&#9998;&nbsp; ${re ? 'REVIEW ULANG &amp; APPROVAL' : 'REVIEW &amp; APPROVAL'}</a>
+        <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;${buttonStyle}">&#9998;&nbsp; ${data.reviewForm ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI' : 'PERIKSA &amp; TANDA TANGANI') : re ? 'REVIEW ULANG &amp; APPROVAL' : 'REVIEW &amp; APPROVAL'}</a>
         <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11.5px;color:${MUTED};">Buka dokumen, lalu pilih <strong>Setujui</strong> atau <strong>Tolak</strong> &mdash; tanpa perlu login.</p>
       </td>
     </tr>
@@ -716,17 +849,19 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     </tr>`
 
   return {
-    subject: (rem ? `[Pengingat ke-${rem.count}] ` : '') + (re
+    subject: (rem ? `[Pengingat ke-${rem.count}] ` : '') + (rf
+      ? `${re ? `[Pengajuan Ulang ke-${re.round}] ` : ''}Tanda tangan Form Review No. ${rf.formNo} — ${[rf.docControlNo, rf.docTitle].filter(Boolean).join(' ')}`
+      : re
       ? `[Pengajuan Ulang ke-${re.round}] Approval ${kind.short} ${data.title} (Rev. ${data.revision}) — setelah revisi`
       : `Pengajuan Approval ${kind.short} ${data.title}`),
     html: documentEmailFrame(kind, {
       kicker: re ? `Pengajuan Ulang ke-${re.round} &middot; ${kind.label}` : `Pengesahan Dokumen &middot; ${kind.label}`,
-      heading: re ? `Pengajuan Ulang Approval ${kind.short}` : `Pengajuan Approval ${kind.short}`,
+      heading: rf ? (re ? 'Form Review — Diajukan Ulang' : 'Form Review &amp; Revisi Dokumen') : re ? `Pengajuan Ulang Approval ${kind.short}` : `Pengajuan Approval ${kind.short}`,
       footerLabel: `Pengesahan ${kind.label}`,
       subheading: `Tahap ${data.stepNumber} dari ${data.stepTotal} &middot; ${escapeHtml(data.roleTitle)}`,
       controlNo: data.controlNo,
       revision: data.revision,
-      seal: re ? `Pengajuan<br>Ulang<br>ke-${re.round}` : 'Menunggu<br>Pengesahan<br>Anda',
+      seal: re ? `Pengajuan<br>Ulang<br>ke-${re.round}` : rf ? 'Menunggu tanda tangan Anda' : 'Menunggu<br>Pengesahan<br>Anda',
       sealColor: re ? '#1f7a4d' : undefined,
       preheader: rem ? `Sudah ${rem.waitingDays} hari menunggu keputusan Anda.` : re ? `Pengajuan ulang setelah revisi — link di email sebelumnya sudah tidak berlaku.` : undefined,
     }, body),
@@ -791,7 +926,7 @@ export function buildProcedureResultEmail(data: ProcedureResultEmailData): { sub
   // 1) Status banner — the whole story in two lines.
   const banner = approved
     ? `<p style="margin:0;font-family:${SANS};font-size:16px;font-weight:bold;color:${GREEN};">&#10003;&nbsp; Disahkan oleh seluruh approver (${approvedCount}/${total})</p>
-       <p style="margin:6px 0 0;font-family:${SANS};font-size:13px;color:${TEXT};line-height:1.6;">Tanda tangan terakhir ${lastDecision ? `pada <strong>${escapeHtml(fmtStamp(lastDecision))}</strong>` : ''}. Dokumen kini berstatus <strong>Disahkan</strong> di register Prosedur ISMS.</p>`
+       <p style="margin:6px 0 0;font-family:${SANS};font-size:13px;color:${TEXT};line-height:1.6;">Tanda tangan terakhir ${lastDecision ? `pada <strong>${escapeHtml(fmtStamp(lastDecision))}</strong>` : ''}. Dokumen kini berstatus <strong>Disahkan</strong> di register ${kind.label}.</p>`
     : `<p style="margin:0;font-family:${SANS};font-size:16px;font-weight:bold;color:${REV_RED};">&#9888;&nbsp; Revisi diminta oleh ${escapeHtml(req?.by ?? '-')}</p>
        <p style="margin:6px 0 0;font-family:${SANS};font-size:13px;color:${TEXT};line-height:1.6;">${escapeHtml(req?.roleTitle ?? '')}${req ? ` &middot; ${escapeHtml(fmtStamp(req.at))}` : ''} &middot; <strong>${noteCount} catatan</strong>${req && req.pins.length ? ` (${req.pins.length} ditandai di halaman dokumen)` : ''}.<br>Pengesahan dihentikan${skipped ? ` &mdash; ${skipped} approver berikutnya belum dimintai persetujuan` : ''}.</p>`
 

@@ -112,6 +112,17 @@ export async function buildSpecialAreaPdf(req: SpecialAreaRequest, verifyUrl: st
   put(req.area, 481)                                                                // AREA SPECIAL SECURITY
   put(req.purpose, 452.5)                                                           // TUJUAN
 
+  // PIC PENDAMPING — the form has no field for it, and none is added: when
+  // Lobby / Security have picked one, it is written in the blank band between
+  // the table (bottom line ~441.5) and the frame (~412.5), lined up with the
+  // rows above — label at the labels' left edge, colon and value in their
+  // columns — with no line or box drawn. Without one the form stays as it is.
+  if (req.escort_name) {
+    text('PIC PENDAMPING', 63, 423.5, 8.5)
+    text(':', 224.2, 423.5, 10)
+    put(req.escort_dept ? `${req.escort_name} (${req.escort_dept})` : req.escort_name, 423.5)
+  }
+
   // ── Right column ──
   if (req.id_card_no) { const f = fit(bold, req.id_card_no, RC_W - 6, 10); centered(f.text, RC_CX, 624, f.size) }  // ID Card No.
 

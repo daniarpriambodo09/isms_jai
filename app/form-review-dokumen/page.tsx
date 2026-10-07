@@ -7,7 +7,8 @@ export const metadata = {
 }
 
 // The form is filled in on the portal and signed by e-sign; its register is
-// the shared one, in its 'review_form' kind (opened from Prosedur ISMS).
+// the shared one, in its 'review_form' kind (opened from Prosedur ISMS or
+// Standard Requirement TMMIN).
 // Suspense: the register reads ?q= and the prefill parameters (useSearchParams).
 export default function FormReviewDokumenPage() {
   return (

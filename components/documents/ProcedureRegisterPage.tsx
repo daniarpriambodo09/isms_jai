@@ -121,7 +121,12 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   // Form Review: the form is filled in here, not uploaded (ReviewFormModal).
   const isReviewForm = kind === 'review_form'
   const [reviewForm, setReviewForm] = useState<{ editId?: number; prefill?: { docControlNo: string; docTitle: string; oldRevision: string }; notice?: string | null } | null>(null)
-  // ?docNo=&docTitle=&rev= (the "Form Review" button of a Prosedur ISMS row) opens a new form about that document.
+  // The registers a Form Review can be made from: Prosedur ISMS and Standard
+  // Requirement TMMIN each have the "Form Review Dokumen" button and the
+  // per-row shortcut. ?from= remembers which one, for the way back.
+  const canReview = (kind === 'procedure' || kind === 'tmmin_standard') && isIsmsAdmin
+  const reviewBack = DOC_KIND_INFO[searchParams.get('from') === 'tmmin_standard' ? 'tmmin_standard' : 'procedure']
+  // ?docNo=&docTitle=&rev= (the "Form Review" button of a register row) opens a new form about that document.
   const prefillTitle = isReviewForm ? searchParams.get('docTitle') : null
   const prefillNo = searchParams.get('docNo') ?? ''
   const prefillRev = searchParams.get('rev') ?? ''
@@ -343,7 +348,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
           updatedAt={latestUpload(documents)}
           action={(
             <div className="flex flex-wrap items-center gap-2">
-              <Link href="/prosedur-isms" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"><ArrowLeft className="size-4" />Prosedur ISMS</Link>
+              <Link href={reviewBack.path} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"><ArrowLeft className="size-4" />{reviewBack.label}</Link>
               {isIsmsAdmin && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Buat Form Review</button>}
             </div>
           )}
@@ -400,8 +405,8 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
               <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
             </div>
           )}
-          {kind === 'procedure' && isIsmsAdmin && (
-            <Link href="/form-review-dokumen" title="Form Review & Revisi Dokumen ISMS (ISMS-F-001-001) — isi di portal, tanda tangan QR" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
+          {canReview && (
+            <Link href={`/form-review-dokumen?from=${kind}`} title="Form Review & Revisi Dokumen ISMS (ISMS-F-001-001) — isi di portal, tanda tangan QR" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
               <ClipboardCheck className="size-3.5" />Form Review Dokumen
             </Link>
           )}
@@ -538,9 +543,9 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                         {visibilityBusy.has(document.id) ? <Loader2 className="size-4 animate-spin" /> : document.public_visible ? <Globe className="size-4" /> : <EyeOff className="size-4" />}
                       </button>
                     )}
-                    {kind === 'procedure' && isIsmsAdmin && (
+                    {canReview && (
                       <Link
-                        href={`/form-review-dokumen?docNo=${encodeURIComponent(document.control_no)}&docTitle=${encodeURIComponent(document.title)}&rev=${document.revision}`}
+                        href={`/form-review-dokumen?from=${kind}&docNo=${encodeURIComponent(document.control_no)}&docTitle=${encodeURIComponent(document.title)}&rev=${document.revision}`}
                         aria-label={`Buat Form Review untuk ${document.title}`}
                         title="Buat Form Review & Revisi untuk dokumen ini"
                         data-label="Review"

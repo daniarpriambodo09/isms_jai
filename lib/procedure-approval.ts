@@ -40,6 +40,8 @@ export type ApproverRole = {
   kind: DocKind
   title: string
   person_name: string
+  /** The 2–4 letters printed under this position's signature box (empty = from the name). */
+  initials: string | null
   email: string | null
   sort_order: number
   is_default: boolean
@@ -60,6 +62,8 @@ export type ApprovalStep = {
   step: number
   status: ApprovalStepStatus
   approver_name: string | null
+  /** Initials of whoever signs this step — kept with the step, like the name. */
+  approver_initials: string | null
   notified_at: string | null
   email_error: string | null
   decided_at: string | null
@@ -73,9 +77,9 @@ export type ApprovalStep = {
 // Gmail/Outlook cap a whole message at ~20–25 MB; stay safely under it.
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 
-const ROLE_COLUMNS = 'code, kind, title, person_name, email, sort_order, is_default, updated_at, updated_by'
+const ROLE_COLUMNS = 'code, kind, title, person_name, initials, email, sort_order, is_default, updated_at, updated_by'
 
-const STEP_COLUMNS ='id, document_id, revision, role_code, role_title, step, status, approver_name, notified_at, email_error, decided_at, decision_note, verification_code, token_issued_at'
+const STEP_COLUMNS ='id, document_id, revision, role_code, role_title, step, status, approver_name, approver_initials, notified_at, email_error, decided_at, decision_note, verification_code, token_issued_at'
 
 // ─── schema (idempotent, created on first use — see also db/legacy/prosedur-pengesahan.sql) ───
 
@@ -196,6 +200,9 @@ export function ensureApprovalSchema() {
           replaced_by varchar(100)
         )`)
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS file_path text')
+      // Initials printed under the signature box (db/migrations/0016).
+      await query('ALTER TABLE procedure_approver_roles ADD COLUMN IF NOT EXISTS initials varchar(5)')
+      await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approver_initials varchar(5)')
       // Reminders to an approver who hasn't decided (db/migrations/0012).
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS reminded_at timestamptz, ADD COLUMN IF NOT EXISTS reminder_count integer NOT NULL DEFAULT 0')
       // Links replaced by a newer one (db/migrations/0009) — see replacedLink().
@@ -305,19 +312,27 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
     const roles = (await listRoles()).filter((role) => roleCodes.includes(role.code))
     for (const [index, role] of roles.entries()) {
       await query(
-        `INSERT INTO procedure_approvals (document_id, revision, role_code, role_title, step, status, approver_name)
-         VALUES ($1, $2, $3, $4, $5, 'waiting', $6)`,
-        [documentId, doc.revision, role.code, role.title, index + 1, role.person_name]
+        `INSERT INTO procedure_approvals (document_id, revision, role_code, role_title, step, status, approver_name, approver_initials)
+         VALUES ($1, $2, $3, $4, $5, 'waiting', $6, $7)`,
+        [documentId, doc.revision, role.code, role.title, index + 1, role.person_name, role.initials]
       )
     }
     await setDocumentStatus(documentId, 'pending')
     return true
   })
-  // Working Standard sheets share one template: the QR spots are found from
-  // the box headings in the file itself, before the first approver opens it.
-  if (started && doc.kind === 'working_standard') await autoPlaceSlots(documentId)
+  // Sheets on the boxed template (PREPARED / CHECKED / APPROVED …): the QR
+  // spots are found from the box headings in the file itself, before the
+  // first approver opens it.
+  if (started && usesSignatureBoxes(doc.kind)) await autoPlaceSlots(documentId)
   // Emailing the first approver happens after the commit.
   if (started) await activateNextStep(documentId)
+}
+
+// Registers whose uploaded sheets may carry the boxed signature template —
+// Working Standard always does, a Standard Requirement TMMIN often does. A
+// file without those boxes is simply left to "Atur Posisi QR".
+export function usesSignatureBoxes(kind: DocKind) {
+  return kind === 'working_standard' || kind === 'tmmin_standard'
 }
 
 /**
@@ -394,9 +409,9 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
 
   await query(
     `UPDATE procedure_approvals
-     SET status = 'pending', token = $1, token_issued_at = now(), approver_name = $2, approver_email = $3, role_title = COALESCE($4, role_title), notified_at = NULL, email_error = NULL, reminded_at = NULL, reminder_count = 0
+     SET status = 'pending', token = $1, token_issued_at = now(), approver_name = $2, approver_email = $3, role_title = COALESCE($4, role_title), approver_initials = COALESCE($6, approver_initials), notified_at = NULL, email_error = NULL, reminded_at = NULL, reminder_count = 0
      WHERE id = $5`,
-    [token, approverName, approverEmail, role?.title ?? null, stepId]
+    [token, approverName, approverEmail, role?.title ?? null, stepId, role?.initials ?? null]
   )
 
   const error = await emailStep(stepId, token)
@@ -426,6 +441,13 @@ async function recordStepEvent(stepId: number, kind: string, describe: (doc: str
   }
 }
 
+// Form Review fields on their way to the database, by form number: saving a
+// form creates the document (which e-mails the first approver) before its
+// fields can be stored, and an edit re-sends before the new fields replace
+// the old ones. app/api/form-review sets the entry around that call so the
+// e-mail summarises what is actually being submitted.
+export const reviewFormsBeingSaved = new Map<string, ReviewFormData>()
+
 // reminder: this is a follow-up of a request already sent (see sendApprovalReminders).
 async function emailStep(stepId: number, token: string, reminder: { count: number; waitingDays: number } | null = null): Promise<string | null> {
   try {
@@ -450,8 +472,11 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
     const lastRequest = requests[0] ?? null
 
     // A Form Review carries what was filled in, so the mail can summarise it.
+    // While the form is being saved the first request goes out before its
+    // fields are stored — the ones being saved are taken then (reviewFormsBeingSaved).
     const reviewForm = doc.kind === 'review_form'
-      ? await query<{ data: ReviewFormData }>('SELECT data FROM document_review_forms WHERE document_id = $1', [doc.id]).then((r) => r.rows[0]?.data ?? null).catch(() => null)
+      ? reviewFormsBeingSaved.get(doc.control_no.toUpperCase())
+        ?? await query<{ data: ReviewFormData }>('SELECT data FROM document_review_forms WHERE document_id = $1', [doc.id]).then((r) => r.rows[0]?.data ?? null).catch(() => null)
       : null
 
     const base = resolveAppBaseUrl(settings.appUrl)
@@ -519,6 +544,29 @@ export function missingEmailMessage(roles: ApproverRole[]): string | null {
   if (!roles.length) return null
   const names = roles.map((role) => `${role.title} (${role.code})`).join(', ')
   return `Jabatan ${names} belum punya email, jadi permintaan pengesahannya tidak bisa dikirim. Isi emailnya di Admin Settings → Approver Pengesahan, atau lepas centangnya.`
+}
+
+// ─── initials ───
+
+/**
+ * What is printed under a signature box: the initials set for the position,
+ * or — when none are set — the first three letters of the name ("Naufal Aqil"
+ * → "NAU"). Empty for a position nobody holds yet.
+ */
+export function approverInitials(initials: string | null | undefined, name: string | null | undefined): string {
+  const set = (initials ?? '').trim().toUpperCase()
+  if (set) return set
+  const letters = (name ?? '').replace(/[^A-Za-z]/g, '')
+  return /^belum\s*diisi$/i.test((name ?? '').trim()) ? '' : letters.slice(0, 3).toUpperCase()
+}
+
+/** Steps not signed yet follow the position's current initials (signed ones keep theirs). */
+export async function syncRoleInitials(code: string) {
+  await query(
+    `UPDATE procedure_approvals a SET approver_initials = r.initials
+     FROM procedure_approver_roles r WHERE r.code = a.role_code AND a.role_code = $1 AND a.status IN ('waiting', 'pending')`,
+    [code]
+  )
 }
 
 // ─── reminders ───
@@ -910,6 +958,7 @@ export async function reassignRole(code: string): Promise<{ resent: number; fail
     `UPDATE procedure_approvals SET approver_name = $1, role_title = $2 WHERE role_code = $3 AND status = 'waiting'`,
     [role.person_name, role.title, code]
   )
+  await syncRoleInitials(code)
   const pending = await query<{ id: number }>(`SELECT id FROM procedure_approvals WHERE role_code = $1 AND status = 'pending'`, [code])
   let resent = 0
   let failed = 0

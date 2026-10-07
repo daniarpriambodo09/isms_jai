@@ -49,6 +49,12 @@ export type SheetData = {
    * written around them as "07 / 10 / 26" instead of "07 Okt 2026".
    */
   dateSlashes?: [number, number] | null
+  /**
+   * The initials row under the signature boxes (lib/auto-slots.ts): each cell
+   * is cleared and `text` written in it — null leaves the cell blank. Places
+   * are fractions of the displayed page; `column` is one box's width.
+   */
+  initials?: { page: number; cx: number; baseline: number; h: number; column: number; text: string | null }[]
 }
 
 // The approval date as the paper forms take it: day / month / two-digit year (WIB).
@@ -342,6 +348,26 @@ export async function buildProcedureSignedPdf(data: SheetData): Promise<Uint8Arr
       }
     }
   }
+  // 3b) The initials under the signature boxes: whoever was typed on the sheet
+  //     is replaced by the approvers chosen for this document. The cleared
+  //     area stays inside the cell (narrower than the box, about one text line
+  //     tall), so no ruled line is touched.
+  for (const cell of data.initials ?? []) {
+    if (cell.page >= originalPages) continue
+    const target = pdf.getPage(cell.page)
+    if ((((target.getRotation().angle % 360) + 360) % 360) !== 0) continue
+    const cb = target.getCropBox()
+    const textH = cell.h * cb.height
+    const width = cell.column * cb.width * 0.84
+    const centre = cb.x + cell.cx * cb.width
+    const baseline = cb.y + (1 - cell.baseline) * cb.height
+    target.drawRectangle({ x: centre - width / 2, y: baseline - textH * 0.3, width, height: textH * 1.3, color: rgb(1, 1, 1), borderWidth: 0 })
+    if (!cell.text) continue
+    const label = safe(cell.text)
+    const size = Math.min(9, Math.max(6, textH * 0.95), (width * 0.9) / Math.max(bold.widthOfTextAtSize(label, 1), 1))
+    target.drawText(label, { x: centre - bold.widthOfTextAtSize(label, size) / 2, y: baseline, size, font: bold, color: INK })
+  }
+
   // 4) Once fully approved, a quiet line in the bottom margin of every original page.
   if (data.status === 'approved') {
     const stamp = 'Disahkan secara elektronik via Portal ISMS - pindai QR tanda tangan untuk verifikasi'

@@ -19,9 +19,9 @@ import { DOC_KINDS, DOC_KIND_INFO, isDocKind, type DocKind } from '@/lib/documen
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 
-type Role = { code: string; title: string; person_name: string; email: string | null; sort_order: number; is_default: boolean; updated_at: string; updated_by: string | null }
+type Role = { code: string; title: string; person_name: string; initials: string | null; email: string | null; sort_order: number; is_default: boolean; updated_at: string; updated_by: string | null }
 type PendingStep = { id: number; document_id: number; control_no: string; title: string; role_title: string; approver_name: string | null; approver_email: string | null; notified_at: string | null; email_error: string | null; reminded_at?: string | null; reminder_count?: number }
-type Draft = { code: string; title: string; personName: string; email: string; sortOrder: string; isDefault: boolean }
+type Draft = { code: string; title: string; personName: string; initials: string; email: string; sortOrder: string; isDefault: boolean }
 type KindCounts = Record<DocKind, { roles: number; pending: number }>
 
 // Example values shown in the empty inputs, per register.
@@ -54,11 +54,11 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-const emptyDraft = (order: number): Draft => ({ code: '', title: '', personName: '', email: '', sortOrder: String(order), isDefault: true })
+const emptyDraft = (order: number): Draft => ({ code: '', title: '', personName: '', initials: '', email: '', sortOrder: String(order), isDefault: true })
 
 function RoleForm({ draft, setDraft, withCode, kind }: { draft: Draft; setDraft: (d: Draft) => void; withCode: boolean; kind: DocKind }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[90px_1.3fr_1fr_1.2fr_70px]">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[90px_1.3fr_1fr_84px_1.2fr_70px]">
       {withCode && (
         <label className="flex flex-col gap-1.5">
           <span className={labelClass}>Kode</span>
@@ -74,6 +74,10 @@ function RoleForm({ draft, setDraft, withCode, kind }: { draft: Draft; setDraft:
         <input value={draft.personName} onChange={(e) => setDraft({ ...draft, personName: e.target.value })} placeholder="Nama pejabat" className={inputClass} />
       </label>
       <label className="flex flex-col gap-1.5">
+        <span className={labelClass} title="Huruf yang tercetak di bawah kotak tanda tangan (mis. TWC). Kosongkan untuk memakai 3 huruf pertama nama.">Inisial</span>
+        <input value={draft.initials} onChange={(e) => setDraft({ ...draft, initials: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })} placeholder={draft.personName.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase() || 'TWC'} maxLength={5} className={`${inputClass} font-mono uppercase`} />
+      </label>
+      <label className="flex flex-col gap-1.5">
         <span className={labelClass}>Email</span>
         <input type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} placeholder="nama@jai.co.id" className={inputClass} />
       </label>
@@ -81,7 +85,7 @@ function RoleForm({ draft, setDraft, withCode, kind }: { draft: Draft; setDraft:
         <span className={labelClass}>Urutan</span>
         <input type="number" min={1} max={99} value={draft.sortOrder} onChange={(e) => setDraft({ ...draft, sortOrder: e.target.value })} className={inputClass} />
       </label>
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground sm:col-span-2 lg:col-span-5">
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground sm:col-span-2 lg:col-span-6">
         <input type="checkbox" checked={draft.isDefault} onChange={(e) => setDraft({ ...draft, isDefault: e.target.checked })} className="size-4 accent-[color:var(--p-700)]" />
         Otomatis dicentang saat menambah dokumen baru
       </label>
@@ -153,7 +157,7 @@ export default function KelolaPengesahanPage() {
   const startEdit = (role: Role) => {
     setAdding(false)
     setEditingCode(role.code)
-    setDraft({ code: role.code, title: role.title, personName: role.person_name, email: role.email ?? '', sortOrder: String(role.sort_order), isDefault: role.is_default })
+    setDraft({ code: role.code, title: role.title, personName: role.person_name, initials: role.initials ?? '', email: role.email ?? '', sortOrder: String(role.sort_order), isDefault: role.is_default })
     setMessage(null)
   }
 
@@ -171,7 +175,7 @@ export default function KelolaPengesahanPage() {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-approver-roles`, {
         method: adding ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, code: draft.code, title: draft.title, personName: draft.personName, email: draft.email, sortOrder: Number(draft.sortOrder), isDefault: draft.isDefault }),
+        body: JSON.stringify({ kind, code: draft.code, title: draft.title, personName: draft.personName, initials: draft.initials, email: draft.email, sortOrder: Number(draft.sortOrder), isDefault: draft.isDefault }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan.')
@@ -328,7 +332,14 @@ export default function KelolaPengesahanPage() {
                       {role.title}
                       {role.is_default && <span className="ml-1.5 text-[10.5px] text-[color:var(--p-600)]">· default</span>}
                     </p>
-                    <p className="mt-1 text-base font-semibold text-foreground">{role.person_name}</p>
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-base font-semibold text-foreground">
+                      {role.person_name}
+                      {(role.initials || role.person_name.replace(/[^A-Za-z]/g, '').slice(0, 3)) && !/^belum\s*diisi$/i.test(role.person_name.trim()) && (
+                        <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-muted-foreground" title={role.initials ? 'Inisial yang tercetak di bawah kotak tanda tangan' : 'Inisial otomatis dari nama — bisa diubah lewat Ganti / Edit'}>
+                          {role.initials || role.person_name.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()}
+                        </span>
+                      )}
+                    </p>
                     <p className={`flex items-center gap-1.5 text-xs ${role.email ? 'text-muted-foreground' : 'text-destructive'}`}>
                       <Mail className="size-3.5" /> {role.email ?? 'Email belum diisi — email pengesahan tidak bisa dikirim'}
                     </p>

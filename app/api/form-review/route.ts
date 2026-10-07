@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { documentHandlers } from '@/lib/controlled-documents-api'
-import { ensureApprovalSchema, listRoles, saveSlots, type SignatureSlot } from '@/lib/procedure-approval'
+import { ensureApprovalSchema, listRoles, saveSlots, type SignatureSlot, reviewFormsBeingSaved } from '@/lib/procedure-approval'
 import { parseReviewForm, reviewBoxes, reviewFormTitle, type ReviewFormData } from '@/lib/review-form'
 import { buildReviewFormPdf, REVIEW_SIGN_SLOTS } from '@/lib/review-form-pdf'
 
@@ -74,6 +74,15 @@ async function keepFields(documentId: number, data: ReviewFormData, username: st
   )
 }
 
+// The register handler e-mails the first approver before the form's fields
+// are stored (keepFields needs the document it creates): hand them to the
+// e-mail for the duration of the call, so its "Ringkasan form" is this form's.
+async function whileSaving<T>(data: ReviewFormData, save: () => Promise<T>): Promise<T> {
+  const key = data.formNo.toUpperCase()
+  reviewFormsBeingSaved.set(key, data)
+  try { return await save() } finally { reviewFormsBeingSaved.delete(key) }
+}
+
 const roleList = (raw: unknown) => JSON.stringify(Array.isArray(raw) ? raw.filter((code): code is string => typeof code === 'string') : [])
 
 export async function POST(request: NextRequest) {
@@ -86,10 +95,10 @@ export async function POST(request: NextRequest) {
     if (typeof data === 'string') return NextResponse.json({ message: data }, { status: 400 })
 
     const pdf = await buildReviewFormPdf(data)
-    const res = await handlers.POST(asUpload(request, 'POST', data, pdf, {
+    const res = await whileSaving(data, () => handlers.POST(asUpload(request, 'POST', data, pdf, {
       approvalRoles: roleList(body.approvalRoles),
       note: typeof body.note === 'string' ? body.note : '',
-    }))
+    })))
     if (!res.ok) return res
     const { document } = await res.json() as { document: Saved }
 
@@ -120,12 +129,12 @@ export async function PUT(request: NextRequest) {
     if (!existing) return NextResponse.json({ message: 'Form tidak ditemukan.' }, { status: 404 })
 
     const pdf = await buildReviewFormPdf(data)
-    const res = await handlers.PUT(asUpload(request, 'PUT', data, pdf, {
+    const res = await whileSaving(data, () => handlers.PUT(asUpload(request, 'PUT', data, pdf, {
       id: String(id),
       revision: String(existing.revision),
       approvalRoles: roleList(body.approvalRoles),
       note: typeof body.note === 'string' ? body.note : '',
-    }))
+    })))
     if (!res.ok) return res
     const payload = await res.json() as { document: Saved; approvalRestarted: boolean }
 

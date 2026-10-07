@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-import { signatureKey, slotsFromHeadings, type Heading } from './auto-slots'
+import { initialsCells, signatureKey, slotsFromHeadings, type Heading, type TextItem } from './auto-slots'
 
 describe('signatureKey', () => {
   it('reads box headings and position titles alike', () => {
@@ -65,5 +65,29 @@ describe('slotsFromHeadings', () => {
 
   it('returns nothing when the sheet has no signature boxes', () => {
     expect(slotsFromHeadings([], roles)).toEqual([])
+  })
+})
+
+describe('initialsCells', () => {
+  const text = (str: string, cx: number, y: number, pageNo = 0): TextItem => ({ str, page: pageNo, pageW: 792, pageH: 612, cx, y, h: 0.0124 })
+
+  it('finds the initials printed under each box, in the same column', () => {
+    const items = [text('TWC', 0.7163, 0.9548), text('MRA', 0.7838, 0.9548), text('HMA', 0.8513, 0.9548), text('ISR', 0.9187, 0.9548), text('SSA', 0.44, 0.86), text('PIC', 0.44, 0.8157)]
+    const cells = initialsCells(items, template)
+    expect(cells.map((c) => [c.key, c.page, c.baseline])).toEqual([['APPROVED 2', 0, 0.9548], ['APPROVED 1', 0, 0.9548], ['CHECKED', 0, 0.9548], ['PREPARED', 0, 0.9548]])
+  })
+
+  it('follows the row to the top of the next page when the sheet was exported that way', () => {
+    const items = [text('TWC', 0.7163, 0.0902, 1), text('MRA', 0.7838, 0.0902, 1), text('HMA', 0.8513, 0.0902, 1), text('ISR', 0.9187, 0.0902, 1)]
+    expect(initialsCells(items, template).every((c) => c.page === 1 && c.baseline === 0.0902)).toBe(true)
+  })
+
+  it('gives an empty box the same place as its neighbours, or the template offset when the row is empty', () => {
+    const one = initialsCells([text('ISR', 0.9187, 0.9548)], template)
+    expect(one).toHaveLength(4)
+    expect(one.every((c) => c.baseline === 0.9548)).toBe(true)
+    const none = initialsCells([], template)
+    expect(none).toHaveLength(4)
+    expect(none[0].baseline).toBeCloseTo(0.8157 + 73 / 612, 5)
   })
 })

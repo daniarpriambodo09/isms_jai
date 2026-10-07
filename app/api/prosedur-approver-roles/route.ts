@@ -12,7 +12,7 @@ import { query } from '@/lib/db'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 import { logActivity } from '@/lib/activity-log'
 import { getSmtpSettings } from '@/lib/smtp'
-import { ensureApprovalSchema, listPendingSteps, listRoles, reassignRole } from '@/lib/procedure-approval'
+import { ensureApprovalSchema, listPendingSteps, listRoles, reassignRole, syncRoleInitials } from '@/lib/procedure-approval'
 import { DOC_KINDS, docKindInfo, isDocKind, type DocKind } from '@/lib/document-kinds'
 import { getApproverSetting } from '@/lib/special-area'
 import { checkAppUrl } from '@/lib/app-url-check'
@@ -20,20 +20,23 @@ import { checkAppUrl } from '@/lib/app-url-check'
 const kindOf = (value: unknown): DocKind => (isDocKind(value) ? value : 'procedure')
 
 
-type RoleInput = { title: string; personName: string; email: string | null; sortOrder: number; isDefault: boolean }
+type RoleInput = { title: string; personName: string; initials: string | null; email: string | null; sortOrder: number; isDefault: boolean }
 
 function parseRole(body: Record<string, unknown>): RoleInput | string {
   const title = typeof body.title === 'string' ? body.title.trim() : ''
   const personName = typeof body.personName === 'string' ? body.personName.trim() : ''
   const email = typeof body.email === 'string' && body.email.trim() ? body.email.trim() : null
+  // Printed under the signature box (TWC, MRA, …); empty = taken from the name.
+  const initials = typeof body.initials === 'string' && body.initials.trim() ? body.initials.trim().toUpperCase() : null
   const sortOrder = Number(body.sortOrder)
   if (!title) return 'Unit Kerja (Jabatan) wajib diisi.'
   if (title.length > 150) return 'Unit Kerja (Jabatan) maksimal 150 karakter.'
   if (!personName) return 'Nama wajib diisi.'
   if (personName.length > 150) return 'Nama maksimal 150 karakter.'
+  if (initials && !/^[A-Z0-9]{2,5}$/.test(initials)) return 'Inisial 2–5 huruf/angka tanpa spasi, mis. TWC.'
   if (email && !isDeliverableEmail(email)) return `Email tidak valid. ${EMAIL_HINT}`
   if (!Number.isInteger(sortOrder) || sortOrder < 1 || sortOrder > 99) return 'Urutan harus angka 1–99.'
-  return { title, personName, email, sortOrder, isDefault: body.isDefault === true }
+  return { title, personName, initials, email, sortOrder, isDefault: body.isDefault === true }
 }
 
 export async function GET(request: NextRequest) {
@@ -79,9 +82,9 @@ export async function POST(request: NextRequest) {
     }
 
     await query(
-      `INSERT INTO procedure_approver_roles (code, kind, title, person_name, email, sort_order, is_default, updated_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [code, kind, parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username]
+      `INSERT INTO procedure_approver_roles (code, kind, title, person_name, email, sort_order, is_default, updated_by, initials)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [code, kind, parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username, parsed.initials]
     )
     await logActivity(session, 'create', 'procedure_approver_role', code, `Menambahkan jabatan pengesahan ${docKindInfo(kind).label} "${parsed.title}" (${parsed.personName})`)
     return NextResponse.json({ roles: await listRoles(kind) }, { status: 201 })
@@ -107,10 +110,12 @@ export async function PUT(request: NextRequest) {
 
     await query(
       `UPDATE procedure_approver_roles
-       SET title = $1, person_name = $2, email = $3, sort_order = $4, is_default = $5, updated_at = now(), updated_by = $6
+       SET title = $1, person_name = $2, email = $3, sort_order = $4, is_default = $5, updated_at = now(), updated_by = $6, initials = $8
        WHERE code = $7`,
-      [parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username, code]
+      [parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username, code, parsed.initials]
     )
+    // Steps not signed yet print the new initials.
+    await syncRoleInitials(code)
 
     const holderChanged = old.person_name !== parsed.personName || (old.email ?? '') !== (parsed.email ?? '') || old.title !== parsed.title
     let reassigned = { resent: 0, failed: 0 }

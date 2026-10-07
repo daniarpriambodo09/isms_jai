@@ -8,10 +8,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
-import { autoPlaceSlots, currentStepsFor, ensureApprovalSchema, slotsFor, verifyBaseUrl } from '@/lib/procedure-approval'
+import { approverInitials, autoPlaceSlots, currentStepsFor, ensureApprovalSchema, slotsFor, usesSignatureBoxes, verifyBaseUrl } from '@/lib/procedure-approval'
+import { detectInitials } from '@/lib/auto-slots'
 import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
-import { docKindInfo } from '@/lib/document-kinds'
+import { docKindInfo, type DocKind } from '@/lib/document-kinds'
 import { REVIEW_DATE_SLASHES } from '@/lib/review-form-pdf'
 
 export const dynamic = 'force-dynamic'
@@ -44,8 +45,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // ?preview=1 (ISM Admin only): every role shown as signed with a sample QR,
     // to check the QR placement before anyone has actually approved.
     const preview = request.nextUrl.searchParams.get('preview') === '1' && !!getIsmsAdminFromRequest(request)
-    // A Working Standard uploaded before QR spots were placed automatically gets them now.
-    if (doc.kind === 'working_standard') await autoPlaceSlots(doc.id)
+    // A sheet uploaded before QR spots were placed automatically gets them now.
+    const boxed = usesSignatureBoxes(doc.kind as DocKind)
+    if (boxed) await autoPlaceSlots(doc.id)
+    // The initials row under the boxes: the approvers chosen for this document
+    // (a box nobody signs in is left blank). Skipped when the row isn't found.
+    // A document without e-sign, or whose positions match none of the boxes
+    // (custom titles, QR placed by hand), keeps the sheet's own initials.
+    const cells = boxed && steps.length
+      ? await detectInitials(doc.file_path, steps.map((s) => ({ title: s.role_title, step: s })), ({ step }) => approverInitials(step.approver_initials, step.approver_name))
+        .catch((error) => { console.error('[prosedur-isms/pdf] initials', (error as Error).message); return [] })
+      : []
+    const initials = cells.some((cell) => cell.text) ? cells : []
     const bytes = await buildProcedureSignedPdf({
       kindLabel: docKindInfo(doc.kind).label,
       controlNo: doc.control_no,
@@ -61,6 +72,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       slots: await slotsFor(doc.id, doc.file_path),
       // Form Review: the date goes on the form's own "/  /" line under the QR.
       dateSlashes: doc.kind === 'review_form' ? REVIEW_DATE_SLASHES : null,
+      initials,
     })
 
     const filename = `pengesahan-${doc.control_no}-rev${doc.revision}.pdf`.replace(/[^A-Za-z0-9._-]/g, '_')

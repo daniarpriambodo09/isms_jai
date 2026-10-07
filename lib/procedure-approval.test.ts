@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   APPROVAL_LINK_DAYS, MAX_SLOTS_PER_ROLE, QR_ADJUST_HOURS,
-  canPlaceOwnSlots, isStrike, linkExpired, reminderDue, REMINDER_EVERY_DAYS, REMINDER_MAX, parseRevisionNotes, STRIKE_DEFAULT_NOTE, parseSlots, qrAdjustableUntil, summarizeRevisionNotes,
+  approverInitials, canPlaceOwnSlots, isStrike, linkExpired, reminderDue, REMINDER_EVERY_DAYS, REMINDER_MAX, parseRevisionNotes, STRIKE_DEFAULT_NOTE, parseSlots, qrAdjustableUntil, summarizeRevisionNotes,
   type TokenView,
 } from './procedure-approval'
 
@@ -137,5 +137,18 @@ describe('approver reminders', () => {
     expect(reminderDue(step({ notified_at: null }), NOW)).toBe(false)
     expect(reminderDue(step({ notified_at: at(APPROVAL_LINK_DAYS + 2), token_issued_at: at(APPROVAL_LINK_DAYS + 2) }), NOW)).toBe(false)
     expect(reminderDue(step({ reminder_count: REMINDER_MAX }), NOW)).toBe(false)
+  })
+})
+
+describe('approverInitials', () => {
+  it('uses the initials set for the position, else the first three letters of the name', () => {
+    expect(approverInitials('twc', 'Tri Wahyu C.')).toBe('TWC')
+    expect(approverInitials(null, 'Naufal Aqil')).toBe('NAU')
+    expect(approverInitials('', 'Ika Yuni Setyo R.')).toBe('IKA')
+  })
+
+  it('is empty for a position nobody holds yet', () => {
+    expect(approverInitials(null, 'Belum diisi')).toBe('')
+    expect(approverInitials(null, null)).toBe('')
   })
 })

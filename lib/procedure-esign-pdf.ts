@@ -43,6 +43,43 @@ export type SheetData = {
   // Per-role QR spots on the original pages (fractions of the displayed page,
   // top-left origin) — set in the "Atur Posisi QR" editor or auto-detected.
   slots?: { role_code: string; page: number; x: number; y: number; w: number; h: number; date?: { x: number; y: number; w: number; h: number } | null }[]
+  /**
+   * The form prints "/  /" for the date (Form Review): where its two slashes
+   * sit, in points from the date box's left edge. The approval date is then
+   * written around them as "07 / 10 / 26" instead of "07 Okt 2026".
+   */
+  dateSlashes?: [number, number] | null
+}
+
+// The approval date as the paper forms take it: day / month / two-digit year (WIB).
+function dateParts(value: string) {
+  const d = new Date(value)
+  const part = (options: Intl.DateTimeFormatOptions) => d.toLocaleDateString('en-GB', { timeZone: APP_TIME_ZONE, ...options })
+  return { dd: part({ day: '2-digit' }), mm: part({ month: '2-digit' }), yy: part({ year: '2-digit' }) }
+}
+
+// Writes the date on a form's own "/  /" line: the box is cleared (it lies
+// inside the cell, no ruled line is touched), then day, month and year go
+// before, between and after two slashes drawn at the form's positions — so it
+// reads the same whether or not the stored file still shows the placeholders.
+function drawSlashDate(page: PDFPage, box: { x: number; y: number; w: number; h: number }, slashes: [number, number], value: string, f: PDFFont) {
+  const a = displayedToPdf(page, box.x, box.y)
+  const b = displayedToPdf(page, box.x + box.w, box.y + box.h)
+  const left = Math.min(a.x, b.x), bottom = Math.min(a.y, b.y)
+  const width = Math.abs(b.x - a.x), height = Math.abs(b.y - a.y)
+  page.drawRectangle({ x: left, y: bottom, width, height, color: rgb(1, 1, 1), borderWidth: 0 })
+  const size = Math.min(9.5, height * 0.72)
+  const baseline = bottom + (height - size * 0.72) / 2
+  const slashW = f.widthOfTextAtSize('/', size)
+  const gap = 2.2
+  const { dd, mm, yy } = dateParts(value)
+  const [s1, s2] = [left + slashes[0], left + slashes[1]]
+  const put = (text: string, x: number) => page.drawText(text, { x, y: baseline, size, font: f, color: INK })
+  put('/', s1)
+  put('/', s2)
+  put(dd, s1 - gap - f.widthOfTextAtSize(dd, size))
+  put(mm, (s1 + slashW + s2) / 2 - f.widthOfTextAtSize(mm, size) / 2)
+  put(yy, s2 + slashW + gap)
 }
 
 // Maps a point given as fractions of the page AS DISPLAYED (so /Rotate is
@@ -299,7 +336,10 @@ export async function buildProcedureSignedPdf(data: SheetData): Promise<Uint8Arr
         target.drawText(label, { x: left + (right - left - font.widthOfTextAtSize(label, fs)) / 2, y: bottom + 1.5, size: fs, font, color: MUTED })
       }
       // Approval date in the same row's TANGGAL cell, when a box is set for it.
-      if (slot.date && step.decidedAt) drawDisplayedText(target, slot.date, fmtDate(step.decidedAt), font)
+      if (slot.date && step.decidedAt) {
+        if (data.dateSlashes && upright) drawSlashDate(target, slot.date, data.dateSlashes, step.decidedAt, font)
+        else drawDisplayedText(target, slot.date, fmtDate(step.decidedAt), font)
+      }
     }
   }
   // 4) Once fully approved, a quiet line in the bottom margin of every original page.

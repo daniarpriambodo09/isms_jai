@@ -8,10 +8,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
-import { currentStepsFor, ensureApprovalSchema, slotsFor, verifyBaseUrl } from '@/lib/procedure-approval'
+import { autoPlaceSlots, currentStepsFor, ensureApprovalSchema, slotsFor, verifyBaseUrl } from '@/lib/procedure-approval'
 import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
 import { docKindInfo } from '@/lib/document-kinds'
+import { REVIEW_DATE_SLASHES } from '@/lib/review-form-pdf'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +44,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // ?preview=1 (ISM Admin only): every role shown as signed with a sample QR,
     // to check the QR placement before anyone has actually approved.
     const preview = request.nextUrl.searchParams.get('preview') === '1' && !!getIsmsAdminFromRequest(request)
+    // A Working Standard uploaded before QR spots were placed automatically gets them now.
+    if (doc.kind === 'working_standard') await autoPlaceSlots(doc.id)
     const bytes = await buildProcedureSignedPdf({
       kindLabel: docKindInfo(doc.kind).label,
       controlNo: doc.control_no,
@@ -56,6 +59,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         : { roleCode: s.role_code, roleTitle: s.role_title, name: s.approver_name ?? '-', status: s.status, decidedAt: s.decided_at, verificationCode: s.verification_code, note: s.decision_note }),
       verifyBase: await verifyBaseUrl(request.nextUrl.origin),
       slots: await slotsFor(doc.id, doc.file_path),
+      // Form Review: the date goes on the form's own "/  /" line under the QR.
+      dateSlashes: doc.kind === 'review_form' ? REVIEW_DATE_SLASHES : null,
     })
 
     const filename = `pengesahan-${doc.control_no}-rev${doc.revision}.pdf`.replace(/[^A-Za-z0-9._-]/g, '_')

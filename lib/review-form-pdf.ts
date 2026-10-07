@@ -6,13 +6,12 @@
 // does for the Ijin Foto/Video form.
 //
 // The template is a copy that was already filled in once, so its own values
-// (a date, a month and year, a title, three ticks) and the grey "IAA" / "SSA"
-// and "/ /" placeholders of the signature boxes are covered in white first.
+// (a date, a month and year, a title, three ticks) are covered in white first.
 // Every coordinate was read off the template's text layer and ruled lines;
 // covers stay inside the cells, so no line of the form is erased.
 //
-// The three signature boxes are left empty here: the approvers' QR and date
-// are added by the e-sign engine (REVIEW_SIGN_SLOTS says where).
+// The three signature boxes are left as printed here: the approvers' QR and
+// date are added by the e-sign engine (REVIEW_SIGN_SLOTS says where).
 
 import 'server-only'
 import path from 'path'
@@ -49,6 +48,11 @@ const SIGN_BOX_X: Record<ReviewBox, [number, number]> = { approval: [294.1, 376.
 const QR_SIZE = 56
 const QR_TOP = 136 // just under the box's heading
 const DATE_Y = [60.5, 74.5] // the "/ /" line at the bottom of the box
+const DATE_INSET = 4 // the date box starts this far inside the signature box
+// The form's two date slashes sit 27.1 and 51.4 pt from each box's left edge
+// (321.2 / 345.5, 403.9 / 428.1, 486.4 / 510.7). Given from the date box's
+// left edge, for the e-sign engine to write "dd / mm / yy" around them.
+export const REVIEW_DATE_SLASHES: [number, number] = [27.1 - DATE_INSET, 51.4 - DATE_INSET]
 
 /** Where each box's QR and date go, as the e-sign engine stores them: fractions of the page, top-left origin. */
 export const REVIEW_SIGN_SLOTS: Record<ReviewBox, { page: number; x: number; y: number; w: number; h: number; date: { x: number; y: number; w: number; h: number } }> =
@@ -58,7 +62,7 @@ export const REVIEW_SIGN_SLOTS: Record<ReviewBox, { page: number; x: number; y: 
     return [box, {
       page: 0,
       x: qrLeft / PAGE_W, y: (PAGE_H - QR_TOP) / PAGE_H, w: QR_SIZE / PAGE_W, h: QR_SIZE / PAGE_H,
-      date: { x: (left + 4) / PAGE_W, y: (PAGE_H - DATE_Y[1]) / PAGE_H, w: (right - left - 8) / PAGE_W, h: (DATE_Y[1] - DATE_Y[0]) / PAGE_H },
+      date: { x: (left + DATE_INSET) / PAGE_W, y: (PAGE_H - DATE_Y[1]) / PAGE_H, w: (right - left - 2 * DATE_INSET) / PAGE_W, h: (DATE_Y[1] - DATE_Y[0]) / PAGE_H },
     }]
   })) as never
 
@@ -111,9 +115,9 @@ export async function buildReviewFormPdf(data: ReviewFormData): Promise<Uint8Arr
   boxInside(X_LEVEL, LEVEL_BASELINE[3])              // ✓ Level 3
   boxInside(X_REASON, REASON_BASELINE.periodic)      // ✓ Review berkala
   boxInside(X_LEVEL, RESULT_BASELINE.revisi)         // ✓ Tidak relevan dan perlu revisi
-  cover(322, 100.5, 28, 12)                          // "IAA"
-  cover(404, 100.5, 29, 12)                          // "SSA"
-  for (const x of [321.2, 345.5, 403.9, 428.1, 486.4, 510.7]) cover(x - 1.5, 60, 8.5, 13) // "/ /"
+  // The signature boxes keep the form's grey "IAA" / "SSA" and "/  /": an
+  // unsigned box looks like the paper form; the QR and the date are written
+  // over them when the approver signs (lib/procedure-esign-pdf.ts).
 
   // ── header block ──
   const lineWidth = 285

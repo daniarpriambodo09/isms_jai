@@ -15,6 +15,7 @@ import { useSearchParams } from 'next/navigation'
 import { ArrowLeftRight, Check, Clock, Crosshair, ExternalLink, FileSignature, FileText, History, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { docKindInfo } from '@/lib/document-kinds'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SignatureCard } from '@/components/documents/SignatureQr'
 import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
 import { RevisionNotesDialog, type RevisionPin } from '@/components/documents/RevisionNotes'
@@ -40,6 +41,8 @@ type View = {
   linkExpired: boolean
   linkValidDays: number
   canPlaceQr: boolean
+  /** The portal already knows where this approver's QR goes (Form Review, Working Standard): no placing step. */
+  qrAutoPlaced?: boolean
   qrAdjustableUntil: string | null
   documentId: number
   verifyBase: string
@@ -80,6 +83,7 @@ function PengesahanContent() {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   // 'approve': place QR then approve · 'adjust': move QR after approving
   const [placing, setPlacing] = useState<'approve' | 'adjust' | null>(null)
+  const [confirmApprove, setConfirmApprove] = useState(false)
   const [pdfStamp, setPdfStamp] = useState(0) // busts the signed-PDF link after moving QR
 
   const load = useCallback(async () => {
@@ -307,14 +311,16 @@ function PengesahanContent() {
               </p>
               <p className="mt-2 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                 <Crosshair className="mt-0.5 size-3.5 flex-none text-[color:var(--p-600)]" />
-                Setelah menekan Setujui, Anda dapat menempatkan QR tanda tangan Anda langsung di kolom tanda tangan dokumen (bisa lebih dari satu tempat).
+                {view.qrAutoPlaced
+                  ? <span>QR tanda tangan Anda <strong className="text-foreground">otomatis tercetak di kolom {step.role_title}</strong> pada dokumen — tidak perlu diatur.</span>
+                  : 'Setelah menekan Setujui, Anda dapat menempatkan QR tanda tangan Anda langsung di kolom tanda tangan dokumen (bisa lebih dari satu tempat).'}
               </p>
               <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                 <PencilLine className="mt-0.5 size-3.5 flex-none text-[#c2412c]" />
                 <span>Masih ada yang perlu diperbaiki? Pilih <strong className="text-foreground">Minta Revisi</strong> — coret kata yang salah atau tandai bagian dokumennya, lalu tulis perbaikannya. QR tidak diberikan.</span>
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <button type="button" onClick={() => setPlacing('approve')} disabled={submitting !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50">
+                <button type="button" onClick={() => (view.qrAutoPlaced ? setConfirmApprove(true) : setPlacing('approve'))} disabled={submitting !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50">
                   {submitting === 'approve' ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" strokeWidth={3} />} Setujui
                 </button>
                 <button type="button" onClick={() => setNotesMode('edit')} disabled={submitting !== null} className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#c2412c]/60 px-5 py-3 text-sm font-bold text-[#a83522] transition hover:bg-[#fdf0ec] disabled:opacity-50">
@@ -328,7 +334,11 @@ function PengesahanContent() {
                 verifyBase={view.verifyBase}
                 info={{ code: step.verification_code, name: step.approver_name ?? '-', roleTitle: step.role_title, decidedAt: step.decided_at, documentLabel: `${document.control_no} — ${document.title}` }}
               />
-              {view.canPlaceQr ? (
+              {view.qrAutoPlaced ? (
+                <p className="rounded-xl bg-emerald-600/10 px-3 py-2 text-center text-xs text-emerald-800">
+                  QR Anda sudah tercetak otomatis di kolom {step.role_title} pada dokumen.
+                </p>
+              ) : view.canPlaceQr ? (
                 <div className="flex flex-col gap-1">
                   <button
                     type="button"
@@ -395,6 +405,18 @@ function PengesahanContent() {
           onClose={() => setNotesMode(null)}
         />
       )}
+
+      {/* Fixed-template documents: no placing step, just one confirmation before the signature is given. */}
+      <ConfirmDialog
+        open={confirmApprove}
+        title="Setujui dokumen ini?"
+        message={`${document.control_no} — ${document.title}. QR tanda tangan Anda (${step.role_title}) otomatis tercetak di kolomnya pada dokumen. Persetujuan tidak dapat dibatalkan.`}
+        confirmLabel="Ya, setujui"
+        danger={false}
+        pending={submitting === 'approve'}
+        onConfirm={async () => { await decide('approve'); setConfirmApprove(false) }}
+        onCancel={() => setConfirmApprove(false)}
+      />
 
       {/* Place own QR: right before approving, or later to adjust. */}
       {placing && (

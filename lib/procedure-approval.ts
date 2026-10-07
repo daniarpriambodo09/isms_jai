@@ -313,8 +313,41 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
     await setDocumentStatus(documentId, 'pending')
     return true
   })
+  // Working Standard sheets share one template: the QR spots are found from
+  // the box headings in the file itself, before the first approver opens it.
+  if (started && doc.kind === 'working_standard') await autoPlaceSlots(documentId)
   // Emailing the first approver happens after the commit.
   if (started) await activateNextStep(documentId)
+}
+
+/**
+ * Places the approvers' QR spots automatically from the signature-box
+ * headings in the document's file (lib/auto-slots.ts) — only for positions
+ * that have no spot on the current file yet, so hand-placed ones are kept.
+ * Returns how many positions were placed. Never throws: a file the headings
+ * can't be read from just keeps the manual "Atur Posisi QR".
+ */
+export async function autoPlaceSlots(documentId: number): Promise<number> {
+  try {
+    const doc = await getDocument(documentId)
+    if (!doc) return 0
+    const existing = await slotsFor(doc.id, doc.file_path)
+    const placed = new Set(existing.map((slot) => slot.role_code))
+    const steps = (await query<{ role_code: string; role_title: string }>(
+      `SELECT role_code, role_title FROM procedure_approvals
+       WHERE document_id = $1 AND revision = $2 AND status <> 'cancelled' ORDER BY step`,
+      [doc.id, doc.revision]
+    )).rows.filter((step) => !placed.has(step.role_code))
+    if (!steps.length) return 0
+    const { detectSignatureSlots } = await import('@/lib/auto-slots')
+    const found = await detectSignatureSlots(doc.file_path, steps.map((step) => ({ code: step.role_code, title: step.role_title })))
+    if (!found.length) return 0
+    await saveSlots(doc.id, doc.file_path, [...existing, ...found])
+    return found.length
+  } catch (error) {
+    console.error('[procedure-approval/autoPlaceSlots]', (error as Error).message)
+    return 0
+  }
 }
 
 // Marks the lowest waiting step of the current cycle as pending and emails

@@ -4,8 +4,8 @@
 // same fields as the paper form. Used from the Lobby kiosk and the ISMS
 // admin page; submitting emails the IAA for approval.
 
-import { useEffect, useState, type FormEvent } from 'react'
-import { CheckCircle2, Clock, Loader2, ShieldAlert, X } from 'lucide-react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { CheckCircle2, Clock, Loader2, ScanLine, ShieldAlert, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { SPECIAL_AREAS } from '@/lib/special-area-shared'
@@ -85,6 +85,16 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
   const [areaOther, setAreaOther] = useState('')
   const [purpose, setPurpose] = useState('')
   const [idCardNo, setIdCardNo] = useState('')
+  // "Scan": the field is cleared and focused, waiting for the scanner to type the card number.
+  const idCardRef = useRef<HTMLInputElement>(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanned, setScanned] = useState(false)
+  const startScan = () => {
+    setIdCardNo('')
+    setScanned(false)
+    setScanning(true)
+    idCardRef.current?.focus()
+  }
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState<{ emailError: string | null } | null>(null)
@@ -193,7 +203,46 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
               <label><span className={label}>Nama area</span><input value={areaOther} onChange={(e) => setAreaOther(e.target.value)} required className={input} /></label>
             )}
             <label className="sm:col-span-2"><span className={label}>Tujuan Keluar/Masuk</span><textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} required rows={2} maxLength={2000} className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15" /></label>
-            <label className="sm:col-span-2"><span className={label}>ID Card No. (opsional — bisa diisi Lobby saat kartu diberikan)</span><input value={idCardNo} onChange={(e) => setIdCardNo(e.target.value)} className={input} /></label>
+            <div className="sm:col-span-2">
+              <label htmlFor="sa-id-card" className={label}>ID Card No. (opsional — bisa di-scan / diisi nanti saat kartu diberikan)</label>
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <ScanLine className={`pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 ${scanning ? 'text-emerald-600' : 'text-muted-foreground'}`} />
+                  <input
+                    id="sa-id-card"
+                    ref={idCardRef}
+                    value={idCardNo}
+                    onChange={(e) => { setIdCardNo(e.target.value); setScanned(false) }}
+                    // A barcode scanner types the number and then "Enter": take it as
+                    // "done scanning" instead of submitting the form half filled.
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); if (idCardNo.trim()) setScanned(true); setScanning(false) }
+                      if (e.key === 'Escape' && scanning) { e.stopPropagation(); setScanning(false) }
+                    }}
+                    onBlur={() => setScanning(false)}
+                    placeholder={scanning ? 'Arahkan pemindai ke barcode kartu…' : 'Scan atau ketik nomor kartu'}
+                    maxLength={100}
+                    autoComplete="off"
+                    className={`${input} pl-10 font-mono ${scanning ? 'border-emerald-500 ring-4 ring-emerald-500/20' : ''}`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={startScan}
+                  aria-pressed={scanning}
+                  className={`inline-flex h-10 flex-none items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition ${scanning ? 'bg-emerald-600 text-white' : 'border border-border bg-card text-foreground hover:bg-secondary'}`}
+                >
+                  <ScanLine className={`size-4 ${scanning ? 'animate-pulse' : ''}`} /> {scanning ? 'Menunggu scan…' : idCardNo ? 'Scan ulang' : 'Scan'}
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground" aria-live="polite">
+                {scanning
+                  ? 'Scan kartu sekarang — nomornya langsung terisi. Esc untuk batal.'
+                  : scanned && idCardNo
+                    ? <span className="font-semibold text-emerald-700">✓ Kartu terbaca: {idCardNo}</span>
+                    : 'Tekan Scan lalu pindai barcode kartu dengan alat scanner, atau ketik nomornya.'}
+              </p>
+            </div>
 
             {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive sm:col-span-2">{error}</p>}
 

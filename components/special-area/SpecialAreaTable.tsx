@@ -5,7 +5,7 @@
 // No. and resend the approval email; deleting is ISM Admin only (canDelete).
 
 import { useEffect, useState } from 'react'
-import { Check, FileSignature, Loader2, Pencil, Send, Trash2, UserCheck, UserPlus, X } from 'lucide-react'
+import { Check, FileSignature, Loader2, Pencil, ScanLine, Send, Trash2, UserCheck, UserPlus, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import type { Escort, SpecialAreaRequest } from '@/lib/special-area-shared'
 
@@ -19,31 +19,43 @@ function fmt(value: string) {
   return new Date(value).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// ID Card No.: typed, or scanned — "Scan" empties the field and waits for the
+// barcode scanner, which types the number and presses Enter (= save).
 function IdCardCell({ req, onChanged }: { req: SpecialAreaRequest; onChanged: () => void }) {
   const [editing, setEditing] = useState(false)
+  const [scanning, setScanning] = useState(false)
   const [value, setValue] = useState(req.id_card_no ?? '')
   const [saving, setSaving] = useState(false)
+  const close = () => { setEditing(false); setScanning(false) }
   const save = async () => {
+    // A scan that read nothing saves nothing (the old number stays).
+    if (scanning && !value.trim()) { close(); return }
     setSaving(true)
     await fetch(`${API_BASE_PATH}/api/special-area-requests/${req.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'setIdCard', idCardNo: value }) }).catch(() => {})
     setSaving(false)
-    setEditing(false)
+    close()
     onChanged()
   }
+  const startScan = () => { setValue(''); setScanning(true); setEditing(true) }
   if (editing) {
     return (
       <div className="flex items-center gap-1">
-        <input value={value} onChange={(e) => setValue(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false) }} className="h-8 w-28 rounded-lg border border-input bg-card px-2 font-mono text-xs outline-none focus:border-ring" />
+        <input value={value} onChange={(e) => setValue(e.target.value)} autoFocus placeholder={scanning ? 'Scan kartu…' : ''} aria-label={scanning ? 'Scan ID Card No.' : 'ID Card No.'} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); save() } if (e.key === 'Escape') close() }} className={`h-8 w-28 rounded-lg border bg-card px-2 font-mono text-xs outline-none ${scanning ? 'border-emerald-500 ring-2 ring-emerald-500/25' : 'border-input focus:border-ring'}`} />
         <button type="button" onClick={save} disabled={saving} aria-label="Simpan" className="grid size-7 place-items-center rounded-md text-emerald-700 hover:bg-emerald-600/10">{saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}</button>
-        <button type="button" onClick={() => setEditing(false)} aria-label="Batal" className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-secondary"><X className="size-3.5" /></button>
+        <button type="button" onClick={close} aria-label="Batal" className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-secondary"><X className="size-3.5" /></button>
       </div>
     )
   }
   return (
-    <button type="button" onClick={() => setEditing(true)} className="group inline-flex items-center gap-1.5 font-mono text-xs text-foreground" title="Isi / ubah ID Card No.">
-      {req.id_card_no || <span className="font-sans text-muted-foreground">— isi</span>}
-      <Pencil className="size-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
-    </button>
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={() => { setValue(req.id_card_no ?? ''); setEditing(true) }} className="group inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-foreground" title="Isi / ubah ID Card No.">
+        {req.id_card_no || <span className="font-sans text-muted-foreground">— isi</span>}
+        <Pencil className="size-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+      </button>
+      <button type="button" onClick={startScan} aria-label={`Scan ID Card untuk ${req.requester_name}`} title="Scan barcode kartu dengan alat scanner" className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border px-1.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+        <ScanLine className="size-3.5" /> Scan
+      </button>
+    </div>
   )
 }
 

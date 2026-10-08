@@ -29,7 +29,7 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import { ChevronLeft, ChevronRight, Copy, Crosshair, Eye, Loader2, Lock, MousePointerClick, Save, Trash2, Wand2, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Copy, Crosshair, Eye, Loader2, Lock, MousePointerClick, Save, Trash2, Wand2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { loadPdfJs } from '@/lib/pdfjs-loader'
 import { PdfPages, loadPageRatios, scrollToPage, scrollToSpot } from '@/components/documents/PdfPages'
@@ -192,7 +192,8 @@ async function autoDetect(pdf: PDFDocumentProxy, roles: Role[]): Promise<{ slots
 type EditorProps = {
   onClose: () => void
   /** Runs after a successful save (e.g. to approve right after placing). */
-  onSaved?: () => void | Promise<void>
+  /** Called after a save; `sent` = a request held for its QR boxes was e-mailed to the first approver now. */
+  onSaved?: (sent?: boolean) => void | Promise<void>
   /** Save button label; when set, saving is allowed even without changes. */
   saveLabel?: string
   /** Optional second action under the save button (e.g. approve without placing). */
@@ -227,6 +228,11 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   const drag = useRef<{ key: string; target: 'qr' | 'date'; mode: 'move' | 'resize'; startX: number; startY: number; orig: Slot } | null>(null)
   // Which part of the selected placement is selected: its QR or its TGL box.
   const [selectedPart, setSelectedPart] = useState<'qr' | 'date'>('qr')
+  // Admin: the request is not e-mailed to the approvers until the boxes are saved.
+  const [held, setHeld] = useState(false)
+  // The position whose QR box is being drawn: pick it, then drag on the page.
+  const [drawRole, setDrawRole] = useState<string | null>(null)
+  const drawing = useRef<string | null>(null)
 
   const goToPage = (index: number) => scrollToPage(scrollRef, pageRefs, index)
 
@@ -252,6 +258,9 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         setRoles(data.roles)
         setEditableRoles(editable)
         setSlots(saved)
+        setHeld(!approverMode && !!data.held)
+        // Straight into drawing for the first position that has no box yet.
+        if (!approverMode) setDrawRole((data.roles as Role[]).find((r) => !saved.some((s) => s.role_code === r.code))?.code ?? null)
         if (approverMode && !data.editable) setMessage({ ok: false, text: 'Posisi tanda tangan tidak dapat diubah lagi untuk link ini.' })
         const pdfjs = await loadPdfJs()
         // Approvers have no session: their token opens the not-yet-published file.
@@ -475,7 +484,55 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const onPointerUp = () => { drag.current = null }
+  // Draw mode: press on an empty part of a page and drag — the box of the
+  // chosen position is drawn from that corner (a plain click drops one of the usual size).
+  const startDraw = (e: ReactPointerEvent) => {
+    const role = drawRole
+    if (!role || !canEdit(role)) return false
+    const page = pageRefs.current.findIndex((el) => {
+      if (!el) return false
+      const r = el.getBoundingClientRect()
+      return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom
+    })
+    if (page < 0) return false
+    if (countFor(role) >= MAX_PER_ROLE) {
+      setMessage({ ok: false, text: `Maksimal ${MAX_PER_ROLE} QR per approver.` })
+      return true
+    }
+    e.preventDefault()
+    const r = pageRefs.current[page]!.getBoundingClientRect()
+    const slot: Slot = { role_code: role, page, x: Math.min((e.clientX - r.left) / r.width, 0.98), y: Math.min((e.clientY - r.top) / r.height, 0.985), w: 0.004, h: 0.004, date: null, key: newKey(role) }
+    setSlots((current) => [...current, slot])
+    setSelected(slot.key)
+    setSelectedPart('qr')
+    setDirty(true)
+    setMessage(null)
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    drawing.current = slot.key
+    drag.current = { key: slot.key, target: 'qr', mode: 'resize', startX: e.clientX, startY: e.clientY, orig: slot }
+    return true
+  }
+
+  const onPointerUp = () => {
+    drag.current = null
+    const key = drawing.current
+    if (!key) return
+    drawing.current = null
+    setSlots((current) => {
+      const next = current.map((s) => {
+        if (s.key !== key) return s
+        // A click without dragging: the usual square, centred on the click.
+        const ratio = ratios[s.page] ?? 1.414
+        const sized = s.w < 0.03 || s.h < 0.02
+          ? { ...s, w: 0.1, h: 0.1 / ratio, x: Math.min(Math.max(s.x - 0.05, 0), 0.9), y: Math.min(Math.max(s.y - 0.05 / ratio, 0), 1 - 0.1 / ratio) }
+          : s
+        return { ...sized, date: autoDate(sized) }
+      })
+      // On to the next position that still has no box.
+      setDrawRole(roles.find((r) => canEdit(r.code) && !next.some((s) => s.role_code === r.code))?.code ?? null)
+      return next
+    })
+  }
 
   const runDetect = async () => {
     if (!pdf) return
@@ -514,6 +571,13 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   }
 
   const save = async () => {
+    // A request held for its boxes is only sent complete: one box per position at least.
+    const unplaced = held ? roles.filter((r) => canEdit(r.code) && !slots.some((s) => s.role_code === r.code)) : []
+    if (unplaced.length) {
+      setMessage({ ok: false, text: `Belum ada kotak QR untuk: ${unplaced.map((r) => r.title).join(', ')}. Pilih role-nya di atas, lalu seret di dokumen.` })
+      setDrawRole(unplaced[0].code)
+      return
+    }
     setBusy('save')
     setMessage(null)
     try {
@@ -534,8 +598,9 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan.')
       setDirty(false)
-      setMessage({ ok: true, text: `Posisi QR disimpan (${payload.length}).` })
-      await onSaved?.()
+      setMessage({ ok: true, text: data.sent ? 'Posisi QR disimpan — permintaan pengesahan dikirim ke approver pertama.' : `Posisi QR disimpan (${payload.length}).` })
+      if (!approverMode) setHeld(!!data.held)
+      await onSaved?.(!!data.sent)
     } catch (error) {
       setMessage({ ok: false, text: error instanceof Error ? error.message : 'Gagal menyimpan.' })
     } finally {
@@ -571,10 +636,40 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
               <span className="font-mono text-xs text-muted-foreground">Halaman {pageIndex + 1} / {pdf?.numPages ?? '–'}</span>
               <button type="button" disabled={!pdf || pageIndex >= pdf.numPages - 1} onClick={() => goToPage(pageIndex + 1)} className="grid size-8 place-items-center rounded-full hover:bg-secondary disabled:opacity-30" aria-label="Halaman berikutnya"><ChevronRight className="size-4" /></button>
             </div>
+            {!approverMode && myRoles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-card px-4 py-2.5" aria-label="Pilih role approver">
+                <span className="mr-1 text-xs font-semibold text-foreground">Buat kotak QR untuk:</span>
+                {myRoles.map((role) => {
+                  const color = colorOf(role.code)
+                  const count = countFor(role.code)
+                  const active = drawRole === role.code
+                  return (
+                    <button
+                      key={role.code}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setDrawRole(active ? null : role.code)}
+                      title={`${role.title} — ${role.person_name}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-bold transition"
+                      style={active ? { background: color, borderColor: color, color: '#fff' } : { borderColor: color, color }}
+                    >
+                      {count > 0 ? <Check className="size-3.5" strokeWidth={3} /> : <MousePointerClick className="size-3.5" />}
+                      {role.title}
+                      {count > 1 && <span className="font-mono text-[10px]">×{count}</span>}
+                    </button>
+                  )
+                })}
+                <span className="basis-full text-[11px] leading-4 text-muted-foreground sm:basis-auto sm:pl-1">
+                  {drawRole
+                    ? <>Seret di dokumen untuk menggambar kotak QR <strong className="text-foreground">{roles.find((r) => r.code === drawRole)?.title}</strong>.</>
+                    : 'Pilih role, lalu seret di dokumen. Kotak yang sudah ada bisa digeser dan diubah ukurannya.'}
+                </span>
+              </div>
+            )}
             <div
               ref={scrollRef}
-              className="min-h-0 flex-1 overflow-auto p-3 sm:p-4"
-              onPointerDown={() => setSelected(null)}
+              className={`min-h-0 flex-1 overflow-auto p-3 sm:p-4 ${drawRole ? 'cursor-crosshair touch-none' : ''}`}
+              onPointerDown={(e) => { if (!startDraw(e)) setSelected(null) }}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
               onPointerCancel={onPointerUp}
@@ -808,9 +903,10 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
             )}
 
             <div className="mt-auto flex flex-col gap-2 pt-2">
+              {held && <p className="rounded-xl border border-amber-500/40 bg-amber-50 px-3 py-2 text-[11.5px] leading-5 text-amber-900">Email pengesahan <strong>belum dikirim</strong>. Buat kotak QR untuk setiap role, lalu simpan — approver tinggal menekan Setujui dan QR-nya tercetak di kotak itu.</p>}
               {myRoles.length > 0 && (
-                <button type="button" onClick={save} disabled={busy !== null || (!dirty && !saveLabel)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-                  {busy === 'save' ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} {saveLabel ?? 'Simpan posisi'}
+                <button type="button" onClick={save} disabled={busy !== null || (!dirty && !saveLabel && !held)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                  {busy === 'save' ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} {saveLabel ?? (held ? 'Simpan posisi & kirim ke approver' : 'Simpan posisi')}
                 </button>
               )}
               {secondaryAction && (

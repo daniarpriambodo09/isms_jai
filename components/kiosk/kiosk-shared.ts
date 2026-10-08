@@ -3,8 +3,9 @@
 // both render the same vendor_registrations data, just filtered/labeled
 // differently for their respective kiosk role.
 
-import { useEffect } from 'react'
-import type { CardType } from '@/components/kiosk/ActiveCardsWidget'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { API_BASE_PATH } from '@/lib/config'
+import type { CardType, PermitCard } from '@/components/kiosk/ActiveCardsWidget'
 
 // Lobby and Security work the same guests from two different kiosks
 // (Security approves → Lobby swaps cards → Security closes), so each screen
@@ -25,6 +26,56 @@ export function useKioskAutoRefresh(refresh: () => void, intervalMs = KIOSK_REFR
       document.removeEventListener('visibilitychange', tick)
     }
   }, [refresh, intervalMs])
+}
+
+// Cards that are out on a permit instead of a guest registration, for "Kartu
+// Sedang Digunakan" at both kiosks:
+// - the ID Photography entered on an Ijin Foto/Video request → Photography;
+// - the ID Card No. entered (or scanned) on an Izin Masuk Area Special → Special Area.
+// A card counts while its request isn't rejected and its period isn't long
+// over (and, for photos, until they are marked as taken).
+const PERMIT_CARD_GRACE_MS = 12 * 3_600_000
+
+const CARDS_CHANGED = 'isms:cards-changed'
+/** Call after saving a permit's card number, so "Kartu Sedang Digunakan" doesn't wait for its next refresh. */
+export function cardsChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CARDS_CHANGED))
+}
+
+export function usePermitCards(): PermitCard[] {
+  const [photo, setPhoto] = useState<PermitCard[]>([])
+  const [special, setSpecial] = useState<PermitCard[]>([])
+  const load = useCallback(async () => {
+    const stillOut = (toAt: string) => Date.parse(toAt) > Date.now() - PERMIT_CARD_GRACE_MS
+    const waiting = (status: string) => (status === 'pending' ? ' (menunggu)' : '')
+    // each list on its own: one that fails keeps what it showed
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, { cache: 'no-store', credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json() as { requests?: { id: number; requester_name: string; photo_id_no: string | null; status: string; taken_at: string | null; from_at: string; to_at: string }[] }
+        setPhoto((data.requests ?? [])
+          .filter((r) => r.photo_id_no?.trim() && r.status !== 'rejected' && !r.taken_at && stillOut(r.to_at))
+          .map((r) => ({ key: `foto-${r.id}`, type: 'photography' as const, name: r.requester_name, code: r.photo_id_no!.trim(), from: r.from_at, note: `izin foto${waiting(r.status)}` })))
+      }
+    } catch { /* keep what is shown */ }
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/special-area-requests`, { cache: 'no-store', credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json() as { requests?: { id: number; requester_name: string; id_card_no: string | null; status: string; from_at: string; to_at: string }[] }
+        setSpecial((data.requests ?? [])
+          .filter((r) => r.id_card_no?.trim() && r.status !== 'rejected' && stillOut(r.to_at))
+          .map((r) => ({ key: `area-${r.id}`, type: 'special_area' as const, name: r.requester_name, code: r.id_card_no!.trim(), from: r.from_at, note: `izin area special${waiting(r.status)}` })))
+      }
+    } catch { /* keep what is shown */ }
+  }, [])
+  useEffect(() => { load() }, [load])
+  useKioskAutoRefresh(load)
+  // A card number just entered or scanned on this screen shows up at once (see cardsChanged).
+  useEffect(() => {
+    window.addEventListener(CARDS_CHANGED, load)
+    return () => window.removeEventListener(CARDS_CHANGED, load)
+  }, [load])
+  return useMemo(() => [...photo, ...special], [photo, special])
 }
 
 export type Stage = 'pending_approval' | 'active' | 'closed'

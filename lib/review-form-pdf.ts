@@ -66,6 +66,14 @@ export const REVIEW_SIGN_SLOTS: Record<ReviewBox, { page: number; x: number; y: 
     }]
   })) as never
 
+// Where the form prints each box's heading (centre and baseline, as fractions
+// of the page) — an uploaded form is matched to the template by these.
+export const REVIEW_BOX_HEADINGS: Record<ReviewBox, { key: string; cx: number; y: number }> = {
+  approval: { key: 'APPROVED', cx: 0.56224, y: 0.82942 },
+  checked: { key: 'CHECKED', cx: 0.70096, y: 0.82942 },
+  prepared: { key: 'PREPARED', cx: 0.83994, y: 0.82942 },
+}
+
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 // 2025-01-23 → 23-Jan-25, the way the paper form is filled.
 export function formatFormDate(value: string | null) {
@@ -73,16 +81,87 @@ export function formatFormDate(value: string | null) {
   return m ? `${m[3]}-${MONTHS_SHORT[Number(m[2]) - 1]}-${m[1].slice(2)}` : ''
 }
 
+// The built-in PDF font only has Latin-1 plus a few typographic signs: anything
+// else pasted into a field (an emoji, an arrow, a non-Latin letter) would make
+// drawing fail, so it is shown as "?".
+function printable(value: string) {
+  return value.replace(/[^\x20-\x7E -ÿ–—‘’“”…•]/g, '?')
+}
+
 function wrap(font: PDFFont, value: string, size: number, widths: number[]): string[] {
   const lines: string[] = []
   let current = ''
-  for (const word of value.split(/\s+/).filter(Boolean)) {
+  const widthOf = (text: string) => font.widthOfTextAtSize(text, size)
+  const maxAt = () => widths[Math.min(lines.length, widths.length - 1)]
+  for (let word of value.split(/\s+/).filter(Boolean)) {
+    // A "word" wider than a whole line (a long link, a code) is cut across lines.
+    while (widthOf(word) > maxAt()) {
+      if (current) { lines.push(current); current = '' }
+      let cut = word.length - 1
+      while (cut > 1 && widthOf(word.slice(0, cut)) > maxAt()) cut--
+      lines.push(word.slice(0, cut))
+      word = word.slice(cut)
+    }
     const candidate = current ? `${current} ${word}` : word
-    const max = widths[Math.min(lines.length, widths.length - 1)]
-    if (current && font.widthOfTextAtSize(candidate, size) > max) { lines.push(current); current = word } else current = candidate
+    if (current && widthOf(candidate) > maxAt()) { lines.push(current); current = word } else current = candidate
   }
   if (current) lines.push(current)
   return lines
+}
+
+// Where "Detail revisi" is written: line 1 spans the form, the rest stay left of the signature table.
+const DETAIL_X = 56
+const DETAIL_WIDTHS = [486, 226]
+const DETAIL_FLOOR = 60 // lowest baseline above the form's frame (its bottom line is at ~48)
+const DETAIL_GAP = 3 // extra room under the second dotted line, so the continuation doesn't sit on it
+const DETAIL_MORE = '… (lanjut di lampiran)'
+
+/** Lines, type size and line spacing that put the text in the space the form has for it. */
+export function layoutDetail(font: PDFFont, value: string): { lines: string[]; size: number; leading: number; overflow: boolean } {
+  const text = printable(value.trim())
+  const capacity = (leading: number) => 2 + Math.floor((ROW.detail2 - DETAIL_GAP - DETAIL_FLOOR) / leading)
+  for (const size of [9.5, 9, 8.5, 8, 7.5, 7]) {
+    const leading = size + 1.8
+    const lines = text ? wrap(font, text, size, DETAIL_WIDTHS) : []
+    if (lines.length <= capacity(leading)) return { lines, size, leading, overflow: false }
+  }
+  // Too long even in small type: as much as fits at a readable size, then the pointer.
+  const size = 8
+  const leading = size + 1.8
+  const lines = wrap(font, text, size, DETAIL_WIDTHS).slice(0, capacity(leading))
+  let last = lines[lines.length - 1] ?? ''
+  const width = DETAIL_WIDTHS[1]
+  while (last.length > 1 && font.widthOfTextAtSize(`${last} ${DETAIL_MORE}`, size) > width) last = last.replace(/\s*\S+$/, '')
+  lines[lines.length - 1] = `${last} ${DETAIL_MORE}`
+  return { lines, size, leading, overflow: true }
+}
+
+// The attached page for a "Detail revisi" too long for the form: the whole text, under the form's number.
+async function addDetailPage(pdf: PDFDocument, font: PDFFont, data: ReviewFormData) {
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const MARGIN = 56
+  const WIDTH = PAGE_W - 2 * MARGIN
+  const SIZE = 10
+  const LEADING = 14.5
+  const lines = wrap(font, printable(data.detailRevisi.trim()), SIZE, [WIDTH])
+  let page = pdf.addPage([PAGE_W, PAGE_H])
+  let y = PAGE_H - 70
+  const heading = (continued: boolean) => {
+    page.drawText(`Lampiran Form Review & Revisi Dokumen ISMS${continued ? ' (lanjutan)' : ''}`, { x: MARGIN, y, size: 12, font: bold, color: INK })
+    y -= 17
+    page.drawText(printable(`Kontrol No. Form: ${data.formNo}   ·   ${[data.docControlNo, data.docTitle].filter(Boolean).join(' — ')}`).slice(0, 120), { x: MARGIN, y, size: 8.5, font, color: INK })
+    y -= 10
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.8, color: INK })
+    y -= 22
+    page.drawText('DETAIL REVISI', { x: MARGIN, y, size: 10.5, font: bold, color: INK })
+    y -= 18
+  }
+  heading(false)
+  for (const line of lines) {
+    if (y < 60) { page = pdf.addPage([PAGE_W, PAGE_H]); y = PAGE_H - 70; heading(true) }
+    page.drawText(line, { x: MARGIN, y, size: SIZE, font, color: INK })
+    y -= LEADING
+  }
 }
 
 export async function buildReviewFormPdf(data: ReviewFormData): Promise<Uint8Array> {
@@ -94,6 +173,7 @@ export async function buildReviewFormPdf(data: ReviewFormData): Promise<Uint8Arr
   // Shrinks to fit one line of `maxWidth`, then cuts with an ellipsis.
   const write = (value: string, x: number, y: number, maxWidth: number, size = 10.5) => {
     if (!value) return
+    value = printable(value)
     let s = size
     while (s > 7 && font.widthOfTextAtSize(value, s) > maxWidth) s -= 0.5
     let shown = value
@@ -155,10 +235,19 @@ export async function buildReviewFormPdf(data: ReviewFormData): Promise<Uint8Arr
   if (data.result) tick(X_LEVEL, RESULT_BASELINE[data.result])
   if (data.result === 'ditarik') write(formatFormDate(data.withdrawnFrom), 420, ROW.withdrawn, 100)
 
-  // ── detail revisi: a full line, then a short one beside the signature table ──
-  const detail = wrap(font, data.detailRevisi, 9.5, [486, 228])
-  write(detail[0] ?? '', 56, ROW.detail1, 486, 9.5)
-  write(detail.slice(1).join(' '), 56, ROW.detail2, 228, 9.5)
+  // ── detail revisi ──
+  // The form has two dotted lines: a full one, then a short one beside the
+  // signature table. A longer text carries on under the second line, in the
+  // blank space left of the signature boxes (nothing is drawn there, so the
+  // form's layout stays as printed), in smaller type when that makes it fit.
+  // What still doesn't fit ends with a pointer to the attached page, which
+  // carries the whole text.
+  const detail = layoutDetail(font, data.detailRevisi)
+  detail.lines.forEach((line, i) => {
+    const y = i === 0 ? ROW.detail1 : i === 1 ? ROW.detail2 : ROW.detail2 - DETAIL_GAP - (i - 1) * detail.leading
+    page.drawText(line, { x: DETAIL_X, y, size: detail.size, font, color: INK })
+  })
+  if (detail.overflow) await addDetailPage(pdf, font, data)
 
   pdf.setTitle(`Form Review & Revisi Dokumen ISMS — ${data.formNo}`)
   return pdf.save()

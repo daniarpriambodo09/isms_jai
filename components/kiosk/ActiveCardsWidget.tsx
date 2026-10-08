@@ -39,15 +39,27 @@ function formatShortDate(value: string | null) {
   return new Date(value).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })
 }
 
+/**
+ * A card that is out on a permit rather than a guest registration: the ID
+ * Photography of an Ijin Foto/Video request, or the ID Card of an Izin Masuk
+ * Area Special. `note` says which ("izin foto", "izin area special (menunggu)").
+ */
+export type PermitCard = { key: string; type: CardType; name: string; code: string; from: string; note: string }
+
 // Live "which physical cards are currently checked out" panel, grouped by card
 // type — mirrors the legacy Lobby system's usage-count columns, minus the fixed
 // card-number inventory (this app keeps free-form barcodes on purpose).
+// permitCards: card numbers entered on Ijin Foto/Video and Izin Area Special
+// requests that are still running — they are cards in use too, listed under
+// Photography and Special Area.
 export function ActiveCardsWidget({
   registrations,
   cardTypes,
+  permitCards = [],
 }: {
   registrations: MinimalRegistration[]
   cardTypes: CardType[]
+  permitCards?: PermitCard[]
 }) {
   const active = registrations.filter((r) => r.stage === 'active' && r.current_card_type)
 
@@ -61,6 +73,7 @@ export function ActiveCardsWidget({
         {cardTypes.map((type) => {
           const meta = CARD_META[type]
           const items = active.filter((r) => r.current_card_type === type)
+          const permits = permitCards.filter((card) => card.type === type)
           return (
             // On a phone (two columns) a lone last card spans the row instead of leaving an empty grey cell.
             <div key={type} className="bg-card p-4 max-sm:odd:last:col-span-full">
@@ -71,10 +84,20 @@ export function ActiveCardsWidget({
                 >
                   {meta.label}
                 </span>
-                <span className="text-xs font-semibold text-muted-foreground">{items.length}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{items.length + permits.length}</span>
               </div>
               <div className="max-h-32 space-y-1.5 overflow-y-auto pr-1">
-                {items.length === 0 && <p className="text-[11px] text-muted-foreground/60">Tidak ada</p>}
+                {items.length + permits.length === 0 && <p className="text-[11px] text-muted-foreground/60">Tidak ada</p>}
+                {permits.map((p) => (
+                  <div key={p.key} className="text-[11px]" title={`Dari pengajuan ${p.note}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-foreground">{p.name}</span>
+                      <span className="flex-shrink-0 text-muted-foreground">{formatShortDate(p.from)}</span>
+                    </div>
+                    <span className="font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">{p.code}</span>
+                    <span className="ml-1.5 text-[10px] text-muted-foreground/80">· {p.note}</span>
+                  </div>
+                ))}
                 {items.map((r) => (
                   <div key={r.id} className="text-[11px]">
                     <div className="flex items-center justify-between gap-2">

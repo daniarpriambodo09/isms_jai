@@ -58,6 +58,8 @@ export type EsignRequestData = {
   approverTitle: string | null
   verificationCode: string
   submittedAt: string
+  /** PIC Pendamping picked by Lobby / Pos Security ("Nama (Dept)"), if any. */
+  escort?: string | null
   cameraSerialNo: string | null
 }
 
@@ -77,9 +79,9 @@ const HALF_H = CROP_BOTTOM // the y-offset subtracted from every absolute
 // coordinate measured on the source PDF to land in the embedded page's
 // own (0,0)-origin coordinate space.
 
-function toLocal(y: number) {
-  return y - HALF_H
-}
+// Height of the strip added under the form when a PIC Pendamping is printed
+// (the verification footnote moves down into it — see buildEsignPdf).
+const ESCORT_STRIP = 12
 
 function fmtFreeDate(value: string) {
   return new Date(value).toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE, day: 'numeric', month: 'long', year: 'numeric' })
@@ -132,10 +134,18 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   const font = await pdf.embedFont(StandardFonts.Helvetica)
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
 
+  // The form has no PIC Pendamping field and only one free line (between the
+  // table and the frame), which the verification footnote uses. With a PIC
+  // Pendamping that line is theirs — written like the rows above, no line or
+  // box added — and the footnote goes into a strip added under the frame.
+  const escort = data.escort?.trim() || null
+  const extra = escort ? ESCORT_STRIP : 0
+  const toLocal = (y: number) => y - HALF_H + extra
+
   const cropHeight = FULL_H - CROP_BOTTOM
   const embeddedTemplate = await pdf.embedPage(templatePage, { left: 0, bottom: CROP_BOTTOM, right: PAGE_W, top: FULL_H })
-  const page: PDFPage = pdf.addPage([PAGE_W, cropHeight])
-  page.drawPage(embeddedTemplate, { x: 0, y: 0, width: PAGE_W, height: cropHeight })
+  const page: PDFPage = pdf.addPage([PAGE_W, cropHeight + extra])
+  page.drawPage(embeddedTemplate, { x: 0, y: extra, width: PAGE_W, height: cropHeight })
 
   const text = (value: string, x: number, yAbs: number, opts: { size?: number; f?: PDFFont; color?: ReturnType<typeof rgb> } = {}) => {
     page.drawText(value, { x, y: toLocal(yAbs), size: opts.size ?? 9.5, font: opts.f ?? font, color: opts.color ?? TEXT })
@@ -285,7 +295,16 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   const FOOT_SIZE = 6.5
   const FOOT_X = 34
   const FOOT_RIGHT = 560
-  const footBaseline = toLocal((451.6 + 437.7) / 2) - FOOT_SIZE * 0.36
+  const stripMiddle = toLocal((451.6 + 437.7) / 2)
+  if (escort) {
+    const size = 9
+    const value = fitOneLine(bold, escort, 470 - VALUE_X, size)
+    page.drawText('PIC PENDAMPING', { x: 34.5, y: stripMiddle - 8.5 * 0.36, size: 8.5, font: bold, color: TEXT })
+    page.drawText(':', { x: COLON_X, y: stripMiddle - size * 0.36, size: 10, font: bold, color: TEXT })
+    page.drawText(value.text, { x: VALUE_X, y: stripMiddle - value.size * 0.36, size: value.size, font: bold, color: TEXT })
+  }
+  // Below the frame (its bottom line sits at 437.7) when the line above is taken.
+  const footBaseline = escort ? (toLocal(437.7) - FOOT_SIZE) / 2 : stripMiddle - FOOT_SIZE * 0.36
   const codeLabel = `Kode Verifikasi: ${data.verificationCode}`
   page.drawText(codeLabel, { x: FOOT_X, y: footBaseline, size: FOOT_SIZE, font: bold, color: rgb(0.35, 0.35, 0.35) })
   const linkX = FOOT_X + bold.widthOfTextAtSize(codeLabel, FOOT_SIZE) + 12

@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
+import { EscortPicker, useEscortList } from '@/components/escort-picker'
 
 type LedgerRequest = {
   id: number
@@ -35,6 +36,10 @@ type LedgerRequest = {
   photo_id_no: string | null
   camera_serial_no: string | null
   pic_jai: string | null
+  escort_name: string | null
+  escort_dept: string | null
+  escort_set_by: string | null
+  taken_at: string | null
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -71,6 +76,31 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   // staff and the public see the ledger read-only.
   const { adminUser } = useAuth()
   const canDelete = adminUser?.role === 'ism_admin'
+  // PIC Pendamping: picked by Lobby / Pos Security / the ISM Admin; everyone else just reads it.
+  const canAssignEscort = !!adminUser
+  const escorts = useEscortList(canAssignEscort)
+  const escortCell = (r: LedgerRequest) => (
+    <td className="px-4 py-3 text-xs text-muted-foreground">
+      {canAssignEscort ? (
+        <EscortPicker
+          current={r.escort_name ? { name: r.escort_name, dept: r.escort_dept } : null}
+          setBy={r.escort_set_by}
+          escorts={escorts}
+          closed={r.status === 'rejected'}
+          // Approved, still in force and not done yet: someone has to accompany them.
+          urgent={r.status === 'approved' && !r.taken_at && Date.parse(r.to_at) > Date.now()}
+          onSave={async (choice) => {
+            const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${r.id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'setEscort', ...choice }) }).catch(() => null)
+            if (!res?.ok) return false
+            const data = await res.json().catch(() => null)
+            const saved = data?.request as Pick<LedgerRequest, 'escort_name' | 'escort_dept' | 'escort_set_by'> | undefined
+            setRequests((current) => current.map((row) => (row.id === r.id ? { ...row, escort_name: saved?.escort_name ?? null, escort_dept: saved?.escort_dept ?? null, escort_set_by: saved?.escort_set_by ?? null } : row)))
+            return true
+          }}
+        />
+      ) : r.escort_name ? <>{r.escort_name}{r.escort_dept && <span className="block text-[11px] text-muted-foreground/80">{r.escort_dept}</span>}</> : '—'}
+    </td>
+  )
   const [deleteTarget, setDeleteTarget] = useState<LedgerRequest | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -153,7 +183,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     if (locale === 'internal') {
       downloadExcel(
         `rekap-foto-video-internal-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.nik ?? '',
@@ -163,6 +193,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
           r.camera_control_no ?? '',
           r.photo_id_no ?? '',
           r.pic_approve_name ?? '',
+          r.escort_name ? `${r.escort_name}${r.escort_dept ? ` (${r.escort_dept})` : ''}` : '',
           formatDateTime(r.from_at),
           formatDateTime(r.to_at),
           r.location,
@@ -174,7 +205,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     } else {
       downloadExcel(
         `rekap-foto-video-visitor-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.requester_name,
@@ -183,6 +214,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
           r.pic_jai ?? '',
           r.camera_serial_no ?? '',
           r.photo_id_no ?? '',
+          r.escort_name ? `${r.escort_name}${r.escort_dept ? ` (${r.escort_dept})` : ''}` : '',
           formatDateTime(r.from_at),
           formatDateTime(r.to_at),
           r.location,
@@ -195,8 +227,8 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   }
 
   const visitorActions = canViewPdf || canDelete
-  const internalColCount = canDelete ? 15 : 14
-  const visitorColCount = visitorActions ? 14 : 13
+  const internalColCount = canDelete ? 16 : 15
+  const visitorColCount = visitorActions ? 15 : 14
 
   return (
     <div className="flex flex-col gap-6">
@@ -241,10 +273,10 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           {locale === 'internal' ? (
-            <table className="w-full min-w-[1480px] text-sm">
+            <table className="w-full min-w-[1640px] text-sm">
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -267,6 +299,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.camera_control_no ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.photo_id_no ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_approve_name ?? '—'}</td>
+                    {escortCell(r)}
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.from_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.to_at)}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.location}</td>
@@ -278,10 +311,10 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
               </tbody>
             </table>
           ) : (
-            <table className={`w-full text-sm ${visitorActions ? 'min-w-[1440px]' : 'min-w-[1360px]'}`}>
+            <table className={`w-full text-sm ${visitorActions ? 'min-w-[1600px]' : 'min-w-[1520px]'}`}>
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(visitorActions ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(visitorActions ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -303,6 +336,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.camera_serial_no ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.photo_id_no ?? '—'}</td>
+                    {escortCell(r)}
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.from_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.to_at)}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.location}</td>

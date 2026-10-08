@@ -9,6 +9,7 @@ import { CheckCircle2, Clock, Loader2, ScanLine, ShieldAlert, X } from 'lucide-r
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { SPECIAL_AREAS } from '@/lib/special-area-shared'
+import { cardsChanged } from '@/components/kiosk/kiosk-shared'
 
 const input = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const label = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
@@ -126,6 +127,7 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
       if (!res.ok) { setError(data.message ?? 'Gagal mengirim pengajuan.'); return }
       setDone({ emailError: data.emailError ?? null })
       onSaved()
+      cardsChanged()
     } catch {
       setError('Tidak dapat menghubungi server.')
     } finally {

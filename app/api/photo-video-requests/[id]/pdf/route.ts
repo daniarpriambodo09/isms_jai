@@ -25,6 +25,8 @@ type Row = {
   submitted_at: string
   verification_code: string | null
   camera_serial_no: string | null
+  escort_name: string | null
+  escort_dept: string | null
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const result = await query<Row>(
-      `SELECT id, requester_name, dept_or_company, dept, from_at, to_at, location, objective, status, decided_at, decided_by, decided_by_title, submitted_at, verification_code, camera_serial_no
+      `SELECT id, requester_name, dept_or_company, dept, from_at, to_at, location, objective, status, decided_at, decided_by, decided_by_title, submitted_at, verification_code, camera_serial_no, escort_name, escort_dept
        FROM photo_video_requests WHERE id = $1 AND request_type = 'visitor'`,
       [id]
     )
@@ -71,6 +73,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         verificationCode: row.verification_code,
         submittedAt: row.submitted_at,
         cameraSerialNo: row.camera_serial_no,
+        escort: row.escort_name ? `${row.escort_name}${row.escort_dept ? ` (${row.escort_dept})` : ''}` : null,
       },
       verifyUrl
     )

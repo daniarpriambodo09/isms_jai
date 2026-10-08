@@ -1,0 +1,479 @@
+// components/kiosk/SecurityView.tsx
+//
+// Pos Security: guests are registered here ("Pendaftaran >>"), wait for
+// approval, and get a Security VISITOR card when approved (scan). Cards for
+// the work areas (Vendor, Special Area, Photography) belong to the Lobby —
+// the swap is done there, and the visit is closed here when the guest hands
+// the Security card back. The two posts' cards are different sets, which is
+// why this post has its own flow instead of the Lobby's "register + issue a
+// card" buttons.
+'use client'
+
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { ArrowDownUp, Check, Download, KeyRound, LogOut, Pencil, Plus, RotateCcw, ScanLine, ShieldCheck, Trash2, X } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { API_BASE_PATH } from '@/lib/config'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
+import { ChangePasswordModal } from '@/components/change-password-modal'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
+import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
+import { downloadExcel } from '@/lib/excel-export'
+import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
+import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, stationOf, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
+
+// Handles both "Pendaftaran" (new) and "Edit Data" (existing) — same fields
+// either way, just POST vs. PUT action=editDetails underneath.
+function RegisterModal({ editing, onClose, onSaved }: { editing?: Registration | null; onClose: () => void; onSaved: () => void }) {
+  const [fullName, setFullName] = useState(editing?.full_name ?? '')
+  const [idCard, setIdCard] = useState(editing?.id_card ?? '')
+  const [picJai, setPicJai] = useState(editing?.pic_jai ?? '')
+  const [purpose, setPurpose] = useState(editing?.purpose ?? '')
+  const [companyRemark, setCompanyRemark] = useState(editing?.company_remark ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEscapeClose(true, onClose)
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    setError(null)
+    setSubmitting(true)
+    try {
+      const res = editing
+        ? await fetch(`${API_BASE_PATH}/api/vendor-registrations/${editing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ action: 'editDetails', fullName, idCard, picJai, purpose, companyRemark }),
+          })
+        : await fetch(`${API_BASE_PATH}/api/vendor-registrations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark }),
+          })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
+      onSaved()
+      onClose()
+    } catch {
+      setError('Tidak dapat menghubungi server.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
+      <div role="dialog" aria-modal="true" aria-label={editing ? 'Edit Data Pendaftaran' : 'Pendaftaran Supplier / Vendor'} className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between bg-primary px-6 py-5 text-primary-foreground">
+          <h2 className="text-lg font-bold">{editing ? 'Edit Data Pendaftaran' : 'Pendaftaran Supplier / Vendor'}</h2>
+          <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
+            <X className="size-[18px]" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
+          <label>
+            <span className={labelClass}>Nama Lengkap</span>
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required autoFocus className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Kartu Identitas (KTP/SIM/Paspor)</span>
+            <input value={idCard} onChange={(e) => setIdCard(e.target.value)} required className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>PIC JAI yang Ditemui</span>
+            <input value={picJai} onChange={(e) => setPicJai(e.target.value)} required className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Tujuan</span>
+            <input value={purpose} onChange={(e) => setPurpose(e.target.value)} required className={inputClass} />
+          </label>
+          <label>
+            <span className={labelClass}>Keterangan (Perusahaan)</span>
+            <input value={companyRemark} onChange={(e) => setCompanyRemark(e.target.value)} required className={inputClass} />
+          </label>
+
+          {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-border bg-card py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary">
+              Kembali
+            </button>
+            <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+              {submitting ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Daftar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Small "scan the physical card" confirmation prompt, reused for both
+// Approve (issuing a VISITOR card) and Close (accepting a returned one).
+function ScanPrompt({
+  title,
+  description,
+  submitLabel,
+  expectedBarcode,
+  onClose,
+  onSubmit,
+}: {
+  title: string
+  description: string
+  submitLabel: string
+  expectedBarcode?: string | null
+  onClose: () => void
+  onSubmit: (barcode: string) => Promise<string | null>
+}) {
+  const [barcode, setBarcode] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+
+  useEscapeClose(true, onClose)
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
+    setError(null)
+    setSubmitting(true)
+    const message = await onSubmit(barcode.trim())
+    setSubmitting(false)
+    if (message) setError(message)
+  }
+
+  const trimmed = barcode.trim()
+  const matches = expectedBarcode ? trimmed === expectedBarcode : null
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
+      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div className="flex items-center justify-between bg-primary px-5 py-4 text-primary-foreground">
+          <h2 className="text-sm font-bold">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-7 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
+            <X className="size-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-5">
+          <p className="text-xs text-muted-foreground">{description}</p>
+          {expectedBarcode && (
+            <div className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Nomor Kartu Terdaftar</p>
+              <p className="font-mono text-sm font-bold tracking-wide text-foreground">{expectedBarcode}</p>
+            </div>
+          )}
+          <div className="relative">
+            <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan atau ketik barcode..." className={`${inputClass} pl-10`} />
+          </div>
+          {expectedBarcode && trimmed && (
+            matches
+              ? <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
+              : <p className="flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
+          )}
+          {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-secondary">Batal</button>
+            <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+              {submitting ? 'Memproses...' : submitLabel}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const STAGE_BADGE: Record<string, string> = {
+  pending_approval: 'bg-[#fff3d6] text-[#8a6100]',
+  visitor: 'bg-[#dff5e6] text-[#1a6e3a]',
+  working: 'bg-[#edf6ff] text-[#1a5fa0]',
+  closed: 'bg-secondary text-muted-foreground',
+}
+
+function statusOf(r: Registration): { key: string; label: string } {
+  if (r.stage === 'pending_approval') return { key: 'pending_approval', label: 'Menunggu Approval' }
+  if (r.stage === 'closed') return { key: 'closed', label: 'Selesai' }
+  if (r.current_card_type === 'visitor') return { key: 'visitor', label: 'Kartu Visitor' }
+  return { key: 'working', label: 'Di Area Kerja' }
+}
+
+export function SecurityView() {
+  const { adminUser, logout } = useAuth()
+  // A month/year badge elsewhere in the portal (e.g. the Form Aplikasi group
+  // header) can deep-link here as ?month=0-11&year=YYYY to land pre-filtered
+  // on that period instead of the unfiltered full list.
+  const searchParams = useSearchParams()
+  const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
+  const [formOpen, setFormOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Registration | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [scanTarget, setScanTarget] = useState<{ registration: Registration; action: 'approve' | 'close' } | null>(null)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
+  const [filterYear, setFilterYear] = useState(searchParams.get('year') ?? '')
+  const permitCards = usePermitCards()
+
+  // silent = background refresh (no spinner, keeps the current list on a
+  // transient error) — see useKioskAutoRefresh.
+  const load = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true
+    if (!silent) setLoading(true)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations?sort=${sort}`, { cache: 'no-store', credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      // This post's guests: registered through "Pendaftaran" here, or at this post while it had the Lobby's buttons.
+      setRegistrations(((data.registrations ?? []) as Registration[]).filter((r) => r.entry_path === 'security' || stationOf(r) === 'security'))
+      setError(null)
+    } catch (e) {
+      if (silent) return
+      setRegistrations([])
+      setError(e instanceof Error ? e.message : 'Gagal memuat data.')
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [sort])
+
+  useEffect(() => { load() }, [load])
+  const refreshSilently = useCallback(() => { load({ silent: true }) }, [load])
+  useKioskAutoRefresh(refreshSilently)
+
+  const years = useMemo(() => availableYears(registrations, (r) => r.registered_at), [registrations])
+  const filteredRegistrations = useMemo(
+    () => registrations.filter((r) => matchesPeriod(r.registered_at, filterMonth, filterYear)),
+    [registrations, filterMonth, filterYear]
+  )
+
+  const handleExportCsv = () => {
+    downloadExcel(
+      `rekap-tamu-security-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      ['Tanggal/Jam', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status'],
+      filteredRegistrations.map((r) => [
+        formatDateTime(r.registered_at),
+        r.full_name,
+        r.id_card,
+        r.pic_jai,
+        r.purpose,
+        r.company_remark,
+        formatDateTime(r.entry_at),
+        formatDateTime(r.exit_at),
+        statusOf(r).label,
+      ])
+    )
+  }
+
+  const handleScanSubmit = async (barcode: string): Promise<string | null> => {
+    if (!scanTarget) return null
+    const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${scanTarget.registration.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ action: scanTarget.action, barcode }),
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok) return data?.message ?? 'Gagal memproses.'
+    setScanTarget(null)
+    load()
+    return null
+  }
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${pendingDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setDeleteError(data?.message ?? 'Gagal menghapus.'); return }
+      setPendingDelete(null)
+      load()
+    } catch {
+      setDeleteError('Tidak dapat menghubungi server.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-primary px-4 py-4 text-primary-foreground sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid size-10 flex-shrink-0 place-items-center rounded-xl bg-white/15"><ShieldCheck className="size-5" /></span>
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/65">PT. Jatim Autocomp Indonesia</p>
+            <h1 className="text-lg font-bold leading-tight">Pos Security</h1>
+            <p className="hidden text-[11px] text-primary-foreground/70 sm:block">Pendaftaran Supplier / Vendor</p>
+          </div>
+        </div>
+        {/* On a phone the two buttons shrink to their icons. */}
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <span className="hidden text-xs text-primary-foreground/75 sm:inline">{adminUser?.username}</span>
+          <button onClick={() => setPasswordModalOpen(true)} aria-label="Ganti Password" title="Ganti Password" className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-2.5 py-2 text-xs transition-colors hover:bg-primary-foreground/10 sm:px-3">
+            <KeyRound className="size-4" /><span className="hidden sm:inline">Ganti Password</span>
+          </button>
+          <button onClick={() => logout()} aria-label="Logout" title="Logout" className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-2.5 py-2 text-xs transition-colors hover:bg-primary-foreground/10 sm:px-3">
+            <LogOut className="size-4" /><span className="hidden sm:inline">Logout</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography']} permitCards={permitCards} />
+        <PhotoVideoRequestsPanel />
+        <SpecialAreaRequestsPanel />
+
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
+              <ArrowDownUp className="size-3.5" />{sort === 'newest' ? 'Urutan Terlama' : 'Urutan Terbaru'}
+            </button>
+            <button type="button" onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
+              <RotateCcw className="size-3.5" />Muat Ulang
+            </button>
+          </div>
+          <button type="button" onClick={() => setFormOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+            <Plus className="size-4" />Pendaftaran &gt;&gt;
+          </button>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="">Semua Bulan</option>
+            {MONTH_LABELS.map((label, i) => <option key={label} value={i}>{label}</option>)}
+          </select>
+          <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+            <option value="">Semua Tahun</option>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {(filterMonth || filterYear) && (
+            <button type="button" onClick={() => { setFilterMonth(''); setFilterYear('') }} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary">
+              Reset Filter
+            </button>
+          )}
+          <span className="text-xs text-muted-foreground">{filteredRegistrations.length} data</span>
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredRegistrations.length === 0}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download className="size-3.5" />Export ke Excel
+          </button>
+        </div>
+
+        {error && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+        {deleteError && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{deleteError}</p>}
+
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[960px] text-sm">
+              <thead className="bg-secondary/55">
+                <tr>
+                  {['Tanggal/Jam', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status', 'Aksi'].map((head) => (
+                    <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {loading && (
+                  <tr><td colSpan={10} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                )}
+                {!loading && registrations.length === 0 && (
+                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
+                )}
+                {!loading && registrations.length > 0 && filteredRegistrations.length === 0 && (
+                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada data pada periode ini.</td></tr>
+                )}
+                {filteredRegistrations.map((r, index) => {
+                  const status = statusOf(r)
+                  return (
+                    <tr key={r.id} className={index % 2 ? 'bg-secondary/20' : ''}>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.registered_at)}</td>
+                      <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.id_card}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.purpose}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.entry_at)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.exit_at)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                        {r.current_card_type && (
+                          <span className="mt-1 block font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
+                            {r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {r.stage === 'pending_approval' && (
+                            <button type="button" onClick={() => setScanTarget({ registration: r, action: 'approve' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                              <ScanLine className="size-3.5" />Approve
+                            </button>
+                          )}
+                          {r.stage === 'active' && r.current_card_type === 'visitor' && r.entry_path === 'security' && (
+                            <button type="button" onClick={() => setScanTarget({ registration: r, action: 'close' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
+                              <ScanLine className="size-3.5" />Kartu Dikembalikan
+                            </button>
+                          )}
+                          {r.stage === 'active' && r.current_card_type && (r.current_card_type !== 'visitor' || r.entry_path !== 'security') && (
+                            <span className="whitespace-nowrap rounded-md bg-secondary/60 px-2 py-1 text-[11px] font-medium text-muted-foreground" title={r.entry_path === 'security' ? 'Tamu masih memegang kartu area kerja — kartu harus ditukar kembali ke kartu Visitor di Lobby sebelum bisa ditutup di sini' : 'Kartu ini diterbitkan langsung (bukan lewat Pendaftaran) — kunjungannya ditutup di Lobby'}>
+                              {r.entry_path === 'security' ? 'Tukar kartu di Lobby dulu' : 'Tutup di Lobby'}
+                            </span>
+                          )}
+                          <button type="button" onClick={() => setEditTarget(r)} aria-label={`Edit data ${r.full_name}`} title="Edit data" className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button type="button" onClick={() => setPendingDelete(r)} aria-label={`Hapus pendaftaran ${r.full_name}`} title="Hapus pendaftaran" className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      {formOpen && <RegisterModal onClose={() => setFormOpen(false)} onSaved={load} />}
+      {editTarget && <RegisterModal editing={editTarget} onClose={() => setEditTarget(null)} onSaved={load} />}
+      {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Hapus pendaftaran?"
+        message={pendingDelete ? `Data pendaftaran "${pendingDelete.full_name}" akan dihapus permanen dan tidak bisa dikembalikan.` : ''}
+        pending={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => { setPendingDelete(null); setDeleteError(null) }}
+      />
+      {scanTarget && (
+        <ScanPrompt
+          title={scanTarget.action === 'approve' ? 'Approve — Scan Kartu Visitor' : 'Scan Kartu Visitor yang Dikembalikan'}
+          description={scanTarget.action === 'approve'
+            ? `Scan barcode kartu VISITOR yang akan diberikan kepada ${scanTarget.registration.full_name}.`
+            : `Scan barcode kartu VISITOR yang dikembalikan oleh ${scanTarget.registration.full_name}.`}
+          submitLabel={scanTarget.action === 'approve' ? 'Approve' : 'Tutup Pendaftaran'}
+          expectedBarcode={scanTarget.action === 'close' ? scanTarget.registration.visitor_card_barcode : null}
+          onClose={() => setScanTarget(null)}
+          onSubmit={handleScanSubmit}
+        />
+      )}
+    </div>
+  )
+}

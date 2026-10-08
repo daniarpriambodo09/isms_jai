@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
-import { ensureApprovalSchema, listRoles, parseSlots, saveSlots, slotsFor } from '@/lib/procedure-approval'
+import { approvalHeld, ensureApprovalSchema, listRoles, releaseIfPlaced, parseSlots, saveSlots, slotsFor } from '@/lib/procedure-approval'
 
 type Doc = { id: number; control_no: string; title: string; revision: number; file_path: string; approval_roles: string[] }
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const doc = await getDoc(id)
     if (!doc) return NextResponse.json({ message: 'Dokumen tidak ditemukan.' }, { status: 404 })
     const roles = (await listRoles()).filter((r) => doc.approval_roles.includes(r.code)).map((r) => ({ code: r.code, title: r.title, person_name: r.person_name }))
-    return NextResponse.json({ document: doc, roles, slots: await slotsFor(doc.id, doc.file_path) })
+    return NextResponse.json({ document: doc, roles, slots: await slotsFor(doc.id, doc.file_path), held: await approvalHeld(doc.id) })
   } catch (error) {
     console.error('[prosedur-isms/slots/GET]', error)
     return NextResponse.json({ message: 'Gagal memuat posisi QR.' }, { status: 500 })
@@ -47,8 +47,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const slots = parseSlots(body.slots, doc.approval_roles)
     await saveSlots(doc.id, doc.file_path, slots)
     await logActivity(session, 'update', 'procedure_document', doc.id, `Mengatur posisi QR tanda tangan prosedur ISMS "${doc.title}" (${slots.length} posisi)`)
+    // A request that was waiting for its QR boxes goes to the first approver now.
+    const sent = await releaseIfPlaced(doc.id)
+    if (sent) await logActivity(session, 'update', 'procedure_document', doc.id, `Mengirim permintaan pengesahan "${doc.title}" ke approver pertama (posisi QR sudah diatur)`)
     // Hand back what was stored (with seq numbers).
-    return NextResponse.json({ slots: await slotsFor(doc.id, doc.file_path) })
+    return NextResponse.json({ slots: await slotsFor(doc.id, doc.file_path), sent, held: await approvalHeld(doc.id) })
   } catch (error) {
     console.error('[prosedur-isms/slots/PUT]', error)
     return NextResponse.json({ message: 'Gagal menyimpan posisi QR.' }, { status: 500 })

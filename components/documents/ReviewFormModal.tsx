@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { Loader2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
-import { EMPTY_REVIEW_FORM, REVIEW_DOC_TYPES, REVIEW_LEVELS, REVIEW_MONTHS, REVIEW_RESULTS, type ReviewFormData } from '@/lib/review-form'
+import { DETAIL_REVISI_MAX, EMPTY_REVIEW_FORM, REVIEW_DOC_TYPES, REVIEW_LEVELS, REVIEW_MONTHS, REVIEW_RESULTS, type ReviewFormData } from '@/lib/review-form'
 
 type ApproverRole = { code: string; title: string; person_name: string; email: string | null; is_default: boolean }
 
@@ -226,8 +226,8 @@ export function ReviewFormModal({
               </Section>
 
               <Section title="Detail revisi">
-                <textarea aria-label="Detail revisi" value={form.detailRevisi} onChange={(e) => set('detailRevisi', e.target.value)} rows={3} maxLength={400} placeholder="Apa yang direvisi (maks. dua baris di formulir)" className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" />
-                <span className="-mt-1 text-right text-[11px] text-[color:var(--p-muted2)]">{form.detailRevisi.length}/400</span>
+                <textarea aria-label="Detail revisi" value={form.detailRevisi} onChange={(e) => set('detailRevisi', e.target.value)} rows={4} maxLength={DETAIL_REVISI_MAX} placeholder="Apa yang direvisi (maks. dua baris di formulir)" className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" />
+                <span className="-mt-1 text-right text-[11px] text-[color:var(--p-muted2)]">{form.detailRevisi.length}/{DETAIL_REVISI_MAX}{form.detailRevisi.length > 450 ? ' · teks sepanjang ini dilanjutkan di halaman lampiran PDF' : form.detailRevisi.length > 150 ? ' · dilanjutkan di ruang kosong samping kotak tanda tangan' : ''}</span>
               </Section>
 
               <Section title="Catatan pengesahan (tanda tangan QR)">

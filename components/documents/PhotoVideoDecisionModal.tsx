@@ -29,6 +29,8 @@ export type PhotoVideoRequest = {
   camera_control_no: string | null
   photo_id_no: string | null
   pic_jai: string | null
+  escort_name?: string | null
+  escort_dept?: string | null
 }
 
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null }

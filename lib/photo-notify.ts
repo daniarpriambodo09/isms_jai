@@ -5,7 +5,8 @@
 //   a new Visitor request → an Info item in the bell (the PIC decides it by
 //   e-mail, the admin only needs to know);
 // - a decision → the requester gets an e-mail with the result, when they left
-//   an address on the form; a decision the PIC made by e-mail is also an Info
+//   an address on the form (Internal only — a visitor is never e-mailed); a
+//   decision the PIC made by e-mail is also an Info
 //   item in the bell;
 // - Internal requests left undecided → one reminder e-mail a day to the ISM
 //   Admins (sendPhotoPendingDigest, run by lib/jobs.ts).
@@ -107,20 +108,20 @@ export async function notifyPhotoDecision(id: number, decidedVia: 'admin' | 'ema
 }
 
 async function mailRequester(row: RequestRow) {
+  // Visitors leave no address and are never e-mailed (the form only asks Internal requesters).
+  if (row.request_type === 'visitor') return
   if (!row.requester_email || !isDeliverableEmail(row.requester_email) || row.result_mailed_at) return
   const settings = await getSmtpSettings()
   const base = await portalBaseUrl()
   if (!settings || !base || !row.ref_token) return
   const referenceCode = `${row.id}-${row.ref_token}`
-  const visitor = row.request_type === 'visitor'
-  const approved = row.status === 'approved'
   const { subject, html } = buildPhotoResultEmail({
-    requesterName: row.requester_name, approved, location: row.location, fromAt: row.from_at, toAt: row.to_at,
-    decidedBy: row.decided_by, note: row.decision_note && !/^Diproses langsung dari email/.test(row.decision_note) ? row.decision_note : null,
+    requesterName: row.requester_name, approved: row.status === 'approved', location: row.location, fromAt: row.from_at, toAt: row.to_at,
+    decidedBy: row.decided_by, note: row.decision_note,
     referenceCode,
-    statusUrl: `${base}/ijin-foto-video?type=${row.request_type}&ref=${encodeURIComponent(referenceCode)}`,
-    pdfUrl: visitor && approved && row.verification_code ? `${base}/api/photo-video-requests/${row.id}/pdf?code=${encodeURIComponent(row.verification_code)}` : null,
-    visitor,
+    statusUrl: `${base}/ijin-foto-video?type=internal&ref=${encodeURIComponent(referenceCode)}`,
+    pdfUrl: null,
+    visitor: false,
   })
   await sendMail(settings, {
     to: row.requester_email,

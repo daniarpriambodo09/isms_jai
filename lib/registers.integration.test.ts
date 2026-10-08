@@ -99,7 +99,7 @@ describe.skipIf(!enabled)('document registers (PostgreSQL + route handlers)', ()
     const created = await route.POST(req('/api/x', 'POST', { form, approvalRoles: [] }))
     expect(created.status).toBe(201)
     const doc = (await created.json()).document as { id: number; file_path: string; public_visible: boolean }
-    expect(doc.public_visible).toBe(false) // an internal record unless the admin shows it
+    expect(doc.public_visible).toBe(true) // on the visitors' page once final, like the other registers
     expect(fs.readFileSync(path.join(process.cwd(), 'storage', doc.file_path)).subarray(0, 5).toString()).toBe('%PDF-')
 
     const read = await route.GET(req(`/api/x?form=${doc.id}`, 'GET'))

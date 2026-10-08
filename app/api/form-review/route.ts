@@ -83,11 +83,17 @@ async function whileSaving<T>(data: ReviewFormData, save: () => Promise<T>): Pro
   try { return await save() } finally { reviewFormsBeingSaved.delete(key) }
 }
 
+// A Form Review is either filled in on the portal (JSON: the fields, the PDF
+// is generated) or a finished PDF uploaded like any other register's document
+// (multipart) — that one goes straight to the shared handlers.
+const isUpload = (request: NextRequest) => (request.headers.get('content-type') ?? '').includes('multipart/form-data')
+
 const roleList = (raw: unknown) => JSON.stringify(Array.isArray(raw) ? raw.filter((code): code is string => typeof code === 'string') : [])
 
 export async function POST(request: NextRequest) {
   const session = getIsmsAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (isUpload(request)) return handlers.POST(request)
   try {
     await ensureApprovalSchema()
     const body = await request.json().catch(() => ({}))
@@ -103,10 +109,8 @@ export async function POST(request: NextRequest) {
     const { document } = await res.json() as { document: Saved }
 
     await keepFields(document.id, data, session.username)
-    // A review form is an internal record: not on the visitors' page unless the admin shows it.
-    await query('UPDATE procedure_documents SET public_visible = false WHERE id = $1', [document.id])
     await placeSignatures(document)
-    return NextResponse.json({ document: { ...document, public_visible: false } }, { status: 201 })
+    return NextResponse.json({ document }, { status: 201 })
   } catch (error) {
     console.error('[form-review/POST]', error)
     return NextResponse.json({ message: 'Gagal menyimpan Form Review.' }, { status: 500 })
@@ -118,6 +122,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const session = getIsmsAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (isUpload(request)) return handlers.PUT(request)
   try {
     await ensureApprovalSchema()
     const body = await request.json().catch(() => ({}))

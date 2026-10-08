@@ -4,8 +4,10 @@
 // ISMS admin page. Kiosk roles pick the PIC Pendamping, fill in the ID Card
 // No. and resend the approval email; deleting is ISM Admin only (canDelete).
 
-import { useEffect, useState } from 'react'
-import { Check, FileSignature, Loader2, Pencil, ScanLine, Send, Trash2, UserCheck, UserPlus, X } from 'lucide-react'
+import { useState } from 'react'
+import { Check, FileSignature, Loader2, Pencil, ScanLine, Send, Trash2, X } from 'lucide-react'
+import { EscortPicker, useEscortList } from '@/components/escort-picker'
+import { cardsChanged } from '@/components/kiosk/kiosk-shared'
 import { API_BASE_PATH } from '@/lib/config'
 import type { Escort, SpecialAreaRequest } from '@/lib/special-area-shared'
 
@@ -35,6 +37,7 @@ function IdCardCell({ req, onChanged }: { req: SpecialAreaRequest; onChanged: ()
     setSaving(false)
     close()
     onChanged()
+    cardsChanged()
   }
   const startScan = () => { setValue(''); setScanning(true); setEditing(true) }
   if (editing) {
@@ -59,96 +62,22 @@ function IdCardCell({ req, onChanged }: { req: SpecialAreaRequest; onChanged: ()
   )
 }
 
-const OTHER = '__other__'
-const CLEAR = '__clear__'
-const escortKey = (e: Escort) => `${e.name}|${e.dept ?? ''}`
-
-// PIC Pendamping: Lobby / Pos Security pick who accompanies the guest — from
-// the list the ISM Admin keeps, or a name typed in (Lainnya…).
+// PIC Pendamping: Lobby / Pos Security pick who accompanies the guest (components/escort-picker.tsx).
 function EscortCell({ req, escorts, onChanged }: { req: SpecialAreaRequest; escorts: Escort[]; onChanged: () => void }) {
-  const [editing, setEditing] = useState(false)
-  const [choice, setChoice] = useState('')
-  const [name, setName] = useState('')
-  const [dept, setDept] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const start = () => {
-    const current = req.escort_name ? { name: req.escort_name, dept: req.escort_dept } : null
-    const listed = current && escorts.some((e) => escortKey(e) === escortKey(current))
-    setChoice(current ? (listed ? escortKey(current) : OTHER) : '')
-    setName(current && !listed ? current.name : '')
-    setDept(current && !listed ? current.dept ?? '' : '')
-    setError(null)
-    setEditing(true)
-  }
-
-  const save = async () => {
-    let payload: { escortName: string | null; escortDept: string | null }
-    if (choice === CLEAR) payload = { escortName: null, escortDept: null }
-    else if (choice === OTHER) {
-      if (!name.trim()) { setError('Tulis nama PIC pendamping.'); return }
-      payload = { escortName: name, escortDept: dept || null }
-    } else {
-      const picked = escorts.find((e) => escortKey(e) === choice)
-      if (!picked) { setError('Pilih PIC pendamping.'); return }
-      payload = { escortName: picked.name, escortDept: picked.dept }
-    }
-    setSaving(true)
-    const res = await fetch(`${API_BASE_PATH}/api/special-area-requests/${req.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'setEscort', ...payload }) }).catch(() => null)
-    setSaving(false)
-    if (!res?.ok) { setError('Gagal menyimpan.'); return }
-    setEditing(false)
-    onChanged()
-  }
-
-  if (editing) {
-    // Group the list by department, like the paper rosters.
-    const groups = new Map<string, Escort[]>()
-    for (const e of escorts) groups.set(e.dept ?? 'Tanpa departemen', [...(groups.get(e.dept ?? 'Tanpa departemen') ?? []), e])
-    return (
-      <div className="flex w-56 flex-col gap-1.5">
-        <select value={choice} onChange={(e) => setChoice(e.target.value)} autoFocus aria-label="Pilih PIC pendamping" className="h-8 w-full rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring">
-          <option value="">Pilih PIC pendamping…</option>
-          {[...groups.entries()].map(([group, list]) => (
-            <optgroup key={group} label={group}>
-              {list.map((e) => <option key={escortKey(e)} value={escortKey(e)}>{e.name}</option>)}
-            </optgroup>
-          ))}
-          <option value={OTHER}>Lainnya (ketik nama)…</option>
-          {req.escort_name && <option value={CLEAR}>— Kosongkan</option>}
-        </select>
-        {choice === OTHER && (
-          <>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama PIC pendamping" maxLength={150} className="h-8 rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring" />
-            <input value={dept} onChange={(e) => setDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} className="h-8 rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring" />
-          </>
-        )}
-        {error && <p className="text-[11px] text-destructive">{error}</p>}
-        <div className="flex gap-1">
-          <button type="button" onClick={save} disabled={saving} className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-60">{saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Simpan</button>
-          <button type="button" onClick={() => setEditing(false)} className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary">Batal</button>
-        </div>
-      </div>
-    )
-  }
-
-  if (req.escort_name) {
-    return (
-      <button type="button" onClick={start} className="group max-w-[200px] text-left" title="Ganti PIC pendamping">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground"><UserCheck className="size-3.5 flex-none text-emerald-600" />{req.escort_name}<Pencil className="size-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" /></span>
-        {req.escort_dept && <span className="block pl-5 text-xs text-muted-foreground">{req.escort_dept}</span>}
-        {req.escort_set_by && <span className="block pl-5 text-[10.5px] text-muted-foreground/80">dipilih {req.escort_set_by}</span>}
-      </button>
-    )
-  }
-  if (req.status === 'rejected') return <span className="text-xs text-muted-foreground">—</span>
-  // An approved permit still in force without an escort needs one before the guest goes in.
-  const urgent = req.status === 'approved' && Date.parse(req.to_at) > Date.now()
   return (
-    <button type="button" onClick={start} className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-2 py-1 text-xs font-semibold transition ${urgent ? 'border-amber-500/50 bg-amber-50 text-amber-800 hover:bg-amber-100' : 'border-dashed border-border text-muted-foreground hover:bg-secondary hover:text-foreground'}`}>
-      <UserPlus className="size-3.5" /> Pilih PIC
-    </button>
+    <EscortPicker
+      current={req.escort_name ? { name: req.escort_name, dept: req.escort_dept } : null}
+      setBy={req.escort_set_by}
+      escorts={escorts}
+      closed={req.status === 'rejected'}
+      // An approved permit still in force without an escort needs one before the guest goes in.
+      urgent={req.status === 'approved' && Date.parse(req.to_at) > Date.now()}
+      onSave={async (choice) => {
+        const res = await fetch(`${API_BASE_PATH}/api/special-area-requests/${req.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'setEscort', ...choice }) }).catch(() => null)
+        if (res?.ok) onChanged()
+        return !!res?.ok
+      }}
+    />
   )
 }
 
@@ -161,13 +90,7 @@ export function SpecialAreaTable({ requests, loading, canDelete, onChanged, onDe
 }) {
   const [resending, setResending] = useState<number | null>(null)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
-  const [escorts, setEscorts] = useState<Escort[]>([])
-  useEffect(() => {
-    fetch(`${API_BASE_PATH}/api/special-area-requests/escorts`, { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { escorts?: Escort[] } | null) => setEscorts(data?.escorts ?? []))
-      .catch(() => {})
-  }, [])
+  const escorts = useEscortList()
 
   const resend = async (req: SpecialAreaRequest) => {
     setResending(req.id)

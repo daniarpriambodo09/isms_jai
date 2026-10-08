@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, ClipboardCheck, Download, Eye, EyeOff, FileText, Globe, Loader2, Pencil, Plus, QrCode, Search, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, Download, Eye, EyeOff, FileText, Globe, Loader2, Pencil, Plus, QrCode, Search, Trash2, Upload, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { BlueprintHero, HazardHero, IndexHero, latestUpload } from '@/components/page-hero'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
@@ -12,6 +12,7 @@ import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
 import { EmptyState } from '@/components/documents/EmptyState'
 import { onRowClick } from '@/lib/row-click'
 import { toast } from '@/components/toast'
+import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
 import { ResubmitDialog } from '@/components/documents/ResubmitDialog'
@@ -118,21 +119,14 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   useEffect(() => {
     if (qParam) setQuery(qParam)
   }, [qParam])
-  // Form Review: the form is filled in here, not uploaded (ReviewFormModal).
+  // Form Review is uploaded like the other registers. A form that was filled
+  // in on the portal (before that) is still edited in its form (ReviewFormModal).
   const isReviewForm = kind === 'review_form'
-  const [reviewForm, setReviewForm] = useState<{ editId?: number; prefill?: { docControlNo: string; docTitle: string; oldRevision: string }; notice?: string | null } | null>(null)
-  // The registers a Form Review can be made from: Prosedur ISMS and Standard
-  // Requirement TMMIN each have the "Form Review Dokumen" button and the
-  // per-row shortcut. ?from= remembers which one, for the way back.
-  const canReview = (kind === 'procedure' || kind === 'tmmin_standard') && isIsmsAdmin
+  const [reviewForm, setReviewForm] = useState<{ editId?: number; notice?: string | null } | null>(null)
+  // Prosedur ISMS and Standard Requirement TMMIN each link to the Form Review
+  // register (visitors read the final forms there). ?from= remembers which one, for the way back.
+  const hasReviewRegister = kind === 'procedure' || kind === 'tmmin_standard'
   const reviewBack = DOC_KIND_INFO[searchParams.get('from') === 'tmmin_standard' ? 'tmmin_standard' : 'procedure']
-  // ?docNo=&docTitle=&rev= (the "Form Review" button of a register row) opens a new form about that document.
-  const prefillTitle = isReviewForm ? searchParams.get('docTitle') : null
-  const prefillNo = searchParams.get('docNo') ?? ''
-  const prefillRev = searchParams.get('rev') ?? ''
-  useEffect(() => {
-    if (prefillTitle && isIsmsAdmin) setReviewForm({ prefill: { docControlNo: prefillNo, docTitle: prefillTitle, oldRevision: prefillRev ? `Revisi ${prefillRev}` : '' } })
-  }, [prefillTitle, prefillNo, prefillRev, isIsmsAdmin])
   const [viewing, setViewing] = useState<ProcedureDocument | null>(null)
   // true = show the generated signed PDF (QRs stamped), false = the uploaded original
   const [viewingSigned, setViewingSigned] = useState(false)
@@ -232,11 +226,31 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
     }
   }
 
-  const openAdd = () => { if (isReviewForm) { setReviewForm({}); return } setEditing(null); setFormOpen(true) }
-  const openEdit = (document: ProcedureDocument) => { if (isReviewForm) { setReviewForm({ editId: document.id }); return } setEditing(document); setFormOpen(true) }
+  // The approvers only press Setujui — where each QR is printed is the Admin
+  // ISM's to set, before the request is e-mailed. So after a file is saved,
+  // the placing editor opens by itself for whichever positions the portal
+  // couldn't place from the sheet's boxes; saving there sends the request.
+  const [placingFor, setPlacingFor] = useState<number | null>(null)
+  const placeMissingQr = async (documentId?: number) => {
+    if (!documentId || !isIsmsAdmin) return
+    const data = await fetch(`${API_BASE_PATH}/api/prosedur-isms/${documentId}/slots`, { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null)
+    const placed = new Set((data?.slots ?? []).map((slot: { role_code: string }) => slot.role_code))
+    if ((data?.roles ?? []).some((role: { code: string }) => !placed.has(role.code))) {
+      setPlacingFor(documentId)
+      toast('Buat kotak QR untuk tiap role approver — email pengesahan dikirim setelah posisi disimpan.', 'info')
+    }
+  }
+  const openAdd = () => { setEditing(null); setFormOpen(true) }
+  // A Form Review filled in on the portal is edited in its form; one uploaded as a PDF, like any uploaded document.
+  const filledInPortal = async (document: ProcedureDocument) =>
+    isReviewForm && await fetch(`${listApi}?form=${document.id}`, { cache: 'no-store' }).then((response) => response.ok).catch(() => false)
+  const openEdit = async (document: ProcedureDocument) => {
+    if (await filledInPortal(document)) { setReviewForm({ editId: document.id }); return }
+    setEditing(document); setFormOpen(true)
+  }
   // After "Minta Revisi": an uploaded document gets its fixed file; a review form is corrected in its form.
-  const openResubmit = (document: ProcedureDocument) => {
-    if (isReviewForm) setReviewForm({ editId: document.id, notice: document.approvals.find((step) => step.status === 'rejected')?.decision_note ?? null })
+  const openResubmit = async (document: ProcedureDocument) => {
+    if (await filledInPortal(document)) setReviewForm({ editId: document.id, notice: document.approvals.find((step) => step.status === 'rejected')?.decision_note ?? null })
     else setResubmitting(document)
   }
   const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredDocuments, 20)
@@ -342,14 +356,14 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
         <IndexHero
           eyebrow="(F) — ISMS-F-001-001"
           title="Form Review & Revisi Dokumen"
-          description="Form review dan revisi dokumen ISMS — diisi di portal, ditandatangani dengan QR oleh Prepared, Checked, dan Approval."
+          description="Form review dan revisi dokumen ISMS (ISMS-F-001-001) — daftar tersendiri, terpisah dari Prosedur ISMS dan standar lainnya."
           count={documents.length}
           countLabel="form review tercatat"
           updatedAt={latestUpload(documents)}
           action={(
             <div className="flex flex-wrap items-center gap-2">
               <Link href={reviewBack.path} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"><ArrowLeft className="size-4" />{reviewBack.label}</Link>
-              {isIsmsAdmin && <button type="button" onClick={openAdd} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Plus className="size-4" />Buat Form Review</button>}
+              {isIsmsAdmin && <button type="button" onClick={openAdd} title="Unggah Form Review (PDF) — tetap disahkan dengan e-sign, QR ditempatkan otomatis" className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"><Upload className="size-4" />Upload Form Review</button>}
             </div>
           )}
         />
@@ -405,8 +419,8 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
               <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
             </div>
           )}
-          {canReview && (
-            <Link href={`/form-review-dokumen?from=${kind}`} title="Form Review & Revisi Dokumen ISMS (ISMS-F-001-001) — isi di portal, tanda tangan QR" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
+          {hasReviewRegister && (
+            <Link href={`/form-review-dokumen?from=${kind}`} title="Form Review & Revisi Dokumen ISMS (ISMS-F-001-001)" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
               <ClipboardCheck className="size-3.5" />Form Review Dokumen
             </Link>
           )}
@@ -543,17 +557,6 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                         {visibilityBusy.has(document.id) ? <Loader2 className="size-4 animate-spin" /> : document.public_visible ? <Globe className="size-4" /> : <EyeOff className="size-4" />}
                       </button>
                     )}
-                    {canReview && (
-                      <Link
-                        href={`/form-review-dokumen?from=${kind}&docNo=${encodeURIComponent(document.control_no)}&docTitle=${encodeURIComponent(document.title)}&rev=${document.revision}`}
-                        aria-label={`Buat Form Review untuk ${document.title}`}
-                        title="Buat Form Review & Revisi untuk dokumen ini"
-                        data-label="Review"
-                        className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-primary"
-                      >
-                        <ClipboardCheck className="size-4" />
-                      </Link>
-                    )}
                     {isLoggedIn && <>
                       <button type="button" onClick={() => openEdit(document)} aria-label={`Edit ${document.title}`} title="Edit dokumen" data-label="Edit" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-accent-foreground"><Pencil className="size-4" /></button>
                       <button type="button" onClick={() => setPendingDelete(document)} aria-label={`Hapus ${document.title}`} title="Hapus dokumen" data-label="Hapus" className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
@@ -582,11 +585,11 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
             : hasSignature(viewing) ? <span className="flex-none rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">File asli</span> : null}
         />
       )}
-      {!isReviewForm && <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={loadDocuments} document={editableDocument} />}
+      <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={(saved) => { loadDocuments(); void placeMissingQr(saved?.id) }} document={editableDocument} />
+      {placingFor !== null && <SignatureSlotEditor documentId={placingFor} onClose={() => { setPlacingFor(null); loadDocuments() }} onSaved={(sent) => { loadDocuments(); if (sent) { setPlacingFor(null); toast('Posisi QR disimpan — permintaan pengesahan dikirim ke approver.') } }} />}
       <ReviewFormModal
         open={!!reviewForm}
         editId={reviewForm?.editId}
-        prefill={reviewForm?.prefill}
         notice={reviewForm?.notice}
         onClose={() => setReviewForm(null)}
         onSaved={(message) => { toast(message); loadDocuments() }}
@@ -597,7 +600,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
           document={resubmitting}
           revisionNote={resubmitting.approvals.find((step) => step.status === 'rejected')?.decision_note ?? null}
           onClose={() => setResubmitting(null)}
-          onDone={(message) => { setResubmitting(null); toast(message); loadDocuments() }}
+          onDone={(message) => { const id = resubmitting.id; setResubmitting(null); toast(message); loadDocuments(); void placeMissingQr(id) }}
           onWithoutFile={() => { const target = resubmitting; setResubmitting(null); approvalAction(target, 'restart') }}
         />
       )}

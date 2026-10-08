@@ -3,6 +3,9 @@
 import { useEffect, useState, type FormEvent, Fragment } from 'react'
 import { CalendarDays, Camera, CheckCircle2, Clock, History, MapPin, ScanLine, Search, Send, Sparkles, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { useAuth } from '@/context/AuthContext'
+import { cardsChanged } from '@/components/kiosk/kiosk-shared'
+import { ESCORT_OTHER, EscortOptions, escortFromChoice, useEscortList } from '@/components/escort-picker'
 
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -215,6 +218,14 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const isInternal = locale === 'internal'
   const [requesterEmail, setRequesterEmail] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
+  // PIC Pendamping: offered when Lobby / Pos Security / the ISM Admin fill the
+  // form in (they are the ones who assign one); it can also be picked later in the recap.
+  const { adminUser } = useAuth()
+  const isStaff = !!adminUser
+  const escorts = useEscortList(isStaff)
+  const [escortChoice, setEscortChoice] = useState('')
+  const [escortName, setEscortName] = useState('')
+  const [escortDept, setEscortDept] = useState('')
 
   const [nik, setNik] = useState('')
   const [requesterName, setRequesterName] = useState('')
@@ -307,6 +318,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const resetForm = () => {
     setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPicJai(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(hourAfter(nowTimeStr())); setLocation(''); setObjective('')
+    setEscortChoice(''); setEscortName(''); setEscortDept('')
   }
 
   const handleSubmit = async (event: FormEvent) => {
@@ -319,10 +331,12 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
       const deptOrCompany = isInternal
         ? `${selectedDept?.name ?? ''}${section ? ` - ${section.name}` : ''}`
         : companyName
+      const escort = isStaff ? escortFromChoice(escortChoice, escorts, { name: escortName, dept: escortDept }) : null
+      if (isStaff && escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping, atau kosongkan pilihannya.'); return }
       const payload = {
         requestType: locale,
         requesterName,
-        requesterEmail: requesterEmail.trim() || null,
+        requesterEmail: isInternal ? requesterEmail.trim() || null : null,
         deptOrCompany,
         fromAt: fromDate && fromTime ? new Date(`${fromDate}T${fromTime}`).toISOString() : '',
         toAt: toDate && toTime ? new Date(`${toDate}T${toTime}`).toISOString() : '',
@@ -334,6 +348,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         ...(isInternal
           ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, picApproveId }
           : { dept, cameraSerialNo, picJai, photoIdNo }),
+        ...(isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
       }
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, {
         method: 'POST',
@@ -342,8 +357,9 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) { setError(data?.message ?? 'Gagal mengirim pengajuan.'); return }
-      setSuccessInfo({ id: data?.request?.id, referenceCode: data?.referenceCode ?? `#${data?.request?.id}`, submittedAt: data?.request?.submitted_at ?? new Date().toISOString(), emailed: !!requesterEmail.trim() })
+      setSuccessInfo({ id: data?.request?.id, referenceCode: data?.referenceCode ?? `#${data?.request?.id}`, submittedAt: data?.request?.submitted_at ?? new Date().toISOString(), emailed: isInternal && !!requesterEmail.trim() })
       resetForm()
+      cardsChanged()
     } catch {
       setError('Tidak dapat menghubungi server.')
     } finally {
@@ -442,12 +458,13 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               <input value={dept} onChange={(e) => setDept(e.target.value)} required className={inputClass} />
             </Field>
           )}
-          <Field label={isInternal ? 'Email (opsional)' : 'Email (optional)'} span={2}>
-            <input type="email" value={requesterEmail} onChange={(e) => setRequesterEmail(e.target.value)} placeholder={isInternal ? 'nama@jai.co.id' : 'name@company.com'} autoComplete="email" className={inputClass} />
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {isInternal ? 'Isi bila ingin menerima hasil keputusan (disetujui/ditolak) lewat email.' : 'Fill in to receive the decision (approved/rejected) by email.'}
-            </p>
-          </Field>
+          {/* Internal only: a visitor is told the result at the Lobby / Pos Security (or by the status link). */}
+          {isInternal && (
+            <Field label="Email (opsional)" span={2}>
+              <input type="email" value={requesterEmail} onChange={(e) => setRequesterEmail(e.target.value)} placeholder="nama@jai.co.id" autoComplete="email" className={inputClass} />
+              <p className="mt-1 text-[11px] text-muted-foreground">Isi bila ingin menerima hasil keputusan (disetujui/ditolak) lewat email.</p>
+            </Field>
+          )}
         </div>
 
         <div className="my-7 h-px bg-border" />
@@ -556,6 +573,22 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               <p className="mt-1 text-[11px] text-muted-foreground">
                 This registration will be routed automatically to the approver above — no need to select one.
               </p>
+            </Field>
+          )}
+          {isStaff && (
+            <Field label="PIC Pendamping (opsional)" span={2}>
+              <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping" className={inputClass}>
+                <option value="">Belum ditentukan — bisa dipilih nanti di rekap</option>
+                <EscortOptions escorts={escorts} />
+                <option value={ESCORT_OTHER}>Lainnya (ketik nama)…</option>
+              </select>
+              {escortChoice === ESCORT_OTHER && (
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping" maxLength={150} className={inputClass} />
+                  <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} className={inputClass} />
+                </div>
+              )}
+              <p className="mt-1 text-[11px] text-muted-foreground">Karyawan yang mendampingi selama pengambilan foto/video. Daftar namanya diatur Admin ISM di Izin Area Special → Daftar PIC Pendamping.</p>
             </Field>
           )}
           <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>

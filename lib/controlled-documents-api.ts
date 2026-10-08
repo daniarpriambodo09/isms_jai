@@ -109,6 +109,13 @@ export function documentHandlers(kind: DocKind) {
       if (!(file instanceof File) || file.size === 0 || file.type !== 'application/pdf') {
         return NextResponse.json({ message: 'File PDF wajib diunggah.' }, { status: 400 })
       }
+      // The document's own revision number, given with the upload (1 when left
+      // out) — so it needn't be corrected by an edit, which asks the approvers again.
+      const revisionRaw = form.get('revision')
+      const revision = revisionRaw === null || revisionRaw === '' ? 1 : typeof revisionRaw === 'string' && /^\d+$/.test(revisionRaw) ? Number(revisionRaw) : NaN
+      if (!Number.isInteger(revision) || revision < 1) {
+        return NextResponse.json({ message: 'Revisi harus berupa angka bulat minimal 1.' }, { status: 400 })
+      }
 
       const roles = await normalizeRoleCodes(parseRoles(form.get('approvalRoles')), kind)
       const note = parseNote(form.get('note'))
@@ -121,9 +128,9 @@ export function documentHandlers(kind: DocKind) {
       try {
         created = (await query<DocumentRow>(
           `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, sort_order)
-           VALUES ($1::text, $2, $3, 1, $4, $5, $6, $7, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
+           VALUES ($1::text, $2, $3, $8, $4, $5, $6, $7, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
            RETURNING ${COLUMNS}`,
-          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note]
+          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note, revision]
         )).rows[0]
       } catch (error) {
         await deleteDocumentFile(filePath).catch(() => {})
@@ -133,7 +140,8 @@ export function documentHandlers(kind: DocKind) {
       await startApprovalCycle(created.id, roles)
 
       await logActivity(session, 'create', 'procedure_document', created.id, `Menambahkan ${info.label} "${created.title}"${roles.length ? ` (pengesahan: ${roles.join(' → ')})` : ''}`)
-      return NextResponse.json({ document: created }, { status: 201 })
+      // The row as inserted says 'none'; with approvers chosen the cycle has just started.
+      return NextResponse.json({ document: { ...created, approval_status: roles.length ? 'pending' : created.approval_status } }, { status: 201 })
     } catch (error) {
       console.error(`[${tag}/POST]`, error)
       return NextResponse.json({ message: `Gagal menyimpan ${info.label}.` }, { status: 500 })

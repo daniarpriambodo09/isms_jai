@@ -215,13 +215,14 @@ export function Navbar() {
     )
   }
 
-  const ismsStandardRoutes = ['/prosedur-isms', '/standard-isms-p14', '/working-standard']
+  const ismsStandardRoutes = ['/prosedur-isms', '/standard-isms-p14', '/working-standard', '/form-review-dokumen']
   const isIsmsStandardActive = ismsStandardRoutes.includes(pathname)
   const ismsStandardItems = (
     <>
       <Link href="/prosedur-isms" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">{navLabels.prosedur ?? 'ISMS Procedures'}</Link>
       <Link href="/standard-isms-p14" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Standard Requirement TMMIN</Link>
       <Link href="/working-standard" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">{navLabels.working_standard ?? 'Working Standard'}</Link>
+      <Link href="/form-review-dokumen" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Form Review Dokumen</Link>
     </>
   )
 

@@ -31,7 +31,7 @@ import { buildProcedureApprovalEmail, buildProcedureResultEmail, LOGO_CID } from
 import { API_BASE_PATH } from '@/lib/config'
 import { isDeliverableEmail } from '@/lib/email-address'
 import { docKindInfo, type DocKind } from '@/lib/document-kinds'
-import { reviewFormSummary, type ReviewFormData } from '@/lib/review-form'
+import { reviewBoxes, reviewFormSummary, type ReviewFormData } from '@/lib/review-form'
 import { recordNotification } from '@/lib/admin-notifications'
 
 export type ApproverRole = {
@@ -323,9 +323,12 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
   // Sheets on the boxed template (PREPARED / CHECKED / APPROVED …): the QR
   // spots are found from the box headings in the file itself, before the
   // first approver opens it.
-  if (started && usesSignatureBoxes(doc.kind)) await autoPlaceSlots(documentId)
-  // Emailing the first approver happens after the commit.
-  if (started) await activateNextStep(documentId)
+  if (started && placesQrItself(doc.kind)) await autoPlaceSlots(documentId)
+  // Emailing the first approver happens after the commit — and only once
+  // every position has its QR box on the file. Until then the request is
+  // held: the Admin ISM places the boxes ("Atur posisi QR"), and saving them
+  // sends it (releaseIfPlaced). The approvers themselves never place anything.
+  if (started) await releaseIfPlaced(documentId)
 }
 
 // Registers whose uploaded sheets may carry the boxed signature template —
@@ -333,6 +336,12 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
 // file without those boxes is simply left to "Atur Posisi QR".
 export function usesSignatureBoxes(kind: DocKind) {
   return kind === 'working_standard' || kind === 'tmmin_standard'
+}
+
+// Registers whose approvers needn't place their QR: the boxed sheets, and the
+// Form Review (filled in on the portal, or an uploaded copy of the same form).
+export function placesQrItself(kind: DocKind) {
+  return kind === 'review_form' || usesSignatureBoxes(kind)
 }
 
 /**
@@ -348,14 +357,26 @@ export async function autoPlaceSlots(documentId: number): Promise<number> {
     if (!doc) return 0
     const existing = await slotsFor(doc.id, doc.file_path)
     const placed = new Set(existing.map((slot) => slot.role_code))
-    const steps = (await query<{ role_code: string; role_title: string }>(
+    const all = (await query<{ role_code: string; role_title: string }>(
       `SELECT role_code, role_title FROM procedure_approvals
        WHERE document_id = $1 AND revision = $2 AND status <> 'cancelled' ORDER BY step`,
       [doc.id, doc.revision]
-    )).rows.filter((step) => !placed.has(step.role_code))
+    )).rows
+    const steps = all.filter((step) => !placed.has(step.role_code))
     if (!steps.length) return 0
-    const { detectSignatureSlots } = await import('@/lib/auto-slots')
-    const found = await detectSignatureSlots(doc.file_path, steps.map((step) => ({ code: step.role_code, title: step.role_title })))
+    const { detectSignatureSlots, detectTemplateSlots } = await import('@/lib/auto-slots')
+    let found: SignatureSlot[]
+    if (doc.kind === 'review_form') {
+      // The form's three boxes, each with its QR and "/ /" date line, wherever the uploaded copy has them.
+      const { REVIEW_SIGN_SLOTS, REVIEW_BOX_HEADINGS } = await import('@/lib/review-form-pdf')
+      const boxes = reviewBoxes(all.map((step) => step.role_title))
+      found = await detectTemplateSlots(doc.file_path, all.flatMap((step, i) => {
+        const box = boxes[i]
+        return box && !placed.has(step.role_code) ? [{ role_code: step.role_code, heading: REVIEW_BOX_HEADINGS[box], slot: REVIEW_SIGN_SLOTS[box] }] : []
+      }))
+    } else {
+      found = await detectSignatureSlots(doc.file_path, steps.map((step) => ({ code: step.role_code, title: step.role_title })))
+    }
     if (!found.length) return 0
     await saveSlots(doc.id, doc.file_path, [...existing, ...found])
     return found.length
@@ -379,6 +400,43 @@ async function activateNextStep(documentId: number): Promise<boolean> {
   if (!next.rows[0]) return false
   await sendStepRequest(next.rows[0].id)
   return true
+}
+
+// The steps of the current cycle that are still open, when nobody has been
+// asked yet (null otherwise): a request held for its QR boxes.
+async function heldSteps(doc: DocumentInfo): Promise<{ role_code: string }[] | null> {
+  const steps = (await query<{ role_code: string; status: string }>(
+    `SELECT role_code, status FROM procedure_approvals
+     WHERE document_id = $1 AND revision = $2 AND status IN ('waiting', 'pending', 'rejected') ORDER BY step`,
+    [doc.id, doc.revision]
+  )).rows
+  return steps.length && steps.every((step) => step.status === 'waiting') ? steps : null
+}
+
+/** A request that hasn't been sent to its first approver yet: it waits for the Admin ISM to place the QR boxes. */
+export async function approvalHeld(documentId: number): Promise<boolean> {
+  const doc = await getDocument(documentId)
+  if (!doc) return false
+  const steps = await heldSteps(doc)
+  if (!steps) return false
+  // Mid-chain (someone approved, the next e-mail is about to go) is not "held".
+  const signed = await query('SELECT 1 FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = \'approved\' LIMIT 1', [doc.id, doc.revision])
+  return signed.rows.length === 0
+}
+
+/**
+ * Sends a held request to its first approver once every position chosen for
+ * the document has a QR box on the current file. Returns true when the e-mail
+ * went out now.
+ */
+export async function releaseIfPlaced(documentId: number): Promise<boolean> {
+  const doc = await getDocument(documentId)
+  if (!doc) return false
+  const steps = await heldSteps(doc)
+  if (!steps) return false
+  const placed = new Set((await slotsFor(doc.id, doc.file_path)).map((slot) => slot.role_code))
+  if (steps.some((step) => !placed.has(step.role_code))) return false
+  return activateNextStep(documentId)
 }
 
 /**
@@ -880,6 +938,14 @@ export async function decideByToken(
     return { ok: true, message: 'Permintaan revisi terkirim. Admin ISM menerima pemberitahuan beserta catatan Anda.' }
   }
   if (outcome === 'approved') {
+    // The document takes effect the day its last approver signs: Eff Date
+    // follows that date. (A Form Review filled in on the portal keeps the
+    // date written in the form itself.)
+    await query(
+      `UPDATE procedure_documents d SET elf_date = (now() AT TIME ZONE 'Asia/Jakarta')::date
+       WHERE d.id = $1 AND NOT EXISTS (SELECT 1 FROM document_review_forms f WHERE f.document_id = d.id)`,
+      [view.document.id]
+    ).catch((error) => console.error('[procedure-approval/effDate]', (error as Error).message))
     await notifyAdmins(view.document.id, 'approved')
     return { ok: true, message: 'Terima kasih — dokumen telah disahkan oleh seluruh approver.' }
   }

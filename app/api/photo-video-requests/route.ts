@@ -9,6 +9,7 @@ import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { isRateLimited } from '@/lib/rate-limit'
 import { isDeliverableEmail } from '@/lib/email-address'
 import { notifyNewPhotoRequest } from '@/lib/photo-notify'
+import { parseEscort } from '@/lib/special-area-shared'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -47,7 +48,8 @@ function isStatus(value: unknown): value is Status { return typeof value === 'st
 
 const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
-  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no, r.pic_jai`
+  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no, r.pic_jai,
+  r.escort_name, r.escort_dept, r.escort_set_by`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
 // Read access is shared with the Lobby/Security kiosk roles (getKioskAdminFromRequest)
@@ -107,10 +109,11 @@ export async function POST(request: NextRequest) {
     if (!fromAt || Number.isNaN(Date.parse(fromAt))) return NextResponse.json({ message: 'Tanggal/jam mulai tidak valid.' }, { status: 400 })
     if (!toAt || Number.isNaN(Date.parse(toAt))) return NextResponse.json({ message: 'Tanggal/jam selesai tidak valid.' }, { status: 400 })
     if (new Date(toAt).getTime() < new Date(fromAt).getTime()) return NextResponse.json({ message: 'Tanggal/jam selesai harus setelah mulai.' }, { status: 400 })
-    // Optional: where to send the decision.
-    const requesterEmail = typeof body.requesterEmail === 'string' && body.requesterEmail.trim() ? body.requesterEmail.trim().slice(0, 255) : null
+    // Optional, Internal only: where to send the decision. A visitor's request
+    // takes no e-mail address — they hear the result at the Lobby / Pos Security.
+    const requesterEmail = requestType === 'internal' && typeof body.requesterEmail === 'string' && body.requesterEmail.trim() ? body.requesterEmail.trim().slice(0, 255) : null
     if (requesterEmail && !isDeliverableEmail(requesterEmail)) {
-      return NextResponse.json({ message: requestType === 'visitor' ? 'Email address is not valid.' : 'Alamat email tidak valid (contoh: nama@jai.co.id).' }, { status: 400 })
+      return NextResponse.json({ message: 'Alamat email tidak valid (contoh: nama@jai.co.id).' }, { status: 400 })
     }
 
     let nik: string | null = null
@@ -180,6 +183,11 @@ export async function POST(request: NextRequest) {
       picApproveId = visitorPic.rows[0].id
     }
 
+    // PIC Pendamping: only Lobby / Pos Security / the ISM Admin may name one
+    // (they fill the form in at the kiosk) — ignored on a request sent without a session.
+    const staff = getKioskAdminFromRequest(request)
+    const escort = staff ? parseEscort(body) : { name: null, dept: null }
+
     // Only Visitor requests get a token — it's what lets the approver act
     // straight from the email link without logging in (see the
     // approve/reject route).
@@ -198,10 +206,13 @@ export async function POST(request: NextRequest) {
 
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
-         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token, requester_email)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+         (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token, requester_email,
+          escort_name, escort_dept, escort_set_by, escort_set_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
+               $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END)
        RETURNING id`,
-      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail]
+      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail,
+        escort.name, escort.dept, staff?.username ?? null]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,

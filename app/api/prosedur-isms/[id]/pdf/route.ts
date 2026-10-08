@@ -47,7 +47,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const preview = request.nextUrl.searchParams.get('preview') === '1' && !!getIsmsAdminFromRequest(request)
     // A sheet uploaded before QR spots were placed automatically gets them now.
     const boxed = usesSignatureBoxes(doc.kind as DocKind)
-    if (boxed) await autoPlaceSlots(doc.id)
+    if (boxed || doc.kind === 'review_form') await autoPlaceSlots(doc.id)
     // The initials row under the boxes: the approvers chosen for this document
     // (a box nobody signs in is left blank). Skipped when the row isn't found.
     // A document without e-sign, or whose positions match none of the boxes

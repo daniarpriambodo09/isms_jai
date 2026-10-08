@@ -5,6 +5,7 @@ import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { notifyPhotoDecision } from '@/lib/photo-notify'
 import { recordNotification } from '@/lib/admin-notifications'
+import { parseEscort } from '@/lib/special-area-shared'
 
 type Status = 'approved' | 'rejected'
 const DECISION_STATUSES: Status[] = ['approved', 'rejected']
@@ -12,7 +13,8 @@ function isDecisionStatus(value: unknown): value is Status { return typeof value
 
 const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
-  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no`
+  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no,
+  r.escort_name, r.escort_dept, r.escort_set_by`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -145,6 +147,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan.' }, { status: 404 })
     return NextResponse.json({ message: 'Notifikasi ditutup.' })
+  }
+
+  // Lobby / Pos Security (or the ISM Admin) pick, change or clear the PIC Pendamping.
+  if (action === 'setEscort') {
+    const staff = getKioskAdminFromRequest(request)
+    if (!staff) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+    const escort = parseEscort(body)
+    const updated = await query<{ requester_name: string }>(
+      `UPDATE photo_video_requests SET escort_name = $1::text, escort_dept = $2::text,
+         escort_set_by = CASE WHEN $1::text IS NULL THEN NULL ELSE $3::text END, escort_set_at = CASE WHEN $1::text IS NULL THEN NULL ELSE now() END
+       WHERE id = $4 RETURNING requester_name`,
+      [escort.name, escort.dept, staff.username, id]
+    )
+    if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan.' }, { status: 404 })
+    await logActivity(staff, 'update', 'photo_video_request', id, escort.name
+      ? `Menetapkan PIC pendamping "${escort.name}${escort.dept ? ` (${escort.dept})` : ''}" untuk pengajuan foto/video "${updated.rows[0].requester_name}"`
+      : `Menghapus PIC pendamping pengajuan foto/video "${updated.rows[0].requester_name}"`)
+    const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
+    return NextResponse.json({ request: result.rows[0] })
   }
 
   return NextResponse.json({ message: 'Aksi tidak dikenali.' }, { status: 400 })

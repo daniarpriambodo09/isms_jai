@@ -6,7 +6,7 @@
 // approve anything) and single-use (a step can only leave 'pending' once).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { APPROVAL_LINK_DAYS, autoPlaceSlots, canPlaceOwnSlots, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, usesSignatureBoxes, verifyBaseUrl } from '@/lib/procedure-approval'
+import { APPROVAL_LINK_DAYS, autoPlaceSlots, canPlaceOwnSlots, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, verifyBaseUrl } from '@/lib/procedure-approval'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,13 +26,13 @@ export async function GET(request: NextRequest) {
     // it came from (the page shows it as "what was asked to be fixed").
     // Plus the earlier files, to compare a fix with what was marked.
     const history = await revisionHistory(view.document.id)
-    // Form Review and sheets on the boxed template (Working Standard, Standard
-    // Requirement TMMIN) have fixed signature boxes: the approver's QR spot is
-    // already set by the portal, so approving needs no placing step.
-    // (A Working Standard uploaded before that existed gets its spots when the link is opened.)
-    if (usesSignatureBoxes(view.document.kind) && view.step.revision === view.document.revision) await autoPlaceSlots(view.document.id)
-    const qrAutoPlaced = (view.document.kind === 'review_form' || usesSignatureBoxes(view.document.kind))
-      && (await slotsFor(view.document.id, view.document.file_path)).some((slot) => slot.role_code === view.step.role_code)
+    // The approver never places a QR. Form Review and sheets on the boxed
+    // template (Working Standard, Standard Requirement TMMIN) get their spots
+    // from the portal (a sheet uploaded before that existed, when the link is
+    // opened); any other document, from the Admin ISM ("Atur posisi QR").
+    // qrAutoPlaced: this approver's QR has its place on the document already.
+    if (placesQrItself(view.document.kind) && view.step.revision === view.document.revision) await autoPlaceSlots(view.document.id)
+    const qrAutoPlaced = (await slotsFor(view.document.id, view.document.file_path)).some((slot) => slot.role_code === view.step.role_code)
     return NextResponse.json({
       qrAutoPlaced,
       revisionRequest: history?.requests[0] ?? null,

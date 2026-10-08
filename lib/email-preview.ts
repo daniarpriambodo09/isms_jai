@@ -46,7 +46,7 @@ export const EMAIL_PREVIEWS: EmailPreviewItem[] = [
   { id: 'photo:admin', group: 'Izin Foto/Video', label: 'Pengajuan Internal baru', to: 'Admin ISM' },
   { id: 'photo:digest', group: 'Izin Foto/Video', label: 'Pengingat harian: pengajuan belum diputuskan', to: 'Admin ISM' },
   { id: 'photo:result', group: 'Izin Foto/Video', label: 'Hasil keputusan (disetujui)', to: 'Pemohon' },
-  { id: 'photo:result-rejected', group: 'Izin Foto/Video', label: 'Hasil keputusan (ditolak, Visitor)', to: 'Pemohon' },
+  { id: 'photo:result-rejected', group: 'Izin Foto/Video', label: 'Hasil keputusan (ditolak)', to: 'Pemohon' },
   { id: 'special:request', group: 'Izin Area Special', label: 'Permintaan persetujuan', to: 'Approver' },
   { id: 'review:digest', group: 'Review Dokumen', label: 'Pengingat mingguan review dokumen', to: 'Admin ISM' },
 ]
@@ -119,9 +119,10 @@ export function renderEmailPreview(id: string, origin: string): { subject: strin
     const rejected = variant === 'result-rejected'
     mail = buildPhotoResultEmail({
       requesterName: rejected ? 'Fadil' : 'Naufal Aqil', approved: !rejected, location: 'Genba A', fromAt: at(2), toAt: at(4),
-      decidedBy: rejected ? 'Teguh Sunjoyo' : 'admin_ism', note: rejected ? 'Area sedang audit pelanggan, ajukan ulang minggu depan.' : null,
-      referenceCode: '42-A1B2C3D4E5', statusUrl: `${base}/ijin-foto-video?type=${rejected ? 'visitor' : 'internal'}&ref=42-A1B2C3D4E5`,
-      pdfUrl: null, visitor: rejected,
+      decidedBy: 'admin_ism', note: rejected ? 'Area sedang audit pelanggan, ajukan ulang minggu depan.' : null,
+      referenceCode: '42-A1B2C3D4E5', statusUrl: `${base}/ijin-foto-video?type=internal&ref=42-A1B2C3D4E5`,
+      // Only Internal requesters can leave an address, so the mail is always the Indonesian one.
+      pdfUrl: null, visitor: false,
     })
   } else if (group === 'photo') {
     mail = buildVisitorApprovalEmail({

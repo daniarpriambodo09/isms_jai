@@ -15,7 +15,7 @@ import { Pagination } from '@/components/pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, formatDateTime, stationOf, inputClass, labelClass, useKioskAutoRefresh, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, formatDateTime, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
 
@@ -444,8 +444,9 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   )
 }
 
-// station: the same view serves both kiosks — Admin Lobby and Pos Security
-// have identical menus; only the name in the header and the export differ.
+// station: which post the view is opened as (name in the header, the export
+// and where a guest is recorded as registered). Pos Security has its own
+// view (SecurityView) — its cards are a different set from the Lobby's.
 export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security' }) {
   const { adminUser, logout } = useAuth()
   const stationName = station === 'security' ? 'Pos Security' : 'Admin Lobby'
@@ -471,6 +472,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const permitCards = usePermitCards()
 
   // silent = background refresh (no spinner, keeps the current list on a
   // transient error) — see useKioskAutoRefresh.
@@ -642,7 +644,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography', 'affiliate']} />
+        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
 

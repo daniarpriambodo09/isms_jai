@@ -23,6 +23,7 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
       ['Prosedur ISMS', '/prosedur-isms'],
       ['Standard Requirement TMMIN', '/standard-isms-p14'],
       ['Working Standard', '/working-standard'],
+      ['Form Review Dokumen', '/form-review-dokumen'],
     ],
   },
   {

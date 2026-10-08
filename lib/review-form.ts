@@ -17,6 +17,10 @@ export const REVIEW_RESULTS = [
   ['revisi', 'Tidak relevan dan perlu revisi'],
   ['ditarik', 'Ditarik'],
 ] as const
+// Longest "Detail revisi". The form itself holds two written lines; the PDF
+// continues a longer text in the blank space beside the signature boxes and,
+// past that, on an attached page (lib/review-form-pdf.ts).
+export const DETAIL_REVISI_MAX = 3000
 export const REVIEW_MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
 
 export type ReviewDocType = (typeof REVIEW_DOC_TYPES)[number][0]
@@ -96,7 +100,7 @@ export function parseReviewForm(raw: unknown): ReviewFormData | string {
     requestFrom: text(r.requestFrom, 120),
     result,
     withdrawnFrom: result === 'ditarik' ? optionalDate(r.withdrawnFrom) : null,
-    detailRevisi: text(r.detailRevisi, 400),
+    detailRevisi: text(r.detailRevisi, DETAIL_REVISI_MAX),
   }
   if (!data.reasonNew && !data.reasonPeriodic && !data.standardsChange && !data.regulationChange && !data.requestFrom) {
     return 'Pilih minimal satu alasan review (pembuatan baru, review berkala, perubahan standar/regulasi, atau permintaan).'
@@ -140,6 +144,7 @@ export function reviewFormSummary(data: ReviewFormData) {
     oldRevision: data.oldRevision,
     reasons,
     result: data.result === 'ditarik' && data.withdrawnFrom ? `${result} mulai ${data.withdrawnFrom.split('-').reverse().join('-')}` : result,
-    detailRevisi: data.detailRevisi,
+    // The e-mail only summarises: a long text is on the attached form.
+    detailRevisi: data.detailRevisi.length > 320 ? `${data.detailRevisi.slice(0, 300).replace(/\s+\S*$/, '')}… (selengkapnya di formulir terlampir)` : data.detailRevisi,
   }
 }

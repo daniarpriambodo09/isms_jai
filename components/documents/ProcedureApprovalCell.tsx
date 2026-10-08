@@ -98,6 +98,8 @@ export function ProcedureApprovalCell({
   onSlotsChanged?: () => void
 }) {
   const [placing, setPlacing] = useState(false)
+  // Not e-mailed to anyone yet: the request waits for the admin to place the QR boxes.
+  const held = status === 'pending' && steps.length > 0 && steps.every((step) => step.status === 'waiting')
   const [notes, setNotes] = useState<NotesView | null>(null)
   // What is open: the latest request's marks, or the whole history.
   const [notesFor, setNotesFor] = useState<'latest' | 'history' | null>(null)
@@ -157,6 +159,7 @@ export function ProcedureApprovalCell({
         )
       })}
 
+      {held && <p className="text-[11px] font-medium text-amber-700">Belum dikirim ke approver — menunggu posisi QR diatur admin.</p>}
       {/* One line of actions: the signed PDF, the next step when a revision was
           asked, and everything else (QR placement, history, re-send) under "⋯". */}
       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
@@ -169,6 +172,16 @@ export function ProcedureApprovalCell({
           >
             <FileSignature className="size-3" /> PDF bertanda tangan
           </a>
+        )}
+        {isAdmin && held && (
+          <button
+            type="button"
+            onClick={() => setPlacing(true)}
+            title="Email pengesahan belum dikirim — tentukan kotak QR tiap approver dulu"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-amber-600"
+          >
+            <Crosshair className="size-3" /> Atur posisi QR &amp; kirim
+          </button>
         )}
         {isAdmin && status === 'rejected' && (
           <button
@@ -191,7 +204,7 @@ export function ProcedureApprovalCell({
                 key: 'history', icon: <History className="size-3.5" />, label: 'Riwayat revisi', detail: String(historyCount),
                 busy: notesLoading === 'history', disabled: notesLoading !== null, onSelect: () => { void openNotes('history') },
               }] : []),
-              ...(status === 'pending' ? [{
+              ...(status === 'pending' && !held ? [{
                 key: 'resend', icon: <Send className="size-3.5" />, label: 'Kirim ulang email', busy, onSelect: onResend,
               }] : []),
             ]}

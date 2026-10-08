@@ -90,6 +90,35 @@ export function slotsFromHeadings(headings: Heading[], roles: { code: string; ti
   return slots
 }
 
+/** A QR spot (and its date box) as drawn on a template, with the box heading it belongs under. */
+export type TemplateSpot = { role_code: string; heading: { key: string; cx: number; y: number }; slot: Omit<SignatureSlot, 'role_code'> }
+
+/**
+ * QR spots for a sheet made from a known form (pure, for testing): each spot
+ * of the template, moved by as much as its box heading sits away from where
+ * the template prints it. A heading that isn't found — or is found far from
+ * the template's place, so the file is some other layout — gives no spot.
+ */
+export function slotsOnTemplate(headings: Heading[], spots: TemplateSpot[]): SignatureSlot[] {
+  const { row } = signatureRow(headings)
+  const keys = row.map((h) => h.key)
+  return spots.flatMap((spot): SignatureSlot[] => {
+    const heading = row.find((h) => h.key === headingFor(spot.heading.key, keys))
+    if (!heading) return []
+    const dx = heading.cx - spot.heading.cx
+    const dy = heading.y - spot.heading.y
+    if (Math.abs(dx) > 0.12 || Math.abs(dy) > 0.2) return []
+    const { slot } = spot
+    if (slot.x + dx < 0 || slot.x + slot.w + dx > 1 || slot.y + dy < 0 || slot.y + slot.h + dy > 1) return []
+    return [{ ...slot, role_code: spot.role_code, page: heading.page, x: slot.x + dx, y: slot.y + dy, date: slot.date ? { ...slot.date, x: slot.date.x + dx, y: slot.date.y + dy } : null }]
+  })
+}
+
+/** Reads the stored PDF and returns the template's spots moved onto its boxes. */
+export async function detectTemplateSlots(filePath: string, spots: TemplateSpot[]): Promise<SignatureSlot[]> {
+  return slotsOnTemplate(headingsOf(await readText(filePath)), spots)
+}
+
 /** One piece of text of the PDF, placed like a Heading (displayed-page fractions). */
 export type TextItem = { str: string; page: number; pageW: number; pageH: number; cx: number; y: number; h: number }
 

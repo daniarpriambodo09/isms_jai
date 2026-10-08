@@ -11,7 +11,7 @@ import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 
 const SELECT_COLUMNS = `r.id, r.requester_name, r.dept_or_company, r.dept, r.from_at, r.to_at, r.location, r.objective,
-  r.status, r.submitted_at, r.decided_at, r.decided_by, r.verification_code`
+  r.status, r.submitted_at, r.decided_at, r.decided_by, r.verification_code, r.escort_name, r.escort_dept`
 
 export async function GET(request: NextRequest) {
   const idParam = request.nextUrl.searchParams.get('id')

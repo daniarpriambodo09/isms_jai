@@ -44,7 +44,7 @@ export function ProcedureFormModal({
   kind?: DocKind
   open: boolean
   onClose: () => void
-  onSaved: () => void
+  onSaved: (saved?: { id: number }) => void
   document?: EditableProcedure
 }) {
   const isEdit = Boolean(document)
@@ -118,10 +118,8 @@ export function ProcedureFormModal({
       formData.set('approvalRoles', JSON.stringify(orderedSelection.map((role) => role.code)))
       formData.set('note', note)
       if (file) formData.set('file', file)
-      if (document) {
-        formData.set('id', String(document.id))
-        formData.set('revision', revision)
-      }
+      formData.set('revision', revision)
+      if (document) formData.set('id', String(document.id))
 
       const res = await fetch(`${API_BASE_PATH}${DOC_KIND_INFO[kind].api}`, {
         method: isEdit ? 'PUT' : 'POST',
@@ -133,7 +131,8 @@ export function ProcedureFormModal({
         return
       }
 
-      onSaved()
+      const saved = await res.json().catch(() => null)
+      onSaved(saved?.document)
       onClose()
     } catch {
       setError('Tidak dapat menghubungi server.')
@@ -157,7 +156,7 @@ export function ProcedureFormModal({
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">No. Kontrol</span><input value={controlNo} onChange={(event) => setControlNo(event.target.value)} required placeholder={PLACEHOLDERS[kind].controlNo} className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Nama Dokumen</span><input value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus placeholder={PLACEHOLDERS[kind].title} className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Eff Date</span><input type="date" value={elfDate} onChange={(event) => setElfDate(event.target.value)} required aria-label="Pilih Eff Date" className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none [color-scheme:light] focus:border-[color:var(--p-600)] [&::-webkit-calendar-picker-indicator]:ml-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-[5px] [&::-webkit-calendar-picker-indicator]:bg-[color:var(--p-800)] [&::-webkit-calendar-picker-indicator]:p-[3px] [&::-webkit-calendar-picker-indicator]:[filter:invert(1)]" /></label>
-          {isEdit && <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Revisi</span><input type="number" min={1} step={1} value={revision} onChange={(event) => setRevision(event.target.value)} required className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>}
+          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Revisi</span><input type="number" min={1} step={1} value={revision} onChange={(event) => setRevision(event.target.value)} required className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">{isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}</span><input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />{isEdit && <span className="text-[11px] text-[color:var(--p-muted2)]">Kosongkan jika hanya mengubah data dokumen.</span>}</label>
 
           <fieldset className="flex flex-col gap-2 rounded-[10px] border border-[color:var(--p-border)] p-3">
@@ -176,7 +175,7 @@ export function ProcedureFormModal({
             ))}
             <p className="px-1 text-[11px] leading-4 text-[color:var(--p-muted2)]">
               {orderedSelection.length === 0
-                ? 'Tidak dicentang = dokumen tidak memerlukan pengesahan (tampil "–").'
+                ? 'Tidak dicentang = dokumen tidak memerlukan pengesahan (tampil "–"). Setelah Simpan, Anda membuat kotak QR untuk tiap role yang dicentang; email ke approver dikirim setelah posisi itu disimpan.'
                 : `Email dikirim berurutan: ${orderedSelection.map((role) => role.code).join(' → ')}.${isEdit ? ' Mengganti file, revisi, atau jabatan akan memulai ulang pengesahan.' : ''}`}
             </p>
             <Link href={`/kelola-pengesahan?kind=${kind}`} className="w-fit px-1 text-[11.5px] font-semibold text-[color:var(--p-700)] underline-offset-2 hover:underline">

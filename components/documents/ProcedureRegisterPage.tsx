@@ -19,6 +19,7 @@ import { ReviewFormModal } from '@/components/documents/ReviewFormModal'
 import { NO_HEAD_CLASS, OrderCell, ReorderHint, moveItem, useDragReorder } from '@/components/documents/RowReorder'
 import { ProcedureApprovalCell, type ApprovalStep } from '@/components/documents/ProcedureApprovalCell'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { FormReviewOverview } from '@/components/documents/FormReviewOverview'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { downloadExcel } from '@/lib/excel-export'
@@ -137,6 +138,8 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   // document's Form Review & Revisi Dokumen, uploaded right there.
   const hasReviewColumn = kind === 'procedure' || kind === 'tmmin_standard'
   const [reviewUpload, setReviewUpload] = useState<{ document: ProcedureDocument; file: File } | null>(null)
+  // "Cek Form Review" (ISM Admin): every document's Form Review and its signing status.
+  const [overviewOpen, setOverviewOpen] = useState(false)
   const [reviewUploading, setReviewUploading] = useState(false)
   const uploadReviewForm = async () => {
     if (!reviewUpload) return
@@ -441,6 +444,11 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
               <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
             </div>
           )}
+          {hasReviewColumn && isIsmsAdmin && (
+            <button type="button" onClick={() => setOverviewOpen(true)} title="Form Review tiap dokumen Prosedur ISMS & TMMIN dan status pengesahannya" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
+              <ClipboardCheck className="size-3.5" />Cek Form Review
+            </button>
+          )}
           {isLoggedIn && <button type="button" onClick={handleExportCsv} disabled={filteredDocuments.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-3.5" />Export Excel</button>}
           <div className="relative w-full sm:w-80"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No. Kontrol atau dokumen..." aria-label={`Cari ${kindInfo.label}`} className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}</div>
         </div>
@@ -636,6 +644,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
             : hasSignature(viewing) ? <span className="flex-none rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">File asli</span> : null}
         />
       )}
+      {isIsmsAdmin && <FormReviewOverview open={overviewOpen} onClose={() => setOverviewOpen(false)} />}
       <ConfirmDialog
         open={!!reviewUpload}
         title={reviewUpload?.document.review_form_path ? 'Ganti Form Review?' : 'Unggah Form Review?'}

@@ -30,6 +30,7 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
       // The kiosks: guests, and the cards currently in use (ISM Admin may open both).
       { href: '/admin-lobby', label: 'Admin Lobby', hint: 'Tamu & kartu dipakai', icon: ConciergeBell },
       { href: '/admin-pos-security', label: 'Pos Security', hint: 'Pendaftaran & kartu security', icon: ShieldCheck },
+      { href: '/kelola-pos', label: 'Pengaturan Pos', hint: 'Aktif / nonaktifkan Lobby & Security', icon: Settings },
     ],
   },
   {

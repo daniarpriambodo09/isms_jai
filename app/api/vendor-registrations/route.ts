@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { stationOffMessage } from '@/lib/kiosk-stations'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
@@ -87,6 +88,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = getKioskAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  // A post that is switched off (Pengaturan Pos) can't change guest data.
+  const off = await stationOffMessage(session.role)
+  if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
     const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station', string>>

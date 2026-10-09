@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { stationOffMessage } from '@/lib/kiosk-stations'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
@@ -93,6 +94,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID tidak valid.' }, { status: 400 })
   const session = getKioskAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  // A post that is switched off (Pengaturan Pos) can't change guest data.
+  const off = await stationOffMessage(session.role)
+  if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
     const body = await request.json() as {
@@ -238,6 +242,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID tidak valid.' }, { status: 400 })
   const session = getKioskAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  // A post that is switched off (Pengaturan Pos) can't change guest data.
+  const off = await stationOffMessage(session.role)
+  if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
     const result = await query<{ id: number; full_name: string }>('DELETE FROM vendor_registrations WHERE id = $1 RETURNING id, full_name', [id])

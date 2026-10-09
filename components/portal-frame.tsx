@@ -79,6 +79,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/pratinjau-email': 'Pratinjau Email',
   '/kelola-tema': 'Warna Tema',
   '/notifikasi': 'Riwayat Notifikasi',
+  '/kelola-pos': 'Pengaturan Pos',
 }
 
 // Menu pages that render their own themed hero (components/page-hero.tsx);
@@ -89,7 +90,7 @@ const OWN_HERO_PREFIXES = [
   // Admin pages open with their own "Admin workspace" header or page heading.
   '/dashboard-admin', '/pengaturan', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-departemen', '/kelola-permintaan-foto-video',
   '/kelola-izin-area-special', '/kelola-kamera', '/kelola-pic-approve', '/kelola-admin', '/kelola-pengesahan',
-  '/kelola-pernyataan-kebijakan', '/kelola-smtp', '/kelola-tema', '/pratinjau-email', '/notifikasi',
+  '/kelola-pernyataan-kebijakan', '/kelola-smtp', '/kelola-tema', '/pratinjau-email', '/notifikasi', '/kelola-pos',
 ]
 
 // Routes that exist without being listed in PAGE_TITLES (dynamic segments).

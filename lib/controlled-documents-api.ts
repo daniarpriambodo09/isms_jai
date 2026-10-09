@@ -13,7 +13,7 @@ import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
-import { currentStepsFor, ensureApprovalSchema, historyCounts, missingEmailMessage, normalizeRoleCodes, rolesWithoutEmail, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
+import { currentStepsFor, ensureApprovalSchema, historyCounts, missingEmailMessage, overridesKey, parseApproverOverrides, type ApproverOverrides, normalizeRoleCodes, rolesWithoutEmail, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
 import { parseOrderedIds } from '@/lib/ordered-ids'
 
@@ -31,6 +31,7 @@ type DocumentRow = {
   approval_status: string
   public_visible: boolean
   review_form_path: string | null
+  approver_overrides: Record<string, { name: string; email: string }>
 }
 
 // Prosedur ISMS and Standard Requirement TMMIN carry their Form Review &
@@ -39,7 +40,7 @@ const takesReviewForm = (kind: DocKind) => kind === 'procedure' || kind === 'tmm
 const pdfOrNull = (value: FormDataEntryValue | null) => (value instanceof File && value.size > 0 ? value : null)
 
 // elf_date as plain YYYY-MM-DD text: a DATE sent as a JS Date shifts a day back in UTC.
-const COLUMNS = "id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status, public_visible, review_form_path"
+const COLUMNS = "id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status, public_visible, review_form_path, approver_overrides"
 
 function isValidDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -130,7 +131,10 @@ export function documentHandlers(kind: DocKind) {
       const roles = await normalizeRoleCodes(parseRoles(form.get('approvalRoles')), kind)
       const note = parseNote(form.get('note'))
       // A request to a position without an e-mail could never be delivered.
-      const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind))
+      // Someone else than the position's usual holder, for this document.
+      const overrides = parseApproverOverrides(form.get('approverOverrides'), roles)
+      if (typeof overrides === 'string') return NextResponse.json({ message: overrides }, { status: 400 })
+      const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind, overrides))
       if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
 
       const filePath = await saveDocumentFile(file)
@@ -138,10 +142,10 @@ export function documentHandlers(kind: DocKind) {
       let created: DocumentRow
       try {
         created = (await query<DocumentRow>(
-          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, review_form_path, sort_order)
-           VALUES ($1::text, $2, $3, $8, $4, $5, $6, $7, $9, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
+          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, review_form_path, approver_overrides, sort_order)
+           VALUES ($1::text, $2, $3, $8, $4, $5, $6, $7, $9, $10::jsonb, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
            RETURNING ${COLUMNS}`,
-          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note, revision, reviewPath]
+          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note, revision, reviewPath, JSON.stringify(overrides)]
         )).rows[0]
       } catch (error) {
         await deleteDocumentFile(filePath).catch(() => {})
@@ -202,8 +206,8 @@ export function documentHandlers(kind: DocKind) {
       }
       const removeReview = takesReviewForm(kind) && !reviewFile && form.get('removeReviewForm') === '1'
 
-      const existing = await query<{ file_path: string; revision: number; approval_roles: string[]; uploaded_at: string; review_form_path: string | null }>(
-        'SELECT file_path, revision, approval_roles, uploaded_at, review_form_path FROM procedure_documents WHERE id = $1 AND kind = $2',
+      const existing = await query<{ file_path: string; revision: number; approval_roles: string[]; uploaded_at: string; review_form_path: string | null; approver_overrides: ApproverOverrides | null }>(
+        'SELECT file_path, revision, approval_roles, uploaded_at, review_form_path, approver_overrides FROM procedure_documents WHERE id = $1 AND kind = $2',
         [id, kind]
       )
       if (existing.rows.length === 0) {
@@ -213,14 +217,22 @@ export function documentHandlers(kind: DocKind) {
 
       const roles = await normalizeRoleCodes(parseRoles(form.get('approvalRoles')), kind)
       const note = parseNote(form.get('note'))
+      // Not sent = keep this document's people as they are (for the positions still chosen).
+      const sentOverrides = form.get('approverOverrides')
+      const overrides = sentOverrides === null
+        ? parseApproverOverrides(before.approver_overrides ?? {}, roles)
+        : parseApproverOverrides(sentOverrides, roles)
+      if (typeof overrides === 'string') return NextResponse.json({ message: overrides }, { status: 400 })
+      // Another person approving is a new request to sign.
+      const peopleChanged = overridesKey(overrides) !== overridesKey(before.approver_overrides)
 
       // A new or removed Form Review is a new thing to sign too.
       const reviewChanged = !!reviewFile || (removeReview && !!before.review_form_path)
       const replacement = (file instanceof File && file.size > 0) || reviewChanged
       // Only when this edit (re)starts the approval — a plain correction of
       // the title or date must not be blocked by an old selection.
-      if (replacement || revision !== before.revision || roles.join(',') !== (before.approval_roles ?? []).join(',')) {
-        const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind))
+      if (replacement || peopleChanged || revision !== before.revision || roles.join(',') !== (before.approval_roles ?? []).join(',')) {
+        const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind, overrides))
         if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
       }
       const newFilePath = file instanceof File && file.size > 0 ? await saveDocumentFile(file) : null
@@ -237,10 +249,11 @@ export function documentHandlers(kind: DocKind) {
                revision = $6,
                approval_roles = $7,
                note = $8,
-               review_form_path = CASE WHEN $10::boolean THEN NULL ELSE COALESCE($11, review_form_path) END
+               review_form_path = CASE WHEN $10::boolean THEN NULL ELSE COALESCE($11, review_form_path) END,
+               approver_overrides = $12::jsonb
            WHERE id = $5 AND kind = $9
            RETURNING ${COLUMNS}`,
-          [controlNo.trim().toUpperCase(), title.trim(), elfDate, newFilePath, id, revision, roles, note, kind, removeReview, newReviewPath]
+          [controlNo.trim().toUpperCase(), title.trim(), elfDate, newFilePath, id, revision, roles, note, kind, removeReview, newReviewPath, JSON.stringify(overrides)]
         )).rows[0]
       } catch (error) {
         if (newFilePath) await deleteDocumentFile(newFilePath).catch(() => {})
@@ -262,7 +275,7 @@ export function documentHandlers(kind: DocKind) {
       // A new file, a new revision number or a different set of approvers is a
       // new thing to sign — restart the cycle. Plain metadata edits keep it.
       const rolesChanged = roles.join(',') !== (before.approval_roles ?? []).join(',')
-      const restarted = replacement || revision !== before.revision || rolesChanged
+      const restarted = replacement || revision !== before.revision || rolesChanged || (peopleChanged && roles.length > 0)
       if (restarted) await startApprovalCycle(Number(id), roles)
 
       await logActivity(session, 'update', 'procedure_document', id, `Mengubah ${info.label} "${updated.title}" (revisi ${updated.revision})${restarted && roles.length ? ' — pengesahan dimulai ulang' : ''}`)

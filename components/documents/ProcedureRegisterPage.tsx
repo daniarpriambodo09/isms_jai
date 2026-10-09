@@ -137,32 +137,11 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   // Prosedur ISMS / TMMIN: a "Form Review" column beside the document — each
   // document's Form Review & Revisi Dokumen, uploaded right there.
   const hasReviewColumn = kind === 'procedure' || kind === 'tmmin_standard'
-  const [reviewUpload, setReviewUpload] = useState<{ document: ProcedureDocument; file: File } | null>(null)
   // "Cek Form Review" (ISM Admin): every document's Form Review and its signing status.
   const [overviewOpen, setOverviewOpen] = useState(false)
-  const [reviewUploading, setReviewUploading] = useState(false)
-  const uploadReviewForm = async () => {
-    if (!reviewUpload) return
-    const { document, file } = reviewUpload
-    setReviewUploading(true)
-    try {
-      const form = new FormData()
-      form.set('id', String(document.id))
-      form.set('controlNo', document.control_no)
-      form.set('title', document.title)
-      form.set('elfDate', document.elf_date.slice(0, 10))
-      form.set('revision', String(document.revision))
-      form.set('approvalRoles', JSON.stringify(document.approval_roles))
-      form.set('note', document.note ?? '')
-      form.set('reviewFile', file)
-      const response = await fetch(listApi, { method: 'PUT', body: form })
-      const body = await response.json().catch(() => ({}))
-      if (!response.ok) { toast(body.message ?? 'Gagal mengunggah Form Review.', 'error'); return }
-      toast(body.approvalRestarted ? 'Form Review diunggah — pengesahan dimulai ulang untuk dokumen dan Form Review-nya.' : 'Form Review diunggah.')
-      setReviewUpload(null)
-      loadDocuments()
-    } catch { toast('Gagal mengunggah Form Review.', 'error') } finally { setReviewUploading(false) }
-  }
+  // The column's "Unggah Form Review" / "Ganti" open Cek Form Review on that document's upload panel.
+  const [overviewStart, setOverviewStart] = useState<string | null>(null)
+  const openReviewUpload = (document: ProcedureDocument) => { setOverviewStart(`${kind}-${document.id}`); setOverviewOpen(true) }
   // true = show the generated signed PDF (QRs stamped), false = the uploaded original
   const [viewingSigned, setViewingSigned] = useState(false)
   const hasSignature = (document: ProcedureDocument) => document.approvals.some((step) => step.status === 'approved' && step.verification_code)
@@ -445,7 +424,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
             </div>
           )}
           {hasReviewColumn && isIsmsAdmin && (
-            <button type="button" onClick={() => setOverviewOpen(true)} title="Form Review tiap dokumen Prosedur ISMS & TMMIN dan status pengesahannya" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
+            <button type="button" onClick={() => { setOverviewStart(null); setOverviewOpen(true) }} title="Form Review tiap dokumen Prosedur ISMS & TMMIN dan status pengesahannya" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
               <ClipboardCheck className="size-3.5" />Cek Form Review
             </button>
           )}
@@ -521,16 +500,14 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                         </button>
                       ) : !isIsmsAdmin && <span className="text-muted-foreground">–</span>}
                       {isIsmsAdmin && (
-                        <label title={document.review_form_path ? 'Ganti Form Review dokumen ini' : 'Unggah Form Review untuk dokumen ini'} className="inline-flex w-fit cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-primary">
+                        <button
+                          type="button"
+                          onClick={() => openReviewUpload(document)}
+                          title={document.review_form_path ? 'Ganti Form Review dokumen ini (Cek Form Review)' : 'Unggah Form Review untuk dokumen ini (Cek Form Review)'}
+                          className="inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+                        >
                           <Upload className="size-3" /> {document.review_form_path ? 'Ganti' : 'Unggah Form Review'}
-                          <input
-                            type="file"
-                            accept="application/pdf"
-                            aria-label={`Unggah Form Review untuk ${document.control_no}`}
-                            className="sr-only"
-                            onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) setReviewUpload({ document, file }) }}
-                          />
-                        </label>
+                        </button>
                       )}
                     </div>
                   ))}
@@ -644,19 +621,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
             : hasSignature(viewing) ? <span className="flex-none rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">File asli</span> : null}
         />
       )}
-      {isIsmsAdmin && <FormReviewOverview open={overviewOpen} onClose={() => setOverviewOpen(false)} />}
-      <ConfirmDialog
-        open={!!reviewUpload}
-        title={reviewUpload?.document.review_form_path ? 'Ganti Form Review?' : 'Unggah Form Review?'}
-        message={reviewUpload
-          ? `${reviewUpload.file.name} untuk ${reviewUpload.document.control_no} — ${reviewUpload.document.title}.${reviewUpload.document.approval_roles.length ? ' Dokumen dan Form Review-nya disahkan bersama, jadi pengesahan dimulai ulang: approver menerima email lagi untuk menyetujui keduanya.' : ''}`
-          : ''}
-        confirmLabel="Unggah"
-        danger={false}
-        pending={reviewUploading}
-        onConfirm={uploadReviewForm}
-        onCancel={() => setReviewUpload(null)}
-      />
+      {isIsmsAdmin && <FormReviewOverview open={overviewOpen} startWith={overviewStart} onClose={() => setOverviewOpen(false)} onChanged={() => loadDocuments()} />}
       <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={() => loadDocuments()} document={editableDocument} />
       <ReviewFormModal
         open={!!reviewForm}

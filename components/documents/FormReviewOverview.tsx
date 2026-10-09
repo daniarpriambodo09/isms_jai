@@ -17,8 +17,11 @@ import { downloadExcel } from '@/lib/excel-export'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type Step = { role_code: string; role_title: string; status: string; approver_name: string | null; decided_at: string | null }
-type Doc = { id: number; control_no: string; title: string; revision: number; elf_date: string; note: string | null; approval_roles: string[]; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; review_form_path?: string | null; approvals: Step[] }
+type Doc = { id: number; control_no: string; title: string; revision: number; elf_date: string; note: string | null; approval_roles: string[]; approver_overrides?: Record<string, Person>; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; review_form_path?: string | null; approvals: Step[] }
 type Role = { code: string; title: string; person_name: string | null; email: string | null }
+type Person = { name: string; email: string }
+const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
+const peopleKey = (value: Record<string, Person>) => JSON.stringify(Object.keys(value).sort().map((code) => [code, value[code].name.trim(), value[code].email.trim().toLowerCase()]))
 type Kind = 'procedure' | 'tmmin_standard'
 type Row = Doc & { kind: Kind }
 const keyOf = (row: Row) => `${row.kind}-${row.id}`
@@ -34,11 +37,14 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
   const [file, setFile] = useState<File | null>(null)
   const [roles, setRoles] = useState<Record<string, Role[]>>({})
   const [selected, setSelected] = useState<string[]>(doc?.approval_roles ?? [])
+  // Someone else than the position's usual holder, for this document only.
+  const [people, setPeople] = useState<Record<string, Person>>(doc?.approver_overrides ?? {})
+  const [editingPerson, setEditingPerson] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // the chosen document's approvers to start from; that register's positions to choose from
-  useEffect(() => { setSelected(doc?.approval_roles ?? []); setError(null) }, [docKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setSelected(doc?.approval_roles ?? []); setPeople(doc?.approver_overrides ?? {}); setEditingPerson(null); setError(null) }, [docKey]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!doc || roles[doc.kind]) return
     fetch(`${API_BASE_PATH}/api/prosedur-approver-roles?kind=${doc.kind}`, { cache: 'no-store' })
@@ -49,11 +55,19 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
 
   const kindRoles = doc ? roles[doc.kind] ?? null : null
   const ordered = (kindRoles ?? []).filter((role) => selected.includes(role.code)).map((role) => role.code)
-  const approversChanged = !!doc && ordered.join(',') !== (doc.approval_roles ?? []).join(',')
+  // only the chosen positions keep a person of their own; an empty entry = the usual holder
+  const chosenPeople = Object.fromEntries(Object.entries(people).filter(([code, person]) => ordered.includes(code) && (person.name.trim() || person.email.trim()))) as Record<string, Person>
+  const approversChanged = !!doc && (ordered.join(',') !== (doc.approval_roles ?? []).join(',') || peopleKey(chosenPeople) !== peopleKey(doc.approver_overrides ?? {}))
   const changed = !!doc && (!!file || approversChanged)
+  // a chosen position must end up with a name and a working e-mail
+  const problem = (kindRoles ?? []).filter((role) => ordered.includes(role.code)).map((role) => {
+    const person = chosenPeople[role.code]
+    if (person) return !person.name.trim() ? `Nama approver ${role.code} belum diisi.` : !EMAIL.test(person.email.trim()) ? `Email approver ${role.code} belum benar.` : null
+    return role.email ? null : `${role.title} (${role.code}) belum punya email — isi orang untuk dokumen ini.`
+  }).find(Boolean) ?? null
 
   const save = async () => {
-    if (!doc || !changed) return
+    if (!doc || !changed || problem) return
     setSaving(true)
     setError(null)
     try {
@@ -64,6 +78,7 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
       form.set('elfDate', doc.elf_date.slice(0, 10))
       form.set('revision', String(doc.revision))
       form.set('approvalRoles', JSON.stringify(ordered))
+      form.set('approverOverrides', JSON.stringify(chosenPeople))
       form.set('note', doc.note ?? '')
       if (file) form.set('reviewFile', file)
       const response = await fetch(`${API_BASE_PATH}${DOC_KIND_INFO[doc.kind].api}`, { method: 'PUT', body: form })
@@ -111,15 +126,42 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
                 : !kindRoles.length ? <p className="text-xs text-muted-foreground">Belum ada jabatan pengesahan untuk menu ini.</p>
                   : kindRoles.map((role) => {
                     const checked = selected.includes(role.code)
-                    const usable = !!role.email || checked
+                    const person = people[role.code]
+                    const own = !!person && !!(person.name.trim() || person.email.trim())
+                    const open = editingPerson === role.code || (checked && !role.email && !own)
                     return (
-                      <label key={role.code} className={`flex items-start gap-2.5 rounded-lg px-2 py-1.5 ${usable ? 'cursor-pointer hover:bg-secondary/50' : 'opacity-60'}`}>
-                        <input type="checkbox" checked={checked} disabled={!usable} onChange={() => setSelected((current) => (checked ? current.filter((code) => code !== role.code) : [...current, role.code]))} className="mt-0.5 size-4 accent-[color:var(--primary)]" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium text-foreground">{role.title} <span className="font-mono text-[10px] text-muted-foreground">{role.code}</span></span>
-                          <span className="block text-[11px] text-muted-foreground">{role.person_name || 'Belum diisi'}{role.email ? '' : ' · email belum diisi — tidak bisa dipilih'}</span>
-                        </span>
-                      </label>
+                      <div key={role.code} className={`rounded-lg px-2 py-1.5 ${checked ? 'bg-secondary/40' : ''}`}>
+                        <label className="flex cursor-pointer items-start gap-2.5">
+                          <input type="checkbox" checked={checked} aria-label={`${role.title} (${role.code})`} onChange={() => {
+                            setSelected((current) => (checked ? current.filter((code) => code !== role.code) : [...current, role.code]))
+                            // a position without an e-mail needs its person here: keep the fields open while they're typed
+                            if (!checked && !role.email && !own) setEditingPerson(role.code)
+                          }} className="mt-0.5 size-4 accent-[color:var(--primary)]" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium text-foreground">{role.title} <span className="font-mono text-[10px] text-muted-foreground">{role.code}</span></span>
+                            <span className="block text-[11px] text-muted-foreground">
+                              {own
+                                ? <><strong className="text-foreground">{person!.name || '—'}</strong> · {person!.email || 'email belum diisi'} <span className="text-primary">(khusus dokumen ini)</span></>
+                                : <>{role.person_name || 'Belum diisi'}{role.email ? '' : ' · email belum diisi'}</>}
+                            </span>
+                          </span>
+                        </label>
+                        {checked && !open && (
+                          <div className="ml-6 mt-1 flex flex-wrap gap-3 text-[11px] font-semibold">
+                            <button type="button" onClick={() => { setEditingPerson(role.code); setPeople((current) => ({ ...current, [role.code]: current[role.code] ?? { name: '', email: '' } })) }} className="text-primary hover:underline">{own ? 'Ubah orang' : 'Ganti orang untuk dokumen ini'}</button>
+                            {own && <button type="button" onClick={() => setPeople((current) => { const next = { ...current }; delete next[role.code]; return next })} className="text-muted-foreground hover:underline">Kembali ke {role.person_name || 'default'}</button>}
+                          </div>
+                        )}
+                        {checked && open && (
+                          <div className="ml-6 mt-2 grid gap-2 sm:grid-cols-2" data-testid={`person-${role.code}`}>
+                            <input value={person?.name ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: event.target.value, email: current[role.code]?.email ?? '' } }))} placeholder="Nama approver" aria-label={`Nama approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
+                            <input value={person?.email ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: current[role.code]?.name ?? '', email: event.target.value } }))} placeholder="nama@jai.co.id" type="email" aria-label={`Email approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
+                            <p className="text-[11px] text-muted-foreground sm:col-span-2">Hanya untuk dokumen ini — jabatan {role.code} di dokumen lain tetap {(role.person_name || 'orang default-nya').replace(/.$/, '')}.{' '}
+                              <button type="button" onClick={() => { setEditingPerson(null); if (!role.email) return; setPeople((current) => { const next = { ...current }; if (!next[role.code]?.name.trim() && !next[role.code]?.email.trim()) delete next[role.code]; return next }) }} className="font-semibold text-primary hover:underline">Selesai</button>
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
               <p className="px-1 text-[11px] text-muted-foreground">{ordered.length ? `Email dikirim berurutan: ${ordered.join(' → ')}.` : 'Tidak ada yang dicentang = dokumen dan Form Review-nya tidak memerlukan pengesahan.'}</p>
@@ -133,10 +175,11 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
           </>
         )}
 
+        {changed && problem && <p className="rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">{problem}</p>}
         {error && <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} disabled={saving} className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary">Batal</button>
-          <button type="button" onClick={save} disabled={!changed || saving} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">{saving && <Loader2 className="size-4 animate-spin" />} Simpan</button>
+          <button type="button" onClick={save} disabled={!changed || !!problem || saving} className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50">{saving && <Loader2 className="size-4 animate-spin" />} Simpan</button>
         </div>
       </div>
     </div>
@@ -173,7 +216,12 @@ function statusOf(doc: Doc): { label: string; tone: string; detail: string } {
   return { label: 'Menunggu', tone: 'bg-amber-100 text-amber-800', detail: `${done.length}/${steps.length} · menunggu ${now ? `${now.approver_name ?? '-'} (${now.role_title})` : '-'}` }
 }
 
-export function FormReviewOverview({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * startWith: open straight on the upload panel of this document ("kind-id") —
+ * the register's own "Unggah Form Review" / "Ganti" buttons land here.
+ * onChanged: something was saved (the register reloads its list).
+ */
+export function FormReviewOverview({ open, onClose, startWith = null, onChanged }: { open: boolean; onClose: () => void; startWith?: string | null; onChanged?: () => void }) {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
@@ -181,6 +229,8 @@ export function FormReviewOverview({ open, onClose }: { open: boolean; onClose: 
   // the upload / approver panel: which document it starts on ('' = to be chosen)
   const [editing, setEditing] = useState<{ key: string; focus: 'file' | 'approvers' } | null>(null)
   const [reload, setReload] = useState(0)
+  // Opened for one document: its panel first; Batal then shows the whole list.
+  useEffect(() => { if (open) setEditing(startWith ? { key: startWith, focus: 'file' } : null) }, [open, startWith])
   useEscapeClose(open && !editing, onClose)
 
   useEffect(() => {
@@ -267,7 +317,7 @@ export function FormReviewOverview({ open, onClose }: { open: boolean; onClose: 
             initialKey={editing.key}
             focus={editing.focus}
             onClose={() => setEditing(null)}
-            onSaved={() => { setEditing(null); setReload((n) => n + 1) }}
+            onSaved={() => { setEditing(null); setReload((n) => n + 1); onChanged?.() }}
           />
         ) : (
         <div className="min-h-0 flex-1 overflow-auto">

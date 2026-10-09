@@ -143,6 +143,7 @@ export function ensureApprovalSchema() {
       // The approval code sent in the request e-mail (db/migrations/0018_approval_code.sql).
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code varchar(6)')
       await query('ALTER TABLE procedure_documents ADD COLUMN IF NOT EXISTS review_form_path text')
+      await query("ALTER TABLE procedure_documents ADD COLUMN IF NOT EXISTS approver_overrides jsonb NOT NULL DEFAULT '{}'::jsonb")
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code_attempts integer NOT NULL DEFAULT 0')
       // Where each role's QR goes on the document itself (its own signature
       // column). Coordinates are fractions (0–1) of the displayed page, top-left
@@ -269,11 +270,41 @@ export async function currentStepsFor(documentIds: number[]): Promise<Map<number
 
 // kind: which register the document belongs to — the engine treats them alike,
 // only the names and links in e-mails and notices differ (lib/document-kinds.ts).
-type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path: string | null }
+type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path: string | null; approver_overrides: ApproverOverrides | null }
+
+// ─── who approves this document ───
+// A position's usual holder (Approver Pengesahan) can be replaced on one
+// document: someone stands in, or documents go to different people in the
+// same position. procedure_documents.approver_overrides maps a position code
+// to that person; positions not listed use their usual holder.
+export type ApproverOverride = { name: string; email: string }
+export type ApproverOverrides = Record<string, ApproverOverride>
+
+/** The overrides sent with a document, for the positions it uses. A string is what's wrong with them. */
+export function parseApproverOverrides(raw: unknown, roleCodes: string[]): ApproverOverrides | string {
+  let value: unknown = raw
+  if (typeof raw === 'string') { try { value = raw.trim() ? JSON.parse(raw) : {} } catch { return 'Data approver tidak valid.' } }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const out: ApproverOverrides = {}
+  for (const [code, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!roleCodes.includes(code) || !entry || typeof entry !== 'object') continue
+    const name = String((entry as Record<string, unknown>).name ?? '').trim().slice(0, 100)
+    const email = String((entry as Record<string, unknown>).email ?? '').trim().slice(0, 150)
+    if (!name && !email) continue
+    if (!name) return `Nama approver untuk ${code} wajib diisi.`
+    if (!isDeliverableEmail(email)) return `Email approver untuk ${code} (${name}) tidak valid.`
+    out[code] = { name, email }
+  }
+  return out
+}
+
+/** Same overrides, written the same way (to tell whether they changed). */
+export const overridesKey = (value: ApproverOverrides | null | undefined) =>
+  JSON.stringify(Object.keys(value ?? {}).sort().map((code) => [code, value![code].name, value![code].email.toLowerCase()]))
 
 async function getDocument(documentId: number) {
   // elf_date as plain YYYY-MM-DD text — a DATE sent as a JS Date shifts a day back in UTC.
-  const result = await query<DocumentInfo>("SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path, review_form_path FROM procedure_documents WHERE id = $1", [documentId])
+  const result = await query<DocumentInfo>("SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path, review_form_path, approver_overrides FROM procedure_documents WHERE id = $1", [documentId])
   return result.rows[0] ?? null
 }
 
@@ -318,7 +349,8 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
       await query(
         `INSERT INTO procedure_approvals (document_id, revision, role_code, role_title, step, status, approver_name, approver_initials)
          VALUES ($1, $2, $3, $4, $5, 'waiting', $6, $7)`,
-        [documentId, doc.revision, role.code, role.title, index + 1, role.person_name, role.initials]
+        // the person for this document when one is set, else the position's usual holder
+        [documentId, doc.revision, role.code, role.title, index + 1, doc.approver_overrides?.[role.code]?.name ?? role.person_name, doc.approver_overrides?.[role.code] ? null : role.initials]
       )
     }
     await setDocumentStatus(documentId, 'pending')
@@ -496,8 +528,10 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
 
   const roleResult = await query<ApproverRole>(`SELECT ${ROLE_COLUMNS} FROM procedure_approver_roles WHERE code = $1`, [step.role_code])
   const role = roleResult.rows[0]
-  const approverName = role?.person_name ?? step.approver_name ?? step.role_title
-  const approverEmail = role?.email ?? null
+  // This document's own person for the position, when one is set.
+  const override = (await query<{ approver_overrides: ApproverOverrides | null }>('SELECT approver_overrides FROM procedure_documents WHERE id = $1', [step.document_id])).rows[0]?.approver_overrides?.[step.role_code] ?? null
+  const approverName = override?.name ?? role?.person_name ?? step.approver_name ?? step.role_title
+  const approverEmail = override?.email ?? role?.email ?? null
 
   // Re-sending to the SAME address keeps the link, so the earlier e-mail in
   // that inbox still works (its validity period starts again). Only when the
@@ -519,7 +553,7 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
     `UPDATE procedure_approvals
      SET status = 'pending', token = $1, token_issued_at = now(), approver_name = $2, approver_email = $3, role_title = COALESCE($4, role_title), approver_initials = COALESCE($6, approver_initials), notified_at = NULL, email_error = NULL, reminded_at = NULL, reminder_count = 0
      WHERE id = $5`,
-    [token, approverName, approverEmail, role?.title ?? null, stepId, role?.initials ?? null]
+    [token, approverName, approverEmail, role?.title ?? null, stepId, override ? null : role?.initials ?? null]
   )
 
   const error = await emailStep(stepId, token)
@@ -679,9 +713,9 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
 
 // Of these positions, the ones without a usable e-mail address: a request to
 // them could never be delivered, so the document would wait forever.
-export async function rolesWithoutEmail(roleCodes: string[], kind: DocKind): Promise<ApproverRole[]> {
+export async function rolesWithoutEmail(roleCodes: string[], kind: DocKind, overrides: ApproverOverrides = {}): Promise<ApproverRole[]> {
   if (!roleCodes.length) return []
-  return (await listRoles(kind)).filter((role) => roleCodes.includes(role.code) && !(role.email && isDeliverableEmail(role.email)))
+  return (await listRoles(kind)).filter((role) => roleCodes.includes(role.code) && !overrides[role.code] && !(role.email && isDeliverableEmail(role.email)))
 }
 
 /** The message shown when a document can't be submitted because of them (null when all are fine). */

@@ -106,7 +106,8 @@ export function ProcedureApprovalCell({
   const [placing, setPlacing] = useState(false)
   // Not e-mailed to anyone yet (only requests from when they waited for their QR boxes).
   const held = status === 'pending' && steps.length > 0 && steps.every((step) => step.status === 'waiting')
-  const approvedCount = steps.filter((step) => step.status === 'approved').length
+  // the document's own approvers (a Form Review's approvers sign the form, not the document)
+  const approvedCount = steps.filter((step) => step.status === 'approved' && roles.includes(step.role_code)).length
   const [notes, setNotes] = useState<NotesView | null>(null)
   // What is open: the latest request's marks, or the whole history.
   const [notesFor, setNotesFor] = useState<'latest' | 'history' | null>(null)

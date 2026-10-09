@@ -51,6 +51,8 @@ export async function GET(request: NextRequest) {
         note: view.document.note,
         file_path: view.document.file_path,
         has_review_form: !!view.document.review_form_path,
+        // this approver signs the Form Review beside the document (not the document)
+        signs_review: !!view.document.review_form_path && (view.document.review_roles ?? []).includes(view.step.role_code),
       },
       cycle: view.cycle,
       superseded: view.step.revision !== view.document.revision,

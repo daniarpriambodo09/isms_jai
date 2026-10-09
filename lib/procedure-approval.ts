@@ -144,6 +144,7 @@ export function ensureApprovalSchema() {
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code varchar(6)')
       await query('ALTER TABLE procedure_documents ADD COLUMN IF NOT EXISTS review_form_path text')
       await query("ALTER TABLE procedure_documents ADD COLUMN IF NOT EXISTS approver_overrides jsonb NOT NULL DEFAULT '{}'::jsonb")
+      await query("ALTER TABLE procedure_documents ADD COLUMN IF NOT EXISTS review_roles text[] NOT NULL DEFAULT '{}'")
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code_attempts integer NOT NULL DEFAULT 0')
       // Where each role's QR goes on the document itself (its own signature
       // column). Coordinates are fractions (0–1) of the displayed page, top-left
@@ -270,7 +271,7 @@ export async function currentStepsFor(documentIds: number[]): Promise<Map<number
 
 // kind: which register the document belongs to — the engine treats them alike,
 // only the names and links in e-mails and notices differ (lib/document-kinds.ts).
-type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path: string | null; approver_overrides: ApproverOverrides | null }
+type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path: string | null; approver_overrides: ApproverOverrides | null; approval_roles: string[]; review_roles: string[] }
 
 // ─── who approves this document ───
 // A position's usual holder (Approver Pengesahan) can be replaced on one
@@ -279,6 +280,11 @@ type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: stri
 // to that person; positions not listed use their usual holder.
 export type ApproverOverride = { name: string; email: string }
 export type ApproverOverrides = Record<string, ApproverOverride>
+
+/** The Form Review positions used when none are chosen: the default ones that can be e-mailed. */
+export async function defaultReviewRoles(overrides: ApproverOverrides = {}): Promise<string[]> {
+  return (await listRoles('review_form')).filter((role) => role.is_default && (overrides[role.code] || (role.email && isDeliverableEmail(role.email)))).map((role) => role.code)
+}
 
 /** The overrides sent with a document, for the positions it uses. A string is what's wrong with them. */
 export function parseApproverOverrides(raw: unknown, roleCodes: string[]): ApproverOverrides | string {
@@ -304,7 +310,7 @@ export const overridesKey = (value: ApproverOverrides | null | undefined) =>
 
 async function getDocument(documentId: number) {
   // elf_date as plain YYYY-MM-DD text — a DATE sent as a JS Date shifts a day back in UTC.
-  const result = await query<DocumentInfo>("SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path, review_form_path, approver_overrides FROM procedure_documents WHERE id = $1", [documentId])
+  const result = await query<DocumentInfo>("SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path, review_form_path, approver_overrides, approval_roles, review_roles FROM procedure_documents WHERE id = $1", [documentId])
   return result.rows[0] ?? null
 }
 
@@ -339,12 +345,19 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
       [documentId]
     )
 
-    if (roleCodes.length === 0) {
+    // The Form Review beside the document is signed by its own positions
+    // (Prepared / Checked / Approval) — first, then the document's approvers.
+    const all = await listRoles()
+    const reviewCodes = doc.review_form_path ? (doc.review_roles ?? []).filter((code) => !roleCodes.includes(code)) : []
+    const roles = [
+      ...all.filter((role) => role.kind === 'review_form' && reviewCodes.includes(role.code)),
+      ...all.filter((role) => roleCodes.includes(role.code)),
+    ]
+    if (roles.length === 0) {
       await setDocumentStatus(documentId, 'none')
       return false
     }
 
-    const roles = (await listRoles()).filter((role) => roleCodes.includes(role.code))
     for (const [index, role] of roles.entries()) {
       await query(
         `INSERT INTO procedure_approvals (document_id, revision, role_code, role_title, step, status, approver_name, approver_initials)
@@ -643,6 +656,13 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
     const requests = await revisionRequests(doc.id)
     const lastRequest = requests[0] ?? null
 
+    // A Form Review beside the document has its own approvers (review_roles):
+    // they get the Form Review's request, with their part of the chain; the
+    // document's approvers get the document's, with theirs.
+    const reviewCodes = doc.review_form_path ? doc.review_roles ?? [] : []
+    const signsReview = reviewCodes.includes(step.role_code)
+    const part = reviewCodes.length ? cycle.rows.filter((row) => reviewCodes.includes(row.role_code) === signsReview) : cycle.rows
+
     // A Form Review carries what was filled in, so the mail can summarise it.
     // While the form is being saved the first request goes out before its
     // fields are stored — the ones being saved are taken then (reviewFormsBeingSaved).
@@ -672,9 +692,9 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       revision: doc.revision,
       effDate: doc.elf_date,
       note: doc.note,
-      stepNumber: step.step,
-      stepTotal: cycle.rows.length,
-      chain: cycle.rows.map((row) => ({
+      stepNumber: part.findIndex((row) => row.id === step.id) + 1,
+      stepTotal: part.length,
+      chain: part.map((row) => ({
         roleTitle: row.role_title,
         name: row.approver_name ?? '-',
         state: row.id === step.id ? 'current' as const : row.status === 'approved' ? 'done' as const : 'waiting' as const,
@@ -682,23 +702,21 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       })),
       reviewUrl: `${base}${API_BASE_PATH}/pengesahan?token=${token}`,
       approvalCode: step.approval_code,
-      kind: docKindInfo(doc.kind),
+      // a Form Review approver gets the Form Review's mail, in the form's look
+      kind: signsReview ? docKindInfo('review_form') : docKindInfo(doc.kind),
+      formReviewOf: signsReview ? { controlNo: doc.control_no, title: doc.title, registerLabel: docKindInfo(doc.kind).label } : null,
     })
     // The procedure itself travels with the email ("telah saya lampirkan pada
     // email ini"), unless it's too big for typical mail servers — then the
     // review link (which shows the PDF) is the way in.
     const attachments: MailAttachment[] = [{ filename: 'yazaki-logo.jpg', path: path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'), cid: LOGO_CID }]
-    const docPath = path.join(STORAGE_ROOT, doc.file_path)
-    const docSize = await stat(docPath).then((s) => s.size).catch(() => 0)
-    if (docSize > 0 && docSize <= MAX_ATTACHMENT_BYTES) {
-      const filename = `${doc.control_no} - ${doc.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-')
-      attachments.push({ filename, path: docPath, contentType: 'application/pdf' })
-    }
-    // Its Form Review, signed by the same approval.
-    if (doc.review_form_path) {
-      const formPath = path.join(STORAGE_ROOT, doc.review_form_path)
-      const formSize = await stat(formPath).then((s) => s.size).catch(() => 0)
-      if (formSize > 0 && formSize <= MAX_ATTACHMENT_BYTES) attachments.push({ filename: `Form Review - ${doc.control_no}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), path: formPath, contentType: 'application/pdf' })
+    // What this approver signs comes first; the other file travels along to read with it.
+    const files: { filename: string; filePath: string }[] = [{ filename: `${doc.control_no} - ${doc.title}.pdf`, filePath: doc.file_path }]
+    if (doc.review_form_path) files[signsReview ? 'unshift' : 'push']({ filename: `Form Review - ${doc.control_no}.pdf`, filePath: doc.review_form_path })
+    for (const file of files) {
+      const full = path.join(STORAGE_ROOT, file.filePath)
+      const size = await stat(full).then((s) => s.size).catch(() => 0)
+      if (size > 0 && size <= MAX_ATTACHMENT_BYTES) attachments.push({ filename: file.filename.replace(/[\\/:*?"<>|]/g, '-'), path: full, contentType: 'application/pdf' })
     }
 
     await sendMail(settings, { to: step.approver_email, subject, html, attachments })
@@ -813,7 +831,7 @@ export async function replacedLink(token: string): Promise<ReplacedLink | null> 
 
 export type TokenView = {
   step: ApprovalStep
-  document: { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path?: string | null }
+  document: { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path?: string | null; review_roles?: string[] }
   cycle: ApprovalStep[]
 }
 
@@ -1122,7 +1140,10 @@ async function notifyAdmins(documentId: number, outcome: 'approved' | 'rejected'
       revisionRequest: request
         ? { by: request.approverName ?? '-', roleTitle: request.roleTitle, at: request.decidedAt, general: request.general, pins: request.pins.map((p) => ({ page: p.page, note: p.note, x2: p.x2 })) }
         : null,
-      placements: outcome === 'approved' ? { placed: cycle.filter((s) => placedRoles.has(s.role_code)).length, total: cycle.length } : undefined,
+      placements: outcome === 'approved' ? (() => {
+        const own = cycle.filter((s) => (doc.approval_roles ?? []).includes(s.role_code))
+        return { placed: own.filter((s) => placedRoles.has(s.role_code)).length, total: own.length }
+      })() : undefined,
       // Opens the register already filtered to this document.
       registerUrl: `${base}${docKindInfo(doc.kind).path}?q=${encodeURIComponent(doc.control_no)}`,
       signedPdfUrl: outcome === 'approved' ? `${base}/api/prosedur-isms/${documentId}/pdf` : undefined,
@@ -1382,8 +1403,8 @@ export async function listProcedureNotices(): Promise<ProcedureNotice[]> {
     })
   }
 
-  const approved = (await query<{ id: number; kind: DocKind; control_no: string; title: string; revision: number; file_path: string; at: string; total: number }>(
-    `SELECT d.id, d.kind, d.control_no, d.title, d.revision, d.file_path, max(a.decided_at) AS at, count(*)::int AS total
+  const approved = (await query<{ id: number; kind: DocKind; control_no: string; title: string; revision: number; file_path: string; at: string; total: number; approval_roles: string[] }>(
+    `SELECT d.id, d.kind, d.control_no, d.title, d.revision, d.file_path, d.approval_roles, max(a.decided_at) AS at, count(*)::int AS total
      FROM procedure_documents d
      JOIN procedure_approvals a ON a.document_id = d.id AND a.revision = d.revision AND a.status = 'approved'
      WHERE d.approval_status = 'approved'
@@ -1395,11 +1416,11 @@ export async function listProcedureNotices(): Promise<ProcedureNotice[]> {
     const approvedRoles = (await query<{ role_code: string }>(
       `SELECT role_code FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'approved'`,
       [doc.id, doc.revision]
-    )).rows.map((r) => r.role_code)
+    )).rows.map((r) => r.role_code).filter((r) => (doc.approval_roles ?? []).includes(r)) // the document's own approvers
     const placedRoles = new Set((await slotsFor(doc.id, doc.file_path)).map((s) => s.role_code))
     notices.push({
       kind: 'approved', docKind: doc.kind, documentId: doc.id, controlNo: doc.control_no, title: doc.title, revision: doc.revision, at: doc.at,
-      placed: approvedRoles.filter((r) => placedRoles.has(r)).length, total: doc.total,
+      placed: approvedRoles.filter((r) => placedRoles.has(r)).length, total: approvedRoles.length,
     })
   }
 

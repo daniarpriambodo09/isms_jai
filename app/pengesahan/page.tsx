@@ -34,7 +34,7 @@ type Step = {
 
 type View = {
   step: Step
-  document: { kind?: string; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; has_review_form?: boolean }
+  document: { kind?: string; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; has_review_form?: boolean; signs_review?: boolean }
   cycle: Step[]
   superseded: boolean
   linkExpired: boolean
@@ -89,6 +89,9 @@ function PengesahanContent() {
   const [approvalCode, setApprovalCode] = useState('')
   const [codeError, setCodeError] = useState<string | null>(null)
   const [docTab, setDocTab] = useState<'document' | 'review'>('document')
+  // A Form Review approver starts on the Form Review (what they sign).
+  const signsReview = !!view?.document?.signs_review
+  useEffect(() => { if (signsReview) setDocTab('review') }, [signsReview])
   const [pdfStamp, setPdfStamp] = useState(0) // busts the signed-PDF link after moving QR
 
   const load = useCallback(async () => {
@@ -420,7 +423,7 @@ function PengesahanContent() {
       {/* No placing step: just one confirmation before the signature is given. */}
       <ConfirmDialog
         open={confirmApprove}
-        title="Setujui dokumen ini?"
+        title={document.signs_review ? 'Setujui Form Review ini?' : 'Setujui dokumen ini?'}
         message={`${document.control_no} — ${document.title}. QR tanda tangan Anda (${step.role_title}) ${view.qrAutoPlaced ? 'otomatis tercetak di kolomnya pada dokumen' : 'ditempatkan di kolom tanda tangan dokumen oleh Admin ISM setelah Anda menyetujui'}. Persetujuan tidak dapat dibatalkan.`}
         confirmLabel="Ya, setujui"
         danger={false}

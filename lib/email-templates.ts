@@ -742,6 +742,11 @@ export type ProcedureApprovalEmailData = {
   kind?: DocKindLook
   /** Form Review Dokumen: what the form says, shown in the mail. */
   reviewForm?: ReviewFormSummary | null
+  /**
+   * This approver signs the Form Review uploaded beside a document (not the
+   * document itself): the mail asks for the form, in the form's look.
+   */
+  formReviewOf?: { controlNo: string; title: string; registerLabel: string } | null
   /** A follow-up of a request the approver hasn't decided on: which reminder, and how long it has waited. */
   reminder?: { count: number; waitingDays: number } | null
   /** Sent again after a "Minta Revisi": what was asked, by whom; round = 2 for the first re-submission. */
@@ -783,6 +788,17 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     ['Jabatan Anda', escapeHtml(data.roleTitle)],
   ]
   if (data.note) rows.push(['Note Dokumen', escapeHtml(data.note)])
+  // The Form Review beside a document: what is signed is the form about that document.
+  const fro = data.formReviewOf ?? null
+  if (fro) {
+    rows.splice(0, rows.length,
+      ['Yang ditandatangani', 'Form Review &amp; Revisi Dokumen ISMS'],
+      ['Untuk dokumen', `${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}`],
+      ['Menu', escapeHtml(fro.registerLabel)],
+      ['Revisi dokumen', String(data.revision)],
+      ['Jabatan Anda', escapeHtml(data.roleTitle)],
+    )
+  }
 
   const title = escapeHtml(data.title)
   const kind = data.kind ?? PROCEDURE_KIND
@@ -840,7 +856,9 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   // Form Review: say what it is about in plain words — not "dokumen form review dokumen Form Review — …".
   const rf = data.reviewForm ?? null
   const reviewed = rf ? escapeHtml([rf.docControlNo, rf.docTitle].filter(Boolean).join(' — ')) : ''
-  const askLine = rf
+  const askLine = fro
+    ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review dan dokumennya telah saya lampirkan pada email ini. Setelah Form Review ditandatangani, dokumennya diteruskan ke approver dokumen.</p>`
+    : rf
     ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya telah saya lampirkan pada email ini, dan ringkasannya ada di bawah.</p>`
     : null
 
@@ -859,7 +877,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     <tr><td style="padding:0 32px;">${chainRow(data.chain, look)}</td></tr>
     <tr>
       <td align="center" style="padding:26px 32px 6px;">
-        <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;${buttonStyle}">&#9998;&nbsp; ${data.reviewForm ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI' : 'PERIKSA &amp; TANDA TANGANI') : re ? 'REVIEW ULANG &amp; APPROVAL' : 'REVIEW &amp; APPROVAL'}</a>
+        <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;${buttonStyle}">&#9998;&nbsp; ${data.reviewForm || fro ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI' : 'PERIKSA &amp; TANDA TANGANI') : re ? 'REVIEW ULANG &amp; APPROVAL' : 'REVIEW &amp; APPROVAL'}</a>
         <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11.5px;color:${MUTED};">Buka dokumen, lalu pilih <strong>Setujui</strong> atau <strong>Tolak</strong> &mdash; tanpa perlu login.</p>
       </td>
     </tr>${data.approvalCode ? approvalCodeBlock(data.approvalCode) : ''}
@@ -870,19 +888,23 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     </tr>`
 
   return {
-    subject: (rem ? `[Pengingat ke-${rem.count}] ` : '') + (rf
+    subject: (rem ? `[Pengingat ke-${rem.count}] ` : '') + (fro
+      ? `${re ? `[Pengajuan Ulang ke-${re.round}] ` : ''}Tanda tangan Form Review — ${fro.controlNo} ${fro.title}`
+      : rf
       ? `${re ? `[Pengajuan Ulang ke-${re.round}] ` : ''}Tanda tangan Form Review No. ${rf.formNo} — ${[rf.docControlNo, rf.docTitle].filter(Boolean).join(' ')}`
       : re
       ? `[Pengajuan Ulang ke-${re.round}] Approval ${kind.short} ${data.title} (Rev. ${data.revision}) — setelah revisi`
       : `Pengajuan Approval ${kind.short} ${data.title}`),
     html: documentEmailFrame(kind, {
-      kicker: re ? `Pengajuan Ulang ke-${re.round} &middot; ${kind.label}` : `Pengesahan Dokumen &middot; ${kind.label}`,
-      heading: rf ? (re ? 'Form Review — Diajukan Ulang' : 'Form Review &amp; Revisi Dokumen') : re ? `Pengajuan Ulang Approval ${kind.short}` : `Pengajuan Approval ${kind.short}`,
+      kicker: fro ? `${re ? `Pengajuan Ulang ke-${re.round}` : 'Pengesahan Form Review'} &middot; ${escapeHtml(fro.registerLabel)}` : re ? `Pengajuan Ulang ke-${re.round} &middot; ${kind.label}` : `Pengesahan Dokumen &middot; ${kind.label}`,
+      heading: rf || fro ? (re ? 'Form Review — Diajukan Ulang' : 'Form Review &amp; Revisi Dokumen') : re ? `Pengajuan Ulang Approval ${kind.short}` : `Pengajuan Approval ${kind.short}`,
       footerLabel: `Pengesahan ${kind.label}`,
       subheading: `Tahap ${data.stepNumber} dari ${data.stepTotal} &middot; ${escapeHtml(data.roleTitle)}`,
+      // the corner plate names the document the Form Review is for (not a form number)
+      ...(fro ? { tabTitle: 'Untuk dokumen', tabSub: `Rev. ${data.revision}`, footerLabel: `Pengesahan Form Review · ${fro.registerLabel}` } : {}),
       controlNo: data.controlNo,
       revision: data.revision,
-      seal: re ? `Pengajuan<br>Ulang<br>ke-${re.round}` : rf ? 'Menunggu tanda tangan Anda' : 'Menunggu<br>Pengesahan<br>Anda',
+      seal: re ? `Pengajuan<br>Ulang<br>ke-${re.round}` : rf || fro ? 'Menunggu tanda tangan Anda' : 'Menunggu<br>Pengesahan<br>Anda',
       sealColor: re ? '#1f7a4d' : undefined,
       preheader: rem ? `Sudah ${rem.waitingDays} hari menunggu keputusan Anda.` : re ? `Pengajuan ulang setelah revisi — link di email sebelumnya sudah tidak berlaku.` : undefined,
     }, body),

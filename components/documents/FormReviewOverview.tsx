@@ -17,8 +17,8 @@ import { downloadExcel } from '@/lib/excel-export'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type Step = { role_code: string; role_title: string; status: string; approver_name: string | null; decided_at: string | null }
-type Doc = { id: number; control_no: string; title: string; revision: number; elf_date: string; note: string | null; approval_roles: string[]; approver_overrides?: Record<string, Person>; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; review_form_path?: string | null; approvals: Step[] }
-type Role = { code: string; title: string; person_name: string | null; email: string | null }
+type Doc = { id: number; control_no: string; title: string; revision: number; elf_date: string; note: string | null; approval_roles: string[]; approver_overrides?: Record<string, Person>; review_roles?: string[]; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; review_form_path?: string | null; approvals: Step[] }
+type Role = { code: string; title: string; person_name: string | null; email: string | null; is_default?: boolean }
 type Person = { name: string; email: string }
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
 const peopleKey = (value: Record<string, Person>) => JSON.stringify(Object.keys(value).sort().map((code) => [code, value[code].name.trim(), value[code].email.trim().toLowerCase()]))
@@ -27,9 +27,82 @@ type Row = Doc & { kind: Kind }
 const keyOf = (row: Row) => `${row.kind}-${row.id}`
 
 /**
+ * One group of positions to tick, each with its person for this document
+ * (the position's usual holder unless another name and e-mail are given).
+ */
+function RolePicker({ legend, hint, roles, selected, onToggle, people, setPeople, editingPerson, setEditingPerson }: {
+  legend: string
+  hint: string
+  roles: Role[] | null
+  selected: string[]
+  onToggle: (code: string, on: boolean) => void
+  people: Record<string, Person>
+  setPeople: (update: (current: Record<string, Person>) => Record<string, Person>) => void
+  editingPerson: string | null
+  setEditingPerson: (code: string | null) => void
+}) {
+  const ordered = (roles ?? []).filter((role) => selected.includes(role.code)).map((role) => role.code)
+  return (
+    <fieldset className="flex flex-col gap-2 rounded-xl border border-border p-3">
+      <legend className="px-1 text-xs font-semibold text-foreground">{legend}</legend>
+      {!roles ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Memuat jabatan…</p>
+        : !roles.length ? <p className="text-xs text-muted-foreground">Belum ada jabatan pengesahan.</p>
+          : roles.map((role) => {
+            const checked = selected.includes(role.code)
+            const person = people[role.code]
+            const own = !!person && !!(person.name.trim() || person.email.trim())
+            const open = editingPerson === role.code || (checked && !role.email && !own)
+            return (
+              <div key={role.code} className={`rounded-lg px-2 py-1.5 ${checked ? 'bg-secondary/40' : ''}`}>
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    aria-label={`${role.title} (${role.code})`}
+                    onChange={() => {
+                      onToggle(role.code, !checked)
+                      // a position without an e-mail needs its person here: keep the fields open while they're typed
+                      if (!checked && !role.email && !own) setEditingPerson(role.code)
+                    }}
+                    className="mt-0.5 size-4 accent-[color:var(--primary)]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-foreground">{role.title} <span className="font-mono text-[10px] text-muted-foreground">{role.code}</span></span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {own
+                        ? <><strong className="text-foreground">{person!.name || '—'}</strong> · {person!.email || 'email belum diisi'} <span className="text-primary">(khusus dokumen ini)</span></>
+                        : <>{role.person_name || 'Belum diisi'}{role.email ? '' : ' · email belum diisi'}</>}
+                    </span>
+                  </span>
+                </label>
+                {checked && !open && (
+                  <div className="ml-6 mt-1 flex flex-wrap gap-3 text-[11px] font-semibold">
+                    <button type="button" onClick={() => { setEditingPerson(role.code); setPeople((current) => ({ ...current, [role.code]: current[role.code] ?? { name: '', email: '' } })) }} className="text-primary hover:underline">{own ? 'Ubah orang' : 'Ganti orang untuk dokumen ini'}</button>
+                    {own && <button type="button" onClick={() => setPeople((current) => { const next = { ...current }; delete next[role.code]; return next })} className="text-muted-foreground hover:underline">Kembali ke {role.person_name || 'default'}</button>}
+                  </div>
+                )}
+                {checked && open && (
+                  <div className="ml-6 mt-2 grid gap-2 sm:grid-cols-2" data-testid={`person-${role.code}`}>
+                    <input value={person?.name ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: event.target.value, email: current[role.code]?.email ?? '' } }))} placeholder="Nama approver" aria-label={`Nama approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
+                    <input value={person?.email ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: current[role.code]?.name ?? '', email: event.target.value } }))} placeholder="nama@jai.co.id" type="email" aria-label={`Email approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
+                    <p className="text-[11px] text-muted-foreground sm:col-span-2">Hanya untuk dokumen ini — jabatan {role.code} di dokumen lain tetap {(role.person_name || 'orang default-nya').replace(/\.$/, '')}.{' '}
+                      <button type="button" onClick={() => { setEditingPerson(null); if (!role.email) return; setPeople((current) => { const next = { ...current }; if (!next[role.code]?.name.trim() && !next[role.code]?.email.trim()) delete next[role.code]; return next }) }} className="font-semibold text-primary hover:underline">Selesai</button>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+      <p className="px-1 text-[11px] text-muted-foreground">{ordered.length ? `Email dikirim berurutan: ${ordered.join(' → ')}.` : hint}</p>
+    </fieldset>
+  )
+}
+
+/**
  * Upload a Form Review to the document it belongs to (chosen from the list),
- * and/or set who approves it. One approval signs the document and its Form
- * Review, so a new file or other approvers start the signing again.
+ * and/or set who approves. The Form Review has its own approvers (the Form
+ * Review positions: Prepared / Checked / Approval), who sign first; then the
+ * document's approvers. A new file or other approvers start the signing again.
  */
 function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows: Row[]; initialKey: string; focus: 'file' | 'approvers'; onClose: () => void; onSaved: () => void }) {
   const [docKey, setDocKey] = useState(initialKey)
@@ -37,33 +110,50 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
   const [file, setFile] = useState<File | null>(null)
   const [roles, setRoles] = useState<Record<string, Role[]>>({})
   const [selected, setSelected] = useState<string[]>(doc?.approval_roles ?? [])
+  const [reviewSelected, setReviewSelected] = useState<string[] | null>(null)
   // Someone else than the position's usual holder, for this document only.
   const [people, setPeople] = useState<Record<string, Person>>(doc?.approver_overrides ?? {})
   const [editingPerson, setEditingPerson] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // the chosen document's approvers to start from; that register's positions to choose from
-  useEffect(() => { setSelected(doc?.approval_roles ?? []); setPeople(doc?.approver_overrides ?? {}); setEditingPerson(null); setError(null) }, [docKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // the chosen document's approvers to start from; the positions to choose from
+  useEffect(() => { setSelected(doc?.approval_roles ?? []); setReviewSelected(null); setPeople(doc?.approver_overrides ?? {}); setEditingPerson(null); setError(null) }, [docKey]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!doc || roles[doc.kind]) return
-    fetch(`${API_BASE_PATH}/api/prosedur-approver-roles?kind=${doc.kind}`, { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : { roles: [] }))
-      .then((data: { roles?: Role[] }) => setRoles((current) => ({ ...current, [doc.kind]: data.roles ?? [] })))
-      .catch(() => {})
+    if (!doc) return
+    for (const kind of [doc.kind, 'review_form'] as const) {
+      if (roles[kind]) continue
+      fetch(`${API_BASE_PATH}/api/prosedur-approver-roles?kind=${kind}`, { cache: 'no-store' })
+        .then((response) => (response.ok ? response.json() : { roles: [] }))
+        .then((data: { roles?: Role[] }) => setRoles((current) => ({ ...current, [kind]: data.roles ?? [] })))
+        .catch(() => {})
+    }
   }, [doc, roles])
 
   const kindRoles = doc ? roles[doc.kind] ?? null : null
+  const reviewRoles = roles.review_form ?? null
+  const hasReview = !!doc && (!!doc.review_form_path || !!file)
+  // the form's approvers: as set on the document, else (a form new here, or attached before it had its own) the default ones
+  const reviewDefault = useMemo(() => {
+    if (!doc) return []
+    if ((doc.review_roles ?? []).length) return doc.review_roles!
+    return (reviewRoles ?? []).filter((role) => role.is_default && (role.email || doc.approver_overrides?.[role.code])).map((role) => role.code)
+  }, [doc, reviewRoles])
+  const reviewChosen = hasReview ? reviewSelected ?? reviewDefault : []
   const ordered = (kindRoles ?? []).filter((role) => selected.includes(role.code)).map((role) => role.code)
+  const reviewOrdered = (reviewRoles ?? []).filter((role) => reviewChosen.includes(role.code)).map((role) => role.code)
+  const allChosen = [...reviewOrdered, ...ordered]
   // only the chosen positions keep a person of their own; an empty entry = the usual holder
-  const chosenPeople = Object.fromEntries(Object.entries(people).filter(([code, person]) => ordered.includes(code) && (person.name.trim() || person.email.trim()))) as Record<string, Person>
-  const approversChanged = !!doc && (ordered.join(',') !== (doc.approval_roles ?? []).join(',') || peopleKey(chosenPeople) !== peopleKey(doc.approver_overrides ?? {}))
+  const chosenPeople = Object.fromEntries(Object.entries(people).filter(([code, person]) => allChosen.includes(code) && (person.name.trim() || person.email.trim()))) as Record<string, Person>
+  const approversChanged = !!doc && (ordered.join(',') !== (doc.approval_roles ?? []).join(',')
+    || reviewOrdered.join(',') !== (doc.review_roles ?? []).join(',')
+    || peopleKey(chosenPeople) !== peopleKey(doc.approver_overrides ?? {}))
   const changed = !!doc && (!!file || approversChanged)
   // a chosen position must end up with a name and a working e-mail
-  const problem = (kindRoles ?? []).filter((role) => ordered.includes(role.code)).map((role) => {
+  const problem = [...(reviewRoles ?? []).filter((role) => reviewOrdered.includes(role.code)), ...(kindRoles ?? []).filter((role) => ordered.includes(role.code))].map((role) => {
     const person = chosenPeople[role.code]
     if (person) return !person.name.trim() ? `Nama approver ${role.code} belum diisi.` : !EMAIL.test(person.email.trim()) ? `Email approver ${role.code} belum benar.` : null
-    return role.email ? null : `${role.title} (${role.code}) belum punya email — isi orang untuk dokumen ini.`
+    return role.email ? null : `${role.title} (${role.code}) belum punya email — isi orang untuk dokumen ini, atau lepas centangnya.`
   }).find(Boolean) ?? null
 
   const save = async () => {
@@ -78,6 +168,7 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
       form.set('elfDate', doc.elf_date.slice(0, 10))
       form.set('revision', String(doc.revision))
       form.set('approvalRoles', JSON.stringify(ordered))
+      if (hasReview) form.set('reviewRoles', JSON.stringify(reviewOrdered))
       form.set('approverOverrides', JSON.stringify(chosenPeople))
       form.set('note', doc.note ?? '')
       if (file) form.set('reviewFile', file)
@@ -86,18 +177,19 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
       if (!response.ok) { setError(body.message ?? 'Gagal menyimpan.'); return }
       toast(body.approvalRestarted
         ? `Tersimpan — pengesahan ${doc.control_no} dimulai ulang; email dikirim ke approver pertama.`
-        : ordered.length ? `Tersimpan untuk ${doc.control_no}.` : `Tersimpan — ${doc.control_no} tidak memerlukan pengesahan.`)
+        : allChosen.length ? `Tersimpan untuk ${doc.control_no}.` : `Tersimpan — ${doc.control_no} tidak memerlukan pengesahan.`)
       onSaved()
     } catch { setError('Tidak dapat menghubungi server.') } finally { setSaving(false) }
   }
 
   const groups = (['procedure', 'tmmin_standard'] as const).map((kind) => ({ kind, rows: rows.filter((row) => row.kind === kind) }))
+  const pickerProps = { people, setPeople, editingPerson, setEditingPerson }
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-auto">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-5">
         <div>
           <h3 className="text-base font-semibold text-foreground">{focus === 'approvers' ? 'Atur approver' : 'Unggah Form Review'}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Pilih dokumen yang sesuai — Form Review tersimpan di sebelah dokumen itu dan disahkan bersama dokumennya oleh approver yang dicentang.</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Pilih dokumen yang sesuai — Form Review tersimpan di sebelah dokumen itu. Form Review disahkan oleh approver Form Review-nya (Prepared, Checked, Approval), lalu dokumen oleh approver dokumen.</p>
         </div>
 
         <label className="flex flex-col gap-1.5">
@@ -120,56 +212,29 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
               {doc.review_form_path && <a href={`${API_BASE_PATH}/api/prosedur-isms/${doc.id}/pdf?part=review`} target="_blank" rel="noopener noreferrer" className="w-fit text-[11px] font-semibold text-primary hover:underline">Lihat Form Review yang sekarang</a>}
             </label>
 
-            <fieldset className="flex flex-col gap-2 rounded-xl border border-border p-3">
-              <legend className="px-1 text-xs font-semibold text-foreground">Approver ({DOC_KIND_INFO[doc.kind].label})</legend>
-              {!kindRoles ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Memuat jabatan…</p>
-                : !kindRoles.length ? <p className="text-xs text-muted-foreground">Belum ada jabatan pengesahan untuk menu ini.</p>
-                  : kindRoles.map((role) => {
-                    const checked = selected.includes(role.code)
-                    const person = people[role.code]
-                    const own = !!person && !!(person.name.trim() || person.email.trim())
-                    const open = editingPerson === role.code || (checked && !role.email && !own)
-                    return (
-                      <div key={role.code} className={`rounded-lg px-2 py-1.5 ${checked ? 'bg-secondary/40' : ''}`}>
-                        <label className="flex cursor-pointer items-start gap-2.5">
-                          <input type="checkbox" checked={checked} aria-label={`${role.title} (${role.code})`} onChange={() => {
-                            setSelected((current) => (checked ? current.filter((code) => code !== role.code) : [...current, role.code]))
-                            // a position without an e-mail needs its person here: keep the fields open while they're typed
-                            if (!checked && !role.email && !own) setEditingPerson(role.code)
-                          }} className="mt-0.5 size-4 accent-[color:var(--primary)]" />
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-medium text-foreground">{role.title} <span className="font-mono text-[10px] text-muted-foreground">{role.code}</span></span>
-                            <span className="block text-[11px] text-muted-foreground">
-                              {own
-                                ? <><strong className="text-foreground">{person!.name || '—'}</strong> · {person!.email || 'email belum diisi'} <span className="text-primary">(khusus dokumen ini)</span></>
-                                : <>{role.person_name || 'Belum diisi'}{role.email ? '' : ' · email belum diisi'}</>}
-                            </span>
-                          </span>
-                        </label>
-                        {checked && !open && (
-                          <div className="ml-6 mt-1 flex flex-wrap gap-3 text-[11px] font-semibold">
-                            <button type="button" onClick={() => { setEditingPerson(role.code); setPeople((current) => ({ ...current, [role.code]: current[role.code] ?? { name: '', email: '' } })) }} className="text-primary hover:underline">{own ? 'Ubah orang' : 'Ganti orang untuk dokumen ini'}</button>
-                            {own && <button type="button" onClick={() => setPeople((current) => { const next = { ...current }; delete next[role.code]; return next })} className="text-muted-foreground hover:underline">Kembali ke {role.person_name || 'default'}</button>}
-                          </div>
-                        )}
-                        {checked && open && (
-                          <div className="ml-6 mt-2 grid gap-2 sm:grid-cols-2" data-testid={`person-${role.code}`}>
-                            <input value={person?.name ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: event.target.value, email: current[role.code]?.email ?? '' } }))} placeholder="Nama approver" aria-label={`Nama approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
-                            <input value={person?.email ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: current[role.code]?.name ?? '', email: event.target.value } }))} placeholder="nama@jai.co.id" type="email" aria-label={`Email approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
-                            <p className="text-[11px] text-muted-foreground sm:col-span-2">Hanya untuk dokumen ini — jabatan {role.code} di dokumen lain tetap {(role.person_name || 'orang default-nya').replace(/.$/, '')}.{' '}
-                              <button type="button" onClick={() => { setEditingPerson(null); if (!role.email) return; setPeople((current) => { const next = { ...current }; if (!next[role.code]?.name.trim() && !next[role.code]?.email.trim()) delete next[role.code]; return next }) }} className="font-semibold text-primary hover:underline">Selesai</button>
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-              <p className="px-1 text-[11px] text-muted-foreground">{ordered.length ? `Email dikirim berurutan: ${ordered.join(' → ')}.` : 'Tidak ada yang dicentang = dokumen dan Form Review-nya tidak memerlukan pengesahan.'}</p>
-            </fieldset>
+            {hasReview && (
+              <RolePicker
+                legend="Approver Form Review (Prepared · Checked · Approval)"
+                hint="Tidak ada yang dicentang = Form Review tidak ditandatangani."
+                roles={reviewRoles}
+                selected={reviewChosen}
+                onToggle={(code, on) => setReviewSelected((reviewSelected ?? reviewDefault).filter((c) => c !== code).concat(on ? [code] : []))}
+                {...pickerProps}
+              />
+            )}
+            <RolePicker
+              legend={`Approver dokumen (${DOC_KIND_INFO[doc.kind].label})`}
+              hint="Tidak ada yang dicentang = dokumen tidak memerlukan pengesahan."
+              roles={kindRoles}
+              selected={selected}
+              onToggle={(code, on) => setSelected((current) => current.filter((c) => c !== code).concat(on ? [code] : []))}
+              {...pickerProps}
+            />
+            {allChosen.length > 0 && <p className="px-1 text-[11px] text-muted-foreground">Urutan pengesahan: {allChosen.join(' → ')}.</p>}
 
-            {changed && (doc.approval_roles.length > 0 || ordered.length > 0) && (
+            {changed && ((doc.approval_roles ?? []).length > 0 || (doc.review_roles ?? []).length > 0 || allChosen.length > 0) && (
               <p className="rounded-xl border border-amber-500/40 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-                {file && approversChanged ? 'Form Review baru dan approver yang berbeda' : file ? 'Form Review baru' : 'Approver yang berbeda'} memulai ulang pengesahan {doc.control_no}: approver menerima email lagi untuk menyetujui dokumen dan Form Review-nya.
+                {file && approversChanged ? 'Form Review baru dan approver yang berbeda' : file ? 'Form Review baru' : 'Approver yang berbeda'} memulai ulang pengesahan {doc.control_no}: approver menerima email lagi untuk menyetujui Form Review dan dokumennya.
               </p>
             )}
           </>

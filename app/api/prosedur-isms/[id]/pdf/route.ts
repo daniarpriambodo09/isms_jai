@@ -25,7 +25,7 @@ function headerDate(value: string) {
 
 export const dynamic = 'force-dynamic'
 
-type Row = { id: number; kind: string; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; public_visible: boolean; review_form_path: string | null }
+type Row = { id: number; kind: string; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; public_visible: boolean; review_form_path: string | null; review_roles: string[] }
 
 // The Form Review beside a document is signed by the document's approvers:
 // each QR in the form's own box (Prepared / Checked / Approval), measured on
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     await ensureApprovalSchema()
     const result = await query<Row>(
-      "SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status, public_visible, review_form_path FROM procedure_documents WHERE id = $1",
+      "SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status, public_visible, review_form_path, review_roles FROM procedure_documents WHERE id = $1",
       [id]
     )
     const doc = result.rows[0]
@@ -90,7 +90,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const effDateStamp = lastSigned
       ? { text: headerDate(lastSigned), cells: await detectEffDateCells(doc.file_path).catch((error) => { console.error('[prosedur-isms/pdf] eff date', (error as Error).message); return [] }) }
       : null
-    const reviewLayout = reviewPart ? await reviewFormSlots(doc.review_form_path!, steps.map((s) => ({ code: s.role_code, title: s.role_title }))) : null
+    // The Form Review is signed by its own positions (Prepared / Checked / Approval); a form
+    // attached before it had them was signed by the document's approvers.
+    const reviewSigners = (doc.review_roles ?? []).length ? steps.filter((s) => doc.review_roles.includes(s.role_code)) : steps
+    const reviewLayout = reviewPart ? await reviewFormSlots(doc.review_form_path!, reviewSigners.map((s) => ({ code: s.role_code, title: s.role_title }))) : null
     const bytes = await buildProcedureSignedPdf({
       kindLabel: docKindInfo(doc.kind).label,
       controlNo: doc.control_no,

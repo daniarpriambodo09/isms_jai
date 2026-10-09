@@ -13,7 +13,7 @@ import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
-import { currentStepsFor, ensureApprovalSchema, historyCounts, missingEmailMessage, overridesKey, parseApproverOverrides, type ApproverOverrides, normalizeRoleCodes, rolesWithoutEmail, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
+import { currentStepsFor, defaultReviewRoles, ensureApprovalSchema, historyCounts, missingEmailMessage, overridesKey, parseApproverOverrides, type ApproverOverrides, normalizeRoleCodes, rolesWithoutEmail, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
 import { parseOrderedIds } from '@/lib/ordered-ids'
 
@@ -32,6 +32,7 @@ type DocumentRow = {
   public_visible: boolean
   review_form_path: string | null
   approver_overrides: Record<string, { name: string; email: string }>
+  review_roles: string[]
 }
 
 // Prosedur ISMS and Standard Requirement TMMIN carry their Form Review &
@@ -40,7 +41,7 @@ const takesReviewForm = (kind: DocKind) => kind === 'procedure' || kind === 'tmm
 const pdfOrNull = (value: FormDataEntryValue | null) => (value instanceof File && value.size > 0 ? value : null)
 
 // elf_date as plain YYYY-MM-DD text: a DATE sent as a JS Date shifts a day back in UTC.
-const COLUMNS = "id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status, public_visible, review_form_path, approver_overrides"
+const COLUMNS = "id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status, public_visible, review_form_path, approver_overrides, review_roles"
 
 function isValidDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -131,10 +132,15 @@ export function documentHandlers(kind: DocKind) {
       const roles = await normalizeRoleCodes(parseRoles(form.get('approvalRoles')), kind)
       const note = parseNote(form.get('note'))
       // A request to a position without an e-mail could never be delivered.
+      // The Form Review's own approvers (Prepared / Checked / Approval): as chosen, else the default ones.
+      const sentReview = form.get('reviewRoles')
+      const reviewCandidates = reviewFile && sentReview !== null ? await normalizeRoleCodes(parseRoles(sentReview), 'review_form') : []
       // Someone else than the position's usual holder, for this document.
-      const overrides = parseApproverOverrides(form.get('approverOverrides'), roles)
+      const rawOverrides = form.get('approverOverrides')
+      const overrides = parseApproverOverrides(rawOverrides, [...roles, ...reviewCandidates, ...(reviewFile && sentReview === null ? (await defaultReviewRoles()) : [])])
       if (typeof overrides === 'string') return NextResponse.json({ message: overrides }, { status: 400 })
-      const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind, overrides))
+      const reviewRoles = !reviewFile ? [] : sentReview !== null ? reviewCandidates : await defaultReviewRoles(overrides)
+      const noEmail = missingEmailMessage([...await rolesWithoutEmail(reviewRoles, 'review_form', overrides), ...await rolesWithoutEmail(roles, kind, overrides)])
       if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
 
       const filePath = await saveDocumentFile(file)
@@ -142,10 +148,10 @@ export function documentHandlers(kind: DocKind) {
       let created: DocumentRow
       try {
         created = (await query<DocumentRow>(
-          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, review_form_path, approver_overrides, sort_order)
-           VALUES ($1::text, $2, $3, $8, $4, $5, $6, $7, $9, $10::jsonb, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
+          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, review_form_path, approver_overrides, review_roles, sort_order)
+           VALUES ($1::text, $2, $3, $8, $4, $5, $6, $7, $9, $10::jsonb, $11, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
            RETURNING ${COLUMNS}`,
-          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note, revision, reviewPath, JSON.stringify(overrides)]
+          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note, revision, reviewPath, JSON.stringify(overrides), reviewRoles]
         )).rows[0]
       } catch (error) {
         await deleteDocumentFile(filePath).catch(() => {})
@@ -155,9 +161,10 @@ export function documentHandlers(kind: DocKind) {
       }
       await startApprovalCycle(created.id, roles)
 
-      await logActivity(session, 'create', 'procedure_document', created.id, `Menambahkan ${info.label} "${created.title}"${roles.length ? ` (pengesahan: ${roles.join(' → ')})` : ''}`)
+      const chain = [...reviewRoles, ...roles]
+      await logActivity(session, 'create', 'procedure_document', created.id, `Menambahkan ${info.label} "${created.title}"${chain.length ? ` (pengesahan: ${chain.join(' → ')})` : ''}`)
       // The row as inserted says 'none'; with approvers chosen the cycle has just started.
-      return NextResponse.json({ document: { ...created, approval_status: roles.length ? 'pending' : created.approval_status } }, { status: 201 })
+      return NextResponse.json({ document: { ...created, approval_status: chain.length ? 'pending' : created.approval_status } }, { status: 201 })
     } catch (error) {
       console.error(`[${tag}/POST]`, error)
       return NextResponse.json({ message: `Gagal menyimpan ${info.label}.` }, { status: 500 })
@@ -206,8 +213,8 @@ export function documentHandlers(kind: DocKind) {
       }
       const removeReview = takesReviewForm(kind) && !reviewFile && form.get('removeReviewForm') === '1'
 
-      const existing = await query<{ file_path: string; revision: number; approval_roles: string[]; uploaded_at: string; review_form_path: string | null; approver_overrides: ApproverOverrides | null }>(
-        'SELECT file_path, revision, approval_roles, uploaded_at, review_form_path, approver_overrides FROM procedure_documents WHERE id = $1 AND kind = $2',
+      const existing = await query<{ file_path: string; revision: number; approval_roles: string[]; uploaded_at: string; review_form_path: string | null; approver_overrides: ApproverOverrides | null; review_roles: string[] }>(
+        'SELECT file_path, revision, approval_roles, uploaded_at, review_form_path, approver_overrides, review_roles FROM procedure_documents WHERE id = $1 AND kind = $2',
         [id, kind]
       )
       if (existing.rows.length === 0) {
@@ -217,12 +224,21 @@ export function documentHandlers(kind: DocKind) {
 
       const roles = await normalizeRoleCodes(parseRoles(form.get('approvalRoles')), kind)
       const note = parseNote(form.get('note'))
+      // The Form Review's own approvers: as sent; else as they were — or the
+      // default ones for a form that is new on this document. None without a form.
+      const hasReviewAfter = !!reviewFile || (!!before.review_form_path && !removeReview)
+      const sentReview = form.get('reviewRoles')
+      const reviewCandidates = sentReview !== null ? await normalizeRoleCodes(parseRoles(sentReview), 'review_form') : null
       // Not sent = keep this document's people as they are (for the positions still chosen).
       const sentOverrides = form.get('approverOverrides')
+      const overrideCodes = [...roles, ...(reviewCandidates ?? before.review_roles ?? []), ...(await defaultReviewRoles())]
       const overrides = sentOverrides === null
-        ? parseApproverOverrides(before.approver_overrides ?? {}, roles)
-        : parseApproverOverrides(sentOverrides, roles)
+        ? parseApproverOverrides(before.approver_overrides ?? {}, overrideCodes)
+        : parseApproverOverrides(sentOverrides, overrideCodes)
       if (typeof overrides === 'string') return NextResponse.json({ message: overrides }, { status: 400 })
+      const reviewRoles = !hasReviewAfter ? []
+        : reviewCandidates ?? (before.review_form_path && (before.review_roles ?? []).length ? before.review_roles : reviewFile ? await defaultReviewRoles(overrides) : before.review_roles ?? [])
+      const reviewRolesChanged = reviewRoles.join(',') !== (before.review_roles ?? []).join(',')
       // Another person approving is a new request to sign.
       const peopleChanged = overridesKey(overrides) !== overridesKey(before.approver_overrides)
 
@@ -231,8 +247,8 @@ export function documentHandlers(kind: DocKind) {
       const replacement = (file instanceof File && file.size > 0) || reviewChanged
       // Only when this edit (re)starts the approval — a plain correction of
       // the title or date must not be blocked by an old selection.
-      if (replacement || peopleChanged || revision !== before.revision || roles.join(',') !== (before.approval_roles ?? []).join(',')) {
-        const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind, overrides))
+      if (replacement || peopleChanged || reviewRolesChanged || revision !== before.revision || roles.join(',') !== (before.approval_roles ?? []).join(',')) {
+        const noEmail = missingEmailMessage([...await rolesWithoutEmail(reviewRoles, 'review_form', overrides), ...await rolesWithoutEmail(roles, kind, overrides)])
         if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
       }
       const newFilePath = file instanceof File && file.size > 0 ? await saveDocumentFile(file) : null
@@ -250,10 +266,11 @@ export function documentHandlers(kind: DocKind) {
                approval_roles = $7,
                note = $8,
                review_form_path = CASE WHEN $10::boolean THEN NULL ELSE COALESCE($11, review_form_path) END,
-               approver_overrides = $12::jsonb
+               approver_overrides = $12::jsonb,
+               review_roles = $13
            WHERE id = $5 AND kind = $9
            RETURNING ${COLUMNS}`,
-          [controlNo.trim().toUpperCase(), title.trim(), elfDate, newFilePath, id, revision, roles, note, kind, removeReview, newReviewPath, JSON.stringify(overrides)]
+          [controlNo.trim().toUpperCase(), title.trim(), elfDate, newFilePath, id, revision, roles, note, kind, removeReview, newReviewPath, JSON.stringify(overrides), reviewRoles]
         )).rows[0]
       } catch (error) {
         if (newFilePath) await deleteDocumentFile(newFilePath).catch(() => {})
@@ -275,11 +292,12 @@ export function documentHandlers(kind: DocKind) {
       // A new file, a new revision number or a different set of approvers is a
       // new thing to sign — restart the cycle. Plain metadata edits keep it.
       const rolesChanged = roles.join(',') !== (before.approval_roles ?? []).join(',')
-      const restarted = replacement || revision !== before.revision || rolesChanged || (peopleChanged && roles.length > 0)
+      const chain = [...reviewRoles, ...roles]
+      const restarted = replacement || revision !== before.revision || rolesChanged || reviewRolesChanged || (peopleChanged && chain.length > 0)
       if (restarted) await startApprovalCycle(Number(id), roles)
 
-      await logActivity(session, 'update', 'procedure_document', id, `Mengubah ${info.label} "${updated.title}" (revisi ${updated.revision})${restarted && roles.length ? ' — pengesahan dimulai ulang' : ''}`)
-      return NextResponse.json({ document: updated, approvalRestarted: restarted && roles.length > 0 })
+      await logActivity(session, 'update', 'procedure_document', id, `Mengubah ${info.label} "${updated.title}" (revisi ${updated.revision})${restarted && chain.length ? ' — pengesahan dimulai ulang' : ''}`)
+      return NextResponse.json({ document: updated, approvalRestarted: restarted && chain.length > 0 })
     } catch (error) {
       console.error(`[${tag}/PUT]`, error)
       return NextResponse.json({ message: `Gagal memperbarui ${info.label}.` }, { status: 500 })

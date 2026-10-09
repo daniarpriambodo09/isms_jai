@@ -192,7 +192,7 @@ export function ProcedureFormModal({
             <label className="flex flex-col gap-[6px]">
               <span className="text-[12px] font-medium text-[color:var(--p-ink2)]">{isEdit && document?.hasReviewForm ? 'Ganti Form Review (opsional)' : 'Form Review (PDF, opsional)'}</span>
               <input type="file" accept="application/pdf" aria-label="Form Review" onChange={(event) => { setReviewFile(event.target.files?.[0] ?? null); setRemoveReview(false) }} className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />
-              <span className="text-[11px] leading-4 text-[color:var(--p-muted2)]">Form Review &amp; Revisi Dokumen untuk dokumen ini — tampil di sebelah dokumennya dan ikut disahkan: QR approver tercetak di dokumen dan di Form Review.</span>
+              <span className="text-[11px] leading-4 text-[color:var(--p-muted2)]">Form Review &amp; Revisi Dokumen untuk dokumen ini — tampil di sebelah dokumennya. Disahkan oleh approver Form Review (Prepared, Checked, Approval dari Approver Pengesahan → Form Review) sebelum approver dokumen; bisa diatur per dokumen di Cek Form Review.</span>
               {isEdit && document?.hasReviewForm && !reviewFile && (
                 <span className="flex items-center gap-2 text-[11.5px] text-[color:var(--p-ink2)]">
                   <input type="checkbox" checked={removeReview} onChange={(event) => setRemoveReview(event.target.checked)} className="size-3.5 accent-[color:var(--p-700)]" />

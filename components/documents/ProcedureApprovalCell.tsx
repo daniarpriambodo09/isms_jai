@@ -80,6 +80,8 @@ export function ProcedureApprovalCell({
   onRestart,
   slotsCount = 0,
   historyCount = 0,
+  placeBeforeSending = false,
+  hasReviewForm = false,
   onSlotsChanged,
 }: {
   documentId: number
@@ -95,11 +97,16 @@ export function ProcedureApprovalCell({
   slotsCount?: number
   /** Earlier files + revision requests of this document. */
   historyCount?: number
+  /** Working Standard: every QR is placed automatically; the admin may move them any time. */
+  placeBeforeSending?: boolean
+  /** The document has a Form Review beside it, signed by the same approval. */
+  hasReviewForm?: boolean
   onSlotsChanged?: () => void
 }) {
   const [placing, setPlacing] = useState(false)
-  // Not e-mailed to anyone yet: the request waits for the admin to place the QR boxes.
+  // Not e-mailed to anyone yet (only requests from when they waited for their QR boxes).
   const held = status === 'pending' && steps.length > 0 && steps.every((step) => step.status === 'waiting')
+  const approvedCount = steps.filter((step) => step.status === 'approved').length
   const [notes, setNotes] = useState<NotesView | null>(null)
   // What is open: the latest request's marks, or the whole history.
   const [notesFor, setNotesFor] = useState<'latest' | 'history' | null>(null)
@@ -159,7 +166,8 @@ export function ProcedureApprovalCell({
         )
       })}
 
-      {held && <p className="text-[11px] font-medium text-amber-700">Belum dikirim ke approver — menunggu posisi QR diatur admin.</p>}
+      {held && <p className="text-[11px] font-medium text-amber-700">Email pengesahan belum dikirim ke approver.</p>}
+      {isAdmin && !placeBeforeSending && approvedCount > 0 && slotsCount < roles.length && <p className="text-[11px] font-medium text-amber-700">Sudah ada yang menyetujui — atur posisi QR-nya supaya tanda tangan tercetak di dokumen.</p>}
       {/* One line of actions: the signed PDF, the next step when a revision was
           asked, and everything else (QR placement, history, re-send) under "⋯". */}
       <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
@@ -173,14 +181,35 @@ export function ProcedureApprovalCell({
             <FileSignature className="size-3" /> PDF bertanda tangan
           </a>
         )}
+        {hasReviewForm && steps.some((step) => step.status === 'approved') && (
+          <a
+            href={`${API_BASE_PATH}/api/prosedur-isms/${documentId}/pdf?part=review`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${status === 'approved' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-border text-foreground hover:bg-secondary'}`}
+          >
+            <FileSignature className="size-3" /> Form Review bertanda tangan
+          </a>
+        )}
         {isAdmin && held && (
           <button
             type="button"
+            onClick={onResend}
+            disabled={busy}
+            title="Kirim email pengesahan ke approver pertama sekarang"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-amber-600 disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />} Kirim ke approver
+          </button>
+        )}
+        {isAdmin && !placeBeforeSending && approvedCount > 0 && slotsCount < roles.length && (
+          <button
+            type="button"
             onClick={() => setPlacing(true)}
-            title="Email pengesahan belum dikirim — tentukan kotak QR tiap approver dulu"
+            title="Tentukan di mana QR tanda tangan approver yang sudah menyetujui dicetak pada dokumen"
             className="inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-amber-600"
           >
-            <Crosshair className="size-3" /> Atur posisi QR &amp; kirim
+            <Crosshair className="size-3" /> Atur posisi QR
           </button>
         )}
         {isAdmin && status === 'rejected' && (
@@ -197,8 +226,10 @@ export function ProcedureApprovalCell({
           <RowActionsMenu
             actions={[
               {
-                key: 'qr', icon: <Crosshair className="size-3.5" />, label: 'Atur posisi QR', detail: `${slotsCount}/${roles.length}`,
-                attention: slotsCount < roles.length, onSelect: () => setPlacing(true),
+                key: 'qr', icon: <Crosshair className="size-3.5" />, label: slotsCount > 0 ? 'Atur ulang posisi QR' : 'Atur posisi QR',
+                // only after an approver has pressed Setujui
+                detail: !placeBeforeSending && approvedCount === 0 ? 'setelah disetujui' : `${slotsCount}/${roles.length}`, disabled: !placeBeforeSending && approvedCount === 0,
+                attention: !placeBeforeSending && approvedCount > 0 && slotsCount < roles.length, onSelect: () => setPlacing(true),
               },
               ...(historyCount > 0 ? [{
                 key: 'history', icon: <History className="size-3.5" />, label: 'Riwayat revisi', detail: String(historyCount),

@@ -142,6 +142,7 @@ export function ensureApprovalSchema() {
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS token_issued_at timestamptz')
       // The approval code sent in the request e-mail (db/migrations/0018_approval_code.sql).
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code varchar(6)')
+      await query('ALTER TABLE procedure_documents ADD COLUMN IF NOT EXISTS review_form_path text')
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code_attempts integer NOT NULL DEFAULT 0')
       // Where each role's QR goes on the document itself (its own signature
       // column). Coordinates are fractions (0–1) of the displayed page, top-left
@@ -268,11 +269,11 @@ export async function currentStepsFor(documentIds: number[]): Promise<Map<number
 
 // kind: which register the document belongs to — the engine treats them alike,
 // only the names and links in e-mails and notices differ (lib/document-kinds.ts).
-type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
+type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path: string | null }
 
 async function getDocument(documentId: number) {
   // elf_date as plain YYYY-MM-DD text — a DATE sent as a JS Date shifts a day back in UTC.
-  const result = await query<DocumentInfo>("SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path FROM procedure_documents WHERE id = $1", [documentId])
+  const result = await query<DocumentInfo>("SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, note, file_path, review_form_path FROM procedure_documents WHERE id = $1", [documentId])
   return result.rows[0] ?? null
 }
 
@@ -327,11 +328,24 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
   // spots are found from the box headings in the file itself, before the
   // first approver opens it.
   if (started && placesQrItself(doc.kind)) await autoPlaceSlots(documentId)
-  // Emailing the first approver happens after the commit — and only once
-  // every position has its QR box on the file. Until then the request is
-  // held: the Admin ISM places the boxes ("Atur posisi QR"), and saving them
-  // sends it (releaseIfPlaced). The approvers themselves never place anything.
-  if (started) await releaseIfPlaced(documentId)
+  // Emailing the first approver happens after the commit, straight away.
+  // Nobody places a QR when signing: the approver only presses Setujui, and
+  // a QR shows on the document once its approver has approved.
+  // - Working Standard: every QR is placed automatically above (the sheet's
+  //   boxes, else the default spot) — nobody has to set anything.
+  // - The other registers: the Admin ISM sets where each position's QR is
+  //   printed once that position has approved (boxed templates found above).
+  if (started) await activateNextStep(documentId)
+}
+
+/**
+ * Working Standard: every QR is placed by the portal (the sheet's signature
+ * boxes, else a default spot), so nobody has to set it; the Admin ISM may
+ * still move them at any time. The other registers: the Admin ISM places a
+ * position's QR once it has approved.
+ */
+export function autoPlacesEveryQr(kind: DocKind) {
+  return kind === 'working_standard'
 }
 
 // Registers whose uploaded sheets may carry the boxed signature template —
@@ -367,18 +381,24 @@ export async function autoPlaceSlots(documentId: number): Promise<number> {
     )).rows
     const steps = all.filter((step) => !placed.has(step.role_code))
     if (!steps.length) return 0
-    const { detectSignatureSlots, detectTemplateSlots } = await import('@/lib/auto-slots')
+    const { detectSignatureSlots, detectReviewFormLayout } = await import('@/lib/auto-slots')
     let found: SignatureSlot[]
     if (doc.kind === 'review_form') {
-      // The form's three boxes, each with its QR and "/ /" date line, wherever the uploaded copy has them.
-      const { REVIEW_SIGN_SLOTS, REVIEW_BOX_HEADINGS } = await import('@/lib/review-form-pdf')
+      // The form's three boxes, each with its QR and "/ /" date line — measured on this copy of the form.
+      const layout = await detectReviewFormLayout(doc.file_path)
       const boxes = reviewBoxes(all.map((step) => step.role_title))
-      found = await detectTemplateSlots(doc.file_path, all.flatMap((step, i) => {
-        const box = boxes[i]
-        return box && !placed.has(step.role_code) ? [{ role_code: step.role_code, heading: REVIEW_BOX_HEADINGS[box], slot: REVIEW_SIGN_SLOTS[box] }] : []
-      }))
+      found = all.flatMap((step, i) => {
+        const spot = boxes[i] ? layout?.slots[boxes[i]!] : undefined
+        return spot && !placed.has(step.role_code) ? [{ ...spot, role_code: step.role_code }] : []
+      })
     } else {
       found = await detectSignatureSlots(doc.file_path, steps.map((step) => ({ code: step.role_code, title: step.role_title })))
+    }
+    // Working Standard: whoever is still without a spot gets the default one.
+    if (autoPlacesEveryQr(doc.kind)) {
+      const { detectDefaultSlots } = await import('@/lib/auto-slots')
+      const missing = steps.filter((step) => !found.some((slot) => slot.role_code === step.role_code)).map((step) => step.role_code)
+      found = [...found, ...await detectDefaultSlots(doc.file_path, missing)]
     }
     if (!found.length) return 0
     await saveSlots(doc.id, doc.file_path, [...existing, ...found])
@@ -416,7 +436,11 @@ async function heldSteps(doc: DocumentInfo): Promise<{ role_code: string }[] | n
   return steps.length && steps.every((step) => step.status === 'waiting') ? steps : null
 }
 
-/** A request that hasn't been sent to its first approver yet: it waits for the Admin ISM to place the QR boxes. */
+/**
+ * A request that hasn't been sent to its first approver yet. Only documents
+ * from the short time requests waited for their QR boxes can be like this;
+ * "Kirim ke approver" (sendHeld) sends them.
+ */
 export async function approvalHeld(documentId: number): Promise<boolean> {
   const doc = await getDocument(documentId)
   if (!doc) return false
@@ -425,6 +449,24 @@ export async function approvalHeld(documentId: number): Promise<boolean> {
   // Mid-chain (someone approved, the next e-mail is about to go) is not "held".
   const signed = await query('SELECT 1 FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = \'approved\' LIMIT 1', [doc.id, doc.revision])
   return signed.rows.length === 0
+}
+
+/** Sends a held request to its first approver now. Returns true when the e-mail went out. */
+export async function sendHeld(documentId: number): Promise<boolean> {
+  if (!(await approvalHeld(documentId))) return false
+  const doc = await getDocument(documentId)
+  if (doc && placesQrItself(doc.kind)) await autoPlaceSlots(documentId)
+  return activateNextStep(documentId)
+}
+
+/** The positions of the current cycle that have approved — the only ones whose QR the Admin ISM may place. */
+export async function approvedRoleCodes(documentId: number): Promise<string[]> {
+  const doc = await getDocument(documentId)
+  if (!doc) return []
+  return (await query<{ role_code: string }>(
+    `SELECT DISTINCT role_code FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'approved'`,
+    [doc.id, doc.revision]
+  )).rows.map((row) => row.role_code)
 }
 
 /**
@@ -618,6 +660,12 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       const filename = `${doc.control_no} - ${doc.title}.pdf`.replace(/[\\/:*?"<>|]/g, '-')
       attachments.push({ filename, path: docPath, contentType: 'application/pdf' })
     }
+    // Its Form Review, signed by the same approval.
+    if (doc.review_form_path) {
+      const formPath = path.join(STORAGE_ROOT, doc.review_form_path)
+      const formSize = await stat(formPath).then((s) => s.size).catch(() => 0)
+      if (formSize > 0 && formSize <= MAX_ATTACHMENT_BYTES) attachments.push({ filename: `Form Review - ${doc.control_no}.pdf`.replace(/[\\/:*?"<>|]/g, '-'), path: formPath, contentType: 'application/pdf' })
+    }
 
     await sendMail(settings, { to: step.approver_email, subject, html, attachments })
     return null
@@ -731,7 +779,7 @@ export async function replacedLink(token: string): Promise<ReplacedLink | null> 
 
 export type TokenView = {
   step: ApprovalStep
-  document: { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
+  document: { id: number; kind: DocKind; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; review_form_path?: string | null }
   cycle: ApprovalStep[]
 }
 

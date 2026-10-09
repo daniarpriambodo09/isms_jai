@@ -12,7 +12,6 @@ import { TableSkeletonRows } from '@/components/documents/TableSkeleton'
 import { EmptyState } from '@/components/documents/EmptyState'
 import { onRowClick } from '@/lib/row-click'
 import { toast } from '@/components/toast'
-import { SignatureSlotEditor } from '@/components/documents/SignatureSlotEditor'
 import { DocumentViewModal } from '@/components/documents/DocumentViewModal'
 import { ProcedureFormModal, type EditableProcedure } from '@/components/documents/ProcedureFormModal'
 import { ResubmitDialog } from '@/components/documents/ResubmitDialog'
@@ -41,6 +40,8 @@ type ProcedureDocument = {
   slots_count: number
   // Earlier files kept + revision requests ("Riwayat revisi").
   history_count?: number
+  /** Prosedur ISMS / TMMIN: its Form Review, signed by the same approval. */
+  review_form_path?: string | null
 }
 
 type StatusFilter = 'all' | 'published' | 'hidden' | 'pending' | 'approved' | 'rejected' | 'none'
@@ -101,6 +102,11 @@ function groupByTitle(docs: ProcedureDocument[]): TitleGroup[] {
 // One register for every kind of document that goes through e-sign approval
 // (Prosedur ISMS, Working Standard): same table, same approval column, same
 // admin tools — only the hero, the wording and the list API differ.
+// A document still being signed has no Eff Date yet: it becomes the day the
+// last of its ticked approvers approves (one ticked → that approval; several →
+// the last of them). Until then the register says so instead of a date.
+const effDateWaiting = (document: { approval_status: string }) => document.approval_status === 'pending' || document.approval_status === 'rejected'
+
 export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }) {
   const kindInfo = DOC_KIND_INFO[kind]
   const listApi = `${API_BASE_PATH}${kindInfo.api}`
@@ -123,11 +129,37 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
   // in on the portal (before that) is still edited in its form (ReviewFormModal).
   const isReviewForm = kind === 'review_form'
   const [reviewForm, setReviewForm] = useState<{ editId?: number; notice?: string | null } | null>(null)
-  // Prosedur ISMS and Standard Requirement TMMIN each link to the Form Review
-  // register (visitors read the final forms there). ?from= remembers which one, for the way back.
-  const hasReviewRegister = kind === 'procedure' || kind === 'tmmin_standard'
   const reviewBack = DOC_KIND_INFO[searchParams.get('from') === 'tmmin_standard' ? 'tmmin_standard' : 'procedure']
   const [viewing, setViewing] = useState<ProcedureDocument | null>(null)
+  // The viewer shows the document's Form Review instead of the document itself.
+  const [viewingReview, setViewingReview] = useState(false)
+  // Prosedur ISMS / TMMIN: a "Form Review" column beside the document — each
+  // document's Form Review & Revisi Dokumen, uploaded right there.
+  const hasReviewColumn = kind === 'procedure' || kind === 'tmmin_standard'
+  const [reviewUpload, setReviewUpload] = useState<{ document: ProcedureDocument; file: File } | null>(null)
+  const [reviewUploading, setReviewUploading] = useState(false)
+  const uploadReviewForm = async () => {
+    if (!reviewUpload) return
+    const { document, file } = reviewUpload
+    setReviewUploading(true)
+    try {
+      const form = new FormData()
+      form.set('id', String(document.id))
+      form.set('controlNo', document.control_no)
+      form.set('title', document.title)
+      form.set('elfDate', document.elf_date.slice(0, 10))
+      form.set('revision', String(document.revision))
+      form.set('approvalRoles', JSON.stringify(document.approval_roles))
+      form.set('note', document.note ?? '')
+      form.set('reviewFile', file)
+      const response = await fetch(listApi, { method: 'PUT', body: form })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) { toast(body.message ?? 'Gagal mengunggah Form Review.', 'error'); return }
+      toast(body.approvalRestarted ? 'Form Review diunggah — pengesahan dimulai ulang untuk dokumen dan Form Review-nya.' : 'Form Review diunggah.')
+      setReviewUpload(null)
+      loadDocuments()
+    } catch { toast('Gagal mengunggah Form Review.', 'error') } finally { setReviewUploading(false) }
+  }
   // true = show the generated signed PDF (QRs stamped), false = the uploaded original
   const [viewingSigned, setViewingSigned] = useState(false)
   const hasSignature = (document: ProcedureDocument) => document.approvals.some((step) => step.status === 'approved' && step.verification_code)
@@ -226,20 +258,9 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
     }
   }
 
-  // The approvers only press Setujui — where each QR is printed is the Admin
-  // ISM's to set, before the request is e-mailed. So after a file is saved,
-  // the placing editor opens by itself for whichever positions the portal
-  // couldn't place from the sheet's boxes; saving there sends the request.
-  const [placingFor, setPlacingFor] = useState<number | null>(null)
-  const placeMissingQr = async (documentId?: number) => {
-    if (!documentId || !isIsmsAdmin) return
-    const data = await fetch(`${API_BASE_PATH}/api/prosedur-isms/${documentId}/slots`, { cache: 'no-store' }).then((response) => (response.ok ? response.json() : null)).catch(() => null)
-    const placed = new Set((data?.slots ?? []).map((slot: { role_code: string }) => slot.role_code))
-    if ((data?.roles ?? []).some((role: { code: string }) => !placed.has(role.code))) {
-      setPlacingFor(documentId)
-      toast('Buat kotak QR untuk tiap role approver — email pengesahan dikirim setelah posisi disimpan.', 'info')
-    }
-  }
+  // Working Standard: every QR is placed automatically (the admin may still
+  // move them any time). The other registers: placed after each approval.
+  const placeBeforeSending = kind === 'working_standard'
   const openAdd = () => { setEditing(null); setFormOpen(true) }
   // A Form Review filled in on the portal is edited in its form; one uploaded as a PDF, like any uploaded document.
   const filledInPortal = async (document: ProcedureDocument) =>
@@ -283,7 +304,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
     downloadExcel(
       `${kindInfo.path.slice(1)}-${new Date().toISOString().slice(0, 10)}.xlsx`,
       ['No.', 'No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Tampil ke Pengunjung', 'Note Dokumen'],
-      filteredDocuments.map((d) => [rowNumbers.get(d.title) ?? '', d.control_no, d.title, d.revision, formatDate(d.elf_date), formatDate(d.uploaded_at), approvalSummary(d), isPublished(d) ? 'Ya' : isHidden(d) ? 'Tidak (disembunyikan)' : 'Tidak (belum final)', d.note ?? ''])
+      filteredDocuments.map((d) => [rowNumbers.get(d.title) ?? '', d.control_no, d.title, d.revision, effDateWaiting(d) ? 'Menunggu pengesahan' : formatDate(d.elf_date), formatDate(d.uploaded_at), approvalSummary(d), isPublished(d) ? 'Ya' : isHidden(d) ? 'Tidak (disembunyikan)' : 'Tidak (belum final)', d.note ?? ''])
     )
   }
 
@@ -337,6 +358,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
     elfDate: editing.elf_date.slice(0, 10),
     approvalRoles: editing.approval_roles,
     note: editing.note,
+    hasReviewForm: !!editing.review_form_path,
   } : undefined
 
   return (
@@ -419,11 +441,6 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
               <button type="button" onClick={() => setSelectedIds(new Set())} aria-label="Batal pilih" className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary"><X className="size-4" /></button>
             </div>
           )}
-          {hasReviewRegister && (
-            <Link href={`/form-review-dokumen?from=${kind}`} title="Form Review & Revisi Dokumen ISMS (ISMS-F-001-001)" className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/10">
-              <ClipboardCheck className="size-3.5" />Form Review Dokumen
-            </Link>
-          )}
           {isLoggedIn && <button type="button" onClick={handleExportCsv} disabled={filteredDocuments.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"><Download className="size-3.5" />Export Excel</button>}
           <div className="relative w-full sm:w-80"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari No. Kontrol atau dokumen..." aria-label={`Cari ${kindInfo.label}`} className="w-full rounded-lg border border-input bg-card py-2.5 pl-10 pr-9 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/25" />{query && <button type="button" onClick={() => setQuery('')} aria-label="Bersihkan pencarian" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X className="size-4" /></button>}</div>
         </div>
@@ -432,9 +449,9 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       {isIsmsAdmin && <div className="-mt-2"><ReorderHint active={!query.trim() && statusFilter === 'all'} /></div>}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="doc-table w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}<th className={NO_HEAD_CLASS}>No.</th>{['No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Aksi'].map((head, i) => <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${i === 3 || i === 4 ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
-        {loading && <TableSkeletonRows columns={isLoggedIn ? 9 : 8} />}
-        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={9} className="px-5 py-16 text-center"><EmptyState filtered={!!query || statusFilter !== 'all'} onClear={() => { setQuery(''); setStatusFilter('all') }} onAdd={isLoggedIn ? openAdd : undefined} /></td></tr>}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"><div className="overflow-x-auto"><table className="doc-table w-full min-w-[560px] text-sm"><thead className="table-head-gradient"><tr>{isLoggedIn && <th className="w-10 px-5 py-3"><input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} aria-label="Pilih semua" className="size-4 rounded border-border" /></th>}<th className={NO_HEAD_CLASS}>No.</th>{['No. Kontrol', 'Nama Dokumen', ...(hasReviewColumn ? ['Form Review'] : []), 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Aksi'].map((head) => <th key={head} className={`whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground ${head === 'Eff Date' || head === 'Tanggal Upload' ? 'max-[760px]:hidden' : ''}`}>{head}</th>)}</tr></thead><tbody className="divide-y divide-border">
+        {loading && <TableSkeletonRows columns={(isLoggedIn ? 9 : 8) + (hasReviewColumn ? 1 : 0)} />}
+        {!loading && filteredDocuments.length === 0 && <tr><td colSpan={hasReviewColumn ? 10 : 9} className="px-5 py-16 text-center"><EmptyState filtered={!!query || statusFilter !== 'all'} onClear={() => { setQuery(''); setStatusFilter('all') }} onAdd={isLoggedIn ? openAdd : undefined} /></td></tr>}
         {groupByTitle(pageItems).map((group, index) => (
           <tr key={group.key} {...(canReorder ? dragReorder.row(group.key) : {})} onClick={(event) => onRowClick(event, () => openDocument(group.docs[0]))} className={`doc-row table-row-glow ${index % 2 ? 'bg-secondary/20' : ''} ${dragReorder.rowClass(group.key)}`}>
             {isLoggedIn && (
@@ -480,6 +497,38 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                 </div>
               </div>
             </td>
+            {hasReviewColumn && (
+              <td data-label="Form Review" className="px-4 py-4 align-top">
+                <div className="flex flex-col gap-1.5">
+                  {group.docs.map((document) => (
+                    <div key={document.id} className="flex flex-wrap items-center gap-1.5 py-0.5">
+                      {document.review_form_path ? (
+                        <button
+                          type="button"
+                          onClick={() => { setViewingReview(true); setViewingSigned(hasSignature(document)); setViewing(document) }}
+                          title={`Form Review & Revisi Dokumen untuk ${document.control_no}`}
+                          className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-[11.5px] font-semibold text-primary transition hover:bg-primary/10"
+                        >
+                          <ClipboardCheck className="size-3.5" /> Form Review{group.docs.length > 1 ? ` · Rev. ${document.revision}` : ''}
+                        </button>
+                      ) : !isIsmsAdmin && <span className="text-muted-foreground">–</span>}
+                      {isIsmsAdmin && (
+                        <label title={document.review_form_path ? 'Ganti Form Review dokumen ini' : 'Unggah Form Review untuk dokumen ini'} className="inline-flex w-fit cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:border-primary/40 hover:text-primary">
+                          <Upload className="size-3" /> {document.review_form_path ? 'Ganti' : 'Unggah Form Review'}
+                          <input
+                            type="file"
+                            accept="application/pdf"
+                            aria-label={`Unggah Form Review untuk ${document.control_no}`}
+                            className="sr-only"
+                            onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) setReviewUpload({ document, file }) }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </td>
+            )}
             <td className="px-4 py-4 align-top">
               <div className="flex flex-col gap-1.5">
                 {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5"><span className="inline-flex rounded-md bg-secondary px-2.5 py-1 text-xs font-semibold text-secondary-foreground">Rev. {document.revision}</span></div>)}
@@ -487,7 +536,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
             </td>
             <td className="px-4 py-4 align-top text-muted-foreground max-[760px]:hidden">
               <div className="flex flex-col gap-1.5">
-                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{formatDate(document.elf_date)}</div>)}
+                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{effDateWaiting(document) ? <span className="text-xs italic" title="Eff Date terisi otomatis dengan tanggal persetujuan approver terakhir">Menunggu pengesahan</span> : formatDate(document.elf_date)}</div>)}
               </div>
             </td>
             <td className="px-4 py-4 align-top text-muted-foreground max-[760px]:hidden">
@@ -513,6 +562,8 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
                     slotsCount={document.slots_count}
                     historyCount={document.history_count ?? 0}
                     onSlotsChanged={() => loadDocuments()}
+                    placeBeforeSending={placeBeforeSending}
+                    hasReviewForm={!!document.review_form_path}
                   />
                 ))}
               </div>
@@ -576,17 +627,28 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
       {viewing && (
         <DocumentViewModal
           open={Boolean(viewing)}
-          onClose={() => setViewing(null)}
-          filePath={viewing.file_path}
-          fileName={viewing.title}
-          sourceUrl={viewingSigned ? `${API_BASE_PATH}/api/prosedur-isms/${viewing.id}/pdf` : undefined}
+          onClose={() => { setViewing(null); setViewingReview(false) }}
+          filePath={viewingReview && viewing.review_form_path ? viewing.review_form_path : viewing.file_path}
+          fileName={viewingReview ? `Form Review — ${viewing.title}` : viewing.title}
+          sourceUrl={viewingSigned ? `${API_BASE_PATH}/api/prosedur-isms/${viewing.id}/pdf${viewingReview ? '?part=review' : ''}` : undefined}
           badge={viewingSigned
             ? <span className="flex-none rounded-full bg-emerald-600/10 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700">Bertanda tangan (QR)</span>
             : hasSignature(viewing) ? <span className="flex-none rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-muted-foreground">File asli</span> : null}
         />
       )}
-      <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={(saved) => { loadDocuments(); void placeMissingQr(saved?.id) }} document={editableDocument} />
-      {placingFor !== null && <SignatureSlotEditor documentId={placingFor} onClose={() => { setPlacingFor(null); loadDocuments() }} onSaved={(sent) => { loadDocuments(); if (sent) { setPlacingFor(null); toast('Posisi QR disimpan — permintaan pengesahan dikirim ke approver.') } }} />}
+      <ConfirmDialog
+        open={!!reviewUpload}
+        title={reviewUpload?.document.review_form_path ? 'Ganti Form Review?' : 'Unggah Form Review?'}
+        message={reviewUpload
+          ? `${reviewUpload.file.name} untuk ${reviewUpload.document.control_no} — ${reviewUpload.document.title}.${reviewUpload.document.approval_roles.length ? ' Dokumen dan Form Review-nya disahkan bersama, jadi pengesahan dimulai ulang: approver menerima email lagi untuk menyetujui keduanya.' : ''}`
+          : ''}
+        confirmLabel="Unggah"
+        danger={false}
+        pending={reviewUploading}
+        onConfirm={uploadReviewForm}
+        onCancel={() => setReviewUpload(null)}
+      />
+      <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={() => loadDocuments()} document={editableDocument} />
       <ReviewFormModal
         open={!!reviewForm}
         editId={reviewForm?.editId}
@@ -600,7 +662,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
           document={resubmitting}
           revisionNote={resubmitting.approvals.find((step) => step.status === 'rejected')?.decision_note ?? null}
           onClose={() => setResubmitting(null)}
-          onDone={(message) => { const id = resubmitting.id; setResubmitting(null); toast(message); loadDocuments(); void placeMissingQr(id) }}
+          onDone={(message) => { setResubmitting(null); toast(message); loadDocuments() }}
           onWithoutFile={() => { const target = resubmitting; setResubmitting(null); approvalAction(target, 'restart') }}
         />
       )}

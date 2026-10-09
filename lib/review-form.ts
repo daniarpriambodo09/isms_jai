@@ -128,6 +128,25 @@ export function reviewBoxes(roleTitles: string[]): (ReviewBox | null)[] {
   return boxes.map((box) => { if (box) return box; const free = order.find((b) => !taken.has(b)); if (free) taken.add(free); return free ?? null })
 }
 
+/**
+ * The box of the Form Review a position signs in, when the form travels with
+ * a Prosedur ISMS / TMMIN document: by the position's name (Prepared /
+ * Checked / Approval), else by its code as the form prints it (SSA under
+ * Checked, IAA under Approval), else in order Prepared → Checked → Approval.
+ */
+export function reviewBoxesForRoles(roles: { code: string; title: string }[]): (ReviewBox | null)[] {
+  const byName = reviewBoxes(roles.map((role) => role.title))
+  const named = roles.map((role, i) => {
+    if (/prepar|dibuat|pembuat|check|periksa|approv|setuj/i.test(role.title)) return byName[i]
+    if (/^SSA$|security administrator/i.test(`${role.code} ${role.title}`.trim()) || role.code === 'SSA') return 'checked' as const
+    if (role.code === 'IAA' || /assets administrator/i.test(role.title)) return 'approval' as const
+    return null
+  })
+  const taken = new Set(named.filter(Boolean))
+  const order: ReviewBox[] = ['prepared', 'checked', 'approval']
+  return named.map((box) => { if (box) return box; const free = order.find((b) => !taken.has(b)); if (free) taken.add(free); return free ?? null })
+}
+
 /** The filled-in form in words, for the approval e-mail's "Ringkasan form". */
 export function reviewFormSummary(data: ReviewFormData) {
   const reasons: string[] = []

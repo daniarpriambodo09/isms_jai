@@ -119,6 +119,71 @@ export async function detectTemplateSlots(filePath: string, spots: TemplateSpot[
   return slotsOnTemplate(headingsOf(await readText(filePath)), spots)
 }
 
+// ─── The Form Review's signature boxes, measured on the file itself ───
+// Copies of the form differ (A4 or Letter, other column widths, the table a
+// little higher or lower), so the boxes are measured on the uploaded file:
+// each box from its heading (Approval / Checked / Prepared) and the two "/"
+// of its date line, the box width from the gap between the headings. The QR
+// and the date box are then laid out in it the way the form's template does
+// (lib/review-form-pdf.ts), scaled to that box.
+
+export type ReviewBoxName = 'approval' | 'checked' | 'prepared'
+const REVIEW_HEADING: Record<ReviewBoxName, RegExp> = { approval: /^approval$/i, checked: /^checked$/i, prepared: /^prepared$/i }
+// The template's box, in points: its width, heading baseline → date baseline,
+// heading baseline → QR top, QR size, date baseline → date box top, date box
+// height, and the date box's inset from the box sides.
+const T = { col: 82.5, rows: 80, qrTop: 7.6, qr: 56, dateTop: 10.9, dateH: 14, inset: 4 }
+
+export type ReviewFormLayout = {
+  slots: Partial<Record<ReviewBoxName, Omit<SignatureSlot, 'role_code'>>>
+  /** Where the form's two date slashes are, in points from the date box's left edge. */
+  dateSlashes: [number, number] | null
+}
+
+/** The boxes of a Form Review found in its text (pure, for testing). Null when no heading is found. */
+export function reviewFormLayout(items: TextItem[]): ReviewFormLayout | null {
+  const headings = (Object.keys(REVIEW_HEADING) as ReviewBoxName[]).flatMap((box) => {
+    const item = items.find((i) => REVIEW_HEADING[box].test(i.str.trim()))
+    return item ? [{ box, item }] : []
+  })
+  if (!headings.length) return null
+  const page = headings[0].item.page
+  const row = headings.filter((h) => h.item.page === page && Math.abs(h.item.y - headings[0].item.y) < 0.01)
+  const { pageW: P, pageH: H } = row[0].item
+  const centres = row.map((h) => h.item.cx).sort((a, b) => a - b)
+  const gaps = centres.slice(1).map((c, i) => c - centres[i]).filter((g) => g > 0.02)
+  const col = (gaps.length ? Math.min(...gaps) : T.col / 595.2) * P // points
+  const sx = col / T.col
+  let dateSlashes: [number, number] | null = null
+  const slots: ReviewFormLayout['slots'] = {}
+  for (const { box, item: head } of row) {
+    // the two "/" of this box's date line: under the heading, inside the column
+    const slashes = items
+      .filter((i) => i.page === page && i.str.trim() === '/' && Math.abs(i.cx - head.cx) * P < col / 2 && i.y > head.y + 0.01 && i.y - head.y < 0.25)
+      .sort((a, b) => a.y - b.y || a.cx - b.cx)
+    const line = slashes.filter((i) => Math.abs(i.y - (slashes[0]?.y ?? 0)) < 0.004).slice(0, 2).sort((a, b) => a.cx - b.cx)
+    const headY = head.y * H
+    const dateY = line.length ? line[0].y * H : headY + T.rows * sx
+    const sy = (dateY - headY) / T.rows
+    const qr = T.qr * Math.min(sx, sy)
+    const qrTop = headY + T.qrTop * sy
+    const left = head.cx * P - col / 2
+    const date = { x: left + T.inset * sx, y: dateY - T.dateTop * sy, w: col - 2 * T.inset * sx, h: T.dateH * sy }
+    if (line.length === 2 && !dateSlashes) dateSlashes = line.map((i) => (i.cx - (i.w ?? 0) / 2) * P - date.x) as [number, number]
+    slots[box] = {
+      page,
+      x: (head.cx * P - qr / 2) / P, y: qrTop / H, w: qr / P, h: qr / H,
+      date: { x: date.x / P, y: date.y / H, w: date.w / P, h: date.h / H },
+    }
+  }
+  return { slots, dateSlashes }
+}
+
+/** Measures the Form Review's boxes on the stored file. */
+export async function detectReviewFormLayout(filePath: string): Promise<ReviewFormLayout | null> {
+  return reviewFormLayout(await readText(filePath))
+}
+
 /** One piece of text of the PDF, placed like a Heading (displayed-page fractions). */
 export type TextItem = { str: string; page: number; pageW: number; pageH: number; cx: number; y: number; h: number; w?: number }
 
@@ -225,6 +290,45 @@ export function effDateCells(items: TextItem[]): EffDateCell[] {
 /** Reads the stored PDF and returns its empty "Eff. Date" cells. */
 export async function detectEffDateCells(filePath: string): Promise<EffDateCell[]> {
   return effDateCells(await readText(filePath))
+}
+
+// ─── Default spot ───
+// A Working Standard whose sheet has no signature boxes the portal can read
+// still gets every QR automatically: in a row at the bottom right of the last
+// page, each with its approval date under it — above the e-sign footer line.
+
+const DEFAULT_QR = 44 // points
+const DEFAULT_GAP = 8
+const DEFAULT_DATE_H = 10
+const DEFAULT_MARGIN = { right: 28, bottom: 22 }
+
+/** The default spots for these positions on a page of this size (pure, for testing). Rightmost = last position. */
+export function defaultSlots(codes: string[], page: number, pageW: number, pageH: number): SignatureSlot[] {
+  return codes.map((code, i) => {
+    const fromRight = codes.length - 1 - i
+    const left = pageW - DEFAULT_MARGIN.right - DEFAULT_QR - fromRight * (DEFAULT_QR + DEFAULT_GAP)
+    const top = pageH - DEFAULT_MARGIN.bottom - DEFAULT_DATE_H - 2 - DEFAULT_QR
+    return {
+      role_code: code, page,
+      x: Math.max(left, 0) / pageW, y: top / pageH, w: DEFAULT_QR / pageW, h: DEFAULT_QR / pageH,
+      date: { x: Math.max(left, 0) / pageW, y: (top + DEFAULT_QR + 2) / pageH, w: DEFAULT_QR / pageW, h: DEFAULT_DATE_H / pageH },
+    }
+  })
+}
+
+/** Default spots on the stored PDF's last page (its displayed size). */
+export async function detectDefaultSlots(filePath: string, codes: string[]): Promise<SignatureSlot[]> {
+  if (!codes.length) return []
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const data = new Uint8Array(await readFile(path.join(STORAGE_ROOT, filePath)))
+  const doc = await pdfjs.getDocument({ data, disableFontFace: true, useSystemFonts: false, isEvalSupported: false, verbosity: 0 }).promise
+  try {
+    const last = await doc.getPage(doc.numPages)
+    const viewport = last.getViewport({ scale: 1 })
+    return defaultSlots(codes, doc.numPages - 1, viewport.width, viewport.height)
+  } finally {
+    await doc.destroy().catch(() => {})
+  }
 }
 
 /** Reads the stored PDF and returns a QR spot for each position whose box heading is found in it. */

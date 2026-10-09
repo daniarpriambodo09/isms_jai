@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
-import { ensureApprovalSchema, sendStepRequest, startApprovalCycle, missingEmailMessage, rolesWithoutEmail } from '@/lib/procedure-approval'
+import { ensureApprovalSchema, sendHeld, sendStepRequest, startApprovalCycle, missingEmailMessage, rolesWithoutEmail } from '@/lib/procedure-approval'
 import { docKindInfo, isDocKind } from '@/lib/document-kinds'
 
 export async function POST(request: NextRequest) {
@@ -37,10 +37,14 @@ export async function POST(request: NextRequest) {
         `SELECT id FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'pending' LIMIT 1`,
         [documentId, doc.rows[0].revision]
       )
-      if (!pending.rows[0]) return NextResponse.json({ message: 'Tidak ada tahap yang sedang menunggu.' }, { status: 400 })
-      const result = await sendStepRequest(pending.rows[0].id)
-      await logActivity(session, 'update', 'procedure_document', documentId, `Mengirim ulang email pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}"`)
-      if (!result.sent) return NextResponse.json({ message: result.error ?? 'Gagal mengirim email.' }, { status: 502 })
+      if (pending.rows[0]) {
+        const result = await sendStepRequest(pending.rows[0].id)
+        await logActivity(session, 'update', 'procedure_document', documentId, `Mengirim ulang email pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}"`)
+        if (!result.sent) return NextResponse.json({ message: result.error ?? 'Gagal mengirim email.' }, { status: 502 })
+      } else if (await sendHeld(documentId)) {
+        // one that waited for its QR boxes: to the first approver now
+        await logActivity(session, 'update', 'procedure_document', documentId, `Mengirim email pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}" ke approver pertama`)
+      } else return NextResponse.json({ message: 'Tidak ada tahap yang sedang menunggu.' }, { status: 400 })
     }
 
     const step = await query<{ approver_name: string | null; email_error: string | null; status: string }>(

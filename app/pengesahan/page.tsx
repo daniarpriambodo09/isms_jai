@@ -34,7 +34,7 @@ type Step = {
 
 type View = {
   step: Step
-  document: { kind?: string; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string }
+  document: { kind?: string; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; has_review_form?: boolean }
   cycle: Step[]
   superseded: boolean
   linkExpired: boolean
@@ -88,6 +88,7 @@ function PengesahanContent() {
   // The approval code typed in the Setujui dialog, and what was wrong with it.
   const [approvalCode, setApprovalCode] = useState('')
   const [codeError, setCodeError] = useState<string | null>(null)
+  const [docTab, setDocTab] = useState<'document' | 'review'>('document')
   const [pdfStamp, setPdfStamp] = useState(0) // busts the signed-PDF link after moving QR
 
   const load = useCallback(async () => {
@@ -192,7 +193,9 @@ function PengesahanContent() {
   // who has already approved (approver 2 sees approver 1's QR, and so on).
   // The token lets this approver open it before it is published.
   const tokenParam = `token=${encodeURIComponent(token)}`
-  const signedUrl = `${API_BASE_PATH}/api/prosedur-isms/${view.documentId}/pdf?${tokenParam}&t=${pdfStamp}`
+  // The document, or the Form Review that travels with it (same approval, same QR).
+  const showingReview = docTab === 'review' && !!document.has_review_form
+  const signedUrl = `${API_BASE_PATH}/api/prosedur-isms/${view.documentId}/pdf?${tokenParam}&t=${pdfStamp}${showingReview ? '&part=review' : ''}`
   const originalUrl = `${API_BASE_PATH}/api/files/serve?path=${encodeURIComponent(document.file_path)}&${tokenParam}`
   const approvedSoFar = cycle.filter((item) => item.status === 'approved').length
   // The last request, on the file its marks were made on (side by side with
@@ -229,7 +232,17 @@ function PengesahanContent() {
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><FileText className="size-4 text-[color:var(--p-600)]" /> Dokumen</p>
+              {document.has_review_form ? (
+                <div role="tablist" aria-label="File yang disahkan" className="inline-flex rounded-full border border-border bg-secondary/40 p-0.5">
+                  {(['document', 'review'] as const).map((tab) => (
+                    <button key={tab} type="button" role="tab" aria-selected={docTab === tab} onClick={() => setDocTab(tab)} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${docTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                      <FileText className="size-3.5" /> {tab === 'document' ? 'Dokumen' : 'Form Review'}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground"><FileText className="size-4 text-[color:var(--p-600)]" /> Dokumen</p>
+              )}
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {approvedSoFar > 0
                   ? `Sudah memuat QR ${approvedSoFar} dari ${cycle.length} approver yang menyetujui`
@@ -237,7 +250,7 @@ function PengesahanContent() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <a href={originalUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">File asli</a>
+              {!showingReview && <a href={originalUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">File asli</a>}
               <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--p-600)] hover:underline">Buka di tab baru <ExternalLink className="size-3.5" /></a>
             </div>
           </div>
@@ -324,7 +337,7 @@ function PengesahanContent() {
                 <Crosshair className="mt-0.5 size-3.5 flex-none text-[color:var(--p-600)]" />
                 {view.qrAutoPlaced
                   ? <span>QR tanda tangan Anda <strong className="text-foreground">otomatis tercetak di kolom {step.role_title}</strong> pada dokumen — tidak perlu diatur.</span>
-                  : <span>QR tanda tangan Anda dicetak di kolom tanda tangan dokumen oleh <strong className="text-foreground">Admin ISM</strong> — Anda cukup menekan Setujui.</span>}
+                  : <span>Anda cukup menekan Setujui. Setelah itu <strong className="text-foreground">Admin ISM</strong> menempatkan QR tanda tangan Anda di kolom tanda tangan dokumen.</span>}
               </p>
               <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                 <PencilLine className="mt-0.5 size-3.5 flex-none text-[#c2412c]" />
@@ -408,7 +421,7 @@ function PengesahanContent() {
       <ConfirmDialog
         open={confirmApprove}
         title="Setujui dokumen ini?"
-        message={`${document.control_no} — ${document.title}. QR tanda tangan Anda (${step.role_title}) ${view.qrAutoPlaced ? 'otomatis tercetak di kolomnya pada dokumen' : 'dicetak di kolom tanda tangan dokumen oleh Admin ISM'}. Persetujuan tidak dapat dibatalkan.`}
+        message={`${document.control_no} — ${document.title}. QR tanda tangan Anda (${step.role_title}) ${view.qrAutoPlaced ? 'otomatis tercetak di kolomnya pada dokumen' : 'ditempatkan di kolom tanda tangan dokumen oleh Admin ISM setelah Anda menyetujui'}. Persetujuan tidak dapat dibatalkan.`}
         confirmLabel="Ya, setujui"
         danger={false}
         pending={submitting === 'approve'}

@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         elf_date: view.document.elf_date,
         note: view.document.note,
         file_path: view.document.file_path,
+        has_review_form: !!view.document.review_form_path,
       },
       cycle: view.cycle,
       superseded: view.step.revision !== view.document.revision,

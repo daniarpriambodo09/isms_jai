@@ -778,7 +778,8 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     ['Nama Dokumen', escapeHtml(data.title)],
     ['No. Kontrol', escapeHtml(data.controlNo)],
     ['Revisi', String(data.revision)],
-    ['Eff Date', fmtDate(data.effDate)],
+    // Set when the last approver signs (the header's "Eff. Date" on the signed PDF too).
+    ['Eff Date', 'Otomatis &mdash; tanggal persetujuan approver terakhir'],
     ['Jabatan Anda', escapeHtml(data.roleTitle)],
   ]
   if (data.note) rows.push(['Note Dokumen', escapeHtml(data.note)])

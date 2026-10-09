@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-import { effDateCells, initialsCells, signatureKey, slotsFromHeadings, type Heading, type TextItem } from './auto-slots'
+import { defaultSlots, effDateCells, reviewFormLayout, initialsCells, signatureKey, slotsFromHeadings, type Heading, type TextItem } from './auto-slots'
 
 describe('signatureKey', () => {
   it('reads box headings and position titles alike', () => {
@@ -118,5 +118,52 @@ describe('effDateCells', () => {
 
   it('finds nothing on a sheet without the label', () => {
     expect(effDateCells(header.slice(0, 6))).toEqual([])
+  })
+})
+
+describe('defaultSlots', () => {
+  it('puts one QR per position in a row at the bottom right of the page, last position rightmost, each with its date under it', () => {
+    const [prep, chk] = defaultSlots(['WS-PREP', 'WS-CHK'], 2, 595, 842)
+    expect(prep.page).toBe(2)
+    expect(chk.x).toBeGreaterThan(prep.x)
+    expect(chk.x + chk.w).toBeLessThan(1)
+    expect(chk.y + chk.h).toBeLessThan(chk.date!.y + 0.001)
+    expect(chk.date!.y + chk.date!.h).toBeLessThan(1 - 20 / 842) // above the e-sign footer line
+    expect(Math.round(chk.w * 595)).toBe(44)
+  })
+})
+
+describe('reviewFormLayout', () => {
+  // Text of the form's signature table as pdf.js reads it (A4 template, and a Letter copy with narrower boxes).
+  const table = (P: number, H: number, head: number[], headY: number, slash: number[], slashY: number): TextItem[] => [
+    ...['Approval', 'Checked', 'Prepared'].map((str, i) => ({ str, page: 0, pageW: P, pageH: H, cx: head[i], y: headY, h: 0.012, w: 0.08 })),
+    ...slash.map((cx) => ({ str: '/', page: 0, pageW: P, pageH: H, cx, y: slashY, h: 0.013, w: 0.008 })),
+  ]
+  const a4 = table(595.2, 841.68, [0.5622, 0.701, 0.8399], 0.8294, [0.5439, 0.5846, 0.6827, 0.7234, 0.8214, 0.8621], 0.9244)
+  const letter = table(612, 792, [0.5707, 0.6773, 0.784], 0.8065, [0.5542, 0.59, 0.6609, 0.6966, 0.7676, 0.8033], 0.8935)
+
+  it('lays the template out where the form generator puts it', () => {
+    const { slots, dateSlashes } = reviewFormLayout(a4)!
+    expect(slots.approval!.y).toBeCloseTo(705.68 / 841.68, 2) // QR just under the heading
+    expect(slots.approval!.w * 595.2).toBeCloseTo(56, 0)
+    // the date's slashes are written exactly over the form's own: 321.2 pt from the page's left edge
+    expect(slots.approval!.date!.x * 595.2 + dateSlashes![0]).toBeCloseTo((0.5439 - 0.004) * 595.2, 1)
+  })
+
+  it('fits a smaller copy of the form: QR and date stay inside each box', () => {
+    const { slots } = reviewFormLayout(letter)!
+    const column = (0.6773 - 0.5707) * 612
+    for (const [box, cx] of [['approval', 0.5707], ['checked', 0.6773], ['prepared', 0.784]] as const) {
+      const s = slots[box]!
+      expect(s.w * 612).toBeLessThan(column)
+      expect(s.date!.x * 612).toBeGreaterThan(cx * 612 - column / 2)
+      expect((s.date!.x + s.date!.w) * 612).toBeLessThan(cx * 612 + column / 2)
+      expect(s.date!.y * 792).toBeLessThan(0.8935 * 792) // the date box holds the "/ /" line
+      expect((s.date!.y + s.date!.h) * 792).toBeGreaterThan(0.8935 * 792)
+    }
+  })
+
+  it('finds nothing on a file without the table', () => {
+    expect(reviewFormLayout(letter.filter((i) => i.str === '/'))).toBeNull()
   })
 })

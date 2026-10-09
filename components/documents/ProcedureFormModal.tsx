@@ -15,6 +15,8 @@ export type EditableProcedure = {
   elfDate: string
   approvalRoles: string[]
   note: string | null
+  /** Prosedur ISMS / TMMIN: a Form Review PDF is attached beside the document. */
+  hasReviewForm?: boolean
 }
 
 type ApproverRole = { code: string; title: string; person_name: string; email: string | null; sort_order: number; is_default: boolean }
@@ -55,6 +57,10 @@ export function ProcedureFormModal({
   // Adding a document: it is revision 1 unless "Dokumen revisi" is ticked, which asks for its number.
   const [isRevision, setIsRevision] = useState(false)
   const [file, setFile] = useState<File | null>(null)
+  // Prosedur ISMS / TMMIN: the document's Form Review & Revisi Dokumen, signed by the same approval.
+  const takesReviewForm = kind === 'procedure' || kind === 'tmmin_standard'
+  const [reviewFile, setReviewFile] = useState<File | null>(null)
+  const [removeReview, setRemoveReview] = useState(false)
   const [note, setNote] = useState('')
   const [roles, setRoles] = useState<ApproverRole[]>([])
   const [rolesLoaded, setRolesLoaded] = useState(false)
@@ -74,6 +80,8 @@ export function ProcedureFormModal({
       setNote(document?.note ?? '')
       setSelectedRoles(document?.approvalRoles ?? [])
       setFile(null)
+      setReviewFile(null)
+      setRemoveReview(false)
       setError(null)
     }
   }, [open, document])
@@ -121,6 +129,8 @@ export function ProcedureFormModal({
       formData.set('approvalRoles', JSON.stringify(orderedSelection.map((role) => role.code)))
       formData.set('note', note)
       if (file) formData.set('file', file)
+      if (takesReviewForm && reviewFile) formData.set('reviewFile', reviewFile)
+      if (takesReviewForm && removeReview && !reviewFile) formData.set('removeReviewForm', '1')
       formData.set('revision', isEdit || isRevision ? revision : '1')
       if (document) formData.set('id', String(document.id))
 
@@ -178,6 +188,19 @@ export function ProcedureFormModal({
             </div>
           )}
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">{isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}</span><input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />{isEdit && <span className="text-[11px] text-[color:var(--p-muted2)]">Kosongkan jika hanya mengubah data dokumen.</span>}</label>
+          {takesReviewForm && (
+            <label className="flex flex-col gap-[6px]">
+              <span className="text-[12px] font-medium text-[color:var(--p-ink2)]">{isEdit && document?.hasReviewForm ? 'Ganti Form Review (opsional)' : 'Form Review (PDF, opsional)'}</span>
+              <input type="file" accept="application/pdf" aria-label="Form Review" onChange={(event) => { setReviewFile(event.target.files?.[0] ?? null); setRemoveReview(false) }} className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />
+              <span className="text-[11px] leading-4 text-[color:var(--p-muted2)]">Form Review &amp; Revisi Dokumen untuk dokumen ini — tampil di sebelah dokumennya dan ikut disahkan: QR approver tercetak di dokumen dan di Form Review.</span>
+              {isEdit && document?.hasReviewForm && !reviewFile && (
+                <span className="flex items-center gap-2 text-[11.5px] text-[color:var(--p-ink2)]">
+                  <input type="checkbox" checked={removeReview} onChange={(event) => setRemoveReview(event.target.checked)} className="size-3.5 accent-[color:var(--p-700)]" />
+                  Hapus Form Review dari dokumen ini
+                </span>
+              )}
+            </label>
+          )}
 
           <fieldset className="flex flex-col gap-2 rounded-[10px] border border-[color:var(--p-border)] p-3">
             <legend className="px-1 text-[12px] font-medium text-[color:var(--p-ink2)]">Catatan Pengesahan</legend>
@@ -195,8 +218,8 @@ export function ProcedureFormModal({
             ))}
             <p className="px-1 text-[11px] leading-4 text-[color:var(--p-muted2)]">
               {orderedSelection.length === 0
-                ? 'Tidak dicentang = dokumen tidak memerlukan pengesahan (tampil "–"). Setelah Simpan, Anda membuat kotak QR untuk tiap role yang dicentang; email ke approver dikirim setelah posisi itu disimpan.'
-                : `Email dikirim berurutan: ${orderedSelection.map((role) => role.code).join(' → ')}.${isEdit ? ' Mengganti file, revisi, atau jabatan akan memulai ulang pengesahan.' : ''}`}
+                ? 'Tidak dicentang = dokumen tidak memerlukan pengesahan (tampil "–").'
+                : `Email dikirim berurutan: ${orderedSelection.map((role) => role.code).join(' → ')}. Approver cukup menekan Setujui; ${kind === 'working_standard' ? 'QR otomatis tercetak di kotak tanda tangan setelah disetujui' : 'posisi QR diatur admin setelah disetujui'}.${isEdit ? ' Mengganti file, revisi, atau jabatan akan memulai ulang pengesahan.' : ''}`}
             </p>
             <Link href={`/kelola-pengesahan?kind=${kind}`} className="w-fit px-1 text-[11.5px] font-semibold text-[color:var(--p-700)] underline-offset-2 hover:underline">
               Tambah / hapus / ubah jabatan →

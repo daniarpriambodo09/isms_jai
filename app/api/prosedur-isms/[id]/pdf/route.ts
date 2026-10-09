@@ -9,7 +9,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { approverInitials, autoPlaceSlots, currentStepsFor, ensureApprovalSchema, slotsFor, usesSignatureBoxes, verifyBaseUrl } from '@/lib/procedure-approval'
-import { detectEffDateCells, detectInitials } from '@/lib/auto-slots'
+import { detectDefaultSlots, detectEffDateCells, detectInitials, detectReviewFormLayout } from '@/lib/auto-slots'
+import { reviewBoxesForRoles } from '@/lib/review-form'
 import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
 import { docKindInfo, type DocKind } from '@/lib/document-kinds'
@@ -24,7 +25,21 @@ function headerDate(value: string) {
 
 export const dynamic = 'force-dynamic'
 
-type Row = { id: number; kind: string; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; public_visible: boolean }
+type Row = { id: number; kind: string; control_no: string; title: string; revision: number; elf_date: string; file_path: string; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; public_visible: boolean; review_form_path: string | null }
+
+// The Form Review beside a document is signed by the document's approvers:
+// each QR in the form's own box (Prepared / Checked / Approval), measured on
+// this copy of the form; one whose box isn't found goes to the default spot.
+async function reviewFormSlots(filePath: string, roles: { code: string; title: string }[]) {
+  const layout = await detectReviewFormLayout(filePath)
+  const boxes = reviewBoxesForRoles(roles)
+  const found = roles.flatMap((role, i) => {
+    const spot = boxes[i] ? layout?.slots[boxes[i]!] : undefined
+    return spot ? [{ ...spot, role_code: role.code }] : []
+  })
+  const missing = roles.filter((role) => !found.some((slot) => slot.role_code === role.code)).map((role) => role.code)
+  return { slots: [...found, ...await detectDefaultSlots(filePath, missing)], dateSlashes: layout?.dateSlashes ?? null }
+}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -33,7 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     await ensureApprovalSchema()
     const result = await query<Row>(
-      "SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status, public_visible FROM procedure_documents WHERE id = $1",
+      "SELECT id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, file_path, approval_status, public_visible, review_form_path FROM procedure_documents WHERE id = $1",
       [id]
     )
     const doc = result.rows[0]
@@ -49,12 +64,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const steps = (await currentStepsFor([doc.id])).get(doc.id) ?? []
+    // ?part=review: the Form Review uploaded beside the document, signed by the same approvers.
+    const reviewPart = request.nextUrl.searchParams.get('part') === 'review'
+    if (reviewPart && !doc.review_form_path) return NextResponse.json({ message: 'Dokumen ini tidak memiliki Form Review.' }, { status: 404 })
     // ?preview=1 (ISM Admin only): every role shown as signed with a sample QR,
     // to check the QR placement before anyone has actually approved.
     const preview = request.nextUrl.searchParams.get('preview') === '1' && !!getIsmsAdminFromRequest(request)
     // A sheet uploaded before QR spots were placed automatically gets them now.
-    const boxed = usesSignatureBoxes(doc.kind as DocKind)
-    if (boxed || doc.kind === 'review_form') await autoPlaceSlots(doc.id)
+    const boxed = !reviewPart && usesSignatureBoxes(doc.kind as DocKind)
+    if (!reviewPart && (boxed || doc.kind === 'review_form')) await autoPlaceSlots(doc.id)
     // The initials row under the boxes: the approvers chosen for this document
     // (a box nobody signs in is left blank). Skipped when the row isn't found.
     // A document without e-sign, or whose positions match none of the boxes
@@ -66,32 +84,35 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const initials = cells.some((cell) => cell.text) ? cells : []
     // The header's empty "Eff. Date" gets the day the last approver signed, once everyone has.
     // (Not on a Form Review: its dates are the form's own.)
-    const lastSigned = doc.kind === 'review_form' ? null : preview ? new Date().toISOString() : doc.approval_status === 'approved'
+    const lastSigned = doc.kind === 'review_form' || reviewPart ? null : preview ? new Date().toISOString() : doc.approval_status === 'approved'
       ? steps.map((s) => s.decided_at).filter((at): at is string => !!at).sort().pop() ?? null
       : null
     const effDateStamp = lastSigned
       ? { text: headerDate(lastSigned), cells: await detectEffDateCells(doc.file_path).catch((error) => { console.error('[prosedur-isms/pdf] eff date', (error as Error).message); return [] }) }
       : null
+    const reviewLayout = reviewPart ? await reviewFormSlots(doc.review_form_path!, steps.map((s) => ({ code: s.role_code, title: s.role_title }))) : null
     const bytes = await buildProcedureSignedPdf({
       kindLabel: docKindInfo(doc.kind).label,
       controlNo: doc.control_no,
       title: doc.title,
       revision: doc.revision,
       effDate: doc.elf_date,
-      filePath: doc.file_path,
+      filePath: reviewPart ? doc.review_form_path! : doc.file_path,
       status: preview ? 'approved' : doc.approval_status,
       steps: steps.map((s) => preview
         ? { roleCode: s.role_code, roleTitle: s.role_title, name: s.approver_name ?? '-', status: 'approved' as const, decidedAt: new Date().toISOString(), verificationCode: 'PRATINJAU', note: null }
         : { roleCode: s.role_code, roleTitle: s.role_title, name: s.approver_name ?? '-', status: s.status, decidedAt: s.decided_at, verificationCode: s.verification_code, note: s.decision_note }),
       verifyBase: await verifyBaseUrl(request.nextUrl.origin),
-      slots: await slotsFor(doc.id, doc.file_path),
-      // Form Review: the date goes on the form's own "/  /" line under the QR.
-      dateSlashes: doc.kind === 'review_form' ? REVIEW_DATE_SLASHES : null,
+      slots: reviewLayout ? reviewLayout.slots : await slotsFor(doc.id, doc.file_path),
+      // Form Review: the date goes on the form's own "/  /" line under the QR, around its slashes.
+      dateSlashes: reviewLayout ? reviewLayout.dateSlashes ?? REVIEW_DATE_SLASHES
+        : doc.kind === 'review_form' ? (await detectReviewFormLayout(doc.file_path).catch(() => null))?.dateSlashes ?? REVIEW_DATE_SLASHES
+          : null,
       initials,
       effDateStamp,
     })
 
-    const filename = `pengesahan-${doc.control_no}-rev${doc.revision}.pdf`.replace(/[^A-Za-z0-9._-]/g, '_')
+    const filename = `${reviewPart ? 'form-review' : 'pengesahan'}-${doc.control_no}-rev${doc.revision}.pdf`.replace(/[^A-Za-z0-9._-]/g, '_')
     return new NextResponse(Buffer.from(bytes), {
       status: 200,
       headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${filename}"`, 'Cache-Control': 'no-store' },

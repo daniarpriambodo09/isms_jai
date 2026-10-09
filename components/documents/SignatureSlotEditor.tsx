@@ -252,7 +252,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         const data = await res.json()
         if (!res.ok) throw new Error(data.message)
         if (cancelled) return
-        const editable: string[] = approverMode ? (data.editable ? [data.ownRole] : []) : data.roles.map((r: Role) => r.code)
+        // Admin: only the positions whose approver has pressed Setujui.
+        const editable: string[] = approverMode ? (data.editable ? [data.ownRole] : []) : (data.editableRoles ?? data.roles.map((r: Role) => r.code))
         const saved: Slot[] = (data.slots as Placement[]).map((s) => ({ ...s, key: newKey(s.role_code) }))
         setDoc(data.document)
         setRoles(data.roles)
@@ -260,7 +261,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         setSlots(saved)
         setHeld(!approverMode && !!data.held)
         // Straight into drawing for the first position that has no box yet.
-        if (!approverMode) setDrawRole((data.roles as Role[]).find((r) => !saved.some((s) => s.role_code === r.code))?.code ?? null)
+        if (!approverMode) setDrawRole((data.roles as Role[]).find((r) => editable.includes(r.code) && !saved.some((s) => s.role_code === r.code))?.code ?? null)
+        if (!approverMode && !editable.length) setMessage({ ok: false, text: 'Belum ada approver yang menyetujui. Posisi QR bisa diatur setelah approver menekan Setujui.' })
         if (approverMode && !data.editable) setMessage({ ok: false, text: 'Posisi tanda tangan tidak dapat diubah lagi untuk link ini.' })
         const pdfjs = await loadPdfJs()
         // Approvers have no session: their token opens the not-yet-published file.
@@ -889,7 +891,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
 
             {otherRoles.length > 0 && (
               <div className="rounded-xl border border-dashed border-border px-3 py-2.5">
-                <p className="font-mono-label text-[10px] text-muted-foreground">{approverMode ? 'Approver lain (lihat saja)' : 'Lainnya'}</p>
+                <p className="font-mono-label text-[10px] text-muted-foreground">{approverMode ? 'Approver lain (lihat saja)' : 'Menunggu persetujuan — belum bisa diatur'}</p>
                 <ul className="mt-1.5 flex flex-col gap-1">
                   {otherRoles.map((role) => (
                     <li key={role.code} className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -30,10 +30,16 @@ type DocumentRow = {
   note: string | null
   approval_status: string
   public_visible: boolean
+  review_form_path: string | null
 }
 
+// Prosedur ISMS and Standard Requirement TMMIN carry their Form Review &
+// Revisi Dokumen beside them: a second PDF, signed by the same approval.
+const takesReviewForm = (kind: DocKind) => kind === 'procedure' || kind === 'tmmin_standard'
+const pdfOrNull = (value: FormDataEntryValue | null) => (value instanceof File && value.size > 0 ? value : null)
+
 // elf_date as plain YYYY-MM-DD text: a DATE sent as a JS Date shifts a day back in UTC.
-const COLUMNS = "id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status, public_visible"
+const COLUMNS = "id, kind, control_no, title, revision, to_char(elf_date, 'YYYY-MM-DD') AS elf_date, uploaded_at, file_path, approval_roles, note, approval_status, public_visible, review_form_path"
 
 function isValidDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
@@ -109,6 +115,10 @@ export function documentHandlers(kind: DocKind) {
       if (!(file instanceof File) || file.size === 0 || file.type !== 'application/pdf') {
         return NextResponse.json({ message: 'File PDF wajib diunggah.' }, { status: 400 })
       }
+      const reviewFile = takesReviewForm(kind) ? pdfOrNull(form.get('reviewFile')) : null
+      if (reviewFile && reviewFile.type !== 'application/pdf') {
+        return NextResponse.json({ message: 'Form Review harus berupa PDF.' }, { status: 400 })
+      }
       // The document's own revision number, given with the upload (1 when left
       // out) — so it needn't be corrected by an edit, which asks the approvers again.
       const revisionRaw = form.get('revision')
@@ -124,16 +134,18 @@ export function documentHandlers(kind: DocKind) {
       if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
 
       const filePath = await saveDocumentFile(file)
+      const reviewPath = reviewFile ? await saveDocumentFile(reviewFile) : null
       let created: DocumentRow
       try {
         created = (await query<DocumentRow>(
-          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, sort_order)
-           VALUES ($1::text, $2, $3, $8, $4, $5, $6, $7, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
+          `INSERT INTO procedure_documents (kind, control_no, title, revision, elf_date, file_path, approval_roles, note, review_form_path, sort_order)
+           VALUES ($1::text, $2, $3, $8, $4, $5, $6, $7, $9, (SELECT COALESCE(max(sort_order), 0) + 1 FROM procedure_documents WHERE kind = $1::text))
            RETURNING ${COLUMNS}`,
-          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note, revision]
+          [kind, controlNo.trim().toUpperCase(), title.trim(), elfDate, filePath, roles, note, revision, reviewPath]
         )).rows[0]
       } catch (error) {
         await deleteDocumentFile(filePath).catch(() => {})
+        if (reviewPath) await deleteDocumentFile(reviewPath).catch(() => {})
         if (isUniqueViolation(error)) return duplicate()
         throw error
       }
@@ -183,9 +195,15 @@ export function documentHandlers(kind: DocKind) {
       if (file instanceof File && file.size > 0 && file.type !== 'application/pdf') {
         return NextResponse.json({ message: 'File harus berupa PDF.' }, { status: 400 })
       }
+      // Form Review beside the document: a new one, or taken off.
+      const reviewFile = takesReviewForm(kind) ? pdfOrNull(form.get('reviewFile')) : null
+      if (reviewFile && reviewFile.type !== 'application/pdf') {
+        return NextResponse.json({ message: 'Form Review harus berupa PDF.' }, { status: 400 })
+      }
+      const removeReview = takesReviewForm(kind) && !reviewFile && form.get('removeReviewForm') === '1'
 
-      const existing = await query<{ file_path: string; revision: number; approval_roles: string[]; uploaded_at: string }>(
-        'SELECT file_path, revision, approval_roles, uploaded_at FROM procedure_documents WHERE id = $1 AND kind = $2',
+      const existing = await query<{ file_path: string; revision: number; approval_roles: string[]; uploaded_at: string; review_form_path: string | null }>(
+        'SELECT file_path, revision, approval_roles, uploaded_at, review_form_path FROM procedure_documents WHERE id = $1 AND kind = $2',
         [id, kind]
       )
       if (existing.rows.length === 0) {
@@ -196,14 +214,17 @@ export function documentHandlers(kind: DocKind) {
       const roles = await normalizeRoleCodes(parseRoles(form.get('approvalRoles')), kind)
       const note = parseNote(form.get('note'))
 
-      const replacement = file instanceof File && file.size > 0
+      // A new or removed Form Review is a new thing to sign too.
+      const reviewChanged = !!reviewFile || (removeReview && !!before.review_form_path)
+      const replacement = (file instanceof File && file.size > 0) || reviewChanged
       // Only when this edit (re)starts the approval — a plain correction of
       // the title or date must not be blocked by an old selection.
       if (replacement || revision !== before.revision || roles.join(',') !== (before.approval_roles ?? []).join(',')) {
         const noEmail = missingEmailMessage(await rolesWithoutEmail(roles, kind))
         if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
       }
-      const newFilePath = replacement ? await saveDocumentFile(file) : null
+      const newFilePath = file instanceof File && file.size > 0 ? await saveDocumentFile(file) : null
+      const newReviewPath = reviewFile ? await saveDocumentFile(reviewFile) : null
       let updated: DocumentRow
       try {
         updated = (await query<DocumentRow>(
@@ -215,13 +236,15 @@ export function documentHandlers(kind: DocKind) {
                uploaded_at = CASE WHEN $4 IS NOT NULL THEN now() ELSE uploaded_at END,
                revision = $6,
                approval_roles = $7,
-               note = $8
+               note = $8,
+               review_form_path = CASE WHEN $10::boolean THEN NULL ELSE COALESCE($11, review_form_path) END
            WHERE id = $5 AND kind = $9
            RETURNING ${COLUMNS}`,
-          [controlNo.trim().toUpperCase(), title.trim(), elfDate, newFilePath, id, revision, roles, note, kind]
+          [controlNo.trim().toUpperCase(), title.trim(), elfDate, newFilePath, id, revision, roles, note, kind, removeReview, newReviewPath]
         )).rows[0]
       } catch (error) {
         if (newFilePath) await deleteDocumentFile(newFilePath).catch(() => {})
+        if (newReviewPath) await deleteDocumentFile(newReviewPath).catch(() => {})
         if (isUniqueViolation(error)) return duplicate()
         throw error
       }
@@ -319,8 +342,8 @@ export function documentHandlers(kind: DocKind) {
         'SELECT v.file_path FROM procedure_document_versions v JOIN procedure_documents d ON d.id = v.document_id WHERE d.id = $1 AND d.kind = $2',
         [id, kind]
       )).rows
-      const result = await query<{ id: number; title: string; file_path: string }>(
-        'DELETE FROM procedure_documents WHERE id = $1 AND kind = $2 RETURNING id, title, file_path',
+      const result = await query<{ id: number; title: string; file_path: string; review_form_path: string | null }>(
+        'DELETE FROM procedure_documents WHERE id = $1 AND kind = $2 RETURNING id, title, file_path, review_form_path',
         [id, kind]
       )
       if (result.rows.length === 0) {
@@ -328,6 +351,7 @@ export function documentHandlers(kind: DocKind) {
       }
 
       await deleteDocumentFile(result.rows[0].file_path)
+      if (result.rows[0].review_form_path) await deleteDocumentFile(result.rows[0].review_form_path).catch(() => {})
       for (const v of versions) await deleteDocumentFile(v.file_path).catch(() => {})
       await logActivity(session, 'delete', 'procedure_document', id, `Menghapus ${info.label} "${result.rows[0].title}"`)
       return NextResponse.json({ message: 'Dokumen dihapus.' })

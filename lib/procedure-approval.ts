@@ -22,7 +22,7 @@
 import 'server-only'
 import path from 'path'
 import { stat } from 'fs/promises'
-import { randomBytes } from 'crypto'
+import { randomBytes, randomInt, timingSafeEqual } from 'crypto'
 import { query, withTransaction } from '@/lib/db'
 import { STORAGE_ROOT } from '@/lib/storage'
 import { describeSmtpError, getSmtpSettings, sendMail, type MailAttachment } from '@/lib/smtp'
@@ -140,6 +140,9 @@ export function ensureApprovalSchema() {
       // Per-person e-signature: issued when someone approves, encoded in their QR.
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS verification_code varchar(40) UNIQUE')
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS token_issued_at timestamptz')
+      // The approval code sent in the request e-mail (db/migrations/0018_approval_code.sql).
+      await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code varchar(6)')
+      await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approval_code_attempts integer NOT NULL DEFAULT 0')
       // Where each role's QR goes on the document itself (its own signature
       // column). Coordinates are fractions (0–1) of the displayed page, top-left
       // origin; tied to file_path so a re-uploaded file never reuses old spots.
@@ -445,7 +448,7 @@ export async function releaseIfPlaced(documentId: number): Promise<boolean> {
  * Used for the first send, for "Kirim ulang", and when a role changes hands.
  */
 export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; error: string | null }> {
-  const stepResult = await query<ApprovalStep & { approver_email: string | null; token: string | null }>(`SELECT ${STEP_COLUMNS}, approver_email, token FROM procedure_approvals WHERE id = $1`, [stepId])
+  const stepResult = await query<ApprovalStep & { approver_email: string | null; token: string | null; approval_code: string | null; approval_code_attempts: number }>(`SELECT ${STEP_COLUMNS}, approver_email, token, approval_code, approval_code_attempts FROM procedure_approvals WHERE id = $1`, [stepId])
   const step = stepResult.rows[0]
   if (!step) return { sent: false, error: 'Tahap pengesahan tidak ditemukan.' }
 
@@ -464,6 +467,11 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
   if (step.token && step.token !== token) {
     await query('INSERT INTO procedure_approval_old_tokens (token, approval_id) VALUES ($1, $2) ON CONFLICT (token) DO NOTHING', [step.token, stepId])
   }
+  // The approval code travels in the e-mail body with the link. The same
+  // inbox keeps its code (the earlier e-mail still works) — unless it was
+  // locked by wrong entries; a new address gets a new one.
+  const code = sameRecipient && step.approval_code && step.approval_code_attempts < APPROVAL_CODE_TRIES ? step.approval_code : newApprovalCode()
+  await query('UPDATE procedure_approvals SET approval_code = $1::text, approval_code_attempts = CASE WHEN approval_code = $1::text THEN approval_code_attempts ELSE 0 END WHERE id = $2', [code, stepId])
 
   await query(
     `UPDATE procedure_approvals
@@ -480,6 +488,36 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
   // Shown live under "Perlu tindakan" while it lasts — history only here.
   if (error) await recordStepEvent(stepId, 'esign_mailfail', (doc, who) => ({ title: `Email pengesahan gagal terkirim — ${doc}`, body: `${who} · ${error}` }))
   return { sent: error === null, error }
+}
+
+// Wrong codes allowed before a step is locked (the Admin ISM re-sends to unlock it).
+export const APPROVAL_CODE_TRIES = 5
+const newApprovalCode = () => String(randomInt(0, 1_000_000)).padStart(6, '0')
+
+/**
+ * Checks the approval code typed on the approval page. A step from before
+ * codes existed has none and needs none. Each wrong entry is counted; after
+ * APPROVAL_CODE_TRIES the step is locked.
+ */
+async function checkApprovalCode(stepId: number, typed: string | null): Promise<string | null> {
+  const row = (await query<{ approval_code: string | null; approval_code_attempts: number }>('SELECT approval_code, approval_code_attempts FROM procedure_approvals WHERE id = $1', [stepId])).rows[0]
+  if (!row?.approval_code) return null
+  if (row.approval_code_attempts >= APPROVAL_CODE_TRIES) return `Kode persetujuan salah ${APPROVAL_CODE_TRIES} kali — persetujuan dikunci. Minta Admin ISM mengirim ulang email pengesahan untuk mendapatkan kode baru.`
+  const entered = (typed ?? '').replace(/\D/g, '')
+  if (!entered) return 'Masukkan kode persetujuan 6 angka yang ada di email pengesahan.'
+  const a = Buffer.from(entered.padEnd(6, ' ').slice(0, 6)), b = Buffer.from(row.approval_code)
+  if (entered.length === 6 && timingSafeEqual(a, b)) return null
+  const attempts = (await query<{ n: number }>('UPDATE procedure_approvals SET approval_code_attempts = approval_code_attempts + 1 WHERE id = $1 RETURNING approval_code_attempts AS n', [stepId])).rows[0]?.n ?? APPROVAL_CODE_TRIES
+  const left = APPROVAL_CODE_TRIES - attempts
+  return left > 0
+    ? `Kode persetujuan salah. Periksa kode 6 angka di email pengesahan (sisa ${left} kali percobaan).`
+    : `Kode persetujuan salah ${APPROVAL_CODE_TRIES} kali — persetujuan dikunci. Minta Admin ISM mengirim ulang email pengesahan untuk mendapatkan kode baru.`
+}
+
+/** Whether approving this step asks for the code from the e-mail. */
+export async function approvalCodeRequired(stepId: number): Promise<{ required: boolean; locked: boolean }> {
+  const row = (await query<{ approval_code: string | null; approval_code_attempts: number }>('SELECT approval_code, approval_code_attempts FROM procedure_approvals WHERE id = $1', [stepId])).rows[0]
+  return { required: !!row?.approval_code, locked: !!row?.approval_code && row.approval_code_attempts >= APPROVAL_CODE_TRIES }
 }
 
 // A history entry about one signing step, worded by `describe` from the document and the approver.
@@ -509,7 +547,7 @@ export const reviewFormsBeingSaved = new Map<string, ReviewFormData>()
 // reminder: this is a follow-up of a request already sent (see sendApprovalReminders).
 async function emailStep(stepId: number, token: string, reminder: { count: number; waitingDays: number } | null = null): Promise<string | null> {
   try {
-    const stepResult = await query<ApprovalStep & { approver_email: string | null }>(`SELECT ${STEP_COLUMNS}, approver_email FROM procedure_approvals WHERE id = $1`, [stepId])
+    const stepResult = await query<ApprovalStep & { approver_email: string | null; approval_code: string | null }>(`SELECT ${STEP_COLUMNS}, approver_email, approval_code FROM procedure_approvals WHERE id = $1`, [stepId])
     const step = stepResult.rows[0]
     if (!step) return 'Tahap tidak ditemukan.'
     if (!step.approver_email) return `Email untuk ${step.role_title} belum diisi di Kelola Pengesahan.`
@@ -567,6 +605,7 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
         decidedAt: row.decided_at,
       })),
       reviewUrl: `${base}${API_BASE_PATH}/pengesahan?token=${token}`,
+      approvalCode: step.approval_code,
       kind: docKindInfo(doc.kind),
     })
     // The procedure itself travels with the email ("telah saya lampirkan pada
@@ -857,13 +896,19 @@ export async function decideByToken(
   token: string,
   action: 'approve' | 'reject',
   note: string | null,
-  revisionNotes: RevisionNote[] = []
-): Promise<{ ok: boolean; message: string }> {
+  revisionNotes: RevisionNote[] = [],
+  approvalCode: string | null = null
+): Promise<{ ok: boolean; message: string; codeError?: boolean }> {
   const view = await getByToken(token)
   if (!view) return { ok: false, message: 'Link tidak ditemukan atau sudah tidak berlaku.' }
   if (view.step.status !== 'pending') return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
   if (view.step.revision !== view.document.revision) return { ok: false, message: 'Dokumen sudah direvisi — link ini tidak berlaku lagi.' }
   if (linkExpired(view.step)) return { ok: false, message: `Link ini sudah kedaluwarsa (lebih dari ${APPROVAL_LINK_DAYS} hari). Minta Admin ISM mengirim ulang email pengesahan.` }
+  // Signing takes the code from the e-mail body as well as the link.
+  if (action === 'approve') {
+    const wrong = await checkApprovalCode(view.step.id, approvalCode)
+    if (wrong) return { ok: false, message: wrong, codeError: true }
+  }
 
   // Revision request: rows to store = the general note (page null) + the
   // pinned ones; decision_note gets the plain-text summary of all of them.

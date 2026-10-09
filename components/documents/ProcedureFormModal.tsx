@@ -52,6 +52,8 @@ export function ProcedureFormModal({
   const [title, setTitle] = useState('')
   const [elfDate, setElfDate] = useState('')
   const [revision, setRevision] = useState('1')
+  // Adding a document: it is revision 1 unless "Dokumen revisi" is ticked, which asks for its number.
+  const [isRevision, setIsRevision] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [note, setNote] = useState('')
   const [roles, setRoles] = useState<ApproverRole[]>([])
@@ -68,6 +70,7 @@ export function ProcedureFormModal({
       setTitle(document?.title ?? '')
       setElfDate(document?.elfDate ?? todayAsInputValue())
       setRevision(String(document?.revision ?? 1))
+      setIsRevision(false)
       setNote(document?.note ?? '')
       setSelectedRoles(document?.approvalRoles ?? [])
       setFile(null)
@@ -118,7 +121,7 @@ export function ProcedureFormModal({
       formData.set('approvalRoles', JSON.stringify(orderedSelection.map((role) => role.code)))
       formData.set('note', note)
       if (file) formData.set('file', file)
-      formData.set('revision', revision)
+      formData.set('revision', isEdit || isRevision ? revision : '1')
       if (document) formData.set('id', String(document.id))
 
       const res = await fetch(`${API_BASE_PATH}${DOC_KIND_INFO[kind].api}`, {
@@ -156,7 +159,24 @@ export function ProcedureFormModal({
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">No. Kontrol</span><input value={controlNo} onChange={(event) => setControlNo(event.target.value)} required placeholder={PLACEHOLDERS[kind].controlNo} className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Nama Dokumen</span><input value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus placeholder={PLACEHOLDERS[kind].title} className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Eff Date</span><input type="date" value={elfDate} onChange={(event) => setElfDate(event.target.value)} required aria-label="Pilih Eff Date" className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none [color-scheme:light] focus:border-[color:var(--p-600)] [&::-webkit-calendar-picker-indicator]:ml-2 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:rounded-[5px] [&::-webkit-calendar-picker-indicator]:bg-[color:var(--p-800)] [&::-webkit-calendar-picker-indicator]:p-[3px] [&::-webkit-calendar-picker-indicator]:[filter:invert(1)]" /></label>
-          <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Revisi</span><input type="number" min={1} step={1} value={revision} onChange={(event) => setRevision(event.target.value)} required className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
+          {isEdit ? (
+            <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">Revisi</span><input type="number" min={1} step={1} value={revision} onChange={(event) => setRevision(event.target.value)} required className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
+          ) : (
+            <div className="flex flex-col gap-[6px]">
+              <label className="flex w-fit cursor-pointer items-center gap-2 text-[12px] font-medium text-[color:var(--p-ink2)]">
+                <input
+                  type="checkbox"
+                  checked={isRevision}
+                  onChange={(event) => { setIsRevision(event.target.checked); setRevision(event.target.checked ? '' : '1') }}
+                  className="size-4 accent-[color:var(--p-700)]"
+                />
+                Dokumen revisi
+              </label>
+              {isRevision
+                ? <label className="flex flex-col gap-[6px]"><span className="text-[11.5px] text-[color:var(--p-muted2)]">Nomor revisi dokumen ini</span><input type="number" min={1} step={1} value={revision} onChange={(event) => setRevision(event.target.value)} required autoFocus placeholder="Contoh: 3" aria-label="Nomor revisi" className="h-10 rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 text-[13px] text-[color:var(--p-800)] outline-none focus:border-[color:var(--p-600)]" /></label>
+                : <p className="text-[11.5px] text-[color:var(--p-muted2)]">Tidak dicentang = dokumen baru, tercatat sebagai Revisi 1.</p>}
+            </div>
+          )}
           <label className="flex flex-col gap-[6px]"><span className="text-[12px] font-medium text-[color:var(--p-ink2)]">{isEdit ? 'Upload Ulang PDF (opsional)' : 'File PDF'}</span><input type="file" accept="application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} required={!isEdit} className="rounded-[7px] border border-[color:var(--p-border)] bg-[color:var(--p-surface)] px-3 py-2 text-[12px] text-[color:var(--p-ink2)] file:mr-3 file:rounded-[5px] file:border-0 file:bg-[color:var(--p-800)] file:px-3 file:py-[6px] file:text-[11px] file:font-medium file:text-white" />{isEdit && <span className="text-[11px] text-[color:var(--p-muted2)]">Kosongkan jika hanya mengubah data dokumen.</span>}</label>
 
           <fieldset className="flex flex-col gap-2 rounded-[10px] border border-[color:var(--p-border)] p-3">

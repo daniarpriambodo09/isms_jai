@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
+import { AdminActiveCards } from '@/components/kiosk/AdminActiveCards'
 import { docKindInfo } from '@/lib/document-kinds'
 
 type ReviewItem = { kind: string; kindLabel: string; id: number; controlNo: string; title: string; revision: number | null; effDate: string; dueDate: string; daysLeft: number; href: string }
@@ -132,6 +133,8 @@ export default function DashboardAdminPage() {
         <Stat icon={<Users />} label="Tamu / vendor hari ini" value={visits.today} hint={`${visits.inside} masih di dalam area`} />
         <Stat icon={<CheckCircle2 />} label="Disahkan bulan ini" value={procedures.approvedThisMonth} tone="good" href="/prosedur-isms" />
       </div>
+
+      <AdminActiveCards />
 
       <div className="grid gap-5">
         <Panel title="Pengesahan berjalan (belum tampil ke pengunjung)" icon={<FileSignature />} href="/prosedur-isms" linkLabel="Register prosedur">

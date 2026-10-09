@@ -120,7 +120,7 @@ export async function detectTemplateSlots(filePath: string, spots: TemplateSpot[
 }
 
 /** One piece of text of the PDF, placed like a Heading (displayed-page fractions). */
-export type TextItem = { str: string; page: number; pageW: number; pageH: number; cx: number; y: number; h: number }
+export type TextItem = { str: string; page: number; pageW: number; pageH: number; cx: number; y: number; h: number; w?: number }
 
 /** The cell under a signature box where the signer's initials are printed. */
 export type InitialsCell = { key: string; page: number; pageW: number; pageH: number; cx: number; baseline: number; h: number; column: number }
@@ -178,7 +178,7 @@ async function readText(filePath: string): Promise<TextItem[]> {
         if (!('str' in item) || !item.str.trim()) continue
         // Displayed-page coordinates (rotation applied), like the "Atur Posisi QR" editor uses.
         const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5])
-        items.push({ str: item.str, page: n - 1, pageW: viewport.width, pageH: viewport.height, cx: (x + item.width / 2) / viewport.width, y: y / viewport.height, h: item.height / viewport.height })
+        items.push({ str: item.str, page: n - 1, pageW: viewport.width, pageH: viewport.height, cx: (x + item.width / 2) / viewport.width, y: y / viewport.height, h: item.height / viewport.height, w: item.width / viewport.width })
       }
     }
     return items
@@ -189,6 +189,43 @@ async function readText(filePath: string): Promise<TextItem[]> {
 
 const headingsOf = (items: TextItem[]): Heading[] =>
   items.flatMap((item) => { const key = signatureKey(item.str); return key ? [{ key, page: item.page, pageW: item.pageW, pageH: item.pageH, cx: item.cx, y: item.y, h: item.h }] : [] })
+
+// ─── "Eff. Date" in the document header ───
+// The ISMS header box reads Doc. No. / Tanggal / Revisi / Eff. Date, each with
+// its value to the right. The Eff. Date is left empty on the sheet: the
+// document takes effect when its last approver signs, so the signed PDF
+// writes that date there (app/api/prosedur-isms/[id]/pdf).
+
+/** Where the effective date goes: an empty value cell beside an "Eff. Date" label (displayed-page fractions). */
+export type EffDateCell = { page: number; cx: number; baseline: number; h: number; width: number }
+
+// Only the header's own label: "Tanggal efektif" on the Form Review is the
+// reviewed document's date, written by whoever fills the form in.
+const EFF_DATE_LABEL = /^eff(ective)?\.?\s*date\s*:?$/i
+
+/** The empty "Eff. Date" cells of a sheet (pure, for testing). A cell that already shows a date is left out. */
+export function effDateCells(items: TextItem[]): EffDateCell[] {
+  const cells: EffDateCell[] = []
+  for (const label of items.filter((item) => EFF_DATE_LABEL.test(item.str.trim()))) {
+    const right = label.cx + (label.w ?? 0) / 2
+    const sameRow = (item: TextItem, ref: TextItem) => item.page === ref.page && Math.abs(item.y - ref.y) < Math.max(ref.h * 0.6, 0.006)
+    // something already written to the right of the label (not just a colon): keep it
+    if (items.some((item) => item !== label && sameRow(item, label) && item.cx > right && item.cx - right < 0.35 && item.str.trim().replace(/:/g, ''))) continue
+    // The value column: where the rows above it (Doc. No., Tanggal, Revisi) have their values.
+    const siblings = items.filter((item) => item !== label && item.page === label.page && Math.abs(item.cx - label.cx) < 0.05 && label.y - item.y > 0.005 && label.y - item.y < 0.12)
+    const values = siblings.flatMap((sibling) => items.filter((item) => item !== sibling && sameRow(item, sibling) && item.cx > sibling.cx + (sibling.w ?? 0) / 2 && item.str.trim().replace(/:/g, '')).map((item) => item.cx))
+    const sorted = values.sort((a, b) => a - b)
+    const cx = sorted.length ? sorted[Math.floor(sorted.length / 2)] : Math.min(right + 0.07, 0.95)
+    const width = Math.max(0.06, Math.min(2 * (cx - right) - 0.01, 2 * (0.985 - cx)))
+    cells.push({ page: label.page, cx, baseline: label.y, h: label.h, width })
+  }
+  return cells
+}
+
+/** Reads the stored PDF and returns its empty "Eff. Date" cells. */
+export async function detectEffDateCells(filePath: string): Promise<EffDateCell[]> {
+  return effDateCells(await readText(filePath))
+}
 
 /** Reads the stored PDF and returns a QR spot for each position whose box heading is found in it. */
 export async function detectSignatureSlots(filePath: string, roles: { code: string; title: string }[]): Promise<SignatureSlot[]> {

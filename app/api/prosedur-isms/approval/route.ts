@@ -6,7 +6,7 @@
 // approve anything) and single-use (a step can only leave 'pending' once).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { APPROVAL_LINK_DAYS, autoPlaceSlots, canPlaceOwnSlots, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, verifyBaseUrl } from '@/lib/procedure-approval'
+import { APPROVAL_LINK_DAYS, approvalCodeRequired, autoPlaceSlots, canPlaceOwnSlots, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, verifyBaseUrl } from '@/lib/procedure-approval'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,8 +33,12 @@ export async function GET(request: NextRequest) {
     // qrAutoPlaced: this approver's QR has its place on the document already.
     if (placesQrItself(view.document.kind) && view.step.revision === view.document.revision) await autoPlaceSlots(view.document.id)
     const qrAutoPlaced = (await slotsFor(view.document.id, view.document.file_path)).some((slot) => slot.role_code === view.step.role_code)
+    // Approving asks for the code from the e-mail (steps sent before codes existed don't).
+    const code = await approvalCodeRequired(view.step.id)
     return NextResponse.json({
       qrAutoPlaced,
+      codeRequired: code.required,
+      codeLocked: code.locked,
       revisionRequest: history?.requests[0] ?? null,
       history,
       step: view.step,
@@ -77,8 +81,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Tuliskan minimal satu catatan revisi.' }, { status: 400 })
     }
 
-    const result = await decideByToken(token, action, note, notes)
-    return NextResponse.json({ message: result.message }, { status: result.ok ? 200 : 409 })
+    const code = typeof body.code === 'string' ? body.code.slice(0, 12) : null
+    const result = await decideByToken(token, action, note, notes, code)
+    return NextResponse.json({ message: result.message, codeError: result.codeError ?? false }, { status: result.ok ? 200 : result.codeError ? 400 : 409 })
   } catch (error) {
     console.error('[prosedur-isms/approval/POST]', error)
     return NextResponse.json({ message: 'Terjadi kesalahan pada server.' }, { status: 500 })

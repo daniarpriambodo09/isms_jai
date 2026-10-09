@@ -736,6 +736,8 @@ export type ProcedureApprovalEmailData = {
   stepTotal: number
   chain: ProcedureChainStep[]
   reviewUrl: string
+  /** The 6-digit code the approver types in when approving (null = none asked). */
+  approvalCode?: string | null
   /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
   kind?: DocKindLook
   /** Form Review Dokumen: what the form says, shown in the mail. */
@@ -751,6 +753,24 @@ export type ProcedureApprovalEmailData = {
     pins: { page: number; note: string; strike: boolean }[]
     fileChanged: boolean
   } | null
+}
+
+// The approval code, set apart under the button: the approver types it in
+// on the approval page when pressing Setujui.
+function approvalCodeBlock(code: string) {
+  const digits = code.split('').join('&nbsp;')
+  return `
+    <tr>
+      <td align="center" style="padding:18px 32px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="border:1px dashed ${NAVY};border-radius:8px;background:#f6f8fb;">
+          <tr><td align="center" style="padding:14px 26px 12px;font-family:Arial,Helvetica,sans-serif;">
+            <p style="margin:0;font-size:10.5px;font-weight:bold;letter-spacing:0.14em;color:${MUTED};text-transform:uppercase;">Kode Persetujuan</p>
+            <p style="margin:6px 0 4px;font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:bold;letter-spacing:0.18em;color:${NAVY};">${digits}</p>
+            <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.5;">Masukkan kode ini saat menekan <strong>Setujui</strong>. Jangan berikan kode ini kepada siapa pun.</p>
+          </td></tr>
+        </table>
+      </td>
+    </tr>`
 }
 
 export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): { subject: string; html: string } {
@@ -841,7 +861,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
         <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;${buttonStyle}">&#9998;&nbsp; ${data.reviewForm ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI' : 'PERIKSA &amp; TANDA TANGANI') : re ? 'REVIEW ULANG &amp; APPROVAL' : 'REVIEW &amp; APPROVAL'}</a>
         <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11.5px;color:${MUTED};">Buka dokumen, lalu pilih <strong>Setujui</strong> atau <strong>Tolak</strong> &mdash; tanpa perlu login.</p>
       </td>
-    </tr>
+    </tr>${data.approvalCode ? approvalCodeBlock(data.approvalCode) : ''}
     <tr>
       <td style="padding:14px 32px 24px;">
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">Link ini khusus untuk Bapak/Ibu dan hanya berlaku untuk tahap ini. Mohon tidak meneruskan email ini.</p>

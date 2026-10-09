@@ -9,11 +9,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { query } from '@/lib/db'
 import { approverInitials, autoPlaceSlots, currentStepsFor, ensureApprovalSchema, slotsFor, usesSignatureBoxes, verifyBaseUrl } from '@/lib/procedure-approval'
-import { detectInitials } from '@/lib/auto-slots'
+import { detectEffDateCells, detectInitials } from '@/lib/auto-slots'
 import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { buildProcedureSignedPdf } from '@/lib/procedure-esign-pdf'
 import { docKindInfo, type DocKind } from '@/lib/document-kinds'
 import { REVIEW_DATE_SLASHES } from '@/lib/review-form-pdf'
+
+// 07-Jul-26 — the way the header writes its "Tanggal" (WIB).
+const HEADER_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+function headerDate(value: string) {
+  const [y, m, d] = new Date(value).toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }).split('-')
+  return `${d}-${HEADER_MONTHS[Number(m) - 1]}-${y.slice(2)}`
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +64,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .catch((error) => { console.error('[prosedur-isms/pdf] initials', (error as Error).message); return [] })
       : []
     const initials = cells.some((cell) => cell.text) ? cells : []
+    // The header's empty "Eff. Date" gets the day the last approver signed, once everyone has.
+    // (Not on a Form Review: its dates are the form's own.)
+    const lastSigned = doc.kind === 'review_form' ? null : preview ? new Date().toISOString() : doc.approval_status === 'approved'
+      ? steps.map((s) => s.decided_at).filter((at): at is string => !!at).sort().pop() ?? null
+      : null
+    const effDateStamp = lastSigned
+      ? { text: headerDate(lastSigned), cells: await detectEffDateCells(doc.file_path).catch((error) => { console.error('[prosedur-isms/pdf] eff date', (error as Error).message); return [] }) }
+      : null
     const bytes = await buildProcedureSignedPdf({
       kindLabel: docKindInfo(doc.kind).label,
       controlNo: doc.control_no,
@@ -73,6 +88,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       // Form Review: the date goes on the form's own "/  /" line under the QR.
       dateSlashes: doc.kind === 'review_form' ? REVIEW_DATE_SLASHES : null,
       initials,
+      effDateStamp,
     })
 
     const filename = `pengesahan-${doc.control_no}-rev${doc.revision}.pdf`.replace(/[^A-Za-z0-9._-]/g, '_')

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 vi.mock('server-only', () => ({}))
 
-import { initialsCells, signatureKey, slotsFromHeadings, type Heading, type TextItem } from './auto-slots'
+import { effDateCells, initialsCells, signatureKey, slotsFromHeadings, type Heading, type TextItem } from './auto-slots'
 
 describe('signatureKey', () => {
   it('reads box headings and position titles alike', () => {
@@ -89,5 +89,34 @@ describe('initialsCells', () => {
     const none = initialsCells([], template)
     expect(none).toHaveLength(4)
     expect(none[0].baseline).toBeCloseTo(0.8157 + 73 / 612, 5)
+  })
+})
+
+describe('effDateCells', () => {
+  // The ISMS header box: Doc. No. / Tanggal / Revisi / Eff. Date, values to the right.
+  const at = (str: string, cx: number, y: number, w = 0.05): TextItem => ({ str, page: 0, pageW: 842, pageH: 1190, cx, y, h: 0.01, w })
+  const header = [at('Doc. No.', 0.789, 0.041), at('ISMS-B-001', 0.868, 0.041, 0.063), at('Tanggal', 0.791, 0.065), at('07-Jul-26', 0.875, 0.065), at('Revisi', 0.796, 0.088, 0.031), at('15', 0.893, 0.088, 0.014), at('Eff. Date', 0.789, 0.112, 0.047)]
+
+  it('finds the empty Eff. Date cell, in the column of the values above it', () => {
+    const [cell] = effDateCells(header)
+    expect(cell.page).toBe(0)
+    expect(cell.baseline).toBeCloseTo(0.112)
+    expect(cell.cx).toBeCloseTo(0.875)
+  })
+
+  it('leaves a cell that already has a date alone', () => {
+    expect(effDateCells([...header, at('01-Aug-26', 0.875, 0.112)])).toEqual([])
+  })
+
+  it('ignores a lone colon after the label', () => {
+    expect(effDateCells([...header.slice(0, 6), at('Effective Date', 0.789, 0.112), at(':', 0.82, 0.112, 0.004)])).toHaveLength(1)
+  })
+
+  it("leaves the Form Review's \"Tanggal efektif\" alone (the reviewed document's date)", () => {
+    expect(effDateCells([...header.slice(0, 6), at('Tanggal efektif :', 0.789, 0.112)])).toEqual([])
+  })
+
+  it('finds nothing on a sheet without the label', () => {
+    expect(effDateCells(header.slice(0, 6))).toEqual([])
   })
 })

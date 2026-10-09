@@ -81,6 +81,7 @@ function documentEmail(kind: DocKind, variant: string, base: string) {
     approverName: PEOPLE[1], roleTitle: sample.roles[1], controlNo: sample.controlNo, title: sample.title,
     revision: 2, effDate: iso(0).slice(0, 10), note: null, stepNumber: 2, stepTotal: 3, chain,
     reviewUrl: `${base}/pengesahan?token=contoh`,
+    approvalCode: '482915',
     kind: info,
     resubmission: variant === 'resubmit'
       ? { round: 2, by: request.by, at: request.at, general: request.general, pins: [{ page: 0, note: 'Ganti dengan: 12 digit', strike: true }, { page: 1, note: 'Tambahkan nomor revisi di sini', strike: false }], fileChanged: true }

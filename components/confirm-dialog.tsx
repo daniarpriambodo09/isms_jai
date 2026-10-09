@@ -14,6 +14,8 @@ export function ConfirmDialog({
   pending = false,
   onConfirm,
   onCancel,
+  children,
+  confirmDisabled = false,
 }: {
   open: boolean
   title: string
@@ -24,6 +26,9 @@ export function ConfirmDialog({
   pending?: boolean
   onConfirm: () => void
   onCancel: () => void
+  /** Extra content under the message (e.g. a field to fill in before confirming). */
+  children?: React.ReactNode
+  confirmDisabled?: boolean
 }) {
   useEscapeClose(open && !pending, onCancel)
 
@@ -83,6 +88,7 @@ export function ConfirmDialog({
               <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: 'var(--p-muted)' }}>{message}</p>
             </div>
           </div>
+          {children && <div className="mt-4">{children}</div>}
 
           <div className="mt-6 flex justify-end gap-2.5">
             <button
@@ -97,7 +103,7 @@ export function ConfirmDialog({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={pending}
+              disabled={pending || confirmDisabled}
               className="confirm-btn inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-semibold text-white"
               style={{ background: accentGradient, boxShadow: danger ? '0 4px 14px rgba(160,58,58,0.35)' : '0 4px 14px color-mix(in oklch, var(--p-600) 35%, transparent)' }}
             >

@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Aperture, ArrowUpRight, Building2, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, LayoutList, LogOut, Mail, MailOpen, Menu, Palette, Search, Settings, ShieldAlert, UserCheck, Users, X } from 'lucide-react'
+import { Aperture, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, LayoutList, LogOut, Mail, MailOpen, Menu, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -27,6 +27,9 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
     items: [
       { href: '/dashboard-admin', label: 'Dashboard', hint: 'Yang perlu ditindaklanjuti', icon: Gauge },
       { href: '/kelola-pernyataan-kebijakan', label: 'Policy Read Log', hint: 'Rekap baca kebijakan ISMS', icon: ClipboardCheck },
+      // The kiosks: guests, and the cards currently in use (ISM Admin may open both).
+      { href: '/admin-lobby', label: 'Admin Lobby', hint: 'Tamu & kartu dipakai', icon: ConciergeBell },
+      { href: '/admin-pos-security', label: 'Pos Security', hint: 'Pendaftaran & kartu security', icon: ShieldCheck },
     ],
   },
   {

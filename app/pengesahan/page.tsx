@@ -42,6 +42,9 @@ type View = {
   canPlaceQr: boolean
   /** This approver's QR already has its place on the document (found by the portal or set by the Admin ISM). */
   qrAutoPlaced?: boolean
+  /** Approving asks for the 6-digit code sent in the e-mail; locked = too many wrong entries. */
+  codeRequired?: boolean
+  codeLocked?: boolean
   qrAdjustableUntil: string | null
   documentId: number
   verifyBase: string
@@ -82,6 +85,9 @@ function PengesahanContent() {
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
   // 'approve': place QR then approve · 'adjust': move QR after approving
   const [confirmApprove, setConfirmApprove] = useState(false)
+  // The approval code typed in the Setujui dialog, and what was wrong with it.
+  const [approvalCode, setApprovalCode] = useState('')
+  const [codeError, setCodeError] = useState<string | null>(null)
   const [pdfStamp, setPdfStamp] = useState(0) // busts the signed-PDF link after moving QR
 
   const load = useCallback(async () => {
@@ -107,10 +113,17 @@ function PengesahanContent() {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, action, note: revision?.general || null, notes: revision?.pins ?? [] }),
+        body: JSON.stringify({ token, action, note: revision?.general || null, notes: revision?.pins ?? [], code: action === 'approve' ? approvalCode : undefined }),
       })
       const data = await res.json().catch(() => ({}))
+      // A wrong code: said inside the dialog, which stays open for another try.
+      if (data.codeError) {
+        setCodeError(data.message ?? 'Kode persetujuan salah.')
+        await load()
+        return data.message ?? 'Kode persetujuan salah.'
+      }
       setResult({ ok: res.ok, message: data.message ?? (res.ok ? 'Tersimpan.' : 'Gagal memproses.') })
+      if (!res.ok) setConfirmApprove(false)
       await load()
       setPdfStamp(Date.now()) // the document view now carries this decision's QR
       return res.ok ? null : (data.message ?? 'Gagal memproses.')
@@ -399,9 +412,36 @@ function PengesahanContent() {
         confirmLabel="Ya, setujui"
         danger={false}
         pending={submitting === 'approve'}
-        onConfirm={async () => { await decide('approve'); setConfirmApprove(false) }}
-        onCancel={() => setConfirmApprove(false)}
-      />
+        confirmDisabled={!!view.codeRequired && (view.codeLocked || approvalCode.length !== 6)}
+        onConfirm={async () => { const failed = await decide('approve'); if (!failed || !view.codeRequired) { setConfirmApprove(false); setApprovalCode(''); setCodeError(null) } }}
+        onCancel={() => { setConfirmApprove(false); setCodeError(null) }}
+      >
+        {view.codeRequired && (
+          view.codeLocked ? (
+            <p role="alert" className="rounded-lg bg-[#fdecea] px-3 py-2 text-[12px] leading-5 text-[#a83522]">
+              Kode persetujuan salah terlalu banyak — persetujuan dikunci. Minta Admin ISM mengirim ulang email pengesahan untuk mendapatkan kode baru.
+            </p>
+          ) : (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-semibold" style={{ color: 'var(--p-ink2)' }}>Kode persetujuan (6 angka dari email pengesahan)</span>
+              <input
+                value={approvalCode}
+                onChange={(event) => { setApprovalCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setCodeError(null) }}
+                onKeyDown={(event) => { if (event.key === 'Enter' && approvalCode.length === 6 && submitting === null) { event.preventDefault(); void decide('approve').then((failed) => { if (!failed) { setConfirmApprove(false); setApprovalCode('') } }) } }}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                aria-label="Kode persetujuan"
+                aria-invalid={!!codeError}
+                placeholder="••••••"
+                className="h-12 rounded-lg border bg-white px-3 text-center font-mono text-2xl font-bold tracking-[0.4em] outline-none focus:border-[color:var(--p-600)]"
+                style={{ borderColor: codeError ? '#c2412c' : 'var(--p-border)', color: 'var(--p-900)' }}
+              />
+              {codeError && <span role="alert" className="text-[12px] leading-5 text-[#a83522]">{codeError}</span>}
+            </label>
+          )
+        )}
+      </ConfirmDialog>
 
     </div>
   )

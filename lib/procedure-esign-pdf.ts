@@ -55,6 +55,11 @@ export type SheetData = {
    * are fractions of the displayed page; `column` is one box's width.
    */
   initials?: { page: number; cx: number; baseline: number; h: number; column: number; text: string | null }[]
+  /**
+   * The header's empty "Eff. Date" cells (lib/auto-slots.ts) and the date to
+   * write in them — the day the last approver signed.
+   */
+  effDateStamp?: { text: string; cells: { page: number; cx: number; baseline: number; h: number; width: number }[] } | null
 }
 
 // The approval date as the paper forms take it: day / month / two-digit year (WIB).
@@ -366,6 +371,19 @@ export async function buildProcedureSignedPdf(data: SheetData): Promise<Uint8Arr
     const label = safe(cell.text)
     const size = Math.min(9, Math.max(6, textH * 0.95), (width * 0.9) / Math.max(bold.widthOfTextAtSize(label, 1), 1))
     target.drawText(label, { x: centre - bold.widthOfTextAtSize(label, size) / 2, y: baseline, size, font: bold, color: INK })
+  }
+
+  // 3c) The header's "Eff. Date": the day the document took effect (its last approval).
+  for (const cell of data.effDateStamp?.cells ?? []) {
+    if (cell.page >= originalPages) continue
+    const target = pdf.getPage(cell.page)
+    if ((((target.getRotation().angle % 360) + 360) % 360) !== 0) continue
+    const cb = target.getCropBox()
+    const label = safe(data.effDateStamp!.text)
+    const width = cell.width * cb.width
+    const size = Math.min(10, Math.max(6, cell.h * cb.height * 0.95), (width * 0.92) / Math.max(font.widthOfTextAtSize(label, 1), 1))
+    const centre = cb.x + cell.cx * cb.width
+    target.drawText(label, { x: centre - font.widthOfTextAtSize(label, size) / 2, y: cb.y + (1 - cell.baseline) * cb.height, size, font, color: rgb(0, 0, 0) })
   }
 
   // 4) Once fully approved, a quiet line in the bottom margin of every original page.

@@ -118,7 +118,7 @@ export async function buildSpecialAreaPdf(req: SpecialAreaRequest, verifyUrl: st
   // rows above — label at the labels' left edge, colon and value in their
   // columns — with no line or box drawn. Without one the form stays as it is.
   if (req.escort_name) {
-    text('PIC PENDAMPING', 63, 423.5, 8.5)
+    text('PIC PENDAMPING JAI', 63, 423.5, 8.5)
     text(':', 224.2, 423.5, 10)
     put(req.escort_dept ? `${req.escort_name} (${req.escort_dept})` : req.escort_name, 423.5)
   }

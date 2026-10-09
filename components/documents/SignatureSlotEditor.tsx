@@ -359,12 +359,17 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
   // A new placement of `role` on the current page. Copies the size (and the
   // spot, when coming from another page — signature tables usually sit in
   // the same place) of `template`; on the same page it goes just below.
+  // One QR per position per page — a second one would print the same QR twice.
+  const onPageAlready = (role: string, page: number) => slots.some((s) => s.role_code === role && s.page === page)
+  const samePageMessage = (role: string, page: number) => setMessage({ ok: false, text: `QR ${role} sudah ada di halaman ${page + 1}. Satu approver cukup satu QR per halaman — geser kotak yang ada, atau salin ke halaman lain.` })
+
   const addPlacement = (role: string, template?: Slot | null) => {
     if (!canEdit(role)) return
     if (countFor(role) >= MAX_PER_ROLE) {
       setMessage({ ok: false, text: `Maksimal ${MAX_PER_ROLE} QR per approver.` })
       return
     }
+    if (onPageAlready(role, pageIndex)) { samePageMessage(role, pageIndex); return }
     let base: Placement
     if (template) {
       const samePage = template.page === pageIndex
@@ -501,6 +506,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       setMessage({ ok: false, text: `Maksimal ${MAX_PER_ROLE} QR per approver.` })
       return true
     }
+    if (onPageAlready(role, page)) { samePageMessage(role, page); return true }
     e.preventDefault()
     const r = pageRefs.current[page]!.getBoundingClientRect()
     const slot: Slot = { role_code: role, page, x: Math.min((e.clientX - r.left) / r.width, 0.98), y: Math.min((e.clientY - r.top) / r.height, 0.985), w: 0.004, h: 0.004, date: null, key: newKey(role) }
@@ -551,8 +557,11 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
         setMessage({ ok: false, text: 'Kolom tanda tangan tidak ditemukan otomatis — tempatkan kotak QR secara manual.' })
         return
       }
-      const foundRoles = new Set(detected.map((d) => d.role_code))
-      const fresh = detected.map((d) => ({ ...d, key: newKey(d.role_code) }))
+      // one per position per page, also from detection
+      const seen = new Set<string>()
+      const unique = detected.filter((d) => { const k = `${d.role_code}@${d.page}`; if (seen.has(k)) return false; seen.add(k); return true })
+      const foundRoles = new Set(unique.map((d) => d.role_code))
+      const fresh = unique.map((d) => ({ ...d, key: newKey(d.role_code) }))
       manualDate.current.clear()
       // Detection only adds a date where the page has a TANGGAL column.
       setSlots((current) => [...current.filter((s) => !foundRoles.has(s.role_code)), ...fresh.map((f) => ({ ...f, date: f.date ?? null }))])
@@ -879,7 +888,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                     )}
 
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      <button type="button" onClick={() => addPlacement(role.code, template)} disabled={!pdf} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold hover:bg-secondary disabled:opacity-50">
+                      <button type="button" onClick={() => addPlacement(role.code, template)} disabled={!pdf || onPageAlready(role.code, pageIndex)} title={onPageAlready(role.code, pageIndex) ? `Sudah ada QR ${role.code} di halaman ini` : undefined} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold hover:bg-secondary disabled:opacity-50">
                         {template ? <Copy className="size-3" /> : <MousePointerClick className="size-3" />}
                         {template ? `Salin QR ke halaman ${pageIndex + 1}` : 'Taruh di halaman ini'}
                       </button>

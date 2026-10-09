@@ -94,7 +94,7 @@ export function parseEscort(body: { escortName?: unknown; escortDept?: unknown }
  * the ISM Admin): empty rows dropped, duplicates (same name + dept) refused.
  */
 export function parseEscortList(raw: unknown): { escorts: Escort[] } | { error: string } {
-  if (!Array.isArray(raw)) return { error: 'Daftar PIC pendamping tidak valid.' }
+  if (!Array.isArray(raw)) return { error: 'Daftar PIC pendamping JAI tidak valid.' }
   const escorts: Escort[] = []
   const seen = new Set<string>()
   for (const item of raw) {

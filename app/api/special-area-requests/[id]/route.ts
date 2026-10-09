@@ -46,8 +46,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         [escort.name, escort.dept, session.username, req.id]
       )
       await logActivity(session, 'update', 'special_area_request', req.id, escort.name
-        ? `Menetapkan PIC pendamping "${escort.name}${escort.dept ? ` (${escort.dept})` : ''}" untuk tamu area special "${req.requester_name}"`
-        : `Menghapus PIC pendamping tamu area special "${req.requester_name}"`)
+        ? `Menetapkan PIC pendamping JAI "${escort.name}${escort.dept ? ` (${escort.dept})` : ''}" untuk tamu area special "${req.requester_name}"`
+        : `Menghapus PIC pendamping JAI tamu area special "${req.requester_name}"`)
       return NextResponse.json({ request: await getRequest(req.id) })
     }
 

@@ -1274,6 +1274,9 @@ export function parseSlots(raw: unknown, allowedRoles: string[]): SignatureSlot[
   const list: unknown[] = Array.isArray(raw) ? raw : []
   const frac = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1
   const perRole = new Map<string, number>()
+  // One QR per position per page: a second box of the same person on the
+  // same page would print the same QR twice (a page further on is fine).
+  const onPage = new Set<string>()
   const slots: SignatureSlot[] = []
   for (const item of list) {
     const s = item as Record<string, unknown>
@@ -1282,6 +1285,9 @@ export function parseSlots(raw: unknown, allowedRoles: string[]): SignatureSlot[
     if (![s.x, s.y, s.w, s.h].every(frac) || (s.w as number) < 0.005 || (s.h as number) < 0.005) continue
     const count = perRole.get(s.role_code) ?? 0
     if (count >= MAX_SLOTS_PER_ROLE) continue
+    const pageKey = `${s.role_code}@${s.page}`
+    if (onPage.has(pageKey)) continue
+    onPage.add(pageKey)
     perRole.set(s.role_code, count + 1)
     const d = s.date as Record<string, unknown> | null | undefined
     const date = d && [d.x, d.y, d.w, d.h].every(frac) && (d.w as number) >= 0.005 && (d.h as number) >= 0.005

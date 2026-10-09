@@ -214,7 +214,7 @@ function KelolaPermintaanFotoVideoContent() {
                 <tr key={req.id} className={index % 2 ? 'bg-secondary/20' : ''}>
                   <td data-label="Diajukan" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.submitted_at)}</td>
                   <td data-label="Tipe" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.request_type === 'internal' ? 'Internal' : 'Visitor'}</td>
-                  <td data-cell="title" className="min-w-[160px] px-4 py-3 font-medium text-foreground">{req.requester_name}{req.nik && <span className="block text-xs text-muted-foreground">NIK: {req.nik}</span>}{req.escort_name && <span className="block text-xs font-normal text-muted-foreground">Pendamping: {req.escort_name}{req.escort_dept ? ` (${req.escort_dept})` : ''}</span>}</td>
+                  <td data-cell="title" className="min-w-[160px] px-4 py-3 font-medium text-foreground">{req.requester_name}{req.nik && <span className="block text-xs text-muted-foreground">NIK: {req.nik}</span>}{req.escort_name && <span className="block text-xs font-normal text-muted-foreground">PIC Pendamping JAI: {req.escort_name}{req.escort_dept ? ` (${req.escort_dept})` : ''}</span>}</td>
                   <td data-label="Dept/Company" className="px-4 py-3 text-xs text-muted-foreground">{req.dept_or_company}</td>
                   <td data-label="Lokasi" className="px-4 py-3 text-xs text-muted-foreground">{req.location}</td>
                   <td data-label="Periode" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.from_at)} &ndash;<br />{formatDateTime(req.to_at)}</td>

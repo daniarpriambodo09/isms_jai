@@ -183,7 +183,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     if (locale === 'internal') {
       downloadExcel(
         `rekap-foto-video-internal-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.nik ?? '',
@@ -205,7 +205,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     } else {
       downloadExcel(
         `rekap-foto-video-visitor-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.requester_name,
@@ -276,7 +276,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
             <table className="w-full min-w-[1640px] text-sm">
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -314,7 +314,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
             <table className={`w-full text-sm ${visitorActions ? 'min-w-[1600px]' : 'min-w-[1520px]'}`}>
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(visitorActions ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(visitorActions ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>

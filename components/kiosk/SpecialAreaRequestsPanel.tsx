@@ -41,7 +41,7 @@ export function SpecialAreaRequestsPanel() {
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-foreground">
               Izin Masuk Area Special Security
               {pending > 0 && <span className="rounded-full bg-[#fff3d6] px-2 py-0.5 text-[10px] font-bold text-[#8a6100]">{pending} menunggu</span>}
-              {noEscort > 0 && <span className="rounded-full border border-amber-500/50 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">{noEscort} belum ada PIC pendamping</span>}
+              {noEscort > 0 && <span className="rounded-full border border-amber-500/50 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800">{noEscort} belum ada PIC pendamping JAI</span>}
             </p>
             <p className="text-xs text-muted-foreground">Form ISMS-F-006-001 — disetujui approver via email (e-sign)</p>
           </div>

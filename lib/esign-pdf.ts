@@ -299,7 +299,7 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   if (escort) {
     const size = 9
     const value = fitOneLine(bold, escort, 470 - VALUE_X, size)
-    page.drawText('PIC PENDAMPING', { x: 34.5, y: stripMiddle - 8.5 * 0.36, size: 8.5, font: bold, color: TEXT })
+    page.drawText('PIC PENDAMPING JAI', { x: 34.5, y: stripMiddle - 8.5 * 0.36, size: 8.5, font: bold, color: TEXT })
     page.drawText(':', { x: COLON_X, y: stripMiddle - size * 0.36, size: 10, font: bold, color: TEXT })
     page.drawText(value.text, { x: VALUE_X, y: stripMiddle - value.size * 0.36, size: value.size, font: bold, color: TEXT })
   }

@@ -9,7 +9,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardCheck, Download, ExternalLink, Loader2, Search, Upload, UserCheck, X } from 'lucide-react'
+import { ArrowUpRight, ClipboardCheck, Download, Eye, Loader2, Search, Upload, UserCheck, X } from 'lucide-react'
+
+// The row actions: small buttons of one size, so every row lines up.
+const ACTION = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary'
+const ACTION_PRIMARY = 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-primary bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90'
+const ACTION_ICON = 'grid size-8 place-items-center rounded-lg border border-border bg-card text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary'
 import { toast } from '@/components/toast'
 import { API_BASE_PATH } from '@/lib/config'
 import { DOC_KIND_INFO } from '@/lib/document-kinds'
@@ -339,6 +344,30 @@ export function FormReviewOverview({ open, onClose, startWith = null, onChanged 
     })
   }, [rows, filter, query])
 
+  // One row of equal buttons, the same order on every row: view · upload · approvers · open in its register.
+  // (wide = the table; on a phone the same buttons sit under the card and may wrap.)
+  const rowActions = (r: Row, wide = true) => {
+    const info = DOC_KIND_INFO[r.kind]
+    return (
+      <div className={`flex items-center gap-1.5 whitespace-nowrap ${wide ? 'justify-end' : 'flex-wrap'}`}>
+        {r.review_form_path ? (
+          <a href={`${API_BASE_PATH}/api/prosedur-isms/${r.id}/pdf?part=review`} target="_blank" rel="noopener noreferrer" title="Lihat Form Review bertanda tangan (tab baru)" aria-label={`Lihat Form Review ${r.control_no}`} className={ACTION}>
+            <Eye className="size-3.5" /> Lihat
+          </a>
+        ) : wide ? <span className={`${ACTION} invisible`} aria-hidden="true"><Eye className="size-3.5" /> Lihat</span> : null}
+        <button type="button" onClick={() => setEditing({ key: keyOf(r), focus: 'file' })} title={r.review_form_path ? 'Ganti file Form Review' : 'Unggah Form Review untuk dokumen ini'} className={r.review_form_path ? ACTION : ACTION_PRIMARY}>
+          <Upload className="size-3.5" /> {r.review_form_path ? 'Ganti' : 'Unggah'}
+        </button>
+        <button type="button" onClick={() => setEditing({ key: keyOf(r), focus: 'approvers' })} title="Atur approver Form Review dan dokumen" className={ACTION}>
+          <UserCheck className="size-3.5" /> Approver
+        </button>
+        <Link href={`${info.path}?q=${encodeURIComponent(r.control_no)}`} onClick={onClose} title={`Buka baris dokumen ini di ${info.label}`} aria-label={`Lihat di ${info.short}`} className={ACTION_ICON}>
+          <ArrowUpRight className="size-4" />
+        </Link>
+      </div>
+    )
+  }
+
   const exportExcel = () => downloadExcel(
     `cek-form-review-${new Date().toISOString().slice(0, 10)}.xlsx`,
     ['Menu', 'No. Kontrol', 'Nama Dokumen', 'Revisi', 'Form Review', 'Status Pengesahan', 'Keterangan'],
@@ -365,10 +394,10 @@ export function FormReviewOverview({ open, onClose, startWith = null, onChanged 
               {f.label} <span className="rounded-full bg-black/10 px-1.5 text-[10px]">{counts[f.key]}</span>
             </button>
           ))}
-          <div className="ml-auto flex items-center gap-2">
-            <label className="relative">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto">
+            <label className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari no. kontrol / dokumen" aria-label="Cari dokumen" className="h-8 w-52 rounded-full border border-border bg-background pl-8 pr-3 text-xs outline-none focus:border-primary" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cari no. kontrol / dokumen" aria-label="Cari dokumen" className="h-8 w-full rounded-full sm:w-52 border border-border bg-background pl-8 pr-3 text-xs outline-none focus:border-primary" />
             </label>
             <button type="button" onClick={exportExcel} disabled={!shown.length} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"><Download className="size-3.5" /> Excel</button>
             <button type="button" onClick={() => setEditing({ key: '', focus: 'file' })} disabled={!rows} className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"><Upload className="size-3.5" /> Unggah Form Review</button>
@@ -390,14 +419,15 @@ export function FormReviewOverview({ open, onClose, startWith = null, onChanged 
             : !rows ? <p className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Memuat…</p>
               : !shown.length ? <p className="p-10 text-center text-sm text-muted-foreground">Tidak ada dokumen untuk filter ini.</p>
                 : (
-                  <table className="w-full min-w-[760px] text-sm">
+                  <>
+                  <table className="hidden w-full text-sm md:table">
                     <thead className="sticky top-0 bg-card text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                       <tr className="border-b border-border">
                         <th className="px-5 py-2.5">Dokumen</th>
                         <th className="px-3 py-2.5">Menu</th>
                         <th className="px-3 py-2.5">Form Review</th>
                         <th className="px-3 py-2.5">Status pengesahan</th>
-                        <th className="px-5 py-2.5 text-right">Buka</th>
+                        <th className="px-5 py-2.5 text-right">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -420,21 +450,40 @@ export function FormReviewOverview({ open, onClose, startWith = null, onChanged 
                               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.tone}`}>{s.label}</span>
                               {s.detail && <p className="mt-1 text-[11px] text-muted-foreground">{s.detail}</p>}
                             </td>
-                            <td className="px-5 py-3 text-right align-top">
-                              <div className="flex flex-col items-end gap-1">
-                                {r.review_form_path && (
-                                  <a href={`${API_BASE_PATH}/api/prosedur-isms/${r.id}/pdf?part=review`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">Form Review <ExternalLink className="size-3" /></a>
-                                )}
-                                <button type="button" onClick={() => setEditing({ key: keyOf(r), focus: 'file' })} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"><Upload className="size-3" /> {r.review_form_path ? 'Ganti Form Review' : 'Unggah Form Review'}</button>
-                                <button type="button" onClick={() => setEditing({ key: keyOf(r), focus: 'approvers' })} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"><UserCheck className="size-3" /> Atur approver</button>
-                                <Link href={`${info.path}?q=${encodeURIComponent(r.control_no)}`} onClick={onClose} className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline">Lihat di {info.short}</Link>
-                              </div>
+                            <td className="px-5 py-3 align-top">
+                              {rowActions(r)}
                             </td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
+                  {/* Phone: one card per document, the same information and buttons. */}
+                  <ul className="divide-y divide-border md:hidden">
+                    {shown.map((r) => {
+                      const st = statusOf(r)
+                      return (
+                        <li key={keyOf(r)} data-testid="fr-card" className="flex flex-col gap-2 px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground">{r.control_no} <span className="ml-1 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">Rev. {r.revision}</span></p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">{r.title}</p>
+                            </div>
+                            <span className="flex-none text-[11px] text-muted-foreground">{DOC_KIND_INFO[r.kind].short}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {r.review_form_path
+                              ? <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary"><ClipboardCheck className="size-3" /> Form Review ada</span>
+                              : <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">Form Review belum ada</span>}
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${st.tone}`}>{st.label}</span>
+                          </div>
+                          {st.detail && <p className="text-[11px] text-muted-foreground">{st.detail}</p>}
+                          {rowActions(r, false)}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                  </>
                 )}
         </div>
         )}

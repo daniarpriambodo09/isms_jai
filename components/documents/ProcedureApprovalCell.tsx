@@ -126,44 +126,65 @@ export function ProcedureApprovalCell({
       setNotesLoading(null)
     }
   }
-  if (roles.length === 0) {
+  if (roles.length === 0 && steps.length === 0) {
     return <span className="text-muted-foreground" title="Dokumen ini tidak memerlukan pengesahan">–</span>
   }
+  // A document with its Form Review: the form's approvers (Prepared / Checked /
+  // Approval) and the document's are listed apart, each with its own count.
+  const reviewSteps = steps.filter((step) => !roles.includes(step.role_code))
+  const groups = reviewSteps.length
+    ? [{ key: 'review', label: 'Form Review', steps: reviewSteps }, { key: 'document', label: 'Dokumen', steps: steps.filter((step) => roles.includes(step.role_code)) }].filter((group) => group.steps.length)
+    : [{ key: 'all', label: null as string | null, steps }]
 
   return (
     <div className="flex min-w-[230px] flex-col gap-1.5">
-      {steps.map((step) => {
-        const style = STATUS_STYLE[step.status]
-        return (
-          <div key={step.id} className="flex items-start gap-2">
-            <span title={style.label} className={`mt-0.5 grid size-[18px] flex-none place-items-center rounded-full ${style.className} ${step.status === 'pending' ? 'animate-pulse' : ''}`}>{style.icon}</span>
-            <div className="min-w-0 leading-tight">
-              <p className="text-[12.5px] font-medium text-foreground">
-                {step.approver_name ?? '-'}
-                <span title={step.role_title} className="ml-1.5 rounded bg-secondary px-1 py-px align-middle font-mono text-[9.5px] font-semibold text-secondary-foreground">{step.role_code}</span>
-                {step.status === 'approved' && step.verification_code && step.decided_at && (
-                  <SignatureQrButton
-                    verifyBase={verifyBase}
-                    info={{ code: step.verification_code, name: step.approver_name ?? '-', roleTitle: step.role_title, decidedAt: step.decided_at, documentLabel }}
-                  />
-                )}
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                {step.decided_at ? `${style.label} · ${formatDate(step.decided_at)}` : style.label}
-              </p>
-              {step.status === 'rejected' && step.decision_note && (
-                <div className="mt-1 rounded-md border-l-2 border-[#c2412c] bg-[#fdf6f3] px-2 py-1">
-                  <p className="line-clamp-4 whitespace-pre-line text-[11px] leading-snug text-[#8a2d1d]">{step.decision_note}</p>
-                  {isAdmin && (
-                    <button type="button" onClick={() => openNotes('latest')} disabled={notesLoading !== null} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#a83522] hover:underline disabled:opacity-50">
-                      {notesLoading === 'latest' ? <Loader2 className="size-3 animate-spin" /> : <MapPin className="size-3" />} Lihat catatan di dokumen
-                    </button>
+      {groups.map((group) => {
+        const done = group.steps.filter((step) => step.status === 'approved').length
+        const list = group.steps.map((step) => {
+          const style = STATUS_STYLE[step.status]
+          return (
+            <div key={step.id} className="flex items-start gap-2">
+              <span title={style.label} className={`mt-0.5 grid size-[18px] flex-none place-items-center rounded-full ${style.className} ${step.status === 'pending' ? 'animate-pulse' : ''}`}>{style.icon}</span>
+              <div className="min-w-0 leading-tight">
+                <p className="text-[12.5px] font-medium text-foreground">
+                  {step.approver_name ?? '-'}
+                  <span title={step.role_title} className="ml-1.5 rounded bg-secondary px-1 py-px align-middle font-mono text-[9.5px] font-semibold text-secondary-foreground">{step.role_code}</span>
+                  {step.status === 'approved' && step.verification_code && step.decided_at && (
+                    <SignatureQrButton
+                      verifyBase={verifyBase}
+                      info={{ code: step.verification_code, name: step.approver_name ?? '-', roleTitle: step.role_title, decidedAt: step.decided_at, documentLabel }}
+                    />
                   )}
-                </div>
-              )}
-              {isAdmin && step.status === 'pending' && step.email_error && <p className="mt-0.5 text-[11px] text-red-700">{step.email_error}</p>}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {step.decided_at ? `${style.label} · ${formatDate(step.decided_at)}` : style.label}
+                </p>
+                {step.status === 'rejected' && step.decision_note && (
+                  <div className="mt-1 rounded-md border-l-2 border-[#c2412c] bg-[#fdf6f3] px-2 py-1">
+                    <p className="line-clamp-4 whitespace-pre-line text-[11px] leading-snug text-[#8a2d1d]">{step.decision_note}</p>
+                    {isAdmin && (
+                      <button type="button" onClick={() => openNotes('latest')} disabled={notesLoading !== null} className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#a83522] hover:underline disabled:opacity-50">
+                        {notesLoading === 'latest' ? <Loader2 className="size-3 animate-spin" /> : <MapPin className="size-3" />} Lihat catatan di dokumen
+                      </button>
+                    )}
+                  </div>
+                )}
+                {isAdmin && step.status === 'pending' && step.email_error && <p className="mt-0.5 text-[11px] text-red-700">{step.email_error}</p>}
+              </div>
             </div>
-          </div>
+  
+          )
+        })
+        if (!group.label) return <div key={group.key} className="flex flex-col gap-1.5">{list}</div>
+        return (
+          <section key={group.key} aria-label={`Pengesahan ${group.label}`} className="flex flex-col gap-1.5 rounded-lg border border-border/70 bg-secondary/20 px-2 py-1.5">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              <span>{group.label}</span>
+              <span aria-hidden="true">·</span>
+              <span title={`${done} dari ${group.steps.length} approver ${group.label} sudah menyetujui`} className={done === group.steps.length ? 'text-emerald-700' : ''}>{done}/{group.steps.length}</span>
+            </p>
+            {list}
+          </section>
         )
       })}
 

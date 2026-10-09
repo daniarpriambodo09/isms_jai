@@ -279,6 +279,12 @@ export function documentHandlers(kind: DocKind) {
         throw error
       }
 
+      // A Form Review replaced or taken off: its old file goes (it has no version history,
+      // and the signing restarts on the new one).
+      if ((newReviewPath || removeReview) && before.review_form_path && before.review_form_path !== updated.review_form_path) {
+        await deleteDocumentFile(before.review_form_path).catch(() => {})
+      }
+
       // The replaced file is kept as an earlier version, so a fix can be
       // compared with the file the revision was asked on.
       if (newFilePath) {

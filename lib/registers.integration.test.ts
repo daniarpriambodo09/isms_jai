@@ -79,7 +79,8 @@ describe.skipIf(!enabled)('document registers (PostgreSQL + route handlers)', ()
       expect((await h.POST(req('/api/x', 'POST', form({ ...fields, file: pdfFile() })))).status).toBe(409) // same control no.
       expect((await h.PUT(req('/api/x', 'PUT', form({ ...fields, id: String(id), title: `${TAG} diubah`, revision: '1' })))).status).toBe(200)
       expect((await h.PATCH(req('/api/x', 'PATCH', { order: ids }))).status).toBe(200)
-      expect((await h.PATCH(req('/api/x', 'PATCH', { order: [id] }))).status).toBe(409) // not the whole list
+      // an order that leaves documents out is refused (only meaningful when the register holds others too)
+      if (ids.length > 1) expect((await h.PATCH(req('/api/x', 'PATCH', { order: [id] }))).status).toBe(409)
       expect((await h.PATCH(req('/api/x', 'PATCH', { order: ids }, false))).status).toBe(401)
       expect((await h.DELETE(req(`/api/x?id=${id}`, 'DELETE'))).status).toBe(200)
     })

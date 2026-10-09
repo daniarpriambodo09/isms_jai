@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(await getEscortList())
   } catch (error) {
     console.error('[special-area-requests/escorts/GET]', error)
-    return NextResponse.json({ message: 'Gagal memuat daftar PIC pendamping.' }, { status: 500 })
+    return NextResponse.json({ message: 'Gagal memuat daftar PIC pendamping JAI.' }, { status: 500 })
   }
 }
 
@@ -30,10 +30,10 @@ export async function PUT(request: NextRequest) {
     const parsed = parseEscortList(body.escorts)
     if ('error' in parsed) return NextResponse.json({ message: parsed.error }, { status: 400 })
     await saveEscortList(parsed.escorts, session.username)
-    await logActivity(session, 'update', 'special_area_escorts', null, `Mengubah daftar PIC Pendamping area special (${parsed.escorts.length} nama)`)
-    return NextResponse.json({ ...(await getEscortList()), message: `Daftar PIC pendamping disimpan (${parsed.escorts.length} nama).` })
+    await logActivity(session, 'update', 'special_area_escorts', null, `Mengubah daftar PIC Pendamping JAI area special (${parsed.escorts.length} nama)`)
+    return NextResponse.json({ ...(await getEscortList()), message: `Daftar PIC pendamping JAI disimpan (${parsed.escorts.length} nama).` })
   } catch (error) {
     console.error('[special-area-requests/escorts/PUT]', error)
-    return NextResponse.json({ message: 'Gagal menyimpan daftar PIC pendamping.' }, { status: 500 })
+    return NextResponse.json({ message: 'Gagal menyimpan daftar PIC pendamping JAI.' }, { status: 500 })
   }
 }

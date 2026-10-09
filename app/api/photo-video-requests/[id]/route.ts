@@ -162,8 +162,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan.' }, { status: 404 })
     await logActivity(staff, 'update', 'photo_video_request', id, escort.name
-      ? `Menetapkan PIC pendamping "${escort.name}${escort.dept ? ` (${escort.dept})` : ''}" untuk pengajuan foto/video "${updated.rows[0].requester_name}"`
-      : `Menghapus PIC pendamping pengajuan foto/video "${updated.rows[0].requester_name}"`)
+      ? `Menetapkan PIC pendamping JAI "${escort.name}${escort.dept ? ` (${escort.dept})` : ''}" untuk pengajuan foto/video "${updated.rows[0].requester_name}"`
+      : `Menghapus PIC pendamping JAI pengajuan foto/video "${updated.rows[0].requester_name}"`)
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     return NextResponse.json({ request: result.rows[0] })
   }

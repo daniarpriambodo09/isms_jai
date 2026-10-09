@@ -34,7 +34,7 @@ function Content() {
     ['Organisasi / Perusahaan', req.org_company],
     ['Area Special Security', req.area],
     ['Berlaku', `${fmt(req.from_at)} – ${fmt(req.to_at)}`],
-    ['PIC Pendamping', req.escort_name ? `${req.escort_name}${req.escort_dept ? ` (${req.escort_dept})` : ''}` : 'Belum ditentukan'],
+    ['PIC Pendamping JAI', req.escort_name ? `${req.escort_name}${req.escort_dept ? ` (${req.escort_dept})` : ''}` : 'Belum ditentukan'],
     ['ID Card No.', req.id_card_no ?? '-'],
     [approved ? 'Disetujui oleh' : 'Diputuskan oleh', `${req.approver_name ?? '-'}${req.approver_title ? ` (${req.approver_title})` : ''}`],
     ['Tanggal keputusan', req.decided_at ? fmt(req.decided_at) : '-'],

@@ -82,7 +82,7 @@ function VerifikasiContent() {
             <dt className="text-muted-foreground">Nama</dt><dd className="text-foreground">{data.requester_name}</dd>
             <dt className="text-muted-foreground">Company</dt><dd className="text-foreground">{data.dept_or_company}</dd>
             <dt className="text-muted-foreground">Lokasi</dt><dd className="text-foreground">{data.location}</dd>
-            <dt className="text-muted-foreground">PIC Pendamping</dt><dd className="text-foreground">{data.escort_name ? `${data.escort_name}${data.escort_dept ? ` (${data.escort_dept})` : ''}` : 'Belum ditentukan'}</dd>
+            <dt className="text-muted-foreground">PIC Pendamping JAI</dt><dd className="text-foreground">{data.escort_name ? `${data.escort_name}${data.escort_dept ? ` (${data.escort_dept})` : ''}` : 'Belum ditentukan'}</dd>
             <dt className="text-muted-foreground">Waktu</dt><dd className="text-foreground">{fmt(data.from_at)} – {fmt(data.to_at)}</dd>
           </dl>
         </div>

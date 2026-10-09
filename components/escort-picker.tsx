@@ -88,7 +88,7 @@ export function EscortPicker({ current, setBy, escorts, urgent = false, closed =
     if (choice === CLEAR) payload = { escortName: null, escortDept: null }
     else {
       const picked = escortFromChoice(choice, escorts, { name, dept })
-      if (!picked) { setError(choice === OTHER ? 'Tulis nama PIC pendamping.' : 'Pilih PIC pendamping.'); return }
+      if (!picked) { setError(choice === OTHER ? 'Tulis nama PIC pendamping JAI.' : 'Pilih PIC pendamping JAI.'); return }
       payload = { escortName: picked.name, escortDept: picked.dept }
     }
     setSaving(true)
@@ -101,15 +101,15 @@ export function EscortPicker({ current, setBy, escorts, urgent = false, closed =
   if (editing) {
     return (
       <div className="flex w-56 flex-col gap-1.5">
-        <select value={choice} onChange={(e) => setChoice(e.target.value)} autoFocus aria-label="Pilih PIC pendamping" className="h-8 w-full rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring">
-          <option value="">Pilih PIC pendamping…</option>
+        <select value={choice} onChange={(e) => setChoice(e.target.value)} autoFocus aria-label="Pilih PIC pendamping JAI" className="h-8 w-full rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring">
+          <option value="">Pilih PIC pendamping JAI…</option>
           <EscortOptions escorts={escorts} />
           <option value={OTHER}>Lainnya (ketik nama)…</option>
           {current && <option value={CLEAR}>— Kosongkan</option>}
         </select>
         {choice === OTHER && (
           <>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama PIC pendamping" maxLength={150} className="h-8 rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama PIC pendamping JAI" maxLength={150} className="h-8 rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring" />
             <input value={dept} onChange={(e) => setDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} className="h-8 rounded-lg border border-input bg-card px-2 text-xs outline-none focus:border-ring" />
           </>
         )}
@@ -124,7 +124,7 @@ export function EscortPicker({ current, setBy, escorts, urgent = false, closed =
 
   if (current) {
     return (
-      <button type="button" onClick={start} className="group max-w-[200px] text-left" title="Ganti PIC pendamping">
+      <button type="button" onClick={start} className="group max-w-[200px] text-left" title="Ganti PIC pendamping JAI">
         <span className="flex items-center gap-1.5 text-sm font-medium text-foreground"><UserCheck className="size-3.5 flex-none text-emerald-600" />{current.name}<Pencil className="size-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" /></span>
         {current.dept && <span className="block pl-5 text-xs text-muted-foreground">{current.dept}</span>}
         {setBy && <span className="block pl-5 text-[10.5px] text-muted-foreground/80">dipilih {setBy}</span>}

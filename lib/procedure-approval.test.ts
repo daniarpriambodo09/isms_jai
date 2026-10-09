@@ -26,8 +26,13 @@ describe('parseSlots', () => {
   })
 
   it('caps placements per role', () => {
-    const many = Array.from({ length: MAX_SLOTS_PER_ROLE + 3 }, () => slot)
+    const many = Array.from({ length: MAX_SLOTS_PER_ROLE + 3 }, (_, page) => ({ ...slot, page }))
     expect(parseSlots(many, ['MGR'])).toHaveLength(MAX_SLOTS_PER_ROLE)
+  })
+
+  it('keeps one QR per position per page (no doubled signature on a page)', () => {
+    const slots = parseSlots([slot, { ...slot, y: 0.3 }, { ...slot, y: 0.4 }, { ...slot, page: 1 }, { ...slot, role_code: 'DIR' }], ['MGR', 'DIR'])
+    expect(slots.map((s) => `${s.role_code}@${s.page}:${s.y}`)).toEqual(['MGR@0:0.2', 'MGR@1:0.2', 'DIR@0:0.2'])
   })
 
   it('keeps a valid date box and clears an invalid one', () => {

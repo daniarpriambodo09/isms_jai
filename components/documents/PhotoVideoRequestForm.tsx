@@ -332,7 +332,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         ? `${selectedDept?.name ?? ''}${section ? ` - ${section.name}` : ''}`
         : companyName
       const escort = isStaff ? escortFromChoice(escortChoice, escorts, { name: escortName, dept: escortDept }) : null
-      if (isStaff && escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping, atau kosongkan pilihannya.'); return }
+      if (isStaff && escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping JAI, atau kosongkan pilihannya.'); return }
       const payload = {
         requestType: locale,
         requesterName,
@@ -576,19 +576,19 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
             </Field>
           )}
           {isStaff && (
-            <Field label="PIC Pendamping (opsional)" span={2}>
-              <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping" className={inputClass}>
+            <Field label="PIC Pendamping JAI (opsional)" span={2}>
+              <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={inputClass}>
                 <option value="">Belum ditentukan — bisa dipilih nanti di rekap</option>
                 <EscortOptions escorts={escorts} />
                 <option value={ESCORT_OTHER}>Lainnya (ketik nama)…</option>
               </select>
               {escortChoice === ESCORT_OTHER && (
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping" maxLength={150} className={inputClass} />
+                  <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping JAI" maxLength={150} className={inputClass} />
                   <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} className={inputClass} />
                 </div>
               )}
-              <p className="mt-1 text-[11px] text-muted-foreground">Karyawan yang mendampingi selama pengambilan foto/video. Daftar namanya diatur Admin ISM di Izin Area Special → Daftar PIC Pendamping.</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Karyawan yang mendampingi selama pengambilan foto/video. Daftar namanya diatur Admin ISM di Izin Area Special → Daftar PIC Pendamping JAI.</p>
             </Field>
           )}
           <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>

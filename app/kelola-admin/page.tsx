@@ -13,7 +13,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 
-type AdminRole = 'ism_admin' | 'lobby' | 'security'
+type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver'
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
 type ActivityEntry = {
   id: number
@@ -30,11 +30,13 @@ const ROLE_LABEL: Record<AdminRole, string> = {
   ism_admin: 'ISM Admin',
   lobby: 'Lobby',
   security: 'Security',
+  approver: 'Approver',
 }
 const ROLE_TONE: Record<AdminRole, string> = {
   ism_admin: 'bg-primary/10 text-primary',
   lobby: 'bg-accent/20 text-accent-foreground',
   security: 'bg-secondary text-secondary-foreground',
+  approver: 'bg-emerald-500/10 text-emerald-700',
 }
 const ACTION_LABEL: Record<string, string> = { create: 'Membuat', update: 'Mengubah', delete: 'Menghapus' }
 const ACTION_TONE: Record<string, string> = {
@@ -236,7 +238,7 @@ export default function KelolaAdminPage() {
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <p className="portal-eyebrow">Direktori akun</p>
-              <p className="mt-1 text-sm text-muted-foreground">Akun lobby/security untuk kiosk, dan akun ism_admin untuk konten portal.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Akun lobby/security untuk kiosk, akun ism_admin untuk konten portal, dan akun approver untuk menyetujui dokumen lewat “Persetujuan Saya”.</p>
             </div>
             <button
               type="button"
@@ -257,7 +259,7 @@ export default function KelolaAdminPage() {
                   <input value={createUsername} onChange={(e) => setCreateUsername(e.target.value)} className={inputClass} placeholder="username" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Email (opsional)</label>
+                  <label className="mb-1 block text-xs text-muted-foreground">{createRole === 'approver' ? 'Email (wajib — email approver)' : 'Email (opsional)'}</label>
                   <input value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} className={inputClass} placeholder="email@jai.co.id" />
                 </div>
                 <div>
@@ -270,15 +272,21 @@ export default function KelolaAdminPage() {
                     <option value="lobby">Lobby</option>
                     <option value="security">Security</option>
                     <option value="ism_admin">ISM Admin</option>
+                    <option value="approver">Approver (Persetujuan Saya)</option>
                   </select>
                 </div>
               </div>
+              {createRole === 'approver' && (
+                <p className="mt-3 rounded-xl bg-secondary/60 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+                  Akun <strong className="text-foreground">Approver</strong> hanya bisa membuka <strong className="text-foreground">Persetujuan Saya</strong>: daftar dokumen dan Form Review yang dikirim ke emailnya, disetujui tanpa kode. <strong className="text-foreground">Email wajib diisi</strong> dan harus sama dengan email approver di Approver Pengesahan.
+                </p>
+              )}
               {createError && <p className="mt-3 text-sm text-destructive">{createError}</p>}
               <div className="mt-4 flex justify-end">
                 <button
                   type="button"
                   onClick={submitCreate}
-                  disabled={creating || !createUsername.trim() || createPassword.length < 6}
+                  disabled={creating || !createUsername.trim() || createPassword.length < 6 || (createRole === 'approver' && !createEmail.trim())}
                   className="flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
                   style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--p-550) 100%)' }}
                 >
@@ -369,6 +377,7 @@ export default function KelolaAdminPage() {
                                   <option value="lobby">Lobby</option>
                                   <option value="security">Security</option>
                                   <option value="ism_admin">ISM Admin</option>
+                                  <option value="approver">Approver</option>
                                 </select>
                               </div>
                               <div>

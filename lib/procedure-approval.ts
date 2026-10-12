@@ -654,6 +654,11 @@ async function checkApprovalCode(stepId: number, typed: string | null): Promise<
 }
 
 /** Whether approving this step asks for the code from the e-mail. */
+/** The address a step's request was sent to. */
+export async function stepApproverEmail(stepId: number): Promise<string | null> {
+  return (await query<{ approver_email: string | null }>('SELECT approver_email FROM procedure_approvals WHERE id = $1', [stepId])).rows[0]?.approver_email ?? null
+}
+
 export async function approvalCodeRequired(stepId: number): Promise<{ required: boolean; locked: boolean }> {
   const row = (await query<{ approval_code: string | null; approval_code_attempts: number }>('SELECT approval_code, approval_code_attempts FROM procedure_approvals WHERE id = $1', [stepId])).rows[0]
   return { required: !!row?.approval_code, locked: !!row?.approval_code && row.approval_code_attempts >= APPROVAL_CODE_TRIES }
@@ -1042,15 +1047,21 @@ export async function decideByToken(
   action: 'approve' | 'reject',
   note: string | null,
   revisionNotes: RevisionNote[] = [],
-  approvalCode: string | null = null
+  approvalCode: string | null = null,
+  /**
+   * Called for the logged-in account this step's e-mail was sent to
+   * ("Persetujuan Saya"): the login stands in for the code of the e-mail.
+   */
+  signedIn?: (approverEmail: string | null) => Promise<boolean>
 ): Promise<{ ok: boolean; message: string; codeError?: boolean }> {
   const view = await getByToken(token)
   if (!view) return { ok: false, message: 'Link tidak ditemukan atau sudah tidak berlaku.' }
   if (view.step.status !== 'pending') return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
   if (view.step.revision !== view.document.revision) return { ok: false, message: 'Dokumen sudah direvisi — link ini tidak berlaku lagi.' }
   if (linkExpired(view.step)) return { ok: false, message: `Link ini sudah kedaluwarsa (lebih dari ${APPROVAL_LINK_DAYS} hari). Minta Admin ISM mengirim ulang email pengesahan.` }
-  // Signing takes the code from the e-mail body as well as the link.
-  if (action === 'approve') {
+  // Signing takes the code from the e-mail body as well as the link — unless
+  // the approver is logged in to the account that e-mail was sent to.
+  if (action === 'approve' && !(signedIn && await signedIn(await stepApproverEmail(view.step.id)))) {
     const wrong = await checkApprovalCode(view.step.id, approvalCode)
     if (wrong) return { ok: false, message: wrong, codeError: true }
   }

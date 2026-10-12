@@ -12,7 +12,8 @@ import {
 } from 'react'
 import { API_BASE_PATH } from '@/lib/config'
 
-export type AdminRole = 'ism_admin' | 'lobby' | 'security'
+// 'approver': only "Persetujuan Saya" — never an admin (see sessionUser below).
+export type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver'
 
 export type AdminUser = {
   id: number
@@ -24,8 +25,12 @@ export type AdminUser = {
 type LoginResult = { success: true } | { success: false; message: string }
 
 type AuthContextValue = {
+  /** An admin is logged in (ISM Admin, Lobby or Security) — false for an Approver account. */
   isLoggedIn: boolean
+  /** The logged-in admin; null for an Approver account, so every admin screen treats it as a guest. */
   adminUser: AdminUser | null
+  /** Whoever is logged in, an Approver account included ("Persetujuan Saya", the navbar's logout). */
+  sessionUser: AdminUser | null
   isLoading: boolean
   login: (username: string, password: string) => Promise<LoginResult>
   logout: () => Promise<void>
@@ -35,8 +40,9 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
+  const [sessionUser, setAdminUser] = useState<AdminUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const adminUser = sessionUser && sessionUser.role !== 'approver' ? sessionUser : null
 
   const checkAuth = useCallback(async () => {
     try {
@@ -64,10 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // context, so clearing it here reactively drops the user back to the
   // login gate (AdminGate / KioskLoginForm) app-wide without extra plumbing.
   useEffect(() => {
-    if (!adminUser) return
+    if (!sessionUser) return
     const interval = setInterval(checkAuth, 5 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [adminUser, checkAuth])
+  }, [sessionUser, checkAuth])
 
   const login = useCallback(async (username: string, password: string): Promise<LoginResult> => {
     try {
@@ -96,12 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       isLoggedIn: adminUser !== null,
       adminUser,
+      sessionUser,
       isLoading,
       login,
       logout,
       checkAuth,
     }),
-    [adminUser, isLoading, login, logout, checkAuth]
+    [adminUser, sessionUser, isLoading, login, logout, checkAuth]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

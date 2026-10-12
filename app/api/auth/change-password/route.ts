@@ -1,12 +1,13 @@
 // app/api/auth/change-password/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { getAdminFromRequest } from '@/lib/auth'
+import { getSessionFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 
 export async function PUT(request: NextRequest) {
-  const session = getAdminFromRequest(request)
+  // every account changes its own password, an Approver account too
+  const session = getSessionFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {

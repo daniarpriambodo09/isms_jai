@@ -7,11 +7,24 @@
 import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { useRouter } from 'next/navigation'
 import { AuthSplitLogin } from '@/components/auth-shell'
+import { useAuth } from '@/context/AuthContext'
 
 export function LoginModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [mounted, setMounted] = useState(false)
   const usernameRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
+  const { sessionUser } = useAuth()
+  // An Approver account has one page: take it there after signing in. (Read
+  // through a ref — the login screen calls this from a timer it set before
+  // the session arrived.)
+  const session = useRef(sessionUser)
+  session.current = sessionUser
+  const finish = () => {
+    onClose()
+    if (session.current?.role === 'approver') router.push('/persetujuan-saya')
+  }
 
   useEscapeClose(open, onClose)
 
@@ -40,9 +53,9 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         <AuthSplitLogin
           eyebrow="Admin Portal"
           title={<>Selamat datang <span className="font-serif-accent text-[color:var(--p-600)]">kembali</span>.</>}
-          subtitle="Masuk untuk mengelola dokumen, pengesahan, dan layanan Portal ISMS."
+          subtitle="Masuk untuk mengelola Portal ISMS — atau, dengan akun approver, untuk menyetujui dokumen di Persetujuan Saya."
           successSubtitle="Mengalihkan ke Portal ISMS…"
-          onSuccess={onClose}
+          onSuccess={finish}
           onBack={onClose}
           usernameRef={usernameRef}
           topRight={(

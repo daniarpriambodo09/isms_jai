@@ -777,6 +777,7 @@ function approvalCodeBlock(code: string) {
             <p style="margin:0;font-size:10.5px;font-weight:bold;letter-spacing:0.14em;color:${MUTED};text-transform:uppercase;">Kode Persetujuan</p>
             <p style="margin:6px 0 4px;font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:bold;letter-spacing:0.18em;color:${NAVY};">${digits}</p>
             <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.5;">Masukkan kode ini saat menekan <strong>Setujui</strong>. Jangan berikan kode ini kepada siapa pun.</p>
+            <p style="margin:6px 0 0;font-size:11px;color:${MUTED};line-height:1.5;">Punya akun approver? Masuk ke Portal ISMS dan buka <strong>Persetujuan Saya</strong> &mdash; di sana tidak perlu kode.</p>
           </td></tr>
         </table>
       </td>
@@ -1431,6 +1432,24 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & { review
   return {
     subject: `[Perlu keputusan] Ijin Foto/Video Internal — ${data.requesterName} (${data.deptOrCompany})`,
     html: photoEmailFrame({ title: 'Pengajuan Foto/Video Baru', subtitle: 'Internal &middot; menunggu keputusan Admin ISM', preheader: `${data.requesterName} mengajukan ijin foto/video di ${data.location}.` }, body),
+  }
+}
+
+/** "Lupa password": the one-off link to set a new password (lib/password-reset.ts). */
+export function buildPasswordResetEmail(data: { username: string; resetUrl: string; minutes: number }): { subject: string; html: string } {
+  const body = `
+    <tr><td style="padding:24px 32px 4px;">
+      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear <strong>${escapeHtml(data.username)}</strong>,</p>
+      <p style="margin:0 0 12px;font-size:13.5px;color:${TEXT};line-height:1.75;">Ada permintaan untuk mengatur ulang password akun Portal ISMS Anda. Tekan tombol di bawah untuk membuat password baru.</p>
+    </td></tr>
+    <tr><td align="center" style="padding:14px 32px 6px;">${photoButton(data.resetUrl, 'Buat Password Baru')}</td></tr>
+    <tr><td style="padding:12px 32px 26px;">
+      <p style="margin:0 0 8px;font-size:12px;color:${MUTED};text-align:center;line-height:1.6;">Link ini berlaku <strong>${data.minutes} menit</strong> dan hanya bisa dipakai satu kali.</p>
+      <p style="margin:0;font-size:12px;color:${MUTED};text-align:center;line-height:1.6;">Tidak merasa meminta? Abaikan email ini &mdash; password Anda tidak berubah.</p>
+    </td></tr>`
+  return {
+    subject: 'Atur ulang password — Portal ISMS',
+    html: photoEmailFrame({ title: 'Atur Ulang Password', subtitle: 'Portal ISMS &middot; PT. Jatim Autocomp Indonesia', preheader: `Link untuk membuat password baru akun ${data.username} (berlaku ${data.minutes} menit).` }, body),
   }
 }
 

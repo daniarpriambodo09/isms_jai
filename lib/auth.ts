@@ -5,7 +5,10 @@ import jwt from 'jsonwebtoken'
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET as string
 
-export type AdminRole = 'ism_admin' | 'lobby' | 'security'
+// 'approver': an account that only decides the approval requests sent to its
+// own e-mail address ("Persetujuan Saya"). It is NOT an admin: every guard
+// below except getSessionFromRequest treats it as not logged in.
+export type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver'
 export type SessionPayload = { sub: number; username: string; role: AdminRole }
 
 /**
@@ -23,12 +26,11 @@ export function isHttpsRequest(request: NextRequest): boolean {
 }
 
 /**
- * Reads and verifies the admin session cookie on an API route.
- * Returns the decoded session payload, or null if the request is
- * not from an authenticated admin (any role). Use this to guard any
- * modify/insert/update/delete endpoint that isn't role-specific.
+ * Reads and verifies the session cookie: whoever is logged in, an Approver
+ * account included. Only for what every account may do for itself (its own
+ * password, its own approval requests) — never to guard admin data.
  */
-export function getAdminFromRequest(request: NextRequest): SessionPayload | null {
+export function getSessionFromRequest(request: NextRequest): SessionPayload | null {
   const token = request.cookies.get(COOKIE_NAME)?.value
   if (!token) return null
 
@@ -41,6 +43,16 @@ export function getAdminFromRequest(request: NextRequest): SessionPayload | null
   } catch {
     return null
   }
+}
+
+/**
+ * The session of an authenticated admin (ISM Admin, Lobby or Security) —
+ * null for anyone else, an Approver account included. Use this to guard any
+ * modify/insert/update/delete endpoint that isn't role-specific.
+ */
+export function getAdminFromRequest(request: NextRequest): SessionPayload | null {
+  const session = getSessionFromRequest(request)
+  return session && session.role !== 'approver' ? session : null
 }
 
 /**

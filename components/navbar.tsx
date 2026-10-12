@@ -73,7 +73,23 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
 
 export function Navbar() {
   const pathname = usePathname()
-  const { isLoggedIn, adminUser, isLoading, logout } = useAuth()
+  const { isLoggedIn, adminUser, sessionUser, isLoading, logout } = useAuth()
+  // "Persetujuan Saya": always there for an Approver account; for an admin
+  // only while something is waiting for (or queued behind) their address.
+  const [myApprovals, setMyApprovals] = useState(0)
+  useEffect(() => {
+    if (!sessionUser) { setMyApprovals(0); return }
+    let cancelled = false
+    const check = () => fetch(`${API_BASE_PATH}/api/my-approvals`, { cache: 'no-store', credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { pending?: unknown[] } | null) => { if (!cancelled) setMyApprovals(data?.pending?.length ?? 0) })
+      .catch(() => {})
+    check()
+    const timer = window.setInterval(check, 60_000)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [sessionUser, pathname])
+  const isApprover = sessionUser?.role === 'approver'
+  const showMyApprovals = isApprover || (sessionUser !== null && myApprovals > 0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [deptMenuOpen, setDeptMenuOpen] = useState(false)
   const [ismsStandardMenuOpen, setIsmsStandardMenuOpen] = useState(false)
@@ -494,12 +510,23 @@ export function Navbar() {
               <Search className="size-4" />
             </button>
             {!isLoading && isLoggedIn && <NotificationBell />}
+            {!isLoading && showMyApprovals && (
+              <Link
+                href="/persetujuan-saya"
+                title="Dokumen dan Form Review yang menunggu persetujuan Anda"
+                className={cn('hidden h-10 items-center gap-2 rounded-full px-3.5 text-[11.5px] font-semibold uppercase tracking-[0.045em] transition-colors sm:flex', pathname === '/persetujuan-saya' ? 'bg-accent text-accent-foreground' : 'bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20')}
+              >
+                <ClipboardCheck className="size-4" />
+                <span className="hidden lg:inline">Persetujuan Saya</span>
+                {myApprovals > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-5 text-white">{myApprovals}</span>}
+              </Link>
+            )}
             {!isLoading && (
-              isLoggedIn ? (
+              isLoggedIn || isApprover ? (
                 <div className="hidden items-center gap-2 sm:flex">
                   <span className="hidden items-center gap-1.5 rounded-full border border-primary-foreground/15 px-3 py-1.5 font-mono-label text-[10.5px] text-primary-foreground/85 2xl:flex">
                     <span className="size-1.5 rounded-full bg-accent" />
-                    {adminUser?.username}
+                    {sessionUser?.username}
                   </span>
                   <button
                     onClick={() => logout()}
@@ -570,6 +597,12 @@ export function Navbar() {
           {formCsItems}
           <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.departemen ?? 'Departments'}</div>
           {departmentItems}
+          {showMyApprovals && (
+            <Link href="/persetujuan-saya" className="nav-drawer-item mt-4 flex items-center gap-2 rounded-md bg-secondary/60 px-3 py-3 text-sm font-semibold text-foreground">
+              <ClipboardCheck className="size-4" />Persetujuan Saya
+              {myApprovals > 0 && <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-5 text-white">{myApprovals}</span>}
+            </Link>
+          )}
           {isLoggedIn && (
             <>
               <div className="portal-eyebrow px-3 pb-2 pt-5">Admin Settings</div>
@@ -588,9 +621,9 @@ export function Navbar() {
         </div>
         <div className="border-t border-border p-4">
           {!isLoading && (
-            isLoggedIn ? (
+            isLoggedIn || isApprover ? (
               <button onClick={() => logout()} className="flex w-full items-center justify-center gap-2 rounded-full border border-border px-3 py-2.5 text-sm transition-colors hover:bg-secondary">
-                <LogOut className="size-4" />Logout ({adminUser?.username})
+                <LogOut className="size-4" />Logout ({sessionUser?.username})
               </button>
             ) : (
               <button

@@ -6,7 +6,8 @@
 // approve anything) and single-use (a step can only leave 'pending' once).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { APPROVAL_LINK_DAYS, approvalCodeRequired, autoPlaceSlots, canPlaceOwnSlots, currentStepsFor, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, verifyBaseUrl } from '@/lib/procedure-approval'
+import { APPROVAL_LINK_DAYS, approvalCodeRequired, autoPlaceSlots, canPlaceOwnSlots, currentStepsFor, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, stepApproverEmail, verifyBaseUrl } from '@/lib/procedure-approval'
+import { sessionOwnsStep } from '@/lib/my-approvals'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,9 @@ export async function GET(request: NextRequest) {
     const qrAutoPlaced = (await slotsFor(view.document.id, view.document.file_path)).some((slot) => slot.role_code === view.step.role_code)
     // Approving asks for the code from the e-mail (steps sent before codes existed don't).
     const code = await approvalCodeRequired(view.step.id)
+    // Opened by the logged-in account this request was e-mailed to ("Persetujuan
+    // Saya"): the login stands in for the code.
+    const signedIn = await sessionOwnsStep(request, await stepApproverEmail(view.step.id))
     // An old link (its step was cancelled when the approval started again —
     // a new file, a Form Review added, other approvers): where this position
     // stands in the approval running now, so the page can say what to do.
@@ -56,8 +60,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       now,
       qrAutoPlaced,
-      codeRequired: code.required,
-      codeLocked: code.locked,
+      codeRequired: code.required && !signedIn,
+      codeLocked: code.locked && !signedIn,
+      signedIn,
       revisionRequest: history?.requests[0] ?? null,
       history,
       step: view.step,
@@ -111,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     const code = typeof body.code === 'string' ? body.code.slice(0, 12) : null
-    const result = await decideByToken(token, action, note, notes, code)
+    const result = await decideByToken(token, action, note, notes, code, (approverEmail) => sessionOwnsStep(request, approverEmail))
     return NextResponse.json({ message: result.message, codeError: result.codeError ?? false }, { status: result.ok ? 200 : result.codeError ? 400 : 409 })
   } catch (error) {
     console.error('[prosedur-isms/approval/POST]', error)

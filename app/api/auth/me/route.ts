@@ -7,7 +7,7 @@ const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
 const JWT_SECRET = process.env.JWT_SECRET as string
 
 type TokenPayload = { sub: number; username: string }
-type AdminRow = { id: number; username: string; email: string | null; role: 'ism_admin' | 'lobby' | 'security' }
+type AdminRow = { id: number; username: string; email: string | null; role: 'ism_admin' | 'lobby' | 'security' | 'approver' }
 
 export async function GET(request: NextRequest) {
   try {

@@ -59,6 +59,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/foto-video-visitor': 'Ijin Foto/Video Visitor',
   '/rekap-foto-video': 'Rekap Foto/Video',
   '/pengesahan': 'Pengesahan Dokumen',
+  '/persetujuan-saya': 'Persetujuan Saya',
+  '/reset-password': 'Atur Ulang Password',
   '/verifikasi-pengesahan': 'Verifikasi Pengesahan',
   '/konfirmasi-approval': 'Konfirmasi Persetujuan',
   '/persetujuan-area-special': 'Persetujuan Area Special',
@@ -86,7 +88,7 @@ const PAGE_TITLES: Record<string, string> = {
 // the frame then shows only the breadcrumb row, not a duplicate giant title.
 const OWN_HERO_PREFIXES = [
   '/kebijakan-dasar-ISMS', '/prosedur-isms', '/standard-isms-p14', '/working-standard', '/form-review-dokumen', '/education',
-  '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/verifikasi-pengesahan', '/persetujuan-area-special', '/verifikasi-area-special',
+  '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/persetujuan-saya', '/reset-password', '/verifikasi-pengesahan', '/persetujuan-area-special', '/verifikasi-area-special',
   // Admin pages open with their own "Admin workspace" header or page heading.
   '/dashboard-admin', '/pengaturan', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-departemen', '/kelola-permintaan-foto-video',
   '/kelola-izin-area-special', '/kelola-kamera', '/kelola-pic-approve', '/kelola-admin', '/kelola-pengesahan',

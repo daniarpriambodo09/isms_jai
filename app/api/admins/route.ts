@@ -7,7 +7,7 @@ import { logActivity } from '@/lib/activity-log'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
-const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security']
+const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security', 'approver']
 
 export async function GET(request: NextRequest) {
   if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
     if (password.length < 6) return NextResponse.json({ message: 'Password minimal 6 karakter.' }, { status: 400 })
     if (!role || !ROLES.includes(role as AdminRole)) return NextResponse.json({ message: 'Role tidak valid.' }, { status: 400 })
     if (email && !isDeliverableEmail(email)) return NextResponse.json({ message: `Email tidak valid. ${EMAIL_HINT}` }, { status: 400 })
+    // An Approver account sees the requests sent to its address — without one it would see nothing.
+    if (role === 'approver' && !email) return NextResponse.json({ message: 'Akun Approver wajib punya email — sama dengan email approver di Approver Pengesahan.' }, { status: 400 })
+    if (email && (await query('SELECT 1 FROM admins WHERE lower(email) = lower($1)', [email])).rows.length > 0) {
+      return NextResponse.json({ message: 'Email ini sudah dipakai akun lain. Akun itu sudah bisa membuka "Persetujuan Saya" untuk alamat tersebut.' }, { status: 409 })
+    }
 
     const existing = await query('SELECT 1 FROM admins WHERE username = $1', [username])
     if (existing.rows.length > 0) return NextResponse.json({ message: 'Username sudah dipakai.' }, { status: 409 })

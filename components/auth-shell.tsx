@@ -322,6 +322,8 @@ export function AuthSplitLogin({
                     {submitting ? <Loader2 className="size-[18px] animate-spin" /> : <ArrowRight className="auth-submit-arrow size-[18px]" />}
                   </span>
                 </button>
+                {/* A plain link (full page load): the login screen is an overlay and must not stay on top of that page. */}
+                <a href={`${API_BASE_PATH}/reset-password`} className="-mt-3 self-center text-[13px] font-semibold text-[color:var(--p-600)] hover:underline">Lupa password?</a>
               </form>
 
               <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 text-[12.5px] text-muted-foreground">

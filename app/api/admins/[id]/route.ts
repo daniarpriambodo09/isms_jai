@@ -7,7 +7,7 @@ import { logActivity } from '@/lib/activity-log'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
-const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security']
+const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security', 'approver']
 
 // Role and password of YOUR OWN account can't be changed here (self-service
 // password goes through /api/auth/change-password), so an ism_admin can never

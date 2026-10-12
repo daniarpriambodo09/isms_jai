@@ -201,7 +201,7 @@ function FormReviewEditor({ rows, initialKey, focus, onClose, onSaved }: { rows:
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-5">
         <div>
           <h3 className="text-base font-semibold text-foreground">{focus === 'approvers' ? 'Atur approver' : 'Unggah Form Review'}</h3>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">Pilih dokumen yang sesuai — Form Review tersimpan di sebelah dokumen itu. Form Review disahkan oleh approver Form Review-nya (Prepared, Checked, Approval), lalu dokumen oleh approver dokumen.</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Pilih dokumen yang sesuai — Form Review tersimpan di sebelah dokumen itu. Form Review disahkan oleh approver Form Review-nya (Prepared, Checked, Approval) dan dokumen oleh approver dokumen — keduanya diminta bersamaan.</p>
         </div>
 
         <label className="flex flex-col gap-1.5">

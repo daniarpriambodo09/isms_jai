@@ -34,13 +34,18 @@ export async function POST(request: NextRequest) {
       await logActivity(session, 'update', 'procedure_document', documentId, `Memulai ulang pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}"`)
     } else {
       const pending = await query<{ id: number }>(
-        `SELECT id FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'pending' LIMIT 1`,
+        `SELECT id FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'pending' ORDER BY step`,
         [documentId, doc.rows[0].revision]
       )
-      if (pending.rows[0]) {
-        const result = await sendStepRequest(pending.rows[0].id)
+      if (pending.rows.length) {
+        // a document with a Form Review can have two people deciding at once
+        let failure: string | null = null
+        for (const row of pending.rows) {
+          const result = await sendStepRequest(row.id)
+          if (!result.sent) failure = result.error ?? 'Gagal mengirim email.'
+        }
         await logActivity(session, 'update', 'procedure_document', documentId, `Mengirim ulang email pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}"`)
-        if (!result.sent) return NextResponse.json({ message: result.error ?? 'Gagal mengirim email.' }, { status: 502 })
+        if (failure) return NextResponse.json({ message: failure }, { status: 502 })
       } else if (await sendHeld(documentId)) {
         // one that waited for its QR boxes: to the first approver now
         await logActivity(session, 'update', 'procedure_document', documentId, `Mengirim email pengesahan ${docKindInfo(doc.rows[0].kind).label} "${doc.rows[0].title}" ke approver pertama`)
@@ -49,13 +54,13 @@ export async function POST(request: NextRequest) {
 
     const step = await query<{ approver_name: string | null; email_error: string | null; status: string }>(
       `SELECT approver_name, email_error, status FROM procedure_approvals
-       WHERE document_id = $1 AND status = 'pending' ORDER BY step LIMIT 1`,
+       WHERE document_id = $1 AND status = 'pending' ORDER BY step`,
       [documentId]
     )
-    const current = step.rows[0]
-    if (current?.email_error) return NextResponse.json({ message: current.email_error }, { status: 502 })
-    const name = current?.approver_name ?? ''
-    return NextResponse.json({ message: current ? `Email pengesahan dikirim ke ${name}${name.endsWith('.') ? '' : '.'}` : 'Selesai.' })
+    const failed = step.rows.find((row) => row.email_error)
+    if (failed?.email_error) return NextResponse.json({ message: failed.email_error }, { status: 502 })
+    const names = [...new Set(step.rows.map((row) => row.approver_name ?? '').filter(Boolean))].join(' dan ')
+    return NextResponse.json({ message: step.rows.length ? `Email pengesahan dikirim ke ${names}${names.endsWith('.') ? '' : '.'}` : 'Selesai.' })
   } catch (error) {
     console.error('[prosedur-isms/approval/resend]', error)
     return NextResponse.json({ message: 'Gagal mengirim ulang pengesahan.' }, { status: 500 })

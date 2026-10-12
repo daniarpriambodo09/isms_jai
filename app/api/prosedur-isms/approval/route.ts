@@ -38,15 +38,19 @@ export async function GET(request: NextRequest) {
     // An old link (its step was cancelled when the approval started again —
     // a new file, a Form Review added, other approvers): where this position
     // stands in the approval running now, so the page can say what to do.
-    let now: { mine: 'pending' | 'waiting' | 'approved' | 'rejected' | 'none'; waitingFor: { title: string; name: string | null; review: boolean } | null; finished: boolean } | null = null
+    let now: { mine: 'pending' | 'waiting' | 'approved' | 'rejected' | 'none'; waitingFor: { title: string; name: string | null; review: boolean } | null; finished: boolean; revising: boolean } | null = null
     if (view.step.status === 'cancelled') {
       const steps = (await currentStepsFor([view.document.id])).get(view.document.id) ?? []
       const mine = steps.find((step) => step.role_code === view.step.role_code)
-      const pending = steps.find((step) => step.status === 'pending')
+      // the one being waited for in this approver's own chain (Form Review / document)
+      const inReview = (code: string) => (view.document.review_roles ?? []).includes(code)
+      const pending = steps.find((step) => step.status === 'pending' && inReview(step.role_code) === inReview(view.step.role_code)) ?? steps.find((step) => step.status === 'pending')
       now = {
         mine: mine ? (mine.status as 'pending' | 'waiting' | 'approved' | 'rejected') : 'none',
         waitingFor: pending ? { title: pending.role_title, name: pending.approver_name, review: (view.document.review_roles ?? []).includes(pending.role_code) } : null,
         finished: steps.length > 0 && steps.every((step) => step.status === 'approved'),
+        // someone asked for a revision: every request of this round stopped
+        revising: steps.some((step) => step.status === 'rejected'),
       }
     }
     return NextResponse.json({
@@ -70,6 +74,13 @@ export async function GET(request: NextRequest) {
         signs_review: !!view.document.review_form_path && (view.document.review_roles ?? []).includes(view.step.role_code),
       },
       cycle: view.cycle,
+      // "Tahap x dari y" counts within this approver's own chain — the Form
+      // Review's approvers and the document's sign side by side.
+      part: (() => {
+        const review = view.document.review_form_path ? view.document.review_roles ?? [] : []
+        const mine = view.cycle.filter((row) => review.includes(row.role_code) === review.includes(view.step.role_code))
+        return { index: Math.max(1, mine.findIndex((row) => row.id === view.step.id) + 1), total: Math.max(1, mine.length) }
+      })(),
       superseded: view.step.revision !== view.document.revision,
       // Pending link older than APPROVAL_LINK_DAYS: can't decide any more.
       linkExpired: linkExpired(view.step),

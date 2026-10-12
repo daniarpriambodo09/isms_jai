@@ -36,8 +36,10 @@ type View = {
   step: Step
   document: { kind?: string; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; has_review_form?: boolean; signs_review?: boolean }
   cycle: Step[]
+  /** This approver's place in their own chain (Form Review / document). */
+  part?: { index: number; total: number }
   /** Only on an old (cancelled) link: where this position stands in the approval running now. */
-  now?: { mine: 'pending' | 'waiting' | 'approved' | 'rejected' | 'none'; waitingFor: { title: string; name: string | null; review: boolean } | null; finished: boolean } | null
+  now?: { mine: 'pending' | 'waiting' | 'approved' | 'rejected' | 'none'; waitingFor: { title: string; name: string | null; review: boolean } | null; finished: boolean; revising?: boolean } | null
   superseded: boolean
   linkExpired: boolean
   linkValidDays: number
@@ -183,10 +185,14 @@ function PengesahanContent() {
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-amber-100 text-amber-700"><History className="size-7" /></span>
         <h2 className="mt-5 font-display text-2xl font-semibold text-foreground">Link ini sudah diganti</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Pengesahan <strong className="text-foreground">{document.control_no} — {document.title}</strong> (Rev. {document.revision}) dimulai ulang{document.has_review_form ? ' — misalnya karena Form Review-nya ditambahkan atau berkasnya diganti' : ' — misalnya karena berkas atau approver-nya diganti'}, sehingga link dari email sebelumnya tidak berlaku lagi.
+          {view.now?.revising
+            ? <>Pengesahan <strong className="text-foreground">{document.control_no} — {document.title}</strong> (Rev. {document.revision}) sedang dihentikan untuk revisi, sehingga link ini tidak berlaku lagi.</>
+            : <>Pengesahan <strong className="text-foreground">{document.control_no} — {document.title}</strong> (Rev. {document.revision}) dimulai ulang{document.has_review_form ? ' — misalnya karena Form Review-nya ditambahkan atau berkasnya diganti' : ' — misalnya karena berkas atau approver-nya diganti'}, sehingga link dari email sebelumnya tidak berlaku lagi.</>}
         </p>
         <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-sm leading-6 text-foreground" data-testid="replaced-now">
-          {view.now?.mine === 'pending' ? (
+          {view.now?.revising ? (
+            <>Salah satu approver <strong>meminta revisi</strong>, sehingga permintaan Anda dihentikan dulu. Anda akan menerima <strong>email baru</strong> setelah dokumen diperbaiki dan diajukan ulang — tidak ada yang perlu dilakukan sekarang.</>
+          ) : view.now?.mine === 'pending' ? (
             <>Sekarang <strong>giliran Anda</strong>: buka email <strong>terbaru</strong> untuk dokumen ini, lalu tekan tombol <strong>REVIEW &amp; APPROVAL</strong> di sana.</>
           ) : view.now?.mine === 'waiting' ? (
             <>
@@ -246,7 +252,7 @@ function PengesahanContent() {
             <p className="font-mono-label text-[9.5px] text-primary-foreground/50">Diminta kepada</p>
             <p className="mt-1.5 text-lg font-semibold">{step.approver_name}</p>
             <p className="text-sm text-primary-foreground/65">{step.role_title}</p>
-            <p className="mt-2 font-mono text-[11px] text-primary-foreground/50">Tahap {step.step} dari {cycle.length}</p>
+            <p className="mt-2 font-mono text-[11px] text-primary-foreground/50">Tahap {view.part?.index ?? step.step} dari {view.part?.total ?? cycle.length}{document.has_review_form ? (document.signs_review ? ' · Form Review' : ' · Dokumen') : ''}</p>
           </div>
         </div>
       </section>
@@ -278,7 +284,11 @@ function PengesahanContent() {
               <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--p-600)] hover:underline">Buka di tab baru <ExternalLink className="size-3.5" /></a>
             </div>
           </div>
-          <iframe key={pdfStamp} src={signedUrl} title={document.title} className="h-[70vh] w-full bg-muted" />
+          {/* As tall as a whole A4 page at full width (plus the viewer's toolbar), so
+              a one-page sheet like the Form Review is seen from top to bottom by
+              scrolling this page — not cut off in a short box that scrolls inside.
+              (The browser's viewer fits the page to the width by itself.) */}
+          <iframe key={`${pdfStamp}-${showingReview ? 'review' : 'doc'}`} src={signedUrl} title={document.title} className="aspect-[210/312] min-h-[70vh] w-full bg-muted" />
         </section>
 
         {/* Chain + decision */}

@@ -862,9 +862,9 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   const rf = data.reviewForm ?? null
   const reviewed = rf ? escapeHtml([rf.docControlNo, rf.docTitle].filter(Boolean).join(' — ')) : ''
   const askLine = fro
-    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review-nya telah saya lampirkan pada email ini; dokumennya bisa dibuka lewat tombol di bawah. Setelah Form Review ditandatangani, dokumennya diteruskan ke approver dokumen.</p>`
+    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review dan dokumennya dapat dibuka lewat tombol di bawah. Pengesahan dokumennya berjalan bersamaan oleh approver dokumen.</p>`
     : rf
-    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya telah saya lampirkan pada email ini, dan ringkasannya ada di bawah.</p>`
+    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya dapat dibuka lewat tombol di bawah, dan ringkasannya ada di bawah ini.</p>`
     : null
 
   const body = `${reminderBanner}${resubmitBanner}
@@ -872,8 +872,8 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
       <td style="padding:20px 32px 6px;">
         <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Dear ${salutationPrefix(data.approverSalutation)}<strong>${escapeHtml(data.approverName)}</strong>,</p>
         ${askLine ?? (re
-          ? `<p style="${para}">Mohon bantuannya untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah ${re.fileChanged ? 'diperbaiki sesuai catatan revisi dan ' : ''}saya lampirkan pada email ini.</p>`
-          : `<p style="${para}">Mohon bantuannya untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>`)}
+          ? `<p style="${para}">Mohon bantuannya untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> ${re.fileChanged ? 'yang telah diperbaiki sesuai catatan revisi' : ''}. Dokumennya dapat dibuka lewat tombol di bawah.</p>`
+          : `<p style="${para}">Mohon bantuannya untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong>. Dokumennya dapat dibuka lewat tombol di bawah.</p>`)}
         <p style="${para}">Apabila terdapat hal yang perlu disesuaikan atau diperbaiki, mohon arahan lebih lanjut agar dapat segera saya tindak lanjuti.</p>
         <p style="margin:0 0 20px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;">Terima kasih atas perhatian dan kerja samanya.</p>
       </td>
@@ -897,9 +897,9 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
       ? `${re ? `[Pengajuan Ulang ke-${re.round}] ` : ''}Tanda tangan Form Review — ${fro.controlNo} ${fro.title}`
       : rf
       ? `${re ? `[Pengajuan Ulang ke-${re.round}] ` : ''}Tanda tangan Form Review No. ${rf.formNo} — ${[rf.docControlNo, rf.docTitle].filter(Boolean).join(' ')}`
-      : re
+      : (re
       ? `[Pengajuan Ulang ke-${re.round}] Approval ${kind.short} ${data.title} (Rev. ${data.revision}) — setelah revisi`
-      : `Pengajuan Approval ${kind.short} ${data.title}`),
+      : `Pengajuan Approval ${kind.short} ${data.title}`)),
     html: documentEmailFrame(kind, {
       kicker: fro ? `${re ? `Pengajuan Ulang ke-${re.round}` : 'Pengesahan Form Review'} &middot; ${escapeHtml(fro.registerLabel)}` : re ? `Pengajuan Ulang ke-${re.round} &middot; ${kind.label}` : `Pengesahan Dokumen &middot; ${kind.label}`,
       heading: rf || fro ? (re ? 'Form Review — Diajukan Ulang' : 'Form Review &amp; Revisi Dokumen') : re ? `Pengajuan Ulang Approval ${kind.short}` : `Pengajuan Approval ${kind.short}`,

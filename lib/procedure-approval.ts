@@ -21,7 +21,6 @@
 
 import 'server-only'
 import path from 'path'
-import { stat } from 'fs/promises'
 import { randomBytes, randomInt, timingSafeEqual } from 'crypto'
 import { query, withTransaction } from '@/lib/db'
 import { STORAGE_ROOT } from '@/lib/storage'
@@ -79,7 +78,6 @@ export type ApprovalStep = {
 }
 
 // Gmail/Outlook cap a whole message at ~20–25 MB; stay safely under it.
-const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 
 const ROLE_COLUMNS = 'code, kind, title, person_name, initials, salutation, email, sort_order, is_default, updated_at, updated_by'
 
@@ -384,7 +382,9 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
     )
 
     // The Form Review beside the document is signed by its own positions
-    // (Prepared / Checked / Approval) — first, then the document's approvers.
+    // (Prepared / Checked / Approval), the document by its approvers — two
+    // chains that run side by side (activateNextStep), each in its own order.
+    // The Form Review's steps are numbered first only to list them first.
     const all = await listRoles()
     const reviewCodes = doc.review_form_path ? (doc.review_roles ?? []).filter((code) => !roleCodes.includes(code)) : []
     const roles = [
@@ -494,18 +494,30 @@ export async function autoPlaceSlots(documentId: number): Promise<number> {
 
 // Marks the lowest waiting step of the current cycle as pending and emails
 // its approver. Returns false when nothing is left (cycle complete).
+// Sends the request(s) that are due. A document with a Form Review has two
+// chains — the Form Review's approvers and the document's — and both are
+// asked at once, so the document does not wait for the form: in each chain
+// the first approver who has not been asked yet gets the e-mail, unless
+// someone in that chain is still deciding.
 async function activateNextStep(documentId: number): Promise<boolean> {
   const doc = await getDocument(documentId)
   if (!doc) return false
-  const next = await query<{ id: number }>(
-    `SELECT id FROM procedure_approvals
-     WHERE document_id = $1 AND revision = $2 AND status = 'waiting'
-     ORDER BY step ASC LIMIT 1`,
+  const open = (await query<{ id: number; role_code: string; status: string }>(
+    `SELECT id, role_code, status FROM procedure_approvals
+     WHERE document_id = $1 AND revision = $2 AND status IN ('waiting', 'pending')
+     ORDER BY step ASC`,
     [documentId, doc.revision]
-  )
-  if (!next.rows[0]) return false
-  await sendStepRequest(next.rows[0].id)
-  return true
+  )).rows
+  const reviewCodes = doc.review_form_path ? doc.review_roles ?? [] : []
+  let sent = false
+  for (const chain of [open.filter((step) => reviewCodes.includes(step.role_code)), open.filter((step) => !reviewCodes.includes(step.role_code))]) {
+    if (chain.some((step) => step.status === 'pending')) continue
+    const next = chain.find((step) => step.status === 'waiting')
+    if (!next) continue
+    await sendStepRequest(next.id)
+    sent = true
+  }
+  return sent
 }
 
 // The steps of the current cycle that are still open, when nobody has been
@@ -748,23 +760,9 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       kind: signsReview ? docKindInfo('review_form') : docKindInfo(doc.kind),
       formReviewOf: signsReview ? { controlNo: doc.control_no, title: doc.title, registerLabel: docKindInfo(doc.kind).label } : null,
     })
-    // The procedure itself travels with the email ("telah saya lampirkan pada
-    // email ini"), unless it's too big for typical mail servers — then the
-    // review link (which shows the PDF) is the way in.
+    // No PDF travels with the e-mail (mailboxes fill up): the document and its
+    // Form Review are opened from the button in it. Only the logo is inline.
     const attachments: MailAttachment[] = [{ filename: 'yazaki-logo.jpg', path: path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'), cid: LOGO_CID }]
-    // The Form Review's approvers get the Form Review only — one attachment,
-    // the thing they sign (the document itself is one click away on the
-    // review page). A document approver gets the document, with its Form
-    // Review along to read.
-    const reviewFile = doc.review_form_path ? { filename: `Form Review - ${doc.control_no}.pdf`, filePath: doc.review_form_path } : null
-    const files: { filename: string; filePath: string }[] = signsReview && reviewFile
-      ? [reviewFile]
-      : [{ filename: `${doc.control_no} - ${doc.title}.pdf`, filePath: doc.file_path }, ...(reviewFile ? [reviewFile] : [])]
-    for (const file of files) {
-      const full = path.join(STORAGE_ROOT, file.filePath)
-      const size = await stat(full).then((s) => s.size).catch(() => 0)
-      if (size > 0 && size <= MAX_ATTACHMENT_BYTES) attachments.push({ filename: file.filename.replace(/[\\/:*?"<>|]/g, '-'), path: full, contentType: 'application/pdf' })
-    }
 
     await sendMail(settings, { to: step.approver_email, subject, html, attachments })
     return null
@@ -1097,12 +1095,19 @@ export async function decideByToken(
          WHERE document_id = $1 AND revision = $2 AND status = 'waiting'`,
         [view.document.id, view.document.revision]
       )
+      // Whoever is deciding in the other chain (Form Review / document) is
+      // stopped too: the file is going to change. Their link stays, to say so.
+      await query(
+        `UPDATE procedure_approvals SET status = 'cancelled'
+         WHERE document_id = $1 AND revision = $2 AND status = 'pending' AND id <> $3`,
+        [view.document.id, view.document.revision, view.step.id]
+      )
       await setDocumentStatus(view.document.id, 'rejected')
       return 'rejected' as const
     }
 
     const next = await query<{ id: number }>(
-      `SELECT id FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status = 'waiting' LIMIT 1`,
+      `SELECT id FROM procedure_approvals WHERE document_id = $1 AND revision = $2 AND status IN ('waiting', 'pending') LIMIT 1`,
       [view.document.id, view.document.revision]
     )
     if (next.rows.length) return 'next' as const
@@ -1121,7 +1126,7 @@ export async function decideByToken(
       category: 'esign',
       historyOnly: true,
       title: outcome === 'rejected' ? `${kindInfo.short} perlu revisi — ${docLabel}` : outcome === 'approved' ? `${kindInfo.short} disahkan — ${docLabel}` : `${kindInfo.short} disetujui ${who} — ${docLabel}`,
-      body: outcome === 'rejected' ? `Diminta oleh ${who}` : outcome === 'approved' ? `Tanda tangan terakhir oleh ${who}` : 'Diteruskan ke approver berikutnya',
+      body: outcome === 'rejected' ? `Diminta oleh ${who}` : outcome === 'approved' ? `Tanda tangan terakhir oleh ${who}` : 'Menunggu approver lainnya',
       href: `${kindInfo.path}?q=${encodeURIComponent(view.document.control_no)}`,
     })
   }
@@ -1142,7 +1147,7 @@ export async function decideByToken(
     return { ok: true, message: 'Terima kasih — dokumen telah disahkan oleh seluruh approver.' }
   }
   await activateNextStep(view.document.id)
-  return { ok: true, message: 'Terima kasih — persetujuan tersimpan dan diteruskan ke approver berikutnya.' }
+  return { ok: true, message: 'Terima kasih — persetujuan Anda tersimpan. Dokumen disahkan setelah semua approver menyetujui.' }
 }
 
 // Best-effort heads-up to ISM Admin accounts that have an email address.

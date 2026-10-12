@@ -44,7 +44,7 @@ export function AdminActiveCards() {
           Buka Pos Security <ArrowUpRight className="size-3.5" />
         </Link>
       </div>
-      <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
+      <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
     </section>
   )
 }

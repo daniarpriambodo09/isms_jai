@@ -1,17 +1,17 @@
 // components/kiosk/SecurityView.tsx
 //
-// Pos Security: guests are registered here ("Pendaftaran >>"), wait for
-// approval, and get a Security VISITOR card when approved (scan). Cards for
-// the work areas (Vendor, Special Area, Photography) belong to the Lobby —
-// the swap is done there, and the visit is closed here when the guest hands
-// the Security card back. The two posts' cards are different sets, which is
+// Pos Security: guests are registered here as a Visitor, a Vendor or a
+// Supplier (one button each), wait for approval, and get the Security card
+// of that kind when approved (scan). The Lobby has its own cards — a guest
+// swaps there, and the visit is closed here when the guest hands the
+// Security card back. The two posts' cards are different sets, which is
 // why this post has its own flow instead of the Lobby's "register + issue a
 // card" buttons.
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowDownUp, Check, Download, KeyRound, LogOut, Pencil, Plus, RotateCcw, ScanLine, ShieldCheck, Trash2, X } from 'lucide-react'
+import { ArrowDownUp, Briefcase, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Trash2, Truck, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
@@ -22,11 +22,22 @@ import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPa
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, formatDateTime, inputClass, labelClass, stationOf, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, SECURITY_CARD_TYPES, formatDateTime, holdsSecurityCard, inputClass, labelClass, stationOf, useKioskAutoRefresh, usePermitCards, type Registration, type SecurityCardType } from '@/components/kiosk/kiosk-shared'
 
-// Handles both "Pendaftaran" (new) and "Edit Data" (existing) — same fields
-// either way, just POST vs. PUT action=editDetails underneath.
-function RegisterModal({ editing, onClose, onSaved }: { editing?: Registration | null; onClose: () => void; onSaved: () => void }) {
+const SECURITY_CARD_ICON: Record<SecurityCardType, typeof UserPlus> = { visitor: UserPlus, vendor: Briefcase, supplier: Truck }
+const SECURITY_CARD_BADGE: Record<SecurityCardType, string> = {
+  visitor: 'bg-[#dff5e6] text-[#1a6e3a]',
+  vendor: 'bg-[#edf6ff] text-[#1a5fa0]',
+  supplier: 'bg-[#e0f5f3] text-[#0f6b63]',
+}
+
+// Handles both "Daftarkan …" (new) and "Edit Data" (existing) — same fields
+// either way, just POST vs. PUT action=editDetails underneath. cardType: the
+// kind the guest is registered as; it can be corrected until the card is out.
+function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose, onSaved }: { cardType?: SecurityCardType; editing?: Registration | null; onClose: () => void; onSaved: () => void }) {
+  const [cardType, setCardType] = useState<SecurityCardType>(editing?.security_card_type ?? initialCardType)
+  const cardTypeLocked = Boolean(editing) && editing?.stage !== 'pending_approval'
+  const title = editing ? 'Edit Data Pendaftaran' : `Pendaftaran ${SECURITY_CARD_LABEL[cardType]}`
   const [fullName, setFullName] = useState(editing?.full_name ?? '')
   const [idCard, setIdCard] = useState(editing?.id_card ?? '')
   const [picJai, setPicJai] = useState(editing?.pic_jai ?? '')
@@ -47,13 +58,13 @@ function RegisterModal({ editing, onClose, onSaved }: { editing?: Registration |
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ action: 'editDetails', fullName, idCard, picJai, purpose, companyRemark }),
+            body: JSON.stringify({ action: 'editDetails', fullName, idCard, picJai, purpose, companyRemark, securityCardType: cardType }),
           })
         : await fetch(`${API_BASE_PATH}/api/vendor-registrations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark }),
+            body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, securityCardType: cardType }),
           })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
@@ -68,14 +79,32 @@ function RegisterModal({ editing, onClose, onSaved }: { editing?: Registration |
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div role="dialog" aria-modal="true" aria-label={editing ? 'Edit Data Pendaftaran' : 'Pendaftaran Supplier / Vendor'} className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between bg-primary px-6 py-5 text-primary-foreground">
-          <h2 className="text-lg font-bold">{editing ? 'Edit Data Pendaftaran' : 'Pendaftaran Supplier / Vendor'}</h2>
+          <h2 className="text-lg font-bold">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
             <X className="size-[18px]" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
+          <div role="group" aria-label="Jenis kartu">
+            <span className={labelClass}>Jenis Kartu</span>
+            <div className="flex flex-wrap gap-1.5">
+              {SECURITY_CARD_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  aria-pressed={cardType === type}
+                  disabled={cardTypeLocked}
+                  onClick={() => setCardType(type)}
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed ${cardType === type ? 'border-transparent bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary disabled:opacity-50'}`}
+                >
+                  {SECURITY_CARD_LABEL[type]}
+                </button>
+              ))}
+            </div>
+            {cardTypeLocked && <p className="mt-1.5 text-[11px] text-muted-foreground">Kartu sudah diberikan — jenisnya tidak bisa diubah lagi.</p>}
+          </div>
           <label>
             <span className={labelClass}>Nama Lengkap</span>
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} required autoFocus className={inputClass} />
@@ -114,7 +143,7 @@ function RegisterModal({ editing, onClose, onSaved }: { editing?: Registration |
 }
 
 // Small "scan the physical card" confirmation prompt, reused for both
-// Approve (issuing a VISITOR card) and Close (accepting a returned one).
+// Approve (issuing the guest's Security card) and Close (accepting it back).
 function ScanPrompt({
   title,
   description,
@@ -190,7 +219,7 @@ function ScanPrompt({
 
 const STAGE_BADGE: Record<string, string> = {
   pending_approval: 'bg-[#fff3d6] text-[#8a6100]',
-  visitor: 'bg-[#dff5e6] text-[#1a6e3a]',
+  ...SECURITY_CARD_BADGE,
   working: 'bg-[#edf6ff] text-[#1a5fa0]',
   closed: 'bg-secondary text-muted-foreground',
 }
@@ -198,7 +227,9 @@ const STAGE_BADGE: Record<string, string> = {
 function statusOf(r: Registration): { key: string; label: string } {
   if (r.stage === 'pending_approval') return { key: 'pending_approval', label: 'Menunggu Approval' }
   if (r.stage === 'closed') return { key: 'closed', label: 'Selesai' }
-  if (r.current_card_type === 'visitor') return { key: 'visitor', label: 'Kartu Visitor' }
+  if (holdsSecurityCard(r)) return { key: r.security_card_type, label: `Kartu ${SECURITY_CARD_LABEL[r.security_card_type]}` }
+  // a card the Lobby issued by itself (rows from when this post had the Lobby's buttons)
+  if (r.entry_path !== 'security') return { key: 'working', label: 'Kartu Lobby' }
   return { key: 'working', label: 'Di Area Kerja' }
 }
 
@@ -212,7 +243,7 @@ export function SecurityView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
-  const [formOpen, setFormOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState<SecurityCardType | null>(null)
   const [editTarget, setEditTarget] = useState<Registration | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -257,9 +288,10 @@ export function SecurityView() {
   const handleExportCsv = () => {
     downloadExcel(
       `rekap-tamu-security-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['Tanggal/Jam', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status'],
+      ['Tanggal/Jam', 'Jenis', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status', 'Nomor Kartu Security'],
       filteredRegistrations.map((r) => [
         formatDateTime(r.registered_at),
+        r.entry_path === 'security' ? SECURITY_CARD_LABEL[r.security_card_type] : '',
         r.full_name,
         r.id_card,
         r.pic_jai,
@@ -268,6 +300,7 @@ export function SecurityView() {
         formatDateTime(r.entry_at),
         formatDateTime(r.exit_at),
         statusOf(r).label,
+        r.entry_path === 'security' ? (r.security_card_barcode ?? '') : '',
       ])
     )
   }
@@ -315,7 +348,7 @@ export function SecurityView() {
           <div className="min-w-0">
             <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/65">PT. Jatim Autocomp Indonesia</p>
             <h1 className="text-lg font-bold leading-tight">Pos Security</h1>
-            <p className="hidden text-[11px] text-primary-foreground/70 sm:block">Pendaftaran Supplier / Vendor</p>
+            <p className="hidden text-[11px] text-primary-foreground/70 sm:block">Pendaftaran Visitor / Vendor / Supplier</p>
           </div>
         </div>
         {/* On a phone the two buttons shrink to their icons. */}
@@ -331,7 +364,7 @@ export function SecurityView() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography']} permitCards={permitCards} />
+        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
 
@@ -344,9 +377,17 @@ export function SecurityView() {
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
           </div>
-          <button type="button" onClick={() => setFormOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
-            <Plus className="size-4" />Pendaftaran &gt;&gt;
-          </button>
+          {/* One button per kind of Security card, like the Lobby's "Daftarkan …" buttons. */}
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            {SECURITY_CARD_TYPES.map((type) => {
+              const Icon = SECURITY_CARD_ICON[type]
+              return (
+                <button key={type} type="button" onClick={() => setFormOpen(type)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+                  <Icon className="size-4" />Daftarkan {SECURITY_CARD_LABEL[type]}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -379,29 +420,34 @@ export function SecurityView() {
 
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] text-sm">
+            <table className="w-full min-w-[1040px] text-sm">
               <thead className="bg-secondary/55">
                 <tr>
-                  {['Tanggal/Jam', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status', 'Aksi'].map((head) => (
+                  {['Tanggal/Jam', 'Jenis', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status', 'Aksi'].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {loading && (
-                  <tr><td colSpan={10} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                  <tr><td colSpan={11} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
                 )}
                 {!loading && registrations.length === 0 && (
-                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
+                  <tr><td colSpan={11} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
                 )}
                 {!loading && registrations.length > 0 && filteredRegistrations.length === 0 && (
-                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada data pada periode ini.</td></tr>
+                  <tr><td colSpan={11} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada data pada periode ini.</td></tr>
                 )}
                 {filteredRegistrations.map((r, index) => {
                   const status = statusOf(r)
                   return (
                     <tr key={r.id} className={index % 2 ? 'bg-secondary/20' : ''}>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.registered_at)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        {r.entry_path === 'security'
+                          ? <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${SECURITY_CARD_BADGE[r.security_card_type]}`}>{SECURITY_CARD_LABEL[r.security_card_type]}</span>
+                          : <span className="text-xs text-muted-foreground">—</span>}
+                      </td>
                       <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.id_card}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
@@ -424,13 +470,13 @@ export function SecurityView() {
                               <ScanLine className="size-3.5" />Approve
                             </button>
                           )}
-                          {r.stage === 'active' && r.current_card_type === 'visitor' && r.entry_path === 'security' && (
+                          {holdsSecurityCard(r) && (
                             <button type="button" onClick={() => setScanTarget({ registration: r, action: 'close' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
                               <ScanLine className="size-3.5" />Kartu Dikembalikan
                             </button>
                           )}
-                          {r.stage === 'active' && r.current_card_type && (r.current_card_type !== 'visitor' || r.entry_path !== 'security') && (
-                            <span className="whitespace-nowrap rounded-md bg-secondary/60 px-2 py-1 text-[11px] font-medium text-muted-foreground" title={r.entry_path === 'security' ? 'Tamu masih memegang kartu area kerja — kartu harus ditukar kembali ke kartu Visitor di Lobby sebelum bisa ditutup di sini' : 'Kartu ini diterbitkan langsung (bukan lewat Pendaftaran) — kunjungannya ditutup di Lobby'}>
+                          {r.stage === 'active' && r.current_card_type && !holdsSecurityCard(r) && (
+                            <span className="whitespace-nowrap rounded-md bg-secondary/60 px-2 py-1 text-[11px] font-medium text-muted-foreground" title={r.entry_path === 'security' ? 'Tamu masih memegang kartu Lobby — kartu harus ditukar kembali ke kartu Security di Lobby sebelum bisa ditutup di sini' : 'Kartu ini diterbitkan langsung (bukan lewat Pendaftaran) — kunjungannya ditutup di Lobby'}>
                               {r.entry_path === 'security' ? 'Tukar kartu di Lobby dulu' : 'Tutup di Lobby'}
                             </span>
                           )}
@@ -451,7 +497,7 @@ export function SecurityView() {
         </div>
       </main>
 
-      {formOpen && <RegisterModal onClose={() => setFormOpen(false)} onSaved={load} />}
+      {formOpen && <RegisterModal cardType={formOpen} onClose={() => setFormOpen(null)} onSaved={load} />}
       {editTarget && <RegisterModal editing={editTarget} onClose={() => setEditTarget(null)} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
       <ConfirmDialog
@@ -462,18 +508,21 @@ export function SecurityView() {
         onConfirm={confirmDelete}
         onCancel={() => { setPendingDelete(null); setDeleteError(null) }}
       />
-      {scanTarget && (
+      {scanTarget && (() => {
+        const kind = SECURITY_CARD_LABEL[scanTarget.registration.security_card_type]
+        return (
         <ScanPrompt
-          title={scanTarget.action === 'approve' ? 'Approve — Scan Kartu Visitor' : 'Scan Kartu Visitor yang Dikembalikan'}
+          title={scanTarget.action === 'approve' ? `Approve — Scan Kartu ${kind}` : `Scan Kartu ${kind} yang Dikembalikan`}
           description={scanTarget.action === 'approve'
-            ? `Scan barcode kartu VISITOR yang akan diberikan kepada ${scanTarget.registration.full_name}.`
-            : `Scan barcode kartu VISITOR yang dikembalikan oleh ${scanTarget.registration.full_name}.`}
+            ? `Scan barcode kartu ${kind.toUpperCase()} yang akan diberikan kepada ${scanTarget.registration.full_name}.`
+            : `Scan barcode kartu ${kind.toUpperCase()} yang dikembalikan oleh ${scanTarget.registration.full_name}.`}
           submitLabel={scanTarget.action === 'approve' ? 'Approve' : 'Tutup Pendaftaran'}
-          expectedBarcode={scanTarget.action === 'close' ? scanTarget.registration.visitor_card_barcode : null}
+          expectedBarcode={scanTarget.action === 'close' ? scanTarget.registration.security_card_barcode : null}
           onClose={() => setScanTarget(null)}
           onSubmit={handleScanSubmit}
         />
-      )}
+        )
+      })()}
     </div>
   )
 }

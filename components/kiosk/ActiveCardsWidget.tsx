@@ -1,9 +1,10 @@
 // components/kiosk/ActiveCardsWidget.tsx
 'use client'
 
+import type { CSSProperties } from 'react'
 import { ScanLine } from 'lucide-react'
 
-export type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
+export type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area' | 'photography'
 
 type MinimalRegistration = {
   id: number
@@ -16,11 +17,15 @@ type MinimalRegistration = {
   affiliate_card_barcode?: string | null
   special_area_card_barcode?: string | null
   photography_card_barcode?: string | null
+  supplier_card_barcode?: string | null
+  entry_path?: string
+  at_work_area?: boolean
 }
 
 const CARD_BARCODE_FIELD: Record<CardType, keyof MinimalRegistration> = {
   visitor: 'visitor_card_barcode',
   vendor: 'vendor_card_barcode',
+  supplier: 'supplier_card_barcode',
   affiliate: 'affiliate_card_barcode',
   special_area: 'special_area_card_barcode',
   photography: 'photography_card_barcode',
@@ -29,6 +34,7 @@ const CARD_BARCODE_FIELD: Record<CardType, keyof MinimalRegistration> = {
 const CARD_META: Record<CardType, { label: string; bg: string; color: string }> = {
   visitor: { label: 'Visitor', bg: '#dff5e6', color: '#1a6e3a' },
   vendor: { label: 'Vendor', bg: '#edf6ff', color: '#1a5fa0' },
+  supplier: { label: 'Supplier', bg: '#e0f5f3', color: '#0f6b63' },
   affiliate: { label: 'Affiliate', bg: '#f7f0ff', color: '#6a30a0' },
   special_area: { label: 'Special Area', bg: '#fde2e2', color: '#a13030' },
   photography: { label: 'Photography', bg: '#fff3d6', color: '#8a6100' },
@@ -69,14 +75,19 @@ export function ActiveCardsWidget({
         <ScanLine className="size-4 text-muted-foreground" />
         <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Kartu Sedang Digunakan</p>
       </div>
-      <div className="grid gap-px bg-border" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+      {/* Full rows only, so no empty grey cell is left: up to five types sit on
+          one row, more are split over two equal rows (six → 3 × 2). */}
+      <div
+        className="grid grid-cols-2 gap-px bg-border md:[grid-template-columns:repeat(var(--card-columns),minmax(0,1fr))]"
+        style={{ '--card-columns': cardTypes.length <= 5 ? cardTypes.length : Math.ceil(cardTypes.length / 2) } as CSSProperties}
+      >
         {cardTypes.map((type) => {
           const meta = CARD_META[type]
           const items = active.filter((r) => r.current_card_type === type)
           const permits = permitCards.filter((card) => card.type === type)
           return (
-            // On a phone (two columns) a lone last card spans the row instead of leaving an empty grey cell.
-            <div key={type} className="bg-card p-4 max-sm:odd:last:col-span-full">
+            // In two columns (phone, small tablet) a lone last card spans the row instead of leaving an empty grey cell.
+            <div key={type} className="bg-card p-4 max-md:odd:last:col-span-full">
               <div className="mb-2.5 flex items-center justify-between gap-2">
                 <span
                   className="rounded-full px-2.5 py-0.5 text-[10px] font-bold"
@@ -107,6 +118,8 @@ export function ActiveCardsWidget({
                     <span className="font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
                       {r[CARD_BARCODE_FIELD[type]] ?? '—'}
                     </span>
+                    {/* Security's cards and the Lobby's are two sets: say whose this one is. */}
+                    {r.entry_path && <span className="ml-1.5 text-[10px] text-muted-foreground/80">· {r.entry_path === 'security' && !r.at_work_area ? 'kartu Security' : 'kartu Lobby'}</span>}
                   </div>
                 ))}
               </div>

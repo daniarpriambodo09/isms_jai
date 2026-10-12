@@ -4,7 +4,8 @@ import { query } from '@/lib/db'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
-type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
+type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area' | 'photography'
+type SecurityCardType = 'visitor' | 'vendor' | 'supplier'
 
 type VendorRegistrationRow = {
   id: number
@@ -25,12 +26,17 @@ type VendorRegistrationRow = {
   affiliate_card_barcode: string | null
   special_area_card_barcode: string | null
   photography_card_barcode: string | null
+  supplier_card_barcode: string | null
+  security_card_type: SecurityCardType
+  security_card_barcode: string | null
+  at_work_area: boolean
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
-  special_area_card_barcode, photography_card_barcode`
+  special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
+  security_card_type, security_card_barcode, at_work_area`
 
 // Look up a guest by whichever card they're currently holding (Lobby scans the
 // physical card in front of them — could be any of the five card types).
@@ -46,10 +52,13 @@ export async function GET(request: NextRequest) {
        WHERE stage = 'active' AND (
          (current_card_type = 'visitor' AND visitor_card_barcode = $1) OR
          (current_card_type = 'vendor' AND vendor_card_barcode = $1) OR
+         (current_card_type = 'supplier' AND supplier_card_barcode = $1) OR
+         (entry_path = 'security' AND security_card_barcode = $1) OR
          (current_card_type = 'affiliate' AND affiliate_card_barcode = $1) OR
          (current_card_type = 'special_area' AND special_area_card_barcode = $1) OR
          (current_card_type = 'photography' AND photography_card_barcode = $1)
        )
+       ORDER BY entry_at DESC NULLS LAST
        LIMIT 1`,
       [barcode]
     )

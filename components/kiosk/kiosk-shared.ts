@@ -101,11 +101,27 @@ export type Registration = {
   affiliate_card_barcode: string | null
   special_area_card_barcode: string | null
   photography_card_barcode: string | null
+  supplier_card_barcode: string | null
+  /** The kind of card Pos Security hands this guest (registered as Visitor, Vendor or Supplier). */
+  security_card_type: SecurityCardType
+  security_card_barcode: string | null
+  /** Swapped the Security card for a Lobby card, not swapped back yet. */
+  at_work_area: boolean
 }
 
-export const CARD_BARCODE_FIELD: Record<CardType, keyof Registration> = {
+export type SecurityCardType = 'visitor' | 'vendor' | 'supplier'
+export const SECURITY_CARD_TYPES: SecurityCardType[] = ['visitor', 'vendor', 'supplier']
+export const SECURITY_CARD_LABEL: Record<SecurityCardType, string> = { visitor: 'Visitor', vendor: 'Vendor', supplier: 'Supplier' }
+
+/** The guest came through Pos Security and has its card in hand (not a Lobby card). */
+export function holdsSecurityCard(r: Pick<Registration, 'entry_path' | 'stage' | 'at_work_area'>) {
+  return r.entry_path === 'security' && r.stage === 'active' && !r.at_work_area
+}
+
+export const CARD_BARCODE_FIELD: Record<CardType, `${CardType}_card_barcode`> = {
   visitor: 'visitor_card_barcode',
   vendor: 'vendor_card_barcode',
+  supplier: 'supplier_card_barcode',
   affiliate: 'affiliate_card_barcode',
   special_area: 'special_area_card_barcode',
   photography: 'photography_card_barcode',

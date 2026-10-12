@@ -25,16 +25,19 @@ import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import {
   CARD_BARCODE_FIELD,
+  SECURITY_CARD_LABEL,
   formatDateTime,
+  holdsSecurityCard,
   type Registration,
   stationOf,
 } from '@/components/kiosk/kiosk-shared'
 
-type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
+type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area' | 'photography'
 
 const CARD_LABEL: Record<CardType, string> = {
   visitor: 'Visitor',
   vendor: 'Vendor',
+  supplier: 'Supplier',
   affiliate: 'Affiliate',
   special_area: 'Special Area',
   photography: 'Photography',
@@ -43,6 +46,7 @@ const CARD_LABEL: Record<CardType, string> = {
 const CARD_BADGE: Record<CardType, string> = {
   visitor: 'bg-[#dff5e6] text-[#1a6e3a] border-[#b6e6c4]',
   vendor: 'bg-[#edf6ff] text-[#1a5fa0] border-[#bcdcf8]',
+  supplier: 'bg-[#e0f5f3] text-[#0f6b63] border-[#b5e3de]',
   affiliate: 'bg-[#f7f0ff] text-[#6a30a0] border-[#e4ccff]',
   special_area: 'bg-[#fde2e2] text-[#a13030] border-[#f9b8b8]',
   photography: 'bg-[#fff3d6] text-[#8a6100] border-[#fae29c]',
@@ -52,6 +56,7 @@ const LOBBY_STAGE_BADGE: Record<string, string> = {
   pending_approval: 'bg-[#fff3d6] text-[#8a6100]',
   visitor: 'bg-[#dff5e6] text-[#1a6e3a]',
   vendor: 'bg-[#edf6ff] text-[#1a5fa0]',
+  supplier: 'bg-[#e0f5f3] text-[#0f6b63]',
   affiliate: 'bg-[#f7f0ff] text-[#6a30a0]',
   special_area: 'bg-[#fde2e2] text-[#a13030]',
   photography: 'bg-[#fff3d6] text-[#8a6100]',
@@ -74,8 +79,9 @@ function securityStatusOf(r: Registration): { key: string; label: string; badgeC
   if (r.stage === 'closed') {
     return { key: 'closed', label: 'Selesai', badgeClass: 'bg-secondary text-muted-foreground' }
   }
-  if (r.current_card_type === 'visitor') {
-    return { key: 'visitor', label: 'Kartu Visitor', badgeClass: 'bg-[#dff5e6] text-[#1a6e3a]' }
+  // on the card Pos Security handed out: Visitor, Vendor or Supplier
+  if (holdsSecurityCard(r)) {
+    return { key: r.security_card_type, label: `Kartu ${SECURITY_CARD_LABEL[r.security_card_type]}`, badgeClass: LOBBY_STAGE_BADGE[r.security_card_type] }
   }
   return { key: 'working', label: 'Di Area Kerja', badgeClass: 'bg-[#edf6ff] text-[#1a5fa0]' }
 }
@@ -798,6 +804,7 @@ export function VendorRegistrationsPanel({ isLoggedIn = false }: { isLoggedIn?: 
                   <option value="all">Semua Jenis Kartu</option>
                   <option value="visitor">Visitor</option>
                   <option value="vendor">Vendor</option>
+                  <option value="supplier">Supplier</option>
                   <option value="special_area">Special Area</option>
                   <option value="photography">Photography</option>
                   <option value="affiliate">Affiliate</option>

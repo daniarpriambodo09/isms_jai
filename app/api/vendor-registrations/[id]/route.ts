@@ -6,11 +6,13 @@ import { logActivity } from '@/lib/activity-log'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
-type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
-type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
+type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area' | 'photography'
+// The cards Pos Security hands out at approval.
+type SecurityCardType = 'visitor' | 'vendor' | 'supplier'
+// The Lobby cards a guest can swap into.
+type SwapCardType = 'visitor' | 'vendor'
 type Action = 'approve' | 'swapToWorkArea' | 'returnWorkArea' | 'close' | 'returnDirect' | 'editDetails'
-type WorkAreaColumn = 'vendor_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'
-type CardColumn = WorkAreaColumn | 'visitor_card_barcode' | 'affiliate_card_barcode'
+type CardColumn = 'visitor_card_barcode' | 'vendor_card_barcode' | 'supplier_card_barcode' | 'affiliate_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'
 
 type VendorRegistrationRow = {
   id: number
@@ -31,43 +33,41 @@ type VendorRegistrationRow = {
   affiliate_card_barcode: string | null
   special_area_card_barcode: string | null
   photography_card_barcode: string | null
+  supplier_card_barcode: string | null
+  security_card_type: SecurityCardType
+  security_card_barcode: string | null
+  at_work_area: boolean
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
-  special_area_card_barcode, photography_card_barcode`
+  special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
+  security_card_type, security_card_barcode, at_work_area`
 
 const ACTIONS: Action[] = ['approve', 'swapToWorkArea', 'returnWorkArea', 'close', 'returnDirect', 'editDetails']
 function isAction(value: unknown): value is Action {
   return typeof value === 'string' && (ACTIONS as string[]).includes(value)
 }
 
-// The card types a guest can swap into at Lobby once they hold a Visitor card,
-// depending on which area they're entering — Vendor, Special Area, or
-// Photography all follow the identical swap-in / scan-to-return pattern, just
-// against a different barcode column, so they share one implementation here.
-const WORK_AREA_TYPES: WorkAreaCardType[] = ['vendor', 'special_area', 'photography']
-function isWorkAreaCardType(value: unknown): value is WorkAreaCardType {
-  return typeof value === 'string' && (WORK_AREA_TYPES as string[]).includes(value)
+const SECURITY_CARD_TYPES: SecurityCardType[] = ['visitor', 'vendor', 'supplier']
+function isSecurityCardType(value: unknown): value is SecurityCardType {
+  return typeof value === 'string' && (SECURITY_CARD_TYPES as string[]).includes(value)
 }
-const WORK_AREA_COLUMN: Record<WorkAreaCardType, WorkAreaColumn> = {
-  vendor: 'vendor_card_barcode',
-  special_area: 'special_area_card_barcode',
-  photography: 'photography_card_barcode',
-}
-const WORK_AREA_LABEL: Record<WorkAreaCardType, string> = {
-  vendor: 'Vendor',
-  special_area: 'Special Area',
-  photography: 'Photography',
+// At the Lobby a guest swaps the card in hand for a Lobby VISITOR or VENDOR
+// card. (Special Area and Photography cards are not swapped here any more:
+// they go out with an Izin Area Special / Ijin Foto-Video, which lists them
+// under "Kartu Sedang Digunakan" by itself. Rows that still hold one from
+// before can be returned as usual.)
+const SWAP_TYPES: SwapCardType[] = ['visitor', 'vendor']
+function isSwapCardType(value: unknown): value is SwapCardType {
+  return typeof value === 'string' && (SWAP_TYPES as string[]).includes(value)
 }
 
-// Full mapping (all five card types) used by the direct-issue return/close
-// action below — WORK_AREA_COLUMN/LABEL above only cover the three
-// swap-in-and-out-of types.
 const CARD_COLUMN: Record<CardType, CardColumn> = {
   visitor: 'visitor_card_barcode',
   vendor: 'vendor_card_barcode',
+  supplier: 'supplier_card_barcode',
   affiliate: 'affiliate_card_barcode',
   special_area: 'special_area_card_barcode',
   photography: 'photography_card_barcode',
@@ -75,15 +75,35 @@ const CARD_COLUMN: Record<CardType, CardColumn> = {
 const CARD_LABEL: Record<CardType, string> = {
   visitor: 'Visitor',
   vendor: 'Vendor',
+  supplier: 'Supplier',
   affiliate: 'Affiliate',
   special_area: 'Special Area',
   photography: 'Photography',
 }
 
-async function barcodeInUse(column: string, cardType: CardType, barcode: string, excludeId: string) {
+// A guest registered at Security holds the Security card until it is swapped
+// at the Lobby (at_work_area), and again after swapping back.
+function holdsSecurityCard(row: VendorRegistrationRow) {
+  return row.entry_path === 'security' && row.stage === 'active' && !row.at_work_area
+}
+
+// Security's cards and the Lobby's are two different sets, so each is only
+// checked against its own. A Security card stays out for the whole visit,
+// also while the guest carries a Lobby card.
+async function securityCardInUse(cardType: SecurityCardType, barcode: string, excludeId: string) {
   const result = await query(
     `SELECT 1 FROM vendor_registrations
-     WHERE stage = 'active' AND current_card_type = $1 AND ${column} = $2 AND id <> $3`,
+     WHERE stage = 'active' AND entry_path = 'security' AND security_card_type = $1 AND security_card_barcode = $2 AND id <> $3`,
+    [cardType, barcode, excludeId]
+  )
+  return result.rows.length > 0
+}
+
+async function lobbyCardInUse(cardType: CardType, barcode: string, excludeId: string) {
+  const result = await query(
+    `SELECT 1 FROM vendor_registrations
+     WHERE stage = 'active' AND current_card_type = $1 AND ${CARD_COLUMN[cardType]} = $2 AND id <> $3
+       AND (entry_path <> 'security' OR at_work_area)`,
     [cardType, barcode, excludeId]
   )
   return result.rows.length > 0
@@ -100,7 +120,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const body = await request.json() as {
-      action?: string; barcode?: string; cardType?: string
+      action?: string; barcode?: string; cardType?: string; securityCardType?: string
       fullName?: string; idCard?: string; picJai?: string; purpose?: string; companyRemark?: string
     }
     if (!isAction(body.action)) return NextResponse.json({ message: 'Aksi tidak valid.' }, { status: 400 })
@@ -123,11 +143,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         if (!fullName || !purpose || !companyRemark || (!isAffiliate && (!idCard || !picJai))) {
           return NextResponse.json({ message: 'Semua field data tamu wajib diisi.' }, { status: 400 })
         }
+        // The kind of Security card can still be corrected until the card is handed out.
+        const securityCardType = row.stage === 'pending_approval' && isSecurityCardType(body.securityCardType) ? body.securityCardType : row.security_card_type
         const result = await query<VendorRegistrationRow>(
           `UPDATE vendor_registrations
-           SET full_name = $1, id_card = $2, pic_jai = $3, purpose = $4, company_remark = $5
+           SET full_name = $1, id_card = $2, pic_jai = $3, purpose = $4, company_remark = $5, security_card_type = $7
            WHERE id = $6 RETURNING ${SELECT_COLUMNS}`,
-          [fullName, idCard || '-', picJai || '-', purpose, companyRemark, id]
+          [fullName, idCard || '-', picJai || '-', purpose, companyRemark, id, securityCardType]
         )
         await logActivity(session, 'update', 'vendor_registration', id, `Mengubah data pendaftaran "${row.full_name}"${fullName !== row.full_name ? ` menjadi "${fullName}"` : ''}`)
         return NextResponse.json({ registration: result.rows[0] })
@@ -136,55 +158,62 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         if (row.stage !== 'pending_approval') {
           return NextResponse.json({ message: 'Pendaftaran ini sudah diproses sebelumnya.' }, { status: 409 })
         }
-        if (await barcodeInUse('visitor_card_barcode', 'visitor', barcode, id)) {
-          return NextResponse.json({ message: 'Barcode kartu Visitor ini sedang digunakan oleh tamu lain.' }, { status: 409 })
+        // The card handed out is the kind the guest was registered as.
+        const cardType = row.security_card_type
+        if (await securityCardInUse(cardType, barcode, id)) {
+          return NextResponse.json({ message: `Barcode kartu ${CARD_LABEL[cardType]} ini sedang digunakan oleh tamu lain.` }, { status: 409 })
         }
         const result = await query<VendorRegistrationRow>(
           `UPDATE vendor_registrations
-           SET visitor_card_barcode = $1, current_card_type = 'visitor', stage = 'active', entry_at = now()
-           WHERE id = $2 RETURNING ${SELECT_COLUMNS}`,
-          [barcode, id]
+           SET security_card_barcode = $1, ${CARD_COLUMN[cardType]} = $1, current_card_type = $2,
+               at_work_area = false, stage = 'active', entry_at = now()
+           WHERE id = $3 RETURNING ${SELECT_COLUMNS}`,
+          [barcode, cardType, id]
         )
         return NextResponse.json({ registration: result.rows[0] })
       }
 
       case 'swapToWorkArea': {
-        if (!isWorkAreaCardType(body.cardType)) {
+        if (!isSwapCardType(body.cardType)) {
           return NextResponse.json({ message: 'Jenis kartu tidak valid.' }, { status: 400 })
         }
-        if (row.stage !== 'active' || row.current_card_type !== 'visitor') {
-          return NextResponse.json({ message: 'Tamu ini tidak sedang memegang kartu Visitor.' }, { status: 409 })
+        const fromSecurity = holdsSecurityCard(row)
+        // A guest the Lobby registered itself with a Visitor card can move on to a Vendor card.
+        const fromLobbyVisitor = row.stage === 'active' && row.entry_path !== 'security' && row.current_card_type === 'visitor' && body.cardType === 'vendor'
+        if (!fromSecurity && !fromLobbyVisitor) {
+          return NextResponse.json({ message: 'Kartu tamu ini tidak bisa ditukar ke kartu tersebut.' }, { status: 409 })
         }
-        const column = WORK_AREA_COLUMN[body.cardType]
-        if (await barcodeInUse(column, body.cardType, barcode, id)) {
-          return NextResponse.json({ message: `Barcode kartu ${WORK_AREA_LABEL[body.cardType]} ini sedang digunakan oleh tamu lain.` }, { status: 409 })
+        if (await lobbyCardInUse(body.cardType, barcode, id)) {
+          return NextResponse.json({ message: `Barcode kartu ${CARD_LABEL[body.cardType]} ini sedang digunakan oleh tamu lain.` }, { status: 409 })
         }
         const result = await query<VendorRegistrationRow>(
           `UPDATE vendor_registrations
-           SET ${column} = $1, current_card_type = $2
+           SET ${CARD_COLUMN[body.cardType]} = $1, current_card_type = $2, at_work_area = $4
            WHERE id = $3 RETURNING ${SELECT_COLUMNS}`,
-          [barcode, body.cardType, id]
+          [barcode, body.cardType, id, fromSecurity]
         )
         return NextResponse.json({ registration: result.rows[0] })
       }
 
       case 'returnWorkArea': {
-        if (row.stage !== 'active' || !isWorkAreaCardType(row.current_card_type)) {
+        const cardType = row.current_card_type
+        const holdsWorkCard = row.stage === 'active' && cardType !== null && (row.entry_path === 'security'
+          ? row.at_work_area
+          : cardType === 'vendor' || cardType === 'special_area' || cardType === 'photography')
+        if (!holdsWorkCard || !cardType) {
           return NextResponse.json({ message: 'Tamu ini tidak sedang memegang kartu area kerja.' }, { status: 409 })
         }
-        const cardType = row.current_card_type
-        const column = WORK_AREA_COLUMN[cardType]
-        if (row[column] !== barcode) {
-          return NextResponse.json({ message: `Barcode tidak cocok dengan kartu ${WORK_AREA_LABEL[cardType]} yang terdaftar.` }, { status: 400 })
+        if (row[CARD_COLUMN[cardType]] !== barcode) {
+          return NextResponse.json({ message: `Barcode tidak cocok dengan kartu ${CARD_LABEL[cardType]} yang terdaftar.` }, { status: 400 })
         }
-        // Only a registration that went through Security first (and so
-        // still physically holds a Visitor card underneath) reverts to
-        // 'visitor' here — one issued directly at Lobby never had a
-        // Visitor card to fall back to, so returning it closes the
-        // registration entirely instead.
+        // A guest who came through Security still has the Security card to
+        // go back to (it is closed there); one the Lobby registered itself
+        // has nothing underneath, so returning the card ends the visit.
         const result = row.entry_path === 'security'
           ? await query<VendorRegistrationRow>(
-              `UPDATE vendor_registrations SET current_card_type = 'visitor' WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
+              `UPDATE vendor_registrations
+               SET current_card_type = security_card_type, ${CARD_COLUMN[row.security_card_type]} = security_card_barcode, at_work_area = false
+               WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
               [id]
             )
           : await query<VendorRegistrationRow>(
@@ -198,23 +227,23 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         if (row.entry_path !== 'security') {
           return NextResponse.json({ message: 'Pendaftaran ini ditutup lewat aksi pengembalian kartu langsung, bukan lewat Security.' }, { status: 409 })
         }
-        if (row.stage !== 'active' || row.current_card_type !== 'visitor') {
-          return NextResponse.json({ message: 'Tamu ini tidak sedang memegang kartu Visitor.' }, { status: 409 })
+        if (!holdsSecurityCard(row)) {
+          return NextResponse.json({ message: 'Tamu ini masih memegang kartu Lobby — tukar kembali di Lobby dulu.' }, { status: 409 })
         }
-        if (row.visitor_card_barcode !== barcode) {
-          return NextResponse.json({ message: 'Barcode tidak cocok dengan kartu Visitor yang terdaftar.' }, { status: 400 })
+        if (row.security_card_barcode !== barcode) {
+          return NextResponse.json({ message: `Barcode tidak cocok dengan kartu ${CARD_LABEL[row.security_card_type]} yang terdaftar.` }, { status: 400 })
         }
         const result = await query<VendorRegistrationRow>(
-          `UPDATE vendor_registrations SET stage = 'closed', current_card_type = NULL, exit_at = now() WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
+          `UPDATE vendor_registrations SET stage = 'closed', current_card_type = NULL, at_work_area = false, exit_at = now() WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
           [id]
         )
         return NextResponse.json({ registration: result.rows[0] })
       }
 
-      // Closes a registration whose CURRENT card (whichever of the five
-      // types it is) was issued directly at Lobby, skipping Security
-      // entirely — the complement of 'close' above, which only handles
-      // Security-registered Visitors.
+      // Closes a registration whose CURRENT card (whichever type it is) was
+      // issued directly at Lobby, skipping Security entirely — the
+      // complement of 'close' above, which only handles guests registered
+      // at Security.
       case 'returnDirect': {
         if (row.stage !== 'active' || !row.current_card_type || row.entry_path === 'security') {
           return NextResponse.json({ message: 'Tamu ini tidak sedang memegang kartu yang diterbitkan langsung dari Lobby.' }, { status: 409 })

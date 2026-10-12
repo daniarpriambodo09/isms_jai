@@ -15,17 +15,25 @@ import { Pagination } from '@/components/pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, formatDateTime, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, holdsSecurityCard, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
 
-type WorkAreaCardType = 'vendor' | 'special_area' | 'photography'
+// A card the Lobby takes back: the two it swaps into (Visitor, Vendor) and, on
+// older rows, a Special Area or Photography card.
+type WorkAreaCardType = 'visitor' | 'vendor' | 'special_area' | 'photography'
+// "Tukar ke Kartu Area Kerja": Special Area and Photography are not offered —
+// those cards go out with their permit (panels above), which lists them under
+// "Kartu Sedang Digunakan" by itself.
+type SwapCardType = 'visitor' | 'vendor'
+const SWAP_TYPES: SwapCardType[] = ['visitor', 'vendor']
 
-const WORK_AREA_TYPES: WorkAreaCardType[] = ['vendor', 'special_area', 'photography']
 const WORK_AREA_LABEL: Record<WorkAreaCardType, string> = {
+  visitor: 'VISITOR',
   vendor: 'VENDOR',
   special_area: 'SPECIAL AREA',
   photography: 'PHOTOGRAPHY',
 }
-const WORK_AREA_COLUMN: Record<WorkAreaCardType, 'vendor_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'> = {
+const WORK_AREA_COLUMN: Record<WorkAreaCardType, 'visitor_card_barcode' | 'vendor_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'> = {
+  visitor: 'visitor_card_barcode',
   vendor: 'vendor_card_barcode',
   special_area: 'special_area_card_barcode',
   photography: 'photography_card_barcode',
@@ -59,12 +67,14 @@ const STAGE_BADGE: Record<string, string> = {
   pending_approval: 'bg-[#fff3d6] text-[#8a6100]',
   visitor: 'bg-[#dff5e6] text-[#1a6e3a]',
   vendor: 'bg-[#edf6ff] text-[#1a5fa0]',
+  supplier: 'bg-[#e0f5f3] text-[#0f6b63]',
   affiliate: 'bg-[#f7f0ff] text-[#6a30a0]',
   special_area: 'bg-[#fde2e2] text-[#a13030]',
   photography: 'bg-[#fff3d6] text-[#8a6100]',
   closed: 'bg-secondary text-muted-foreground',
 }
 const CARD_LABEL: Record<WorkAreaCardType | 'affiliate', string> = {
+  visitor: 'Kartu Visitor',
   vendor: 'Kartu Vendor',
   special_area: 'Kartu Special Area',
   photography: 'Kartu Photography',
@@ -73,6 +83,8 @@ const CARD_LABEL: Record<WorkAreaCardType | 'affiliate', string> = {
 function statusOf(r: Registration): { key: string; label: string } {
   if (r.stage === 'pending_approval') return { key: 'pending_approval', label: 'Menunggu Approval Security' }
   if (r.stage === 'closed') return { key: 'closed', label: 'Selesai' }
+  // still on the card Pos Security handed out (Visitor, Vendor or Supplier)
+  if (holdsSecurityCard(r)) return { key: r.security_card_type, label: `Kartu ${SECURITY_CARD_LABEL[r.security_card_type]} (Security)` }
   if (r.current_card_type && r.current_card_type in CARD_LABEL) {
     return { key: r.current_card_type, label: CARD_LABEL[r.current_card_type as WorkAreaCardType | 'affiliate'] }
   }
@@ -174,7 +186,13 @@ function QuickCardModal({ cardType, station, onClose, onSaved }: { cardType: Qui
 
 function DetailPanel({ registration, onClose, onChanged }: { registration: Registration; onClose: () => void; onChanged: () => void }) {
   const [barcode, setBarcode] = useState('')
-  const [swapTarget, setSwapTarget] = useState<WorkAreaCardType>('vendor')
+  const fromSecurity = holdsSecurityCard(registration)
+  // A guest the Lobby registered itself with a Visitor card can only move on to a Vendor card.
+  const swapOptions: SwapCardType[] = fromSecurity ? SWAP_TYPES : registration.stage === 'active' && registration.current_card_type === 'visitor' ? ['vendor'] : []
+  const holdsWorkCard = registration.stage === 'active' && registration.current_card_type !== null && (registration.entry_path === 'security'
+    ? registration.at_work_area
+    : (['vendor', 'special_area', 'photography'] as string[]).includes(registration.current_card_type))
+  const [swapTarget, setSwapTarget] = useState<SwapCardType>(fromSecurity ? 'visitor' : 'vendor')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -188,7 +206,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   const status = statusOf(registration)
   const isAffiliate = registration.current_card_type === 'affiliate' || Boolean(registration.affiliate_card_barcode)
 
-  const runAction = async (action: 'swapToWorkArea' | 'returnWorkArea' | 'returnDirect', cardType?: WorkAreaCardType) => {
+  const runAction = async (action: 'swapToWorkArea' | 'returnWorkArea' | 'returnDirect', cardType?: SwapCardType) => {
     if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
     setError(null)
     setSubmitting(true)
@@ -319,11 +337,17 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
       )}
 
       <div className="p-4">
-        {registration.current_card_type === 'visitor' && (
+        {swapOptions.length > 0 && (
           <div className="rounded-xl bg-accent/10 p-4">
             <p className="mb-2 text-xs font-semibold text-foreground">Tukar ke Kartu Area Kerja</p>
+            {fromSecurity && (
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                Tamu membawa kartu {SECURITY_CARD_LABEL[registration.security_card_type]} dari Pos Security
+                {registration.security_card_barcode ? <> (<span className="font-mono font-semibold">{registration.security_card_barcode}</span>)</> : null}.
+              </p>
+            )}
             <div className="mb-3 flex flex-wrap gap-1.5">
-              {WORK_AREA_TYPES.map((type) => (
+              {swapOptions.map((type) => (
                 <button
                   key={type}
                   type="button"
@@ -375,7 +399,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
             </div>
           )
         })()}
-        {registration.current_card_type && WORK_AREA_TYPES.includes(registration.current_card_type as WorkAreaCardType) && (() => {
+        {holdsWorkCard && (() => {
           const cardType = registration.current_card_type as WorkAreaCardType
           const expected = registration[WORK_AREA_COLUMN[cardType]]
           const trimmed = barcode.trim()
@@ -401,7 +425,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
                   : <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
               )}
               <button type="button" disabled={submitting} onClick={() => runAction('returnWorkArea')} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
-                {submitting ? 'Memproses...' : registration.entry_path === 'security' ? 'Kembalikan ke Kartu Visitor' : 'Tutup Pendaftaran'}
+                {submitting ? 'Memproses...' : registration.entry_path === 'security' ? `Kembalikan ke Kartu ${SECURITY_CARD_LABEL[registration.security_card_type]} Security` : 'Tutup Pendaftaran'}
               </button>
             </div>
           )
@@ -644,7 +668,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
+        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
 

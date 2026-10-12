@@ -6,11 +6,14 @@ import { logActivity } from '@/lib/activity-log'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
-type CardType = 'visitor' | 'vendor' | 'affiliate' | 'special_area' | 'photography'
+type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area' | 'photography'
+type SecurityCardType = 'visitor' | 'vendor' | 'supplier'
+const SECURITY_CARD_TYPES: SecurityCardType[] = ['visitor', 'vendor', 'supplier']
 
-const CARD_TYPES: CardType[] = ['visitor', 'vendor', 'affiliate', 'special_area', 'photography']
-function isCardType(value: unknown): value is CardType { return typeof value === 'string' && (CARD_TYPES as string[]).includes(value) }
-const CARD_COLUMN: Record<CardType, 'visitor_card_barcode' | 'vendor_card_barcode' | 'affiliate_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'> = {
+type LobbyCardType = Exclude<CardType, 'supplier'>
+const CARD_TYPES: LobbyCardType[] = ['visitor', 'vendor', 'affiliate', 'special_area', 'photography']
+function isCardType(value: unknown): value is LobbyCardType { return typeof value === 'string' && (CARD_TYPES as string[]).includes(value) }
+const CARD_COLUMN: Record<LobbyCardType, 'visitor_card_barcode' | 'vendor_card_barcode' | 'affiliate_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'> = {
   visitor: 'visitor_card_barcode',
   vendor: 'vendor_card_barcode',
   affiliate: 'affiliate_card_barcode',
@@ -20,6 +23,7 @@ const CARD_COLUMN: Record<CardType, 'visitor_card_barcode' | 'vendor_card_barcod
 const CARD_LABEL: Record<CardType, string> = {
   visitor: 'Visitor',
   vendor: 'Vendor',
+  supplier: 'Supplier',
   affiliate: 'Affiliate',
   special_area: 'Special Area',
   photography: 'Photography',
@@ -44,12 +48,17 @@ type VendorRegistrationRow = {
   affiliate_card_barcode: string | null
   special_area_card_barcode: string | null
   photography_card_barcode: string | null
+  supplier_card_barcode: string | null
+  security_card_type: SecurityCardType
+  security_card_barcode: string | null
+  at_work_area: boolean
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
-  special_area_card_barcode, photography_card_barcode`
+  special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
+  security_card_type, security_card_barcode, at_work_area`
 
 function maskIdCard(idCard: string | null): string {
   if (!idCard) return ''
@@ -93,7 +102,7 @@ export async function POST(request: NextRequest) {
   if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
-    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station', string>>
+    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station' | 'securityCardType', string>>
     // Where the guest is being registered ("Asal"): a kiosk account is its own
     // post; the ISM Admin works from whichever kiosk page they have open.
     const station = session.role === 'security' ? 'security' : session.role === 'lobby' ? 'lobby' : body.station === 'security' ? 'security' : 'lobby'
@@ -124,7 +133,9 @@ export async function POST(request: NextRequest) {
       const column = CARD_COLUMN[cardType]
 
       const collision = await query(
-        `SELECT 1 FROM vendor_registrations WHERE stage = 'active' AND current_card_type = $1 AND ${column} = $2`,
+        // Lobby cards only: a Security card of the same kind is another set.
+        `SELECT 1 FROM vendor_registrations WHERE stage = 'active' AND current_card_type = $1 AND ${column} = $2
+           AND (entry_path <> 'security' OR at_work_area)`,
         [cardType, barcode]
       )
       if (collision.rows.length > 0) {
@@ -144,13 +155,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Default path: Security registers, still pending approval (no card yet).
+    // The guest is registered as a Visitor, Vendor or Supplier — the kind of
+    // Security card handed out at approval.
+    const securityCardType = SECURITY_CARD_TYPES.find((type) => type === body.securityCardType) ?? 'visitor'
     const result = await query<VendorRegistrationRow>(
-      `INSERT INTO vendor_registrations (full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station)
-       VALUES ($1, $2, $3, $4, $5, $6, 'security')
+      `INSERT INTO vendor_registrations (full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station, security_card_type)
+       VALUES ($1, $2, $3, $4, $5, $6, 'security', $7)
        RETURNING ${SELECT_COLUMNS}`,
-      [fullName, idCard, picJai, purpose, companyRemark, session.username]
+      [fullName, idCard, picJai, purpose, companyRemark, session.username, securityCardType]
     )
-    await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu "${result.rows[0].full_name}"`)
+    await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu ${CARD_LABEL[securityCardType]} "${result.rows[0].full_name}"`)
     return NextResponse.json({ registration: result.rows[0] }, { status: 201 })
   } catch (error) {
     console.error('[vendor-registrations/POST]', error)

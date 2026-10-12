@@ -30,6 +30,7 @@ import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { buildProcedureApprovalEmail, buildProcedureResultEmail, LOGO_CID } from '@/lib/email-templates'
 import { API_BASE_PATH } from '@/lib/config'
 import { isDeliverableEmail } from '@/lib/email-address'
+import { adminRecipients } from '@/lib/admin-recipients'
 import { docKindInfo, type DocKind } from '@/lib/document-kinds'
 import { reviewBoxes, reviewFormSummary, type ReviewFormData } from '@/lib/review-form'
 import { recordNotification } from '@/lib/admin-notifications'
@@ -1104,14 +1105,10 @@ async function notifyAdmins(documentId: number, outcome: 'approved' | 'rejected'
     const settings = await getSmtpSettings()
     if (!settings?.host || !settings.port || !settings.senderEmail) return
     // Only addresses that can actually receive mail (a placeholder like
-    // admin@jai.local just bounces back); with none, fall back to the SMTP
-    // sender mailbox so the notification still lands somewhere.
-    const admins = await query<{ email: string }>("SELECT email FROM admins WHERE role = 'ism_admin' AND email IS NOT NULL AND email <> ''")
-    const deliverable = admins.rows.map((row) => row.email.trim()).filter(isDeliverableEmail)
-    const recipients = deliverable.length ? deliverable : [settings.senderEmail]
-    if (deliverable.length < admins.rows.length) {
-      console.warn('[procedure-approval/notifyAdmins] skipped undeliverable admin email(s):', admins.rows.map((r) => r.email).filter((e) => !isDeliverableEmail(e)).join(', '))
-    }
+    // admin@jai.local just bounces back); with none, the SMTP sender mailbox.
+    // Who that is: lib/admin-recipients.ts.
+    const { to: recipients, skipped } = await adminRecipients(settings.senderEmail)
+    if (skipped.length) console.warn('[procedure-approval/notifyAdmins] skipped undeliverable admin email(s):', skipped.join(', '))
     const doc = await getDocument(documentId)
     if (!doc) return
     // Every step of the cycle that just ended — including the ones a revision

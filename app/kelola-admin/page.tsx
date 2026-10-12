@@ -7,6 +7,7 @@ import { Check, History, Loader2, Plus, Shield, ShieldCheck, Trash2, Users, X } 
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
+import { AdminNotificationEmails } from '@/components/admin/AdminNotificationEmails'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
@@ -227,6 +228,8 @@ export default function KelolaAdminPage() {
           <History className="size-4" /> Log Aktivitas
         </button>
       </div>
+
+      {tab === 'accounts' && <AdminNotificationEmails accountsKey={admins.map((admin) => `${admin.id}:${admin.role}:${admin.email ?? ''}`).join('|')} />}
 
       {tab === 'accounts' && (
         <div className="rounded-3xl border border-border bg-card shadow-sm">

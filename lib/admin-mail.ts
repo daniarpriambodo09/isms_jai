@@ -1,14 +1,13 @@
 // lib/admin-mail.ts
 //
-// One way to email the ISM Admins: every ism_admin account with an address
-// that can really receive mail (placeholders like *.local are skipped); if
-// none qualifies, the SMTP sender mailbox gets it so it still lands somewhere.
+// One way to email the ISM Admins — who that is: see lib/admin-recipients.ts
+// (the ism_admin accounts' addresses plus the extra ones set on Kelola Admin;
+// with none reachable, the SMTP sender mailbox).
 
 import 'server-only'
 import path from 'path'
-import { query } from '@/lib/db'
 import { getSmtpSettings, sendMail } from '@/lib/smtp'
-import { isDeliverableEmail } from '@/lib/email-address'
+import { adminRecipients } from '@/lib/admin-recipients'
 import { LOGO_CID } from '@/lib/email-templates'
 import { resolveAppBaseUrl } from '@/lib/request-origin'
 import { API_BASE_PATH } from '@/lib/config'
@@ -25,10 +24,9 @@ export async function sendToAdmins(subject: string, html: string): Promise<boole
   try {
     const settings = await getSmtpSettings()
     if (!settings?.host || !settings.port || !settings.senderEmail) return false
-    const admins = await query<{ email: string }>("SELECT email FROM admins WHERE role = 'ism_admin' AND email IS NOT NULL AND email <> ''")
-    const deliverable = admins.rows.map((row) => row.email.trim()).filter(isDeliverableEmail)
+    const recipients = await adminRecipients(settings.senderEmail)
     await sendMail(settings, {
-      to: (deliverable.length ? deliverable : [settings.senderEmail]).join(', '),
+      to: recipients.to.join(', '),
       subject,
       html,
       attachments: [{ filename: 'yazaki-logo.jpg', path: path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'), cid: LOGO_CID }],

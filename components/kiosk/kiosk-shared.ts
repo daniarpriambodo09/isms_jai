@@ -132,6 +132,16 @@ export function formatDateTime(value: string | null) {
   return new Date(value).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+/** Hour and date apart, for a narrow "Jam Masuk" / "Jam Keluar" cell (time on top, date under it). */
+export function formatTimeParts(value: string | null): { time: string; date: string } | null {
+  if (!value) return null
+  const at = new Date(value)
+  return {
+    time: at.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+    date: at.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+  }
+}
+
 export const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 export const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
 

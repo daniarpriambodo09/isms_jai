@@ -15,7 +15,7 @@ import { Pagination } from '@/components/pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, holdsSecurityCard, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, formatTimeParts, holdsSecurityCard, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
 
 // A card the Lobby takes back: the two it swaps into (Visitor, Vendor) and, on
 // older rows, a Special Area or Photography card.
@@ -333,6 +333,8 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
           {row('Tujuan :', registration.purpose)}
           {row('Keterangan :', registration.company_remark)}
           {row('Status :', status.label)}
+          {row('Jam Masuk :', formatDateTime(registration.entry_at))}
+          {row('Jam Keluar :', formatDateTime(registration.exit_at))}
         </>
       )}
 
@@ -667,7 +669,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
@@ -792,6 +794,10 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                           <p className="mt-1 break-words text-xs text-muted-foreground">
                             {r.pic_jai && <>PIC: <span className="text-foreground">{r.pic_jai}</span> · </>}{r.company_remark}
                           </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Masuk: <span className="font-semibold tabular-nums text-foreground">{formatTimeParts(r.entry_at)?.time ?? '—'}</span>
+                            {' · '}Keluar: <span className="font-semibold tabular-nums text-foreground">{formatTimeParts(r.exit_at)?.time ?? '—'}</span>
+                          </p>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
                             {r.current_card_type && <span className="font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">{r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}</span>}
@@ -814,26 +820,26 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
             )}
           </div>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[820px] text-sm">
+            <table className="w-full min-w-[960px] text-sm">
               <thead className="bg-secondary/55">
                 <tr>
                   <th className="w-10 px-4 py-3">
                     <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAll} onClick={(e) => e.stopPropagation()} aria-label="Pilih semua" className="size-4 rounded border-border" />
                   </th>
-                  {['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status', 'Aksi'].map((head) => (
+                  {['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Jam Masuk', 'Jam Keluar', 'Status', 'Aksi'].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {loading && (
-                  <tr><td colSpan={8} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
+                  <tr><td colSpan={10} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
                 )}
                 {!loading && registrations.length === 0 && (
-                  <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
+                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
                 )}
                 {!loading && registrations.length > 0 && filteredRegistrations.length === 0 && (
-                  <tr><td colSpan={8} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
                 )}
                 {pageItems.map((r, index) => {
                   const status = statusOf(r)
@@ -846,11 +852,30 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                       <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                         <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} aria-label={`Pilih ${r.full_name}`} className="size-4 rounded border-border" />
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.registered_at)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span className="block text-xs font-medium tabular-nums text-foreground">{formatTimeParts(r.registered_at)?.time}</span>
+                        <span className="block text-[10px] text-muted-foreground">{formatTimeParts(r.registered_at)?.date}</span>
+                      </td>
                       <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{stationOf(r) === 'security' ? 'Security' : 'Lobby'}</td>
+                      <td className="whitespace-nowrap px-4 py-3" data-testid="jam-masuk">
+                        {(() => {
+                          const at = formatTimeParts(r.entry_at)
+                          return at
+                            ? <><span className="block text-sm font-semibold tabular-nums text-foreground">{at.time}</span><span className="block text-[10px] text-muted-foreground">{at.date}</span></>
+                            : <span className="text-xs text-muted-foreground">—</span>
+                        })()}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3" data-testid="jam-keluar">
+                        {(() => {
+                          const at = formatTimeParts(r.exit_at)
+                          return at
+                            ? <><span className="block text-sm font-semibold tabular-nums text-foreground">{at.time}</span><span className="block text-[10px] text-muted-foreground">{at.date}</span></>
+                            : <span className="text-xs text-muted-foreground">—</span>
+                        })()}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
                         {r.current_card_type && (

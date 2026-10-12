@@ -22,7 +22,7 @@ import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPa
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, SECURITY_CARD_TYPES, formatDateTime, holdsSecurityCard, inputClass, labelClass, stationOf, useKioskAutoRefresh, usePermitCards, type Registration, type SecurityCardType } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, SECURITY_CARD_TYPES, formatDateTime, formatTimeParts, holdsSecurityCard, inputClass, labelClass, stationOf, useKioskAutoRefresh, usePermitCards, type Registration, type SecurityCardType } from '@/components/kiosk/kiosk-shared'
 
 const SECURITY_CARD_ICON: Record<SecurityCardType, typeof UserPlus> = { visitor: UserPlus, vendor: Briefcase, supplier: Truck }
 const SECURITY_CARD_BADGE: Record<SecurityCardType, string> = {
@@ -363,7 +363,7 @@ export function SecurityView() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
@@ -424,7 +424,7 @@ export function SecurityView() {
               <thead className="bg-secondary/55">
                 <tr>
                   {['Tanggal/Jam', 'Jenis', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status', 'Aksi'].map((head) => (
-                    <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
+                    <th key={head} className="whitespace-nowrap px-3 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
               </thead>
@@ -442,20 +442,37 @@ export function SecurityView() {
                   const status = statusOf(r)
                   return (
                     <tr key={r.id} className={index % 2 ? 'bg-secondary/20' : ''}>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.registered_at)}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
+                      <td className="whitespace-nowrap px-3 py-3">
+                        <span className="block text-xs font-medium tabular-nums text-foreground">{formatTimeParts(r.registered_at)?.time}</span>
+                        <span className="block text-[10px] text-muted-foreground">{formatTimeParts(r.registered_at)?.date}</span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3">
                         {r.entry_path === 'security'
                           ? <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${SECURITY_CARD_BADGE[r.security_card_type]}`}>{SECURITY_CARD_LABEL[r.security_card_type]}</span>
                           : <span className="text-xs text-muted-foreground">—</span>}
                       </td>
-                      <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.id_card}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.purpose}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.entry_at)}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.exit_at)}</td>
-                      <td className="whitespace-nowrap px-4 py-3">
+                      <td className="min-w-[160px] px-3 py-3 font-medium text-foreground">{r.full_name}</td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">{r.id_card}</td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">{r.purpose}</td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
+                      <td className="whitespace-nowrap px-3 py-3" data-testid="jam-masuk">
+                        {(() => {
+                          const at = formatTimeParts(r.entry_at)
+                          return at
+                            ? <><span className="block text-sm font-semibold tabular-nums text-foreground">{at.time}</span><span className="block text-[10px] text-muted-foreground">{at.date}</span></>
+                            : <span className="text-xs text-muted-foreground">—</span>
+                        })()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3" data-testid="jam-keluar">
+                        {(() => {
+                          const at = formatTimeParts(r.exit_at)
+                          return at
+                            ? <><span className="block text-sm font-semibold tabular-nums text-foreground">{at.time}</span><span className="block text-[10px] text-muted-foreground">{at.date}</span></>
+                            : <span className="text-xs text-muted-foreground">—</span>
+                        })()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
                         {r.current_card_type && (
                           <span className="mt-1 block font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
@@ -463,7 +480,7 @@ export function SecurityView() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3">
                         <div className="flex items-center gap-1.5">
                           {r.stage === 'pending_approval' && (
                             <button type="button" onClick={() => setScanTarget({ registration: r, action: 'approve' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">

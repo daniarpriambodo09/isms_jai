@@ -31,6 +31,7 @@ import { buildProcedureApprovalEmail, buildProcedureResultEmail, LOGO_CID } from
 import { API_BASE_PATH } from '@/lib/config'
 import { isDeliverableEmail } from '@/lib/email-address'
 import { adminRecipients } from '@/lib/admin-recipients'
+import { parseSalutation, type Salutation } from '@/lib/salutation'
 import { docKindInfo, type DocKind } from '@/lib/document-kinds'
 import { reviewBoxes, reviewFormSummary, type ReviewFormData } from '@/lib/review-form'
 import { recordNotification } from '@/lib/admin-notifications'
@@ -43,6 +44,8 @@ export type ApproverRole = {
   person_name: string
   /** The 2–4 letters printed under this position's signature box (empty = from the name). */
   initials: string | null
+  /** How the holder is addressed in e-mails: 'Bapak' / 'Ibu' / null (lib/salutation.ts). */
+  salutation: string | null
   email: string | null
   sort_order: number
   is_default: boolean
@@ -78,7 +81,7 @@ export type ApprovalStep = {
 // Gmail/Outlook cap a whole message at ~20–25 MB; stay safely under it.
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024
 
-const ROLE_COLUMNS = 'code, kind, title, person_name, initials, email, sort_order, is_default, updated_at, updated_by'
+const ROLE_COLUMNS = 'code, kind, title, person_name, initials, salutation, email, sort_order, is_default, updated_at, updated_by'
 
 const STEP_COLUMNS ='id, document_id, revision, role_code, role_title, step, status, approver_name, approver_initials, notified_at, email_error, decided_at, decision_note, verification_code, token_issued_at'
 
@@ -210,6 +213,8 @@ export function ensureApprovalSchema() {
       // Initials printed under the signature box (db/migrations/0016).
       await query('ALTER TABLE procedure_approver_roles ADD COLUMN IF NOT EXISTS initials varchar(5)')
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approver_initials varchar(5)')
+      // How the holder is addressed in e-mails (db/migrations/0024).
+      await query('ALTER TABLE procedure_approver_roles ADD COLUMN IF NOT EXISTS salutation varchar(10)')
       // Reminders to an approver who hasn't decided (db/migrations/0012).
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS reminded_at timestamptz, ADD COLUMN IF NOT EXISTS reminder_count integer NOT NULL DEFAULT 0')
       // Links replaced by a newer one (db/migrations/0009) — see replacedLink().
@@ -279,7 +284,7 @@ type DocumentInfo = { id: number; kind: DocKind; control_no: string; title: stri
 // document: someone stands in, or documents go to different people in the
 // same position. procedure_documents.approver_overrides maps a position code
 // to that person; positions not listed use their usual holder.
-export type ApproverOverride = { name: string; email: string }
+export type ApproverOverride = { name: string; email: string; salutation?: Salutation | null }
 export type ApproverOverrides = Record<string, ApproverOverride>
 
 /** The Form Review positions used when none are chosen: the default ones that can be e-mailed. */
@@ -300,14 +305,15 @@ export function parseApproverOverrides(raw: unknown, roleCodes: string[]): Appro
     if (!name && !email) continue
     if (!name) return `Nama approver untuk ${code} wajib diisi.`
     if (!isDeliverableEmail(email)) return `Email approver untuk ${code} (${name}) tidak valid.`
-    out[code] = { name, email }
+    const salutation = parseSalutation((entry as Record<string, unknown>).salutation)
+    out[code] = salutation ? { name, email, salutation } : { name, email }
   }
   return out
 }
 
 /** Same overrides, written the same way (to tell whether they changed). */
 export const overridesKey = (value: ApproverOverrides | null | undefined) =>
-  JSON.stringify(Object.keys(value ?? {}).sort().map((code) => [code, value![code].name, value![code].email.toLowerCase()]))
+  JSON.stringify(Object.keys(value ?? {}).sort().map((code) => [code, value![code].name, value![code].email.toLowerCase(), value![code].salutation ?? '']))
 
 async function getDocument(documentId: number) {
   // elf_date as plain YYYY-MM-DD text — a DATE sent as a JS Date shifts a day back in UTC.
@@ -687,6 +693,10 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
         }
         : null,
       approverName: step.approver_name ?? step.role_title,
+      // this document's own person for the position, else the position's holder
+      approverSalutation: doc.approver_overrides?.[step.role_code]
+        ? doc.approver_overrides[step.role_code].salutation ?? null
+        : (await query<{ salutation: string | null }>('SELECT salutation FROM procedure_approver_roles WHERE code = $1', [step.role_code])).rows[0]?.salutation ?? null,
       roleTitle: step.role_title,
       controlNo: doc.control_no,
       title: doc.title,

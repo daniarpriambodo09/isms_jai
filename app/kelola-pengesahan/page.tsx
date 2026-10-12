@@ -19,9 +19,9 @@ import { DOC_KINDS, DOC_KIND_INFO, isDocKind, type DocKind } from '@/lib/documen
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 
-type Role = { code: string; title: string; person_name: string; initials: string | null; email: string | null; sort_order: number; is_default: boolean; updated_at: string; updated_by: string | null }
+type Role = { code: string; title: string; person_name: string; salutation?: string | null; initials: string | null; email: string | null; sort_order: number; is_default: boolean; updated_at: string; updated_by: string | null }
 type PendingStep = { id: number; document_id: number; control_no: string; title: string; role_title: string; approver_name: string | null; approver_email: string | null; notified_at: string | null; email_error: string | null; reminded_at?: string | null; reminder_count?: number }
-type Draft = { code: string; title: string; personName: string; initials: string; email: string; sortOrder: string; isDefault: boolean }
+type Draft = { code: string; title: string; personName: string; salutation: string; initials: string; email: string; sortOrder: string; isDefault: boolean }
 type KindCounts = Record<DocKind, { roles: number; pending: number }>
 
 // Example values shown in the empty inputs, per register.
@@ -54,11 +54,11 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-const emptyDraft = (order: number): Draft => ({ code: '', title: '', personName: '', initials: '', email: '', sortOrder: String(order), isDefault: true })
+const emptyDraft = (order: number): Draft => ({ code: '', title: '', personName: '', salutation: '', initials: '', email: '', sortOrder: String(order), isDefault: true })
 
 function RoleForm({ draft, setDraft, withCode, kind }: { draft: Draft; setDraft: (d: Draft) => void; withCode: boolean; kind: DocKind }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[90px_1.3fr_1fr_84px_1.2fr_70px]">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[90px_1.3fr_128px_1fr_84px_1.2fr_70px]">
       {withCode && (
         <label className="flex flex-col gap-1.5">
           <span className={labelClass}>Kode</span>
@@ -68,6 +68,14 @@ function RoleForm({ draft, setDraft, withCode, kind }: { draft: Draft; setDraft:
       <label className={`flex flex-col gap-1.5 ${withCode ? '' : 'lg:col-span-2'}`}>
         <span className={labelClass}>Unit Kerja (Jabatan)</span>
         <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder={PLACEHOLDERS[kind].title} className={inputClass} />
+      </label>
+      <label className="flex flex-col gap-1.5">
+        <span className={labelClass} title="Cara menyapa di email: Dear Bapak … / Dear Ibu …. Hanya untuk salam pembuka email — nama di dokumen tidak berubah.">Sapaan di email</span>
+        <select value={draft.salutation} onChange={(e) => setDraft({ ...draft, salutation: e.target.value })} aria-label="Sapaan di email" className={inputClass}>
+          <option value="">Tanpa sapaan</option>
+          <option value="Bapak">Bapak</option>
+          <option value="Ibu">Ibu</option>
+        </select>
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={labelClass}>Nama</span>
@@ -157,7 +165,7 @@ export default function KelolaPengesahanPage() {
   const startEdit = (role: Role) => {
     setAdding(false)
     setEditingCode(role.code)
-    setDraft({ code: role.code, title: role.title, personName: role.person_name, initials: role.initials ?? '', email: role.email ?? '', sortOrder: String(role.sort_order), isDefault: role.is_default })
+    setDraft({ code: role.code, title: role.title, personName: role.person_name, salutation: role.salutation ?? '', initials: role.initials ?? '', email: role.email ?? '', sortOrder: String(role.sort_order), isDefault: role.is_default })
     setMessage(null)
   }
 
@@ -175,7 +183,7 @@ export default function KelolaPengesahanPage() {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-approver-roles`, {
         method: adding ? 'POST' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, code: draft.code, title: draft.title, personName: draft.personName, initials: draft.initials, email: draft.email, sortOrder: Number(draft.sortOrder), isDefault: draft.isDefault }),
+        body: JSON.stringify({ kind, code: draft.code, title: draft.title, personName: draft.personName, salutation: draft.salutation, initials: draft.initials, email: draft.email, sortOrder: Number(draft.sortOrder), isDefault: draft.isDefault }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan.')

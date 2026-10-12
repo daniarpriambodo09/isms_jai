@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
+import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
@@ -364,6 +365,8 @@ export function SecurityView() {
       </header>
 
       <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
+        {/* First thing on the page: scan a card — a card in use closes that guest's visit, a new one goes to a guest waiting for approval. */}
+        <ScanCardBox station="security" onChanged={load} />
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />

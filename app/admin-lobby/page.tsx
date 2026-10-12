@@ -5,6 +5,7 @@
 import { Suspense, useRef, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { KioskLoginForm } from '@/components/kiosk/KioskLoginForm'
+import { KioskTheme } from '@/components/kiosk/KioskTheme'
 import { LobbyView } from '@/components/kiosk/LobbyView'
 import { StationOff, StationNotice, useKioskStations } from '@/components/kiosk/kiosk-stations-ui'
 
@@ -36,6 +37,7 @@ function AdminLobbyContent() {
 export default function AdminLobbyPage() {
   return (
     <Suspense fallback={<div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Memuat...</div>}>
+      <KioskTheme station="lobby" />
       <AdminLobbyContent />
     </Suspense>
   )

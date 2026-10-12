@@ -30,9 +30,9 @@ import { recordNotification } from '@/lib/admin-notifications'
 
 export type ApproverSetting =
   | { mode: 'role'; roleCode: string }
-  | { mode: 'custom'; name: string; title: string; email: string | null }
+  | { mode: 'custom'; name: string; title: string; email: string | null; salutation?: string | null }
 
-export type ResolvedApprover = { name: string | null; title: string | null; email: string | null; source: string }
+export type ResolvedApprover = { name: string | null; title: string | null; email: string | null; salutation: string | null; source: string }
 
 const SETTING_KEY = 'special_area_approver'
 const DEFAULT_SETTING: ApproverSetting = { mode: 'role', roleCode: 'IAA' }
@@ -126,14 +126,14 @@ export async function saveEscortList(escorts: Escort[], username: string) {
 export async function resolveApprover(): Promise<ResolvedApprover> {
   const { setting } = await getApproverSetting()
   if (setting.mode === 'custom') {
-    return { name: setting.name, title: setting.title, email: setting.email, source: 'Diatur manual' }
+    return { name: setting.name, title: setting.title, email: setting.email, salutation: setting.salutation ?? null, source: 'Diatur manual' }
   }
-  const role = (await query<{ person_name: string; title: string; email: string | null }>(
-    'SELECT person_name, title, email FROM procedure_approver_roles WHERE code = $1', [setting.roleCode]
+  const role = (await query<{ person_name: string; title: string; email: string | null; salutation: string | null }>(
+    'SELECT person_name, title, email, salutation FROM procedure_approver_roles WHERE code = $1', [setting.roleCode]
   )).rows[0]
   return role
-    ? { name: role.person_name, title: role.title, email: role.email, source: `Jabatan ${setting.roleCode} (Approver Pengesahan)` }
-    : { name: null, title: null, email: null, source: `Jabatan ${setting.roleCode} tidak ditemukan` }
+    ? { name: role.person_name, title: role.title, email: role.email, salutation: role.salutation, source: `Jabatan ${setting.roleCode} (Approver Pengesahan)` }
+    : { name: null, title: null, email: null, salutation: null, source: `Jabatan ${setting.roleCode} tidak ditemukan` }
 }
 
 // Re-points every still-pending request at the current approver (fresh link each).
@@ -224,6 +224,7 @@ export async function sendApprovalRequest(id: number): Promise<string | null> {
         const base = resolveAppBaseUrl(settings.appUrl)
         const { subject, html } = buildSpecialAreaApprovalEmail({
           approverName: approver.name,
+          approverSalutation: approver.salutation,
           requesterName: req.requester_name,
           orgCompany: req.org_company,
           department: req.department,

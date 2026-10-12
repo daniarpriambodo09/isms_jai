@@ -7,9 +7,12 @@
 
 import 'server-only'
 import { APP_TIME_ZONE } from '@/lib/config'
+import { salutationPrefix } from '@/lib/salutation'
 
 export type VisitorApprovalEmailData = {
   approverName: string
+  /** 'Bapak' / 'Ibu' set for this approver — "Dear Bapak <name>,". Empty: "Dear <name>,". */
+  approverSalutation?: string | null
   requesterName: string
   deptOrCompany: string
   dept: string | null
@@ -116,8 +119,8 @@ export function buildVisitorApprovalEmail(data: VisitorApprovalEmailData): { sub
           <!-- Body -->
           <tr>
             <td style="padding:32px 32px 8px;">
-              <p style="margin:0 0 14px;font-size:14px;color:${TEXT};line-height:1.7;">Yth. Bapak/Ibu <strong>${data.approverName}</strong>,</p>
-              <p style="margin:0 0 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">Semoga Bapak/Ibu selalu dalam keadaan sehat dan sukses dalam menjalankan aktivitas.</p>
+              <p style="margin:0 0 14px;font-size:14px;color:${TEXT};line-height:1.7;">Dear ${salutationPrefix(data.approverSalutation)}<strong>${data.approverName}</strong>,</p>
+              <p style="margin:0 0 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">Semoga selalu dalam keadaan sehat dan sukses dalam menjalankan aktivitas.</p>
               <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">Sehubungan dengan rencana pelaksanaan kegiatan <strong>${data.objective}</strong>, bersama email ini kami bermaksud untuk mengajukan permohonan izin pengambilan foto/video di area <strong>${data.location}</strong>.</p>
               <p style="margin:0 0 10px;font-size:13.5px;color:${TEXT};line-height:1.75;">Adapun rincian pelaksanaan pengambilan foto dan video adalah sebagai berikut:</p>
             </td>
@@ -726,6 +729,8 @@ function chainRow(chain: ProcedureChainStep[], look: SheetLook | null = null) {
 
 export type ProcedureApprovalEmailData = {
   approverName: string
+  /** 'Bapak' / 'Ibu' set for this approver — "Dear Bapak <name>,". Empty: "Dear <name>,". */
+  approverSalutation?: string | null
   roleTitle: string
   controlNo: string
   title: string
@@ -847,7 +852,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #ecd9a6;border-left:4px solid #b97400;background:#fdf7e6;border-radius:4px;">
           <tr><td style="padding:12px 16px;font-family:${SANS};">
             <p style="margin:0;font-size:11px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;color:#8a5600;">&#9200;&nbsp; Pengingat ke-${rem.count}</p>
-            <p style="margin:5px 0 0;font-size:13.5px;color:${MEMO_INK};line-height:1.6;">Dokumen ini sudah <strong>${rem.waitingDays} hari</strong> menunggu keputusan Bapak/Ibu. Link di email ini sama dengan email sebelumnya &mdash; mohon kesediaannya untuk mereview.</p>
+            <p style="margin:5px 0 0;font-size:13.5px;color:${MEMO_INK};line-height:1.6;">Dokumen ini sudah <strong>${rem.waitingDays} hari</strong> menunggu keputusan Anda. Link di email ini sama dengan email sebelumnya &mdash; mohon kesediaannya untuk mereview.</p>
           </td></tr>
         </table>
       </td>
@@ -857,18 +862,18 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   const rf = data.reviewForm ?? null
   const reviewed = rf ? escapeHtml([rf.docControlNo, rf.docTitle].filter(Boolean).join(' — ')) : ''
   const askLine = fro
-    ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review dan dokumennya telah saya lampirkan pada email ini. Setelah Form Review ditandatangani, dokumennya diteruskan ke approver dokumen.</p>`
+    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review dan dokumennya telah saya lampirkan pada email ini. Setelah Form Review ditandatangani, dokumennya diteruskan ke approver dokumen.</p>`
     : rf
-    ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya telah saya lampirkan pada email ini, dan ringkasannya ada di bawah.</p>`
+    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya telah saya lampirkan pada email ini, dan ringkasannya ada di bawah.</p>`
     : null
 
   const body = `${reminderBanner}${resubmitBanner}
     <tr>
       <td style="padding:20px 32px 6px;">
-        <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Yth. Bapak/Ibu <strong>${escapeHtml(data.approverName)}</strong>,</p>
+        <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Dear ${salutationPrefix(data.approverSalutation)}<strong>${escapeHtml(data.approverName)}</strong>,</p>
         ${askLine ?? (re
-          ? `<p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah ${re.fileChanged ? 'diperbaiki sesuai catatan revisi dan ' : ''}saya lampirkan pada email ini.</p>`
-          : `<p style="${para}">Mohon bantuan Bapak/Ibu untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>`)}
+          ? `<p style="${para}">Mohon bantuannya untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah ${re.fileChanged ? 'diperbaiki sesuai catatan revisi dan ' : ''}saya lampirkan pada email ini.</p>`
+          : `<p style="${para}">Mohon bantuannya untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong> yang telah saya lampirkan pada email ini.</p>`)}
         <p style="${para}">Apabila terdapat hal yang perlu disesuaikan atau diperbaiki, mohon arahan lebih lanjut agar dapat segera saya tindak lanjuti.</p>
         <p style="margin:0 0 20px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;">Terima kasih atas perhatian dan kerja samanya.</p>
       </td>
@@ -883,7 +888,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     </tr>${data.approvalCode ? approvalCodeBlock(data.approvalCode) : ''}
     <tr>
       <td style="padding:14px 32px 24px;">
-        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">Link ini khusus untuk Bapak/Ibu dan hanya berlaku untuk tahap ini. Mohon tidak meneruskan email ini.</p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">Link ini khusus untuk Anda dan hanya berlaku untuk tahap ini. Mohon tidak meneruskan email ini.</p>
       </td>
     </tr>`
 
@@ -1119,6 +1124,8 @@ const SA_BG = '#f4eeee'
 
 export type SpecialAreaApprovalEmailData = {
   approverName: string
+  /** 'Bapak' / 'Ibu' set for this approver — "Dear Bapak <name>,". Empty: "Dear <name>,". */
+  approverSalutation?: string | null
   requesterName: string
   orgCompany: string
   department: string | null
@@ -1210,8 +1217,8 @@ export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData
           <!-- Body -->
           <tr>
             <td style="padding:26px 32px 8px;">
-              <p style="margin:0 0 14px;font-size:14px;color:${TEXT};line-height:1.7;">Yth. Bapak/Ibu <strong>${escapeHtml(data.approverName)}</strong>,</p>
-              <p style="margin:0 0 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">Semoga Bapak/Ibu selalu dalam keadaan sehat dan sukses dalam menjalankan aktivitas.</p>
+              <p style="margin:0 0 14px;font-size:14px;color:${TEXT};line-height:1.7;">Dear ${salutationPrefix(data.approverSalutation)}<strong>${escapeHtml(data.approverName)}</strong>,</p>
+              <p style="margin:0 0 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">Semoga selalu dalam keadaan sehat dan sukses dalam menjalankan aktivitas.</p>
               <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">Sehubungan dengan rencana kegiatan <strong>${escapeHtml(data.purpose)}</strong>, bersama email ini kami bermaksud untuk mengajukan permohonan izin masuk ke area special security <strong>${escapeHtml(data.area)}</strong>.</p>
               <p style="margin:0 0 10px;font-size:13.5px;color:${TEXT};line-height:1.75;">Adapun rincian pengajuan izin masuk area special security adalah sebagai berikut:</p>
             </td>
@@ -1407,7 +1414,7 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & { review
   const e = escapeHtml
   const body = `
     <tr><td style="padding:28px 32px 6px;">
-      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Yth. Admin ISM,</p>
+      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear Admin ISM,</p>
       <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">Ada <strong>pengajuan ijin pengambilan foto/video Internal</strong> baru yang menunggu keputusan Anda:</p>
     </td></tr>
     <tr><td style="padding:0 32px;">${photoDetailRows([
@@ -1482,7 +1489,7 @@ export function buildPhotoResultEmail(data: {
   rows.push([en ? 'Reference code' : 'Kode referensi', `<span style="font-family:'Courier New',Courier,monospace;">${e(data.referenceCode)}</span>`])
   const body = `
     <tr><td style="padding:28px 32px 4px;">
-      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">${en ? 'Dear' : 'Yth.'} <strong>${e(data.requesterName)}</strong>,</p>
+      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear <strong>${e(data.requesterName)}</strong>,</p>
       <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">${en
         ? `Your photo/video recording request at <strong>${e(data.location)}</strong> has been processed:`
         : `Pengajuan ijin pengambilan foto/video Anda di <strong>${e(data.location)}</strong> sudah diproses:`}</p>

@@ -10,6 +10,7 @@ import { logActivity } from '@/lib/activity-log'
 import { listRoles } from '@/lib/procedure-approval'
 import { ensureSpecialAreaSchema, getApproverSetting, resendAllPending, resolveApprover, saveApproverSetting, type ApproverSetting } from '@/lib/special-area'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
+import { parseSalutation } from '@/lib/salutation'
 
 async function payload() {
   const [{ setting, updatedAt, updatedBy }, approver, roles] = await Promise.all([getApproverSetting(), resolveApprover(), listRoles()])
@@ -52,7 +53,7 @@ export async function PUT(request: NextRequest) {
       if (!name) return NextResponse.json({ message: 'Nama approver wajib diisi.' }, { status: 400 })
       if (!title) return NextResponse.json({ message: 'Jabatan approver wajib diisi.' }, { status: 400 })
       if (email && !isDeliverableEmail(email)) return NextResponse.json({ message: `Email tidak valid. ${EMAIL_HINT}` }, { status: 400 })
-      setting = { mode: 'custom', name, title, email }
+      setting = { mode: 'custom', name, title, email, salutation: parseSalutation(body.salutation) }
     } else {
       return NextResponse.json({ message: 'Mode tidak valid.' }, { status: 400 })
     }

@@ -3,7 +3,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Loader2, Palette, RotateCcw, Save, Sparkles } from 'lucide-react'
+import { Building2, Check, Globe, Loader2, Palette, RotateCcw, Save, ShieldCheck, Sparkles } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
@@ -19,10 +19,22 @@ import {
   type Harmony,
   type NeutralTone,
   type ThemeParams,
+  type ThemeTarget,
   THEME_GROUPS,
+  THEME_TARGETS,
+  THEME_TARGET_LABEL,
+  kioskThemeStorageKey,
 } from '@/lib/theme'
 
-type StoredTheme = { params: ThemeParams; presetId: string | null; updatedAt: string | null; updatedBy: string | null }
+// own: false on Admin Lobby / Pos Security while it follows the portal's theme.
+type StoredTheme = { params: ThemeParams; presetId: string | null; updatedAt: string | null; updatedBy: string | null; own: boolean }
+
+const TARGET_ICON: Record<ThemeTarget, typeof Globe> = { portal: Globe, lobby: Building2, security: ShieldCheck }
+const TARGET_HINT: Record<ThemeTarget, string> = {
+  portal: 'Seluruh halaman portal.',
+  lobby: 'Halaman kiosk Admin Lobby saja.',
+  security: 'Halaman kiosk Pos Security saja.',
+}
 
 const HARMONIES: { id: Harmony; label: string; hint: string }[] = [
   { id: 'complementary', label: 'Komplementer', hint: 'Aksen berseberangan — kontras kuat (seperti teal & oranye asli).' },
@@ -70,18 +82,24 @@ export default function KelolaTemaPage() {
   const [neutral, setNeutral] = useState<NeutralTone>('warm')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
-  const savedRef = useRef<StoredTheme | null>(null)
+  // Whose colours are being set: the portal's, or one guest post's own.
+  const [target, setTarget] = useState<ThemeTarget>('portal')
+  // The portal's saved theme — what this page goes back to on leaving, whatever was previewed.
+  const portalRef = useRef<StoredTheme | null>(null)
 
   const isAdmin = adminUser?.role === 'ism_admin'
 
   useEffect(() => {
     if (!isAdmin) return
-    fetch(`${API_BASE_PATH}/api/theme`, { cache: 'no-store' })
+    setSaved(null)
+    setMessage(null)
+    fetch(`${API_BASE_PATH}/api/theme?target=${target}`, { cache: 'no-store' })
       .then((res) => res.json())
       .then((data: { theme: StoredTheme }) => {
         const theme = data.theme
         setSaved(theme)
-        savedRef.current = theme
+        // a post that follows the portal shows the portal's theme, so it is the portal's either way
+        if (target === 'portal' || !theme.own) portalRef.current = theme
         const p = theme.params
         setHue(p.primaryHue)
         setSaturation(p.primaryChroma)
@@ -90,7 +108,7 @@ export default function KelolaTemaPage() {
         if (theme.presetId) { setMode('preset'); setPresetId(theme.presetId) } else { setMode('custom') }
       })
       .catch(() => setMessage({ tone: 'error', text: 'Gagal memuat tema saat ini.' }))
-  }, [isAdmin])
+  }, [isAdmin, target])
 
   const params: ThemeParams = useMemo(() => {
     if (mode === 'preset') return THEME_PRESETS.find((p) => p.id === presetId)?.params ?? DEFAULT_THEME
@@ -110,12 +128,14 @@ export default function KelolaTemaPage() {
     if (saved) applyThemeVars(computeThemeVars(params))
   }, [params, saved])
 
-  // Leaving without saving puts the saved site theme back.
+  // Leaving puts the portal's saved theme back (a post's theme was only a preview here).
   useEffect(() => () => {
-    if (savedRef.current) applyThemeVars(computeThemeVars(savedRef.current.params))
+    if (portalRef.current) { applyThemeVars(computeThemeVars(portalRef.current.params)); return }
+    try { applyThemeVars(JSON.parse(localStorage.getItem(THEME_STORAGE_KEY) || '{}')) } catch { /* storage unavailable */ }
   }, [])
 
-  const isDirty = saved !== null && JSON.stringify(params) !== JSON.stringify(saved.params)
+  // A post that still follows the portal can be given the very same colours as its own.
+  const isDirty = saved !== null && (JSON.stringify(params) !== JSON.stringify(saved.params) || (target !== 'portal' && !saved.own))
 
   const save = async () => {
     setSaving(true)
@@ -125,14 +145,44 @@ export default function KelolaTemaPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ params, presetId: mode === 'preset' ? presetId : null }),
+        body: JSON.stringify({ params, presetId: mode === 'preset' ? presetId : null, target }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan tema.')
       setSaved(data.theme)
-      savedRef.current = data.theme
-      try { localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(computeThemeVars(data.theme.params))) } catch { /* storage unavailable */ }
-      setMessage({ tone: 'ok', text: 'Tema disimpan — semua pengguna akan melihat warna ini saat membuka portal.' })
+      const vars = JSON.stringify(computeThemeVars(data.theme.params))
+      if (target === 'portal') {
+        portalRef.current = data.theme
+        try { localStorage.setItem(THEME_STORAGE_KEY, vars) } catch { /* storage unavailable */ }
+        setMessage({ tone: 'ok', text: 'Tema disimpan — semua pengguna akan melihat warna ini saat membuka portal.' })
+      } else {
+        try { localStorage.setItem(kioskThemeStorageKey(target), vars) } catch { /* storage unavailable */ }
+        setMessage({ tone: 'ok', text: `Tema ${THEME_TARGET_LABEL[target]} disimpan — halaman ${THEME_TARGET_LABEL[target]} memakai warna ini, portal tidak berubah.` })
+      }
+    } catch (e) {
+      setMessage({ tone: 'error', text: e instanceof Error ? e.message : 'Terjadi kesalahan.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Admin Lobby / Pos Security: drop its own theme and follow the portal's again.
+  const followPortal = async () => {
+    if (target === 'portal') return
+    setSaving(true)
+    setMessage(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/theme?target=${target}`, { method: 'DELETE', credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Gagal mengembalikan tema.')
+      const theme = data.theme as StoredTheme
+      setSaved(theme)
+      portalRef.current = theme
+      try { localStorage.removeItem(kioskThemeStorageKey(target)) } catch { /* storage unavailable */ }
+      const p = theme.params
+      setHue(p.primaryHue); setSaturation(p.primaryChroma); setHarmony(guessHarmony(p)); setNeutral(guessNeutral(p))
+      if (theme.presetId) { setMode('preset'); setPresetId(theme.presetId) } else { setMode('custom') }
+      setMessage({ tone: 'ok', text: `${THEME_TARGET_LABEL[target]} kembali mengikuti tema portal.` })
     } catch (e) {
       setMessage({ tone: 'error', text: e instanceof Error ? e.message : 'Terjadi kesalahan.' })
     } finally {
@@ -165,6 +215,46 @@ export default function KelolaTemaPage() {
           </p>
         </div>
       </header>
+
+      {/* Whose theme: the portal's, or a guest post's own. */}
+      <section aria-label="Tema untuk" className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <p className="portal-eyebrow mb-3">Tema untuk</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {THEME_TARGETS.map((item) => {
+            const Icon = TARGET_ICON[item]
+            const active = target === item
+            return (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setTarget(item)}
+                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${active ? 'border-primary bg-primary/[0.06] ring-2 ring-primary/20' : 'border-border hover:bg-secondary/40'}`}
+              >
+                <span className={`grid size-9 flex-none place-items-center rounded-lg ${active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}><Icon className="size-4" /></span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-foreground">{THEME_TARGET_LABEL[item]}</span>
+                  <span className="block text-xs text-muted-foreground">{TARGET_HINT[item]}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        {target !== 'portal' && saved && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary/40 px-4 py-3" data-testid="kiosk-theme-state">
+            <p className="text-xs text-muted-foreground">
+              {saved.own
+                ? <><strong className="text-foreground">{THEME_TARGET_LABEL[target]} memakai temanya sendiri.</strong> Mengubah tema portal tidak mengubah halaman ini.</>
+                : <><strong className="text-foreground">{THEME_TARGET_LABEL[target]} mengikuti tema portal.</strong> Pilih warna di bawah lalu simpan untuk memberinya tema sendiri.</>}
+            </p>
+            {saved.own && (
+              <button type="button" onClick={followPortal} disabled={saving} className="rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50">
+                Ikuti tema portal
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
       {!saved ? (
         <div className="rounded-2xl border border-border bg-card p-12 text-center text-sm text-muted-foreground"><Loader2 className="mx-auto mb-3 size-6 animate-spin" />Memuat tema…</div>
@@ -352,7 +442,7 @@ export default function KelolaTemaPage() {
                 disabled={!isDirty || saving}
                 className="inline-flex items-center gap-1.5 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground transition disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Simpan untuk semua
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} {target === 'portal' ? 'Simpan untuk semua' : `Simpan untuk ${THEME_TARGET_LABEL[target]}`}
               </button>
             </div>
           </div>

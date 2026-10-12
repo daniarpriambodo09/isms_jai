@@ -16,11 +16,12 @@ import { ensureApprovalSchema, listPendingSteps, listRoles, reassignRole, syncRo
 import { DOC_KINDS, docKindInfo, isDocKind, type DocKind } from '@/lib/document-kinds'
 import { getApproverSetting } from '@/lib/special-area'
 import { checkAppUrl } from '@/lib/app-url-check'
+import { parseSalutation } from '@/lib/salutation'
 
 const kindOf = (value: unknown): DocKind => (isDocKind(value) ? value : 'procedure')
 
 
-type RoleInput = { title: string; personName: string; initials: string | null; email: string | null; sortOrder: number; isDefault: boolean }
+type RoleInput = { title: string; personName: string; salutation: string | null; initials: string | null; email: string | null; sortOrder: number; isDefault: boolean }
 
 function parseRole(body: Record<string, unknown>): RoleInput | string {
   const title = typeof body.title === 'string' ? body.title.trim() : ''
@@ -36,7 +37,8 @@ function parseRole(body: Record<string, unknown>): RoleInput | string {
   if (initials && !/^[A-Z0-9]{2,5}$/.test(initials)) return 'Inisial 2–5 huruf/angka tanpa spasi, mis. TWC.'
   if (email && !isDeliverableEmail(email)) return `Email tidak valid. ${EMAIL_HINT}`
   if (!Number.isInteger(sortOrder) || sortOrder < 1 || sortOrder > 99) return 'Urutan harus angka 1–99.'
-  return { title, personName, initials, email, sortOrder, isDefault: body.isDefault === true }
+  // How the holder is addressed in e-mails ("Dear Bapak …,").
+  return { title, personName, salutation: parseSalutation(body.salutation), initials, email, sortOrder, isDefault: body.isDefault === true }
 }
 
 export async function GET(request: NextRequest) {
@@ -82,9 +84,9 @@ export async function POST(request: NextRequest) {
     }
 
     await query(
-      `INSERT INTO procedure_approver_roles (code, kind, title, person_name, email, sort_order, is_default, updated_by, initials)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [code, kind, parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username, parsed.initials]
+      `INSERT INTO procedure_approver_roles (code, kind, title, person_name, email, sort_order, is_default, updated_by, initials, salutation)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [code, kind, parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username, parsed.initials, parsed.salutation]
     )
     await logActivity(session, 'create', 'procedure_approver_role', code, `Menambahkan jabatan pengesahan ${docKindInfo(kind).label} "${parsed.title}" (${parsed.personName})`)
     return NextResponse.json({ roles: await listRoles(kind) }, { status: 201 })
@@ -110,9 +112,9 @@ export async function PUT(request: NextRequest) {
 
     await query(
       `UPDATE procedure_approver_roles
-       SET title = $1, person_name = $2, email = $3, sort_order = $4, is_default = $5, updated_at = now(), updated_by = $6, initials = $8
+       SET title = $1, person_name = $2, email = $3, sort_order = $4, is_default = $5, updated_at = now(), updated_by = $6, initials = $8, salutation = $9
        WHERE code = $7`,
-      [parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username, code, parsed.initials]
+      [parsed.title, parsed.personName, parsed.email, parsed.sortOrder, parsed.isDefault, session.username, code, parsed.initials, parsed.salutation]
     )
     // Steps not signed yet print the new initials.
     await syncRoleInitials(code)

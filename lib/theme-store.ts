@@ -1,7 +1,7 @@
 // lib/theme-store.ts
 import 'server-only'
 import { query } from '@/lib/db'
-import { DEFAULT_THEME, sanitizeThemeParams, type ThemeParams } from '@/lib/theme'
+import { DEFAULT_THEME, sanitizeThemeParams, type ThemeParams, type ThemeTarget } from '@/lib/theme'
 
 // Generic key/value settings table. Created on first use so a deploy
 // doesn't need a separate migration step for it.
@@ -19,30 +19,47 @@ async function ensureTable() {
   ensured = true
 }
 
-export type StoredTheme = { params: ThemeParams; presetId: string | null; updatedAt: string | null; updatedBy: string | null }
+// own: false on a post (lobby / security) that has no theme of its own — it
+// then shows the portal's, which is what params / presetId hold.
+export type StoredTheme = { params: ThemeParams; presetId: string | null; updatedAt: string | null; updatedBy: string | null; own: boolean }
 
-export async function getTheme(): Promise<StoredTheme> {
-  await ensureTable()
+const KEY: Record<ThemeTarget, string> = { portal: 'theme', lobby: 'theme_lobby', security: 'theme_security' }
+
+async function readTheme(target: ThemeTarget) {
   const result = await query<{ value: { params?: unknown; presetId?: string | null }; updated_at: string; updated_by: string | null }>(
-    `SELECT value, updated_at, updated_by FROM app_settings WHERE key = 'theme'`
+    'SELECT value, updated_at, updated_by FROM app_settings WHERE key = $1', [KEY[target]]
   )
   const row = result.rows[0]
   const params = row ? sanitizeThemeParams(row.value.params) : null
-  return {
-    params: params ?? DEFAULT_THEME,
-    presetId: params ? (row!.value.presetId ?? null) : 'teal-klasik',
-    updatedAt: row?.updated_at ?? null,
-    updatedBy: row?.updated_by ?? null,
-  }
+  return params ? { params, presetId: row!.value.presetId ?? null, updatedAt: row!.updated_at, updatedBy: row!.updated_by } : null
 }
 
-export async function saveTheme(params: ThemeParams, presetId: string | null, username: string): Promise<StoredTheme> {
+export async function getTheme(target: ThemeTarget = 'portal'): Promise<StoredTheme> {
+  await ensureTable()
+  if (target !== 'portal') {
+    const own = await readTheme(target)
+    if (own) return { ...own, own: true }
+  }
+  const portal = await readTheme('portal')
+  return portal
+    ? { ...portal, own: target === 'portal' }
+    : { params: DEFAULT_THEME, presetId: 'teal-klasik', updatedAt: null, updatedBy: null, own: target === 'portal' }
+}
+
+export async function saveTheme(params: ThemeParams, presetId: string | null, username: string, target: ThemeTarget = 'portal'): Promise<StoredTheme> {
   await ensureTable()
   await query(
     `INSERT INTO app_settings (key, value, updated_at, updated_by)
-     VALUES ('theme', $1, now(), $2)
+     VALUES ($3, $1, now(), $2)
      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now(), updated_by = EXCLUDED.updated_by`,
-    [JSON.stringify({ params, presetId }), username]
+    [JSON.stringify({ params, presetId }), username, KEY[target]]
   )
-  return getTheme()
+  return getTheme(target)
+}
+
+/** A post goes back to following the portal's theme. */
+export async function clearKioskTheme(target: Exclude<ThemeTarget, 'portal'>): Promise<StoredTheme> {
+  await ensureTable()
+  await query('DELETE FROM app_settings WHERE key = $1', [KEY[target]])
+  return getTheme(target)
 }

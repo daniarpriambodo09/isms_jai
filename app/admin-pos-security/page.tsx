@@ -5,6 +5,7 @@
 import { Suspense, useRef, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { KioskLoginForm } from '@/components/kiosk/KioskLoginForm'
+import { KioskTheme } from '@/components/kiosk/KioskTheme'
 import { SecurityView } from '@/components/kiosk/SecurityView'
 import { LobbyView } from '@/components/kiosk/LobbyView'
 import { StationOff, StationNotice, useKioskStations } from '@/components/kiosk/kiosk-stations-ui'
@@ -41,6 +42,7 @@ function AdminPosSecurityContent() {
 export default function AdminPosSecurityPage() {
   return (
     <Suspense fallback={<div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Memuat...</div>}>
+      <KioskTheme station="security" />
       <AdminPosSecurityContent />
     </Suspense>
   )

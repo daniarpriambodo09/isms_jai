@@ -228,6 +228,18 @@ export function sanitizeThemeParams(raw: unknown): ThemeParams | null {
 
 export const THEME_STORAGE_KEY = 'isms-theme-vars'
 
+// Whose colours: the portal, or one of the two guest posts. A post either
+// follows the portal's theme or has its own (Kelola Tema).
+export const THEME_TARGETS = ['portal', 'lobby', 'security'] as const
+export type ThemeTarget = (typeof THEME_TARGETS)[number]
+export type KioskThemeTarget = Exclude<ThemeTarget, 'portal'>
+export const THEME_TARGET_LABEL: Record<ThemeTarget, string> = { portal: 'Portal', lobby: 'Admin Lobby', security: 'Pos Security' }
+export const isThemeTarget = (value: unknown): value is ThemeTarget => typeof value === 'string' && (THEME_TARGETS as readonly string[]).includes(value)
+/** Cache of a post's own colours, so its page paints them at once on the next visit. */
+export const kioskThemeStorageKey = (target: KioskThemeTarget) => `isms-theme-vars-${target}`
+/** Set on <html> while a post's own theme is showing — the portal theme then leaves the page alone. */
+export const KIOSK_THEME_ATTR = 'data-kiosk-theme'
+
 // Inlined into <head> by app/layout.tsx: paints the cached theme before first
 // paint so there's no flash of the default colors. Plain, dependency-free JS.
 export const THEME_BOOT_SCRIPT = `try{var v=JSON.parse(localStorage.getItem('${THEME_STORAGE_KEY}')||'{}');for(var k in v){document.documentElement.style.setProperty(k,v[k])}}catch(e){}`

@@ -24,6 +24,7 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
   const [fullName, setFullName] = useState('')
   const [title, setTitle] = useState('')
   const [email, setEmail] = useState('')
+  const [salutation, setSalutation] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,6 +40,7 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
         setFullName(data.approver?.fullName ?? '')
         setTitle(data.approver?.title ?? '')
         setEmail(data.approver?.email ?? '')
+        setSalutation((data.approver as { salutation?: string | null } | null)?.salutation ?? '')
       })
       .catch(() => setError('Gagal memuat data approver.'))
       .finally(() => setLoading(false))
@@ -51,7 +53,7 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
       const res = await fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName: fullName.trim(), title: title.trim(), email: email.trim() }),
+        body: JSON.stringify({ fullName: fullName.trim(), title: title.trim(), email: email.trim(), salutation }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Gagal menyimpan approver.')
@@ -95,6 +97,15 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
                 <p className="py-6 text-center text-sm text-muted-foreground">Memuat...</p>
               ) : (
                 <div className="flex flex-col gap-3.5">
+                  <label>
+                    <span className={labelClass}>Sapaan di email</span>
+                    <select value={salutation} onChange={(e) => setSalutation(e.target.value)} aria-label="Sapaan di email" className={inputClass}>
+                      <option value="">Tanpa sapaan</option>
+                      <option value="Bapak">Bapak</option>
+                      <option value="Ibu">Ibu</option>
+                    </select>
+                    <span className="mt-1 block text-[11px] text-muted-foreground">Email pengajuan dibuka dengan &quot;Dear {salutation ? `${salutation} ` : ''}{fullName.trim() || 'Nama'},&quot;</span>
+                  </label>
                   <label>
                     <span className={labelClass}>Nama Lengkap</span>
                     <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Contoh: Teguh Sunjoyo" className={inputClass} />

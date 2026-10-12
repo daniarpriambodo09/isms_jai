@@ -31,7 +31,7 @@ type DocumentRow = {
   approval_status: string
   public_visible: boolean
   review_form_path: string | null
-  approver_overrides: Record<string, { name: string; email: string }>
+  approver_overrides: Record<string, { name: string; email: string; salutation?: string | null }>
   review_roles: string[]
 }
 

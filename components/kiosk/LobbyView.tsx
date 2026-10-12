@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Briefcase, Camera, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldAlert, ShieldCheck, Search, Sparkles, Trash2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
+import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
@@ -91,13 +92,13 @@ function statusOf(r: Registration): { key: string; label: string } {
   return { key: 'visitor', label: 'Kartu Visitor' }
 }
 
-function QuickCardModal({ cardType, station, onClose, onSaved }: { cardType: QuickCardType; station: 'lobby' | 'security'; onClose: () => void; onSaved: () => void }) {
+function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSaved }: { cardType: QuickCardType; station: 'lobby' | 'security'; initialBarcode?: string; onClose: () => void; onSaved: () => void }) {
   const [fullName, setFullName] = useState('')
   const [idCard, setIdCard] = useState('')
   const [picJai, setPicJai] = useState('')
   const [purpose, setPurpose] = useState('')
   const [companyRemark, setCompanyRemark] = useState('')
-  const [barcode, setBarcode] = useState('')
+  const [barcode, setBarcode] = useState(initialBarcode)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const label = QUICK_CARD_LABEL[cardType]
@@ -203,6 +204,11 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   const [editCompanyRemark, setEditCompanyRemark] = useState(registration.company_remark)
   const [editError, setEditError] = useState<string | null>(null)
   const [editSaving, setEditSaving] = useState(false)
+  // Picking VISITOR / VENDOR must not take the cursor away from the scan field.
+  const swapInputRef = useRef<HTMLInputElement>(null)
+  const onEnter = (run: () => void) => (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') { event.preventDefault(); if (!submitting) run() }
+  }
   const status = statusOf(registration)
   const isAffiliate = registration.current_card_type === 'affiliate' || Boolean(registration.affiliate_card_barcode)
 
@@ -353,7 +359,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setSwapTarget(type)}
+                  onClick={() => { setSwapTarget(type); swapInputRef.current?.focus() }}
                   className="rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all"
                   style={
                     swapTarget === type
@@ -367,7 +373,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
             </div>
             <div className="relative">
               <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder={`Scan barcode kartu ${WORK_AREA_LABEL[swapTarget]}...`} className={`${inputClass} pl-10`} />
+              <input ref={swapInputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('swapToWorkArea', swapTarget))} autoFocus placeholder={`Scan barcode kartu ${WORK_AREA_LABEL[swapTarget]}...`} className={`${inputClass} pl-10`} />
             </div>
             <button type="button" disabled={submitting} onClick={() => runAction('swapToWorkArea', swapTarget)} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
               {submitting ? 'Memproses...' : 'Tukar Kartu'}
@@ -388,7 +394,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
               )}
               <div className="relative">
                 <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan barcode kartu Visitor yang dikembalikan..." className={`${inputClass} pl-10`} />
+                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('returnDirect'))} placeholder="Scan barcode kartu Visitor yang dikembalikan..." className={`${inputClass} pl-10`} />
               </div>
               {trimmed && (
                 matches
@@ -419,7 +425,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
               )}
               <div className="relative">
                 <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan barcode kartu yang dikembalikan..." className={`${inputClass} pl-10`} />
+                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('returnWorkArea'))} autoFocus placeholder="Scan barcode kartu yang dikembalikan..." className={`${inputClass} pl-10`} />
               </div>
               {trimmed && (
                 matches
@@ -446,7 +452,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
               )}
               <div className="relative">
                 <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan barcode kartu Affiliate yang dikembalikan..." className={`${inputClass} pl-10`} />
+                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('returnDirect'))} autoFocus placeholder="Scan barcode kartu Affiliate yang dikembalikan..." className={`${inputClass} pl-10`} />
               </div>
               {trimmed && (
                 matches
@@ -484,10 +490,10 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Registration | null>(null)
-  const [searchBarcode, setSearchBarcode] = useState('')
-  const [searchError, setSearchError] = useState<string | null>(null)
-  const [searching, setSearching] = useState(false)
   const [quickCardOpen, setQuickCardOpen] = useState<QuickCardType | null>(null)
+  // a card scanned at "Scan Kartu" that nobody holds: the number to register a new guest with
+  const [quickCardBarcode, setQuickCardBarcode] = useState('')
+  const [scanFocusKey, setScanFocusKey] = useState(0)
   const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
@@ -497,7 +503,6 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
   const permitCards = usePermitCards()
 
   // silent = background refresh (no spinner, keeps the current list on a
@@ -571,25 +576,6 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         formatDateTime(r.exit_at),
       ])
     )
-  }
-
-  const handleSearch = async (event: FormEvent) => {
-    event.preventDefault()
-    if (!searchBarcode.trim()) return
-    setSearchError(null)
-    setSearching(true)
-    try {
-      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/search?barcode=${encodeURIComponent(searchBarcode.trim())}`, { cache: 'no-store', credentials: 'include' })
-      const data = await res.json()
-      if (!res.ok) { setSearchError(data.message ?? 'Tidak ditemukan.'); setSelected(null); return }
-      setSelected(data.registration)
-      setSearchBarcode('')
-      searchInputRef.current?.focus()
-    } catch {
-      setSearchError('Tidak dapat menghubungi server.')
-    } finally {
-      setSearching(false)
-    }
   }
 
   const confirmDelete = async () => {
@@ -670,29 +656,22 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        {/* First thing on the page: scan a card, the guest it belongs to is handled — no searching the list. */}
+        <ScanCardBox
+          station={station}
+          focusKey={scanFocusKey}
+          onChanged={load}
+          onSwap={setSelected}
+          registerOptions={QUICK_REGISTER_TYPES.map((type) => ({ label: `Daftarkan ${QUICK_CARD_LABEL[type]}`, onPick: (code: string) => { setQuickCardBarcode(code); setQuickCardOpen(type) } }))}
+        />
+        {selected && (
+          <div ref={detailRef} className="mb-6 scroll-mt-4">
+            <DetailPanel registration={selected} onClose={() => { setSelected(null); setScanFocusKey((key) => key + 1) }} onChanged={() => { load(); setScanFocusKey((key) => key + 1) }} />
+          </div>
+        )}
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
-
-        <div className="mb-6 rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <p className="portal-eyebrow mb-2">Scan Kartu Tamu</p>
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input ref={searchInputRef} value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} autoFocus placeholder="Scan atau ketik barcode kartu tamu..." className={`${inputClass} pl-10`} />
-            </div>
-            <button type="submit" disabled={searching} className="rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
-              Cari
-            </button>
-          </form>
-          {searchError && <p className="mt-3 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{searchError}</p>}
-        </div>
-
-        {selected && (
-          <div ref={detailRef} className="mb-6 scroll-mt-4">
-            <DetailPanel registration={selected} onClose={() => setSelected(null)} onChanged={load} />
-          </div>
-        )}
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -710,7 +689,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setQuickCardOpen(type)}
+                  onClick={() => { setQuickCardBarcode(''); setQuickCardOpen(type) }}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5 sm:px-4"
                 >
                   <Icon className="size-4" />Daftarkan {QUICK_CARD_LABEL[type]}
@@ -905,7 +884,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         </div>
       </main>
 
-      {quickCardOpen && <QuickCardModal cardType={quickCardOpen} station={station} onClose={() => setQuickCardOpen(null)} onSaved={load} />}
+      {quickCardOpen && <QuickCardModal cardType={quickCardOpen} station={station} initialBarcode={quickCardBarcode} onClose={() => { setQuickCardOpen(null); setScanFocusKey((key) => key + 1) }} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
       <ConfirmDialog
         open={!!pendingDelete}

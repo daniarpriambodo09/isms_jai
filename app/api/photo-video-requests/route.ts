@@ -237,8 +237,8 @@ export async function POST(request: NextRequest) {
 // already succeeded (the DB row is the source of truth either way).
 async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approval_token: string | null }) {
   try {
-    const picResult = await query<{ email: string | null; full_name: string | null; name: string }>(
-      `SELECT email, full_name, name FROM pic_approvers WHERE id = $1`,
+    const picResult = await query<{ email: string | null; full_name: string | null; name: string; salutation: string | null }>(
+      `SELECT email, full_name, name, salutation FROM pic_approvers WHERE id = $1`,
       [requestRow.pic_approve_id]
     )
     const pic = picResult.rows[0]
@@ -254,6 +254,7 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
 
     const { subject, html } = buildVisitorApprovalEmail({
       approverName: pic.full_name ?? pic.name,
+      approverSalutation: pic.salutation,
       requesterName: requestRow.requester_name,
       deptOrCompany: requestRow.dept_or_company,
       dept: requestRow.dept,

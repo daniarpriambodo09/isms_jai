@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { API_BASE_PATH } from '@/lib/config'
-import { applyThemeVars, computeThemeVars, THEME_STORAGE_KEY, type ThemeParams } from '@/lib/theme'
+import { applyThemeVars, computeThemeVars, KIOSK_THEME_ATTR, THEME_STORAGE_KEY, type ThemeParams } from '@/lib/theme'
 
 // The inline script in app/layout.tsx paints the last-known theme from
 // localStorage before first paint (no flash of the default colors). This
@@ -16,7 +16,8 @@ export function ThemeApplier() {
       .then((data: { theme?: { params: ThemeParams } } | null) => {
         if (cancelled || !data?.theme) return
         const vars = computeThemeVars(data.theme.params)
-        applyThemeVars(vars)
+        // A guest post showing its own theme (KioskTheme) keeps it; the portal's is only cached.
+        if (!document.documentElement.hasAttribute(KIOSK_THEME_ATTR)) applyThemeVars(vars)
         try { localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(vars)) } catch { /* storage unavailable */ }
       })
       .catch(() => {})

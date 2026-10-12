@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { Loader2, Mail, Pencil, UserCheck, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 
-type Setting = { mode: 'role'; roleCode: string } | { mode: 'custom'; name: string; title: string; email: string | null }
+type Setting = { mode: 'role'; roleCode: string } | { mode: 'custom'; name: string; title: string; email: string | null; salutation?: string | null }
 type Role = { code: string; title: string; person_name: string; email: string | null }
 type Data = { setting: Setting; approver: { name: string | null; title: string | null; email: string | null; source: string }; roles: Role[]; updatedAt: string | null; updatedBy: string | null }
 
@@ -22,6 +22,7 @@ export function SpecialAreaApproverCard({ onChanged }: { onChanged?: () => void 
   const [name, setName] = useState('')
   const [title, setTitle] = useState('')
   const [email, setEmail] = useState('')
+  const [salutation, setSalutation] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -36,8 +37,8 @@ export function SpecialAreaApproverCard({ onChanged }: { onChanged?: () => void 
     if (!data) return
     const s = data.setting
     setMode(s.mode)
-    if (s.mode === 'role') { setRoleCode(s.roleCode); setName(''); setTitle(''); setEmail('') }
-    else { setName(s.name); setTitle(s.title); setEmail(s.email ?? '') }
+    if (s.mode === 'role') { setRoleCode(s.roleCode); setName(''); setTitle(''); setEmail(''); setSalutation('') }
+    else { setName(s.name); setTitle(s.title); setEmail(s.email ?? ''); setSalutation(s.salutation ?? '') }
     setMessage(null)
     setEditing(true)
   }
@@ -49,7 +50,7 @@ export function SpecialAreaApproverCard({ onChanged }: { onChanged?: () => void 
       const res = await fetch(`${API_BASE_PATH}/api/special-area-requests/approver`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mode === 'role' ? { mode, roleCode } : { mode, name, title, email }),
+        body: JSON.stringify(mode === 'role' ? { mode, roleCode } : { mode, name, title, email, salutation }),
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.message ?? 'Gagal menyimpan.')
@@ -109,7 +110,14 @@ export function SpecialAreaApproverCard({ onChanged }: { onChanged?: () => void 
               {selectedRole && !selectedRole.email && <span className="text-xs text-destructive">Email {selectedRole.person_name} belum diisi di Approver Pengesahan.</span>}
             </label>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-[auto_1fr_1fr_1fr]">
+              <label className="flex flex-col gap-1.5"><span className="text-xs font-semibold text-muted-foreground">Sapaan di email</span>
+                <select value={salutation} onChange={(e) => setSalutation(e.target.value)} aria-label="Sapaan di email" className={input}>
+                  <option value="">Tanpa sapaan</option>
+                  <option value="Bapak">Bapak</option>
+                  <option value="Ibu">Ibu</option>
+                </select>
+              </label>
               <label className="flex flex-col gap-1.5"><span className="text-xs font-semibold text-muted-foreground">Nama</span><input value={name} onChange={(e) => setName(e.target.value)} className={input} /></label>
               <label className="flex flex-col gap-1.5"><span className="text-xs font-semibold text-muted-foreground">Jabatan (tercetak di form)</span><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Information Assets Administrator" className={input} /></label>
               <label className="flex flex-col gap-1.5"><span className="text-xs font-semibold text-muted-foreground">Email</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@jai.co.id" className={input} /></label>

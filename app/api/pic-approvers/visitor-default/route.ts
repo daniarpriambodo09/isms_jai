@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { parseSalutation } from '@/lib/salutation'
 
-type VisitorDefaultRow = { id: number; name: string; full_name: string | null; title: string | null; email: string | null; updated_at: string | null }
+type VisitorDefaultRow = { id: number; name: string; full_name: string | null; title: string | null; email: string | null; salutation: string | null; updated_at: string | null }
 
 // Public — the Visitor Ijin Foto/Video form needs the approver's display
 // name/title to show who the request is routed to; the email address is
@@ -13,7 +14,7 @@ type VisitorDefaultRow = { id: number; name: string; full_name: string | null; t
 export async function GET(request: NextRequest) {
   try {
     const result = await query<VisitorDefaultRow>(
-      `SELECT id, name, full_name, title, email, created_at AS updated_at FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`
+      `SELECT id, name, full_name, title, email, salutation, created_at AS updated_at FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`
     )
     const row = result.rows[0] ?? null
     const isAdmin = !!getIsmsAdminFromRequest(request)
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
         fullName: row.full_name,
         title: row.title,
         email: isAdmin ? row.email : null,
+        salutation: row.salutation,
       },
     })
   } catch (error) {
@@ -61,6 +63,8 @@ export async function PUT(request: NextRequest) {
     const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : ''
     const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : null
     const email = typeof body.email === 'string' ? body.email.trim() : ''
+    // How the approver is addressed in the e-mail ("Dear Bapak …,").
+    const salutation = parseSalutation(body.salutation)
 
     if (!fullName) return NextResponse.json({ message: 'Nama lengkap wajib diisi.' }, { status: 400 })
     if (!email) return NextResponse.json({ message: 'Email wajib diisi.' }, { status: 400 })
@@ -69,20 +73,20 @@ export async function PUT(request: NextRequest) {
     const existing = await query<{ id: number }>('SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1')
     const result = existing.rows[0]
       ? await query<VisitorDefaultRow>(
-          `UPDATE pic_approvers SET full_name = $2, title = $3, email = $4
-           WHERE id = $1 RETURNING id, name, full_name, title, email, created_at AS updated_at`,
-          [existing.rows[0].id, fullName, title, email]
+          `UPDATE pic_approvers SET full_name = $2, title = $3, email = $4, salutation = $5
+           WHERE id = $1 RETURNING id, name, full_name, title, email, salutation, created_at AS updated_at`,
+          [existing.rows[0].id, fullName, title, email, salutation]
         )
       : await query<VisitorDefaultRow>(
-          `INSERT INTO pic_approvers (name, department_id, full_name, title, email, is_visitor_default)
-           VALUES ($1, NULL, $2, $3, $4, true)
-           RETURNING id, name, full_name, title, email, created_at AS updated_at`,
-          [deriveCode(fullName), fullName, title, email]
+          `INSERT INTO pic_approvers (name, department_id, full_name, title, email, is_visitor_default, salutation)
+           VALUES ($1, NULL, $2, $3, $4, true, $5)
+           RETURNING id, name, full_name, title, email, salutation, created_at AS updated_at`,
+          [deriveCode(fullName), fullName, title, email, salutation]
         )
 
     const row = result.rows[0]
     await logActivity(session, 'update', 'pic_approvers', row.id, `Mengatur approver default Visitor: ${fullName}`)
-    return NextResponse.json({ approver: { id: row.id, fullName: row.full_name, title: row.title, email: row.email } })
+    return NextResponse.json({ approver: { id: row.id, fullName: row.full_name, title: row.title, email: row.email, salutation: row.salutation } })
   } catch (error) {
     console.error('[pic-approvers/visitor-default/PUT]', error)
     return NextResponse.json({ message: 'Gagal menyimpan approver visitor.' }, { status: 500 })

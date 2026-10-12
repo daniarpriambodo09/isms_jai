@@ -24,9 +24,9 @@ import { useEscapeClose } from '@/hooks/useEscapeClose'
 type Step = { role_code: string; role_title: string; status: string; approver_name: string | null; decided_at: string | null }
 type Doc = { id: number; control_no: string; title: string; revision: number; elf_date: string; note: string | null; approval_roles: string[]; approver_overrides?: Record<string, Person>; review_roles?: string[]; approval_status: 'none' | 'pending' | 'approved' | 'rejected'; review_form_path?: string | null; approvals: Step[] }
 type Role = { code: string; title: string; person_name: string | null; email: string | null; is_default?: boolean }
-type Person = { name: string; email: string }
+type Person = { name: string; email: string; salutation?: string | null }
 const EMAIL = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i
-const peopleKey = (value: Record<string, Person>) => JSON.stringify(Object.keys(value).sort().map((code) => [code, value[code].name.trim(), value[code].email.trim().toLowerCase()]))
+const peopleKey = (value: Record<string, Person>) => JSON.stringify(Object.keys(value).sort().map((code) => [code, value[code].name.trim(), value[code].email.trim().toLowerCase(), value[code].salutation ?? '']))
 type Kind = 'procedure' | 'tmmin_standard'
 type Row = Doc & { kind: Kind }
 const keyOf = (row: Row) => `${row.kind}-${row.id}`
@@ -87,10 +87,15 @@ function RolePicker({ legend, hint, roles, selected, onToggle, people, setPeople
                   </div>
                 )}
                 {checked && open && (
-                  <div className="ml-6 mt-2 grid gap-2 sm:grid-cols-2" data-testid={`person-${role.code}`}>
-                    <input value={person?.name ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: event.target.value, email: current[role.code]?.email ?? '' } }))} placeholder="Nama approver" aria-label={`Nama approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
-                    <input value={person?.email ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: current[role.code]?.name ?? '', email: event.target.value } }))} placeholder="nama@jai.co.id" type="email" aria-label={`Email approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
-                    <p className="text-[11px] text-muted-foreground sm:col-span-2">Hanya untuk dokumen ini — jabatan {role.code} di dokumen lain tetap {(role.person_name || 'orang default-nya').replace(/\.$/, '')}.{' '}
+                  <div className="ml-6 mt-2 grid gap-2 sm:grid-cols-[auto_1fr_1fr]" data-testid={`person-${role.code}`}>
+                    <select value={person?.salutation ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { name: current[role.code]?.name ?? '', email: current[role.code]?.email ?? '', salutation: event.target.value || null } }))} aria-label={`Sapaan approver ${role.code}`} title="Sapaan di email: Dear Bapak … / Dear Ibu …" className="h-9 rounded-lg border border-border bg-background px-2 text-xs outline-none focus:border-primary">
+                      <option value="">Tanpa sapaan</option>
+                      <option value="Bapak">Bapak</option>
+                      <option value="Ibu">Ibu</option>
+                    </select>
+                    <input value={person?.name ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { ...current[role.code], name: event.target.value, email: current[role.code]?.email ?? '' } }))} placeholder="Nama approver" aria-label={`Nama approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
+                    <input value={person?.email ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { ...current[role.code], name: current[role.code]?.name ?? '', email: event.target.value } }))} placeholder="nama@jai.co.id" type="email" aria-label={`Email approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
+                    <p className="text-[11px] text-muted-foreground sm:col-span-3">Hanya untuk dokumen ini — jabatan {role.code} di dokumen lain tetap {(role.person_name || 'orang default-nya').replace(/\.$/, '')}.{' '}
                       <button type="button" onClick={() => { setEditingPerson(null); if (!role.email) return; setPeople((current) => { const next = { ...current }; if (!next[role.code]?.name.trim() && !next[role.code]?.email.trim()) delete next[role.code]; return next }) }} className="font-semibold text-primary hover:underline">Selesai</button>
                     </p>
                   </div>

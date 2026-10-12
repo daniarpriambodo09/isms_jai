@@ -95,7 +95,9 @@ function RolePicker({ legend, hint, roles, selected, onToggle, people, setPeople
                     </select>
                     <input value={person?.name ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { ...current[role.code], name: event.target.value, email: current[role.code]?.email ?? '' } }))} placeholder="Nama approver" aria-label={`Nama approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
                     <input value={person?.email ?? ''} onChange={(event) => setPeople((current) => ({ ...current, [role.code]: { ...current[role.code], name: current[role.code]?.name ?? '', email: event.target.value } }))} placeholder="nama@jai.co.id" type="email" aria-label={`Email approver ${role.code}`} className="h-9 rounded-lg border border-border bg-background px-3 text-xs outline-none focus:border-primary" />
-                    <p className="text-[11px] text-muted-foreground sm:col-span-3">Hanya untuk dokumen ini — jabatan {role.code} di dokumen lain tetap {(role.person_name || 'orang default-nya').replace(/\.$/, '')}.{' '}
+                    <p className="text-[11px] text-muted-foreground sm:col-span-3">{role.email
+                      ? <>Hanya untuk dokumen ini — jabatan {role.code} di dokumen lain tetap {(role.person_name || 'orang default-nya').replace(/\.$/, '')}.</>
+                      : <>Jabatan {role.code} belum punya email di Approver Pengesahan — orang ini sekaligus disimpan sebagai default-nya.</>}{' '}
                       <button type="button" onClick={() => { setEditingPerson(null); if (!role.email) return; setPeople((current) => { const next = { ...current }; if (!next[role.code]?.name.trim() && !next[role.code]?.email.trim()) delete next[role.code]; return next }) }} className="font-semibold text-primary hover:underline">Selesai</button>
                     </p>
                   </div>

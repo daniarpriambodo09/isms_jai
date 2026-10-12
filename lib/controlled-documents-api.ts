@@ -13,7 +13,7 @@ import { getAdminFromRequest, getIsmsAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
-import { currentStepsFor, defaultReviewRoles, ensureApprovalSchema, historyCounts, missingEmailMessage, overridesKey, parseApproverOverrides, type ApproverOverrides, normalizeRoleCodes, rolesWithoutEmail, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
+import { adoptOverridesAsDefaults, currentStepsFor, defaultReviewRoles, ensureApprovalSchema, historyCounts, missingEmailMessage, overridesKey, parseApproverOverrides, type ApproverOverrides, normalizeRoleCodes, rolesWithoutEmail, slotCounts, startApprovalCycle, verifyBaseUrl } from '@/lib/procedure-approval'
 import { DOC_KIND_INFO, type DocKind } from '@/lib/document-kinds'
 import { parseOrderedIds } from '@/lib/ordered-ids'
 
@@ -137,9 +137,11 @@ export function documentHandlers(kind: DocKind) {
       const reviewCandidates = reviewFile && sentReview !== null ? await normalizeRoleCodes(parseRoles(sentReview), 'review_form') : []
       // Someone else than the position's usual holder, for this document.
       const rawOverrides = form.get('approverOverrides')
-      const overrides = parseApproverOverrides(rawOverrides, [...roles, ...reviewCandidates, ...(reviewFile && sentReview === null ? (await defaultReviewRoles()) : [])])
-      if (typeof overrides === 'string') return NextResponse.json({ message: overrides }, { status: 400 })
-      const reviewRoles = !reviewFile ? [] : sentReview !== null ? reviewCandidates : await defaultReviewRoles(overrides)
+      const parsedOverrides = parseApproverOverrides(rawOverrides, [...roles, ...reviewCandidates, ...(reviewFile && sentReview === null ? (await defaultReviewRoles()) : [])])
+      if (typeof parsedOverrides === 'string') return NextResponse.json({ message: parsedOverrides }, { status: 400 })
+      const reviewRoles = !reviewFile ? [] : sentReview !== null ? reviewCandidates : await defaultReviewRoles(parsedOverrides)
+      // Someone entered for a position nobody holds yet becomes its default (Approver Pengesahan).
+      const { overrides } = await adoptOverridesAsDefaults(parsedOverrides, [...roles, ...reviewRoles], session.username)
       const noEmail = missingEmailMessage([...await rolesWithoutEmail(reviewRoles, 'review_form', overrides), ...await rolesWithoutEmail(roles, kind, overrides)])
       if (noEmail) return NextResponse.json({ message: noEmail }, { status: 400 })
 
@@ -232,15 +234,17 @@ export function documentHandlers(kind: DocKind) {
       // Not sent = keep this document's people as they are (for the positions still chosen).
       const sentOverrides = form.get('approverOverrides')
       const overrideCodes = [...roles, ...(reviewCandidates ?? before.review_roles ?? []), ...(await defaultReviewRoles())]
-      const overrides = sentOverrides === null
+      const parsedOverrides = sentOverrides === null
         ? parseApproverOverrides(before.approver_overrides ?? {}, overrideCodes)
         : parseApproverOverrides(sentOverrides, overrideCodes)
-      if (typeof overrides === 'string') return NextResponse.json({ message: overrides }, { status: 400 })
+      if (typeof parsedOverrides === 'string') return NextResponse.json({ message: parsedOverrides }, { status: 400 })
       const reviewRoles = !hasReviewAfter ? []
-        : reviewCandidates ?? (before.review_form_path && (before.review_roles ?? []).length ? before.review_roles : reviewFile ? await defaultReviewRoles(overrides) : before.review_roles ?? [])
+        : reviewCandidates ?? (before.review_form_path && (before.review_roles ?? []).length ? before.review_roles : reviewFile ? await defaultReviewRoles(parsedOverrides) : before.review_roles ?? [])
       const reviewRolesChanged = reviewRoles.join(',') !== (before.review_roles ?? []).join(',')
+      // Someone entered for a position nobody holds yet becomes its default (Approver Pengesahan).
+      const { overrides, adopted } = await adoptOverridesAsDefaults(parsedOverrides, [...roles, ...reviewRoles], session.username)
       // Another person approving is a new request to sign.
-      const peopleChanged = overridesKey(overrides) !== overridesKey(before.approver_overrides)
+      const peopleChanged = adopted.length > 0 || overridesKey(overrides) !== overridesKey(before.approver_overrides)
 
       // A new or removed Form Review is a new thing to sign too.
       const reviewChanged = !!reviewFile || (removeReview && !!before.review_form_path)

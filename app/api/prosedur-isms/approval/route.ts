@@ -6,7 +6,7 @@
 // approve anything) and single-use (a step can only leave 'pending' once).
 
 import { NextRequest, NextResponse } from 'next/server'
-import { APPROVAL_LINK_DAYS, approvalCodeRequired, autoPlaceSlots, canPlaceOwnSlots, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, verifyBaseUrl } from '@/lib/procedure-approval'
+import { APPROVAL_LINK_DAYS, approvalCodeRequired, autoPlaceSlots, canPlaceOwnSlots, currentStepsFor, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, verifyBaseUrl } from '@/lib/procedure-approval'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +35,22 @@ export async function GET(request: NextRequest) {
     const qrAutoPlaced = (await slotsFor(view.document.id, view.document.file_path)).some((slot) => slot.role_code === view.step.role_code)
     // Approving asks for the code from the e-mail (steps sent before codes existed don't).
     const code = await approvalCodeRequired(view.step.id)
+    // An old link (its step was cancelled when the approval started again —
+    // a new file, a Form Review added, other approvers): where this position
+    // stands in the approval running now, so the page can say what to do.
+    let now: { mine: 'pending' | 'waiting' | 'approved' | 'rejected' | 'none'; waitingFor: { title: string; name: string | null; review: boolean } | null; finished: boolean } | null = null
+    if (view.step.status === 'cancelled') {
+      const steps = (await currentStepsFor([view.document.id])).get(view.document.id) ?? []
+      const mine = steps.find((step) => step.role_code === view.step.role_code)
+      const pending = steps.find((step) => step.status === 'pending')
+      now = {
+        mine: mine ? (mine.status as 'pending' | 'waiting' | 'approved' | 'rejected') : 'none',
+        waitingFor: pending ? { title: pending.role_title, name: pending.approver_name, review: (view.document.review_roles ?? []).includes(pending.role_code) } : null,
+        finished: steps.length > 0 && steps.every((step) => step.status === 'approved'),
+      }
+    }
     return NextResponse.json({
+      now,
       qrAutoPlaced,
       codeRequired: code.required,
       codeLocked: code.locked,

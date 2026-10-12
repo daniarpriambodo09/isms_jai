@@ -311,6 +311,37 @@ export function parseApproverOverrides(raw: unknown, roleCodes: string[]): Appro
   return out
 }
 
+/**
+ * A person entered on a document for a position that has no one who can be
+ * e-mailed yet (Approver Pengesahan shows "email belum diisi") is not a
+ * stand-in for anybody: they become that position's default, so the two
+ * screens agree. Positions that already have a reachable holder are left
+ * alone — there the document's person stays "khusus dokumen ini".
+ * Returns the overrides that remain and the positions that were filled.
+ */
+export async function adoptOverridesAsDefaults(overrides: ApproverOverrides, codes: string[], username: string): Promise<{ overrides: ApproverOverrides; adopted: string[] }> {
+  const wanted = Object.keys(overrides).filter((code) => codes.includes(code))
+  if (wanted.length === 0) return { overrides, adopted: [] }
+  const roles = (await query<{ code: string; email: string | null }>('SELECT code, email FROM procedure_approver_roles WHERE code = ANY($1)', [wanted])).rows
+  const remaining: ApproverOverrides = { ...overrides }
+  const adopted: string[] = []
+  for (const role of roles) {
+    if (role.email && isDeliverableEmail(role.email)) continue
+    const person = overrides[role.code]
+    await query(
+      `UPDATE procedure_approver_roles
+       SET person_name = $2, email = $3, salutation = COALESCE($4, salutation), updated_at = now(), updated_by = $5
+       WHERE code = $1`,
+      [role.code, person.name, person.email, person.salutation ?? null, username]
+    )
+    delete remaining[role.code]
+    adopted.push(role.code)
+    // other documents already waiting on this position now have someone to go to
+    await reassignRole(role.code)
+  }
+  return { overrides: remaining, adopted }
+}
+
 /** Same overrides, written the same way (to tell whether they changed). */
 export const overridesKey = (value: ApproverOverrides | null | undefined) =>
   JSON.stringify(Object.keys(value ?? {}).sort().map((code) => [code, value![code].name, value![code].email.toLowerCase(), value![code].salutation ?? '']))
@@ -721,9 +752,14 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
     // email ini"), unless it's too big for typical mail servers — then the
     // review link (which shows the PDF) is the way in.
     const attachments: MailAttachment[] = [{ filename: 'yazaki-logo.jpg', path: path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'), cid: LOGO_CID }]
-    // What this approver signs comes first; the other file travels along to read with it.
-    const files: { filename: string; filePath: string }[] = [{ filename: `${doc.control_no} - ${doc.title}.pdf`, filePath: doc.file_path }]
-    if (doc.review_form_path) files[signsReview ? 'unshift' : 'push']({ filename: `Form Review - ${doc.control_no}.pdf`, filePath: doc.review_form_path })
+    // The Form Review's approvers get the Form Review only — one attachment,
+    // the thing they sign (the document itself is one click away on the
+    // review page). A document approver gets the document, with its Form
+    // Review along to read.
+    const reviewFile = doc.review_form_path ? { filename: `Form Review - ${doc.control_no}.pdf`, filePath: doc.review_form_path } : null
+    const files: { filename: string; filePath: string }[] = signsReview && reviewFile
+      ? [reviewFile]
+      : [{ filename: `${doc.control_no} - ${doc.title}.pdf`, filePath: doc.file_path }, ...(reviewFile ? [reviewFile] : [])]
     for (const file of files) {
       const full = path.join(STORAGE_ROOT, file.filePath)
       const size = await stat(full).then((s) => s.size).catch(() => 0)

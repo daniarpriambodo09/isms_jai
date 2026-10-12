@@ -862,7 +862,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   const rf = data.reviewForm ?? null
   const reviewed = rf ? escapeHtml([rf.docControlNo, rf.docTitle].filter(Boolean).join(' — ')) : ''
   const askLine = fro
-    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review dan dokumennya telah saya lampirkan pada email ini. Setelah Form Review ditandatangani, dokumennya diteruskan ke approver dokumen.</p>`
+    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review-nya telah saya lampirkan pada email ini; dokumennya bisa dibuka lewat tombol di bawah. Setelah Form Review ditandatangani, dokumennya diteruskan ke approver dokumen.</p>`
     : rf
     ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya telah saya lampirkan pada email ini, dan ringkasannya ada di bawah.</p>`
     : null

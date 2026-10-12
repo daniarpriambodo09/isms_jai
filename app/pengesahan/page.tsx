@@ -36,6 +36,8 @@ type View = {
   step: Step
   document: { kind?: string; control_no: string; title: string; revision: number; elf_date: string; note: string | null; file_path: string; has_review_form?: boolean; signs_review?: boolean }
   cycle: Step[]
+  /** Only on an old (cancelled) link: where this position stands in the approval running now. */
+  now?: { mine: 'pending' | 'waiting' | 'approved' | 'rejected' | 'none'; waitingFor: { title: string; name: string | null; review: boolean } | null; finished: boolean } | null
   superseded: boolean
   linkExpired: boolean
   linkValidDays: number
@@ -181,11 +183,30 @@ function PengesahanContent() {
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-amber-100 text-amber-700"><History className="size-7" /></span>
         <h2 className="mt-5 font-display text-2xl font-semibold text-foreground">Link ini sudah diganti</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          <strong className="text-foreground">{document.control_no} — {document.title}</strong> sudah diajukan ulang (Rev. {document.revision}), sehingga link dari email sebelumnya tidak berlaku lagi.
+          Pengesahan <strong className="text-foreground">{document.control_no} — {document.title}</strong> (Rev. {document.revision}) dimulai ulang{document.has_review_form ? ' — misalnya karena Form Review-nya ditambahkan atau berkasnya diganti' : ' — misalnya karena berkas atau approver-nya diganti'}, sehingga link dari email sebelumnya tidak berlaku lagi.
         </p>
-        <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-sm leading-6 text-foreground">
-          Buka email <strong>terbaru</strong> untuk dokumen ini — subjeknya diawali <span className="font-mono text-[13px]">[Pengajuan Ulang ke-…]</span> — lalu tekan tombol <strong>REVIEW ULANG &amp; APPROVAL</strong>.
+        <p className="mt-3 rounded-xl bg-secondary px-4 py-3 text-sm leading-6 text-foreground" data-testid="replaced-now">
+          {view.now?.mine === 'pending' ? (
+            <>Sekarang <strong>giliran Anda</strong>: buka email <strong>terbaru</strong> untuk dokumen ini, lalu tekan tombol <strong>REVIEW &amp; APPROVAL</strong> di sana.</>
+          ) : view.now?.mine === 'waiting' ? (
+            <>
+              <strong>Belum giliran Anda.</strong>{' '}
+              {view.now.waitingFor
+                ? <>Saat ini menunggu tanda tangan <strong>{view.now.waitingFor.name ?? view.now.waitingFor.title}</strong> ({view.now.waitingFor.review ? <>Form Review — {view.now.waitingFor.title}</> : view.now.waitingFor.title}). </>
+                : null}
+              Anda akan menerima <strong>email baru</strong> saat tiba giliran Anda — tidak ada yang perlu dilakukan sekarang.
+            </>
+          ) : view.now?.mine === 'approved' ? (
+            <>Anda <strong>sudah menyetujui</strong> dokumen ini lewat link yang baru — tidak ada yang perlu dilakukan lagi.</>
+          ) : view.now?.finished ? (
+            <>Dokumen ini sudah selesai disahkan — tidak ada yang perlu dilakukan lagi.</>
+          ) : view.now?.mine === 'none' ? (
+            <>Jabatan Anda tidak lagi termasuk approver dokumen ini — tidak ada yang perlu dilakukan.</>
+          ) : (
+            <>Buka email <strong>terbaru</strong> untuk dokumen ini, lalu tekan tombol <strong>REVIEW &amp; APPROVAL</strong> di sana.</>
+          )}
         </p>
+        <p className="mt-3 text-xs text-muted-foreground">Tidak menemukan emailnya? Minta Admin ISM menekan <strong>Kirim ulang</strong>.</p>
       </div>
     )
   }

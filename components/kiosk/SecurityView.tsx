@@ -17,6 +17,7 @@ import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
+import { KioskThemePicker } from '@/components/kiosk/KioskThemePicker'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
@@ -355,6 +356,7 @@ export function SecurityView() {
         {/* On a phone the two buttons shrink to their icons. */}
         <div className="flex flex-shrink-0 items-center gap-2">
           <span className="hidden text-xs text-primary-foreground/75 sm:inline">{adminUser?.username}</span>
+          <KioskThemePicker station="security" />
           <button onClick={() => setPasswordModalOpen(true)} aria-label="Ganti Password" title="Ganti Password" className="flex items-center gap-1.5 rounded-md border border-primary-foreground/20 px-2.5 py-2 text-xs transition-colors hover:bg-primary-foreground/10 sm:px-3">
             <KeyRound className="size-4" /><span className="hidden sm:inline">Ganti Password</span>
           </button>

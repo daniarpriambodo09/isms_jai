@@ -666,6 +666,24 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
           onSwap={setSelected}
           registerOptions={QUICK_REGISTER_TYPES.map((type) => ({ label: `Daftarkan ${QUICK_CARD_LABEL[type]}`, onPick: (code: string) => { setQuickCardBarcode(code); setQuickCardOpen(type) } }))}
         />
+        {/* Registering a guest is the other thing done all day: right under the scan box,
+            not down at the list. One column on a phone, one row from tablet width up. */}
+        <div className="-mt-2 mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Pendaftaran tamu">
+          {QUICK_REGISTER_TYPES.map((type) => {
+            const Icon = QUICK_CARD_ICON[type]
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => { setQuickCardBarcode(''); setQuickCardOpen(type) }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+              >
+                <Icon className="size-4" />Daftarkan {QUICK_CARD_LABEL[type]}
+              </button>
+            )
+          })}
+        </div>
+
         {selected && (
           <div ref={detailRef} className="mb-6 scroll-mt-4">
             <DetailPanel registration={selected} onClose={() => { setSelected(null); setScanFocusKey((key) => key + 1) }} onChanged={() => { load(); setScanFocusKey((key) => key + 1) }} />
@@ -680,24 +698,10 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
             <p className="portal-eyebrow">Semua Pendaftaran</p>
             <p className="mt-1 text-sm text-muted-foreground">{filteredRegistrations.length} data</p>
           </div>
-          {/* A neat 2 × 2 grid on a phone, one row from tablet width up. */}
-          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => load()} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
-            {QUICK_REGISTER_TYPES.map((type) => {
-              const Icon = QUICK_CARD_ICON[type]
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => { setQuickCardBarcode(''); setQuickCardOpen(type) }}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5 sm:px-4"
-                >
-                  <Icon className="size-4" />Daftarkan {QUICK_CARD_LABEL[type]}
-                </button>
-              )
-            })}
           </div>
         </div>
 

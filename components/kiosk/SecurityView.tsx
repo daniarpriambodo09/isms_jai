@@ -369,6 +369,18 @@ export function SecurityView() {
       <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
         {/* First thing on the page: scan a card — a card in use closes that guest's visit, a new one goes to a guest waiting for approval. */}
         <ScanCardBox station="security" onChanged={load} />
+        {/* One button per kind of Security card, right under the scan box (as at the Lobby):
+            one column on a phone, one row from tablet width up. */}
+        <div className="-mt-2 mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Pendaftaran tamu">
+          {SECURITY_CARD_TYPES.map((type) => {
+            const Icon = SECURITY_CARD_ICON[type]
+            return (
+              <button key={type} type="button" onClick={() => setFormOpen(type)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+                <Icon className="size-4" />Daftarkan {SECURITY_CARD_LABEL[type]}
+              </button>
+            )
+          })}
+        </div>
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
@@ -381,17 +393,6 @@ export function SecurityView() {
             <button type="button" onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <RotateCcw className="size-3.5" />Muat Ulang
             </button>
-          </div>
-          {/* One button per kind of Security card, like the Lobby's "Daftarkan …" buttons. */}
-          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-            {SECURITY_CARD_TYPES.map((type) => {
-              const Icon = SECURITY_CARD_ICON[type]
-              return (
-                <button key={type} type="button" onClick={() => setFormOpen(type)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
-                  <Icon className="size-4" />Daftarkan {SECURITY_CARD_LABEL[type]}
-                </button>
-              )
-            })}
           </div>
         </div>
 

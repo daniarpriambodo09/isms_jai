@@ -78,8 +78,15 @@ export function ScanCardBox({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
+    if (busy) return
     const code = barcode.trim()
-    if (code && !busy) scan(code)
+    // Pressed with nothing in the field: say what is expected and put the cursor there.
+    if (!code) {
+      setOutcome({ tone: 'warn', message: 'Belum ada nomor kartu. Scan kartunya, atau ketik nomornya di kolom ini lalu tekan Enter / Scan.', barcode: '' })
+      refocus()
+      return
+    }
+    scan(code)
   }
 
   // Scan in at Pos Security: hand the scanned card to the chosen guest.
@@ -126,7 +133,7 @@ export function ScanCardBox({
           <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input ref={inputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} aria-label="Scan kartu tamu" placeholder="Scan atau ketik nomor kartu, lalu Enter..." autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
         </div>
-        <button type="submit" disabled={busy || !barcode.trim()} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+        <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
           {busy ? <Loader2 className="size-4 animate-spin" /> : <ScanLine className="size-4" />}Scan
         </button>
       </form>
@@ -137,7 +144,7 @@ export function ScanCardBox({
             {outcome.tone === 'in' ? <ArrowDownToLine className="mt-0.5 size-5 flex-shrink-0" /> : outcome.tone === 'out' ? <ArrowUpFromLine className="mt-0.5 size-5 flex-shrink-0" /> : <ScanLine className="mt-0.5 size-5 flex-shrink-0" />}
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{outcome.message}</p>
-              <p className="mt-0.5 font-mono text-[11px] opacity-80">{outcome.barcode}{at ? ` · ${at.time}` : ''}</p>
+              {outcome.barcode && <p className="mt-0.5 font-mono text-[11px] opacity-80">{outcome.barcode}{at ? ` · ${at.time}` : ''}</p>}
             </div>
             <button type="button" onClick={() => { setOutcome(null); refocus() }} aria-label="Tutup hasil scan" className="grid size-7 flex-shrink-0 place-items-center rounded-full opacity-70 transition hover:bg-black/5 hover:opacity-100">
               <X className="size-4" />

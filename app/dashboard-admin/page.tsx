@@ -15,6 +15,8 @@ import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
 import { AdminActiveCards } from '@/components/kiosk/AdminActiveCards'
+import { QrPendingPanel } from '@/components/admin/QrPendingPanel'
+import { GuestRecapPanel } from '@/components/admin/GuestRecapPanel'
 import { docKindInfo } from '@/lib/document-kinds'
 
 type ReviewItem = { kind: string; kindLabel: string; id: number; controlNo: string; title: string; revision: number | null; effDate: string; dueDate: string; daysLeft: number; href: string }
@@ -134,7 +136,11 @@ export default function DashboardAdminPage() {
         <Stat icon={<CheckCircle2 />} label="Disahkan bulan ini" value={procedures.approvedThisMonth} tone="good" href="/prosedur-isms" />
       </div>
 
+      <QrPendingPanel />
+
       <AdminActiveCards />
+
+      <GuestRecapPanel />
 
       <div className="grid gap-5">
         <Panel title="Pengesahan berjalan (belum tampil ke pengunjung)" icon={<FileSignature />} href="/prosedur-isms" linkLabel="Register prosedur">

@@ -12,7 +12,8 @@ import { API_BASE_PATH } from '@/lib/config'
 import { SECURITY_CARD_LABEL, formatTimeParts, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type ScanResult = 'out' | 'returned' | 'swap' | 'in' | 'choose' | 'unknown' | 'blocked'
-type Outcome = { tone: 'in' | 'out' | 'warn'; message: string; at?: string | null; barcode: string; candidates?: Registration[]; pickFor?: 'approve' | 'scan'; offerRegister?: boolean }
+// offerKind: the kind of Lobby card the scanned number is (lib/card-ranges.ts) — only that registration is offered; null = none fits.
+type Outcome = { tone: 'in' | 'out' | 'warn'; message: string; at?: string | null; barcode: string; candidates?: Registration[]; pickFor?: 'approve' | 'scan'; offerRegister?: boolean; offerKind?: string | null }
 
 export function ScanCardBox({
   station,
@@ -27,7 +28,7 @@ export function ScanCardBox({
   /** Lobby: a guest arrived with a Security card — open them to scan the Lobby card. */
   onSwap?: (registration: Registration) => void
   /** Lobby: buttons offered for a card nobody holds ("Daftarkan Visitor" …). */
-  registerOptions?: { label: string; onPick: (barcode: string) => void }[]
+  registerOptions?: { label: string; kind?: string; onPick: (barcode: string) => void }[]
   /** Changes when the cursor should come back to the scan field (e.g. after a card swap in the detail panel). */
   focusKey?: number
 }) {
@@ -49,7 +50,7 @@ export function ScanCardBox({
         credentials: 'include',
         body: JSON.stringify({ barcode: code, station, ...(id ? { id } : {}) }),
       })
-      const data = await res.json().catch(() => null) as { result?: ScanResult; message?: string; registration?: Registration; candidates?: Registration[] } | null
+      const data = await res.json().catch(() => null) as { result?: ScanResult; message?: string; registration?: Registration; candidates?: Registration[]; cardKind?: string | null } | null
       const message = data?.message ?? 'Gagal memproses scan kartu.'
       switch (data?.result) {
         case 'out':
@@ -63,7 +64,7 @@ export function ScanCardBox({
         case 'choose':
           setOutcome({ tone: 'warn', message, barcode: code, candidates: data.candidates ?? [], pickFor: 'scan' }); break
         case 'unknown':
-          setOutcome({ tone: 'warn', message, barcode: code, offerRegister: true }); break
+          setOutcome({ tone: 'warn', message, barcode: code, offerRegister: true, offerKind: data.cardKind }); break
         default:
           setOutcome({ tone: 'warn', message, barcode: code })
       }
@@ -176,7 +177,7 @@ export function ScanCardBox({
 
           {outcome.offerRegister && registerOptions && registerOptions.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
-              {registerOptions.map((option) => (
+              {registerOptions.filter((option) => outcome.offerKind === undefined || !option.kind || option.kind === outcome.offerKind).map((option) => (
                 <button key={option.label} type="button" onClick={() => { option.onPick(outcome.barcode); setOutcome(null) }} className="rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
                   {option.label}
                 </button>

@@ -9,6 +9,7 @@ import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { ensureSpecialAreaSchema, getRequest, sendApprovalRequest } from '@/lib/special-area'
 import { parseEscort } from '@/lib/special-area-shared'
+import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = getKioskAdminFromRequest(request)
@@ -30,7 +31,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     if (body.action === 'setIdCard') {
-      const idCardNo = typeof body.idCardNo === 'string' ? body.idCardNo.trim().slice(0, 100) : ''
+      const idCardNo = normalizeCardNo(typeof body.idCardNo === 'string' ? body.idCardNo.slice(0, 100) : '')
+      const wrongCard = idCardNo ? lobbyCardProblem(idCardNo, 'special_area', false) : null
+      if (wrongCard) return NextResponse.json({ message: wrongCard }, { status: 400 })
       await query('UPDATE special_area_requests SET id_card_no = $1 WHERE id = $2', [idCardNo || null, req.id])
       await logActivity(session, 'update', 'special_area_request', req.id, `Mengisi ID Card No. area special "${req.requester_name}"`)
       return NextResponse.json({ request: await getRequest(req.id) })

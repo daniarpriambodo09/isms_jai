@@ -11,6 +11,7 @@ import { logActivity } from '@/lib/activity-log'
 import { recordNotification } from '@/lib/admin-notifications'
 import { SELECT_COLUMNS, ensureSpecialAreaSchema, getRequest, sendApprovalRequest } from '@/lib/special-area'
 import type { SpecialAreaRequest } from '@/lib/special-area-shared'
+import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,9 @@ export async function POST(request: NextRequest) {
     const department = str('department') || null
     const area = str('area')
     const purpose = str('purpose', 2000)
-    const idCardNo = str('idCardNo', 100) || null
+    const idCardNo = normalizeCardNo(str('idCardNo', 100)) || null
+    const wrongCard = idCardNo ? lobbyCardProblem(idCardNo, 'special_area', false) : null
+    if (wrongCard) return NextResponse.json({ message: wrongCard }, { status: 400 })
     // Masuk (dari): typed in by hand when given, otherwise the moment of submitting (stamped here).
     const manualFrom = str('fromAt')
     if (manualFrom && Number.isNaN(Date.parse(manualFrom))) return NextResponse.json({ message: 'Tanggal/jam masuk tidak valid.' }, { status: 400 })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { normalizeCardNo } from '@/lib/card-ranges'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
   if (!getKioskAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
-    const barcode = request.nextUrl.searchParams.get('barcode')?.trim()
+    const barcode = normalizeCardNo(request.nextUrl.searchParams.get('barcode'))
     if (!barcode) return NextResponse.json({ message: 'Barcode wajib diisi.' }, { status: 400 })
 
     const result = await query<VendorRegistrationRow>(

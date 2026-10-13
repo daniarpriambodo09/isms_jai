@@ -23,6 +23,9 @@
 //   switched on. Once the TGL box is dragged by hand it stays exactly where
 //   it was put. It can be removed from the box itself (trash / Delete), per
 //   QR in the list, or for every QR at once.
+// - The two are removed separately: removing a QR box that has a TGL box
+//   keeps the date ("tanggal saja", noQr) — the date then stands alone and
+//   only the approval date is printed there; "+ QR" brings the QR box back.
 //
 // Positions are fractions (0–1) of the page as displayed, top-left origin,
 // so they don't depend on the zoom level.
@@ -37,7 +40,8 @@ import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type Box = { x: number; y: number; w: number; h: number }
 // A QR placement as stored; date = where the approval date is printed.
-type Placement = { role_code: string; page: number; x: number; y: number; w: number; h: number; date?: Box | null }
+// noQr: only the date box is printed here (the QR box was removed, its date kept).
+type Placement = { role_code: string; page: number; x: number; y: number; w: number; h: number; date?: Box | null; noQr?: boolean }
 // In the editor every placement also gets a client-side key (a role may have several).
 type Slot = Placement & { key: string }
 type DateCol = { left: number; right: number }
@@ -410,7 +414,25 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
     setDirty(true)
   }
 
+  // The QR box and the TGL box are removed separately. Removing the QR of a
+  // placement that prints a date keeps the date ("tanggal saja"); removing the
+  // date of one that has no QR leaves nothing, so the placement goes.
+  const removeQr = (key: string) => {
+    const slot = slots.find((s) => s.key === key)
+    if (!slot?.date) { removeSlot(key); return }
+    // the date stays exactly where it is, also when its row had put it there
+    manualDate.current.add(key)
+    setSlots((current) => current.map((s) => (s.key === key ? { ...s, noQr: true } : s)))
+    if (selected === key) setSelectedPart('date')
+    setDirty(true)
+  }
+  const restoreQr = (key: string) => {
+    setSlots((current) => current.map((s) => (s.key === key ? { ...s, noQr: false } : s)))
+    setDirty(true)
+  }
+
   const toggleDate = (key: string, on: boolean) => {
+    if (!on && slots.find((s) => s.key === key)?.noQr) { removeSlot(key); return }
     manualDate.current.delete(key)
     setSlots((current) => current.map((s) => (s.key === key ? { ...s, date: on ? defaultDate(s) : null } : s)))
     if (!on && selected === key) setSelectedPart('qr')
@@ -446,7 +468,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && current && canEdit(current.role_code)) {
         // With the TGL box selected only the date goes; the QR stays.
         if (selectedPart === 'date' && current.date) toggleDate(current.key, false)
-        else removeSlot(current.key)
+        else removeQr(current.key) // …and with the QR selected only the QR goes; its date stays
         e.preventDefault()
       }
     }
@@ -594,7 +616,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
     try {
       const payload = slots
         .filter((s) => canEdit(s.role_code))
-        .map(({ role_code, page, x, y, w, h, date }) => ({ role_code, page, x, y, w, h, date: date ?? null }))
+        .map(({ role_code, page, x, y, w, h, date, noQr }) => ({ role_code, page, x, y, w, h, date: date ?? null, noQr: noQr === true && !!date }))
       const res = approverMode
         ? await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval/slots`, {
           method: 'PUT',
@@ -717,7 +739,19 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                         title="Tanggal persetujuan dicetak di sini — geser bebas, atau hapus bila tidak perlu"
                       >
                         <span className="absolute left-0 top-0 flex -translate-y-full items-center gap-0.5 whitespace-nowrap rounded-t font-mono text-[10px] font-bold text-white" style={{ background: color }}>
-                          <span className="pointer-events-none px-1.5 py-0.5">TGL {s.role_code}</span>
+                          <span className="pointer-events-none px-1.5 py-0.5">TGL {s.role_code}{s.noQr ? ' · tanpa QR' : ''}</span>
+                          {editable && s.noQr && (
+                            <button
+                              type="button"
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => { e.stopPropagation(); restoreQr(s.key) }}
+                              className="grid h-5 place-items-center rounded px-1 text-[9px] hover:bg-white/25"
+                              aria-label={`Tampilkan lagi QR ${s.role_code}`}
+                              title="Tampilkan lagi kotak QR-nya"
+                            >
+                              + QR
+                            </button>
+                          )}
                           {editable && (
                             <button
                               type="button"
@@ -725,7 +759,7 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                               onClick={(e) => { e.stopPropagation(); toggleDate(s.key, false) }}
                               className="mr-0.5 grid size-5 place-items-center rounded hover:bg-white/25"
                               aria-label={`Hapus tanggal ${s.role_code}`}
-                              title="Hapus kotak tanggal (tanggal tidak dicetak)"
+                              title={s.noQr ? 'Hapus kotak tanggal ini' : 'Hapus kotak tanggal saja (QR tetap)'}
                             >
                               <Trash2 className="size-3" />
                             </button>
@@ -744,8 +778,8 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                     )
                   })}
 
-                  {/* QR boxes */}
-                  {slots.filter((s) => s.page === page).map((s) => {
+                  {/* QR boxes (a placement that prints the date only has none) */}
+                  {slots.filter((s) => s.page === page && !s.noQr).map((s) => {
                     const role = roles.find((r) => r.code === s.role_code)
                     const color = colorOf(s.role_code)
                     const editable = canEdit(s.role_code)
@@ -786,10 +820,10 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                               <button
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
-                                onClick={(e) => { e.stopPropagation(); removeSlot(s.key) }}
+                                onClick={(e) => { e.stopPropagation(); removeQr(s.key) }}
                                 className="mr-0.5 grid size-5 place-items-center rounded hover:bg-white/25"
                                 aria-label="Hapus QR ini"
-                                title="Hapus (Delete)"
+                                title={s.date ? 'Hapus QR saja — kotak tanggalnya tetap (Delete)' : 'Hapus (Delete)'}
                               >
                                 <Trash2 className="size-3" />
                               </button>
@@ -873,10 +907,14 @@ export function SignatureSlotEditor({ documentId, token, onClose, onSaved, saveL
                           <li key={s.key} className={`rounded-lg border px-2.5 py-2 ${selected === s.key ? 'border-[color:var(--p-600)] bg-[color:var(--p-600)]/5' : 'border-border'}`}>
                             <div className="flex items-center gap-2">
                               <button type="button" onClick={() => { scrollToSpot(scrollRef, pageRefs, s.page, s.y + s.h / 2); setSelected(s.key) }} className="min-w-0 flex-1 text-left text-xs font-semibold text-foreground hover:underline">
-                                QR {i + 1} · Halaman {s.page + 1}
+                                {s.noQr ? 'Tanggal saja' : `QR ${i + 1}`} · Halaman {s.page + 1}
                               </button>
-                              <button type="button" onClick={() => removeSlot(s.key)} aria-label={`Hapus QR ${i + 1}`} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
+                              <button type="button" onClick={() => removeSlot(s.key)} title="Hapus QR dan tanggalnya" aria-label={`Hapus QR ${i + 1}`} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
                             </div>
+                            <label className="mt-1 flex cursor-pointer items-center gap-1.5 text-[11px] text-foreground">
+                              <input type="checkbox" checked={!s.noQr} onChange={(e) => (e.target.checked ? restoreQr(s.key) : removeQr(s.key))} className="size-3.5 accent-[color:var(--primary)]" />
+                              Cetak QR
+                            </label>
                             <label className="mt-1 flex cursor-pointer items-center gap-1.5 text-[11px] text-foreground">
                               <input type="checkbox" checked={!!s.date} onChange={(e) => toggleDate(s.key, e.target.checked)} className="size-3.5 accent-[color:var(--primary)]" />
                               Cetak tanggal approve

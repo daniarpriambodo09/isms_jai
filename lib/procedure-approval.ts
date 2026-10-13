@@ -208,6 +208,8 @@ export function ensureApprovalSchema() {
           replaced_by varchar(100)
         )`)
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS file_path text')
+      // A placement that prints the approval date only (db/migrations/0027).
+      await query('ALTER TABLE procedure_signature_slots ADD COLUMN IF NOT EXISTS no_qr boolean NOT NULL DEFAULT false')
       // Initials printed under the signature box (db/migrations/0016).
       await query('ALTER TABLE procedure_approver_roles ADD COLUMN IF NOT EXISTS initials varchar(5)')
       await query('ALTER TABLE procedure_approvals ADD COLUMN IF NOT EXISTS approver_initials varchar(5)')
@@ -1292,7 +1294,9 @@ export async function verifyBaseUrl(fallbackOrigin?: string) {
 
 export type DateBox = { x: number; y: number; w: number; h: number }
 // One QR placement; a role can have several (seq 0, 1, …).
-export type SignatureSlot = { role_code: string; seq?: number; page: number; x: number; y: number; w: number; h: number; date?: DateBox | null }
+// noQr: only the approval date is printed at this placement (its date box);
+// the QR box is kept in the row but not drawn.
+export type SignatureSlot = { role_code: string; seq?: number; page: number; x: number; y: number; w: number; h: number; date?: DateBox | null; noQr?: boolean }
 
 // Most placements one role may have on a document.
 export const MAX_SLOTS_PER_ROLE = 8
@@ -1300,16 +1304,17 @@ export const MAX_SLOTS_PER_ROLE = 8
 // Slots for the document's CURRENT file only.
 export async function slotsFor(documentId: number, filePath: string): Promise<SignatureSlot[]> {
   await ensureApprovalSchema()
-  const result = await query<Omit<SignatureSlot, 'date'> & { date_x: number | null; date_y: number | null; date_w: number | null; date_h: number | null }>(
-    `SELECT role_code, seq, page, x, y, w, h, date_x, date_y, date_w, date_h
+  const result = await query<Omit<SignatureSlot, 'date' | 'noQr'> & { date_x: number | null; date_y: number | null; date_w: number | null; date_h: number | null; no_qr: boolean }>(
+    `SELECT role_code, seq, page, x, y, w, h, date_x, date_y, date_w, date_h, no_qr
      FROM procedure_signature_slots WHERE document_id = $1 AND file_path = $2
      ORDER BY role_code, seq`,
     [documentId, filePath]
   )
-  return result.rows.map(({ date_x, date_y, date_w, date_h, ...slot }) => ({
-    ...slot,
-    date: date_x !== null && date_y !== null && date_w !== null && date_h !== null ? { x: date_x, y: date_y, w: date_w, h: date_h } : null,
-  }))
+  return result.rows.map(({ date_x, date_y, date_w, date_h, no_qr, ...slot }) => {
+    const date = date_x !== null && date_y !== null && date_w !== null && date_h !== null ? { x: date_x, y: date_y, w: date_w, h: date_h } : null
+    // a placement without QR and without date would print nothing: read it as a QR
+    return { ...slot, date, noQr: no_qr && !!date }
+  })
 }
 
 export async function slotCounts(documentIds: number[]): Promise<Map<number, number>> {
@@ -1352,7 +1357,8 @@ export function parseSlots(raw: unknown, allowedRoles: string[]): SignatureSlot[
     const date = d && [d.x, d.y, d.w, d.h].every(frac) && (d.w as number) >= 0.005 && (d.h as number) >= 0.005
       ? { x: d.x as number, y: d.y as number, w: d.w as number, h: d.h as number }
       : null
-    slots.push({ role_code: s.role_code, page: s.page as number, x: s.x as number, y: s.y as number, w: s.w as number, h: s.h as number, date })
+    // "date only" needs a date box — without one there would be nothing to print
+    slots.push({ role_code: s.role_code, page: s.page as number, x: s.x as number, y: s.y as number, w: s.w as number, h: s.h as number, date, noQr: s.noQr === true && !!date })
   }
   return slots
 }
@@ -1364,9 +1370,9 @@ async function insertSlots(documentId: number, filePath: string, slots: Signatur
     const seq = next.get(s.role_code) ?? 0
     next.set(s.role_code, seq + 1)
     await query(
-      `INSERT INTO procedure_signature_slots (document_id, role_code, seq, file_path, page, x, y, w, h, date_x, date_y, date_w, date_h)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-      [documentId, s.role_code, seq, filePath, s.page, s.x, s.y, s.w, s.h, s.date?.x ?? null, s.date?.y ?? null, s.date?.w ?? null, s.date?.h ?? null]
+      `INSERT INTO procedure_signature_slots (document_id, role_code, seq, file_path, page, x, y, w, h, date_x, date_y, date_w, date_h, no_qr)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [documentId, s.role_code, seq, filePath, s.page, s.x, s.y, s.w, s.h, s.date?.x ?? null, s.date?.y ?? null, s.date?.w ?? null, s.date?.h ?? null, s.noQr === true && !!s.date]
     )
   }
 }

@@ -3,6 +3,7 @@ import { stationOffMessage } from '@/lib/kiosk-stations'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
@@ -124,7 +125,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       fullName?: string; idCard?: string; picJai?: string; purpose?: string; companyRemark?: string
     }
     if (!isAction(body.action)) return NextResponse.json({ message: 'Aksi tidak valid.' }, { status: 400 })
-    const barcode = typeof body.barcode === 'string' ? body.barcode.trim() : ''
+    const barcode = normalizeCardNo(body.barcode)
     if (body.action !== 'editDetails' && !barcode) return NextResponse.json({ message: 'Barcode wajib diisi.' }, { status: 400 })
 
     const existing = await query<VendorRegistrationRow>(`SELECT ${SELECT_COLUMNS} FROM vendor_registrations WHERE id = $1`, [id])
@@ -180,6 +181,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const fromSecurity = holdsSecurityCard(row)
         // A guest the Lobby registered itself with a Visitor card can move on to a Vendor card.
         const fromLobbyVisitor = row.stage === 'active' && row.entry_path !== 'security' && row.current_card_type === 'visitor' && body.cardType === 'vendor'
+        // The card handed over is one of the Lobby's own of that kind (lib/card-ranges.ts).
+        if (session.role !== 'security') {
+          const wrong = lobbyCardProblem(barcode, body.cardType)
+          if (wrong) return NextResponse.json({ message: wrong }, { status: 400 })
+        }
         if (!fromSecurity && !fromLobbyVisitor) {
           return NextResponse.json({ message: 'Kartu tamu ini tidak bisa ditukar ke kartu tersebut.' }, { status: 409 })
         }

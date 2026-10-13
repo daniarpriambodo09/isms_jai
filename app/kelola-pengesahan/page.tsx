@@ -11,6 +11,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { ApproverAccountButton, type ApproverAccount } from '@/components/admin/ApproverAccountButton'
 import Link from 'next/link'
 import { AlertTriangle, ArrowRight, Loader2, Mail, Pencil, Plus, Send, ShieldCheck, Trash2, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -109,6 +110,8 @@ export default function KelolaPengesahanPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [pending, setPending] = useState<PendingStep[]>([])
   const [smtpReady, setSmtpReady] = useState(true)
+  // logins that exist for the approvers' addresses, by lower-cased e-mail
+  const [accounts, setAccounts] = useState<Record<string, ApproverAccount>>({})
   const [appUrlWarning, setAppUrlWarning] = useState<{ configured: string; suggestions: string[] } | null>(null)
   const [fixingUrl, setFixingUrl] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -152,6 +155,7 @@ export default function KelolaPengesahanPage() {
       setPending(data.pending ?? [])
       setCounts(data.counts ?? null)
       setSmtpReady(Boolean(data.smtpReady))
+      setAccounts(data.accounts ?? {})
       setAppUrlWarning(data.appUrlWarning ?? null)
     } catch (error) {
       setMessage({ ok: false, text: error instanceof Error ? error.message : 'Gagal memuat data.' })
@@ -353,7 +357,8 @@ export default function KelolaPengesahanPage() {
                     </p>
                   </div>
                   <p className="hidden text-[11px] text-muted-foreground md:block">Diubah {formatDateTime(role.updated_at)}{role.updated_by ? ` · ${role.updated_by}` : ''}</p>
-                  <div className="ml-auto flex gap-1">
+                  <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+                    {role.email && <ApproverAccountButton name={role.person_name} email={role.email} account={accounts[role.email.trim().toLowerCase()] ?? null} onCreated={load} />}
                     <button type="button" onClick={() => startEdit(role)} className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"><Pencil className="size-3.5" /> Ganti / Edit</button>
                     <button type="button" onClick={() => setPendingDelete(role)} aria-label={`Hapus ${role.title}`} className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
                   </div>

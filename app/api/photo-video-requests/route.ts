@@ -10,6 +10,7 @@ import { isRateLimited } from '@/lib/rate-limit'
 import { isDeliverableEmail } from '@/lib/email-address'
 import { notifyNewPhotoRequest } from '@/lib/photo-notify'
 import { parseEscort } from '@/lib/special-area-shared'
+import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -170,7 +171,9 @@ export async function POST(request: NextRequest) {
 
       picJai = typeof body.picJai === 'string' ? body.picJai.trim() : ''
       if (!picJai) return NextResponse.json({ message: 'PIC JAI wajib diisi.' }, { status: 400 })
-      photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? body.photoIdNo.trim() : null
+      photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? normalizeCardNo(body.photoIdNo) : null
+      const wrongCard = photoIdNo ? lobbyCardProblem(photoIdNo, 'photography', false) : null
+      if (wrongCard) return NextResponse.json({ message: wrongCard }, { status: 400 })
 
       // Visitor requests don't let the requester pick a PIC — they're always
       // routed to whichever PIC an ISM Admin has marked as the Visitor

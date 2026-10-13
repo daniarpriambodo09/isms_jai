@@ -11,13 +11,14 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowDownUp, Briefcase, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Trash2, Truck, UserPlus, X } from 'lucide-react'
+import { ArrowDownUp, Briefcase, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Trash2, Truck, Undo2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
 import { KioskThemePicker } from '@/components/kiosk/KioskThemePicker'
+import { ReturnCardDialog } from '@/components/kiosk/ReturnCardDialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
@@ -252,6 +253,8 @@ export function SecurityView() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [scanTarget, setScanTarget] = useState<{ registration: Registration; action: 'approve' | 'close' } | null>(null)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  // "Pengembalian Kartu ID": a window that only takes this post's cards back
+  const [returnOpen, setReturnOpen] = useState(false)
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
   const [filterYear, setFilterYear] = useState(searchParams.get('year') ?? '')
   const permitCards = usePermitCards()
@@ -381,6 +384,15 @@ export function SecurityView() {
             )
           })}
         </div>
+        {/* As at the Lobby: take a card back in its own window, refresh. (Cards are swapped at the Lobby only.) */}
+        <div className="-mt-4 mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Menu Pos Security">
+          <button type="button" onClick={() => setReturnOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">
+            <Undo2 className="size-4" />Pengembalian Kartu ID
+          </button>
+          <button type="button" onClick={() => load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">
+            <RotateCcw className="size-4" />Refresh
+          </button>
+        </div>
         <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
@@ -389,9 +401,6 @@ export function SecurityView() {
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <ArrowDownUp className="size-3.5" />{sort === 'newest' ? 'Urutan Terlama' : 'Urutan Terbaru'}
-            </button>
-            <button type="button" onClick={() => load()} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
-              <RotateCcw className="size-3.5" />Muat Ulang
             </button>
           </div>
         </div>
@@ -523,6 +532,7 @@ export function SecurityView() {
       {formOpen && <RegisterModal cardType={formOpen} onClose={() => setFormOpen(null)} onSaved={load} />}
       {editTarget && <RegisterModal editing={editTarget} onClose={() => setEditTarget(null)} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
+      {returnOpen && <ReturnCardDialog station="security" registrations={registrations} onClose={() => setReturnOpen(false)} onChanged={load} />}
       <ConfirmDialog
         open={!!pendingDelete}
         title="Hapus pendaftaran?"

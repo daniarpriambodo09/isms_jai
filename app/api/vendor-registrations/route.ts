@@ -3,6 +3,7 @@ import { stationOffMessage } from '@/lib/kiosk-stations'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
 type EntryPath = 'security' | 'lobby_affiliate'
 type Stage = 'pending_approval' | 'active' | 'closed'
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     const picJai = typeof body.picJai === 'string' ? body.picJai.trim() : ''
     const purpose = typeof body.purpose === 'string' ? body.purpose.trim() : ''
     const companyRemark = typeof body.companyRemark === 'string' ? body.companyRemark.trim() : ''
-    const barcode = typeof body.barcode === 'string' ? body.barcode.trim() : ''
+    const barcode = normalizeCardNo(body.barcode)
 
     // Affiliate guests (Yazaki group colleagues) are registered without an
     // identity card or a PIC JAI to meet — both stored as "-" (NOT NULL columns).
@@ -130,6 +131,12 @@ export async function POST(request: NextRequest) {
       if (!isCardType(body.cardType)) return NextResponse.json({ message: 'Jenis kartu tidak valid.' }, { status: 400 })
       if (!barcode) return NextResponse.json({ message: 'Barcode kartu wajib diisi.' }, { status: 400 })
       const cardType = body.cardType
+      // At the Lobby the number must be one of that kind's own cards (lib/card-ranges.ts).
+      // (Pos Security, when it runs the whole flow by itself, hands out its own set.)
+      if (station === 'lobby') {
+        const wrong = lobbyCardProblem(barcode, cardType)
+        if (wrong) return NextResponse.json({ message: wrong }, { status: 400 })
+      }
       const column = CARD_COLUMN[cardType]
 
       const collision = await query(

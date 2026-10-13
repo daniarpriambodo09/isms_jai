@@ -42,7 +42,7 @@ export type SheetData = {
   verifyBase: string // .../verifikasi-pengesahan?code=
   // Per-role QR spots on the original pages (fractions of the displayed page,
   // top-left origin) — set in the "Atur Posisi QR" editor or auto-detected.
-  slots?: { role_code: string; page: number; x: number; y: number; w: number; h: number; date?: { x: number; y: number; w: number; h: number } | null }[]
+  slots?: { role_code: string; page: number; x: number; y: number; w: number; h: number; date?: { x: number; y: number; w: number; h: number } | null; noQr?: boolean }[]
   /**
    * The form prints "/  /" for the date (Form Review): where its two slashes
    * sit, in points from the date box's left edge. The approval date is then
@@ -340,8 +340,9 @@ export async function buildProcedureSignedPdf(data: SheetData): Promise<Uint8Arr
       const size = Math.max(12, Math.min(right - left, top - bottom - labelH) * 0.94)
       const qrX = left + (right - left - size) / 2
       const qrY = bottom + labelH + (top - bottom - labelH - size) / 2
-      target.drawImage(img, { x: qrX, y: qrY, width: size, height: size })
-      if (labelH) {
+      // A placement can be the approval date alone (slot.noQr): no QR drawn there.
+      if (!slot.noQr) target.drawImage(img, { x: qrX, y: qrY, width: size, height: size })
+      if (labelH && !slot.noQr) {
         const label = step.verificationCode
         const fs = Math.min(5.5, (right - left) / (label.length * 0.55))
         target.drawText(label, { x: left + (right - left - font.widthOfTextAtSize(label, fs)) / 2, y: bottom + 1.5, size: fs, font, color: MUTED })

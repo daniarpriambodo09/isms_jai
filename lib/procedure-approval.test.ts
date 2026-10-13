@@ -22,7 +22,15 @@ describe('parseSlots', () => {
       { ...slot, y: Number.NaN },
       'garbage',
     ], ['MGR'])
-    expect(slots).toEqual([{ ...slot, date: null }])
+    expect(slots).toEqual([{ ...slot, date: null, noQr: false }])
+  })
+
+  it('accepts "date only" (noQr) only when there is a date box to print', () => {
+    const date = { x: 0.3, y: 0.3, w: 0.08, h: 0.02 }
+    expect(parseSlots([{ ...slot, date, noQr: true }], ['MGR'])[0]).toMatchObject({ noQr: true, date })
+    // nothing would be printed: it stays a QR
+    expect(parseSlots([{ ...slot, noQr: true }], ['MGR'])[0].noQr).toBe(false)
+    expect(parseSlots([{ ...slot, date, noQr: 'yes' }], ['MGR'])[0].noQr).toBe(false)
   })
 
   it('caps placements per role', () => {

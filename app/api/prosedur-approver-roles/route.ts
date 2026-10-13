@@ -46,7 +46,13 @@ export async function GET(request: NextRequest) {
   try {
     const kind = kindOf(request.nextUrl.searchParams.get('kind'))
     const [all, pending, smtp] = await Promise.all([listRoles(), listPendingSteps(), getSmtpSettings()])
+    // The logins that exist for the approvers' addresses ("Persetujuan Saya"), by lower-cased e-mail.
+    const emails = [...new Set(all.map((role) => (role.email ?? '').trim().toLowerCase()).filter(Boolean))]
+    const accounts = emails.length
+      ? (await query<{ email: string; username: string; role: string }>('SELECT lower(email) AS email, username, role FROM admins WHERE lower(email) = ANY($1)', [emails])).rows
+      : []
     return NextResponse.json({
+      accounts: Object.fromEntries(accounts.map((account) => [account.email, { username: account.username, role: account.role }])),
       kind,
       roles: all.filter((role) => role.kind === kind),
       pending: pending.filter((step) => step.kind === kind),

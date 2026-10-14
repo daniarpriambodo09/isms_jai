@@ -370,11 +370,9 @@ export function SecurityView() {
       </header>
 
       <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
-        {/* First thing on the page: scan a card — a card in use closes that guest's visit, a new one goes to a guest waiting for approval. */}
-        <ScanCardBox station="security" onChanged={load} />
-        {/* One button per kind of Security card, right under the scan box (as at the Lobby):
+        {/* As at the Lobby, registering comes first: one button per kind of Security card,
             one column on a phone, one row from tablet width up. */}
-        <div className="-mt-2 mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Pendaftaran tamu">
+        <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Pendaftaran tamu">
           {SECURITY_CARD_TYPES.map((type) => {
             const Icon = SECURITY_CARD_ICON[type]
             return (
@@ -385,7 +383,7 @@ export function SecurityView() {
           })}
         </div>
         {/* As at the Lobby: take a card back in its own window, refresh. (Cards are swapped at the Lobby only.) */}
-        <div className="-mt-4 mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Menu Pos Security">
+        <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Menu Pos Security">
           <button type="button" onClick={() => setReturnOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">
             <Undo2 className="size-4" />Pengembalian Kartu ID
           </button>
@@ -393,11 +391,19 @@ export function SecurityView() {
             <RotateCcw className="size-4" />Refresh
           </button>
         </div>
-        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
+        {/* The permits are registrations too: right under the registration buttons. */}
         <PhotoVideoRequestsPanel />
         <SpecialAreaRequestsPanel />
 
+        {/* Scan a card — a card in use closes that guest's visit, a new one goes to a guest waiting for approval. Right above the list. */}
+        <ScanCardBox station="security" onChanged={load} />
+
+        {/* The guest list right under the scan box; the cards in use at the bottom. */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="portal-eyebrow">Semua Pendaftaran</p>
+            <p className="mt-1 text-sm text-muted-foreground">{filteredRegistrations.length} data</p>
+          </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
               <ArrowDownUp className="size-3.5" />{sort === 'newest' ? 'Urutan Terlama' : 'Urutan Terbaru'}
@@ -526,6 +532,10 @@ export function SecurityView() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="mt-8">
+          <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
         </div>
       </main>
 

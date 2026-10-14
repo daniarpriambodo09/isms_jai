@@ -671,17 +671,9 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        {/* First thing on the page: scan a card, the guest it belongs to is handled — no searching the list. */}
-        <ScanCardBox
-          station={station}
-          focusKey={scanFocusKey}
-          onChanged={load}
-          onSwap={setSelected}
-          registerOptions={QUICK_REGISTER_TYPES.map((type) => ({ label: `Daftarkan ${QUICK_CARD_LABEL[type]}`, kind: type, onPick: (code: string) => { setQuickCardBarcode(code); setQuickCardOpen(type) } }))}
-        />
-        {/* Registering a guest is the other thing done all day: right under the scan box,
-            not down at the list. One column on a phone, one row from tablet width up. */}
-        <div className="-mt-2 mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Pendaftaran tamu">
+        {/* Registering a guest is what the Lobby does all day: the buttons first.
+            One column on a phone, one row from tablet width up. */}
+        <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Pendaftaran tamu">
           {QUICK_REGISTER_TYPES.map((type) => {
             const Icon = QUICK_CARD_ICON[type]
             return (
@@ -696,9 +688,8 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
             )
           })}
         </div>
-
         {/* The old reception screen's buttons: take a card back, call up the records, refresh. */}
-        <div className="-mt-4 mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Menu Lobby">
+        <div className="mb-6 grid grid-cols-1 gap-2 sm:grid-cols-3" role="group" aria-label="Menu Lobby">
           <button type="button" onClick={() => setReturnOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary">
             <Undo2 className="size-4" />Pengembalian Kartu ID
           </button>
@@ -710,15 +701,24 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
           </button>
         </div>
 
+        {/* The permits are registrations too: right under the registration buttons. */}
+        <PhotoVideoRequestsPanel />
+        <SpecialAreaRequestsPanel />
+
+        {/* Scan a card: the guest it belongs to is handled — no searching the list. Right above the list. */}
+        <ScanCardBox
+          station={station}
+          focusKey={scanFocusKey}
+          onChanged={load}
+          onSwap={setSelected}
+          registerOptions={QUICK_REGISTER_TYPES.map((type) => ({ label: `Daftarkan ${QUICK_CARD_LABEL[type]}`, kind: type, onPick: (code: string) => { setQuickCardBarcode(code); setQuickCardOpen(type) } }))}
+        />
         {selected && (
           <div ref={detailRef} className="mb-6 scroll-mt-4">
             <DetailPanel registration={selected} onClose={() => { setSelected(null); setScanFocusKey((key) => key + 1) }} onChanged={() => { load(); setScanFocusKey((key) => key + 1) }} />
           </div>
         )}
-        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
-        <PhotoVideoRequestsPanel />
-        <SpecialAreaRequestsPanel />
-
+        {/* The guest list right under the scan box; the cards in use at the bottom. */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="portal-eyebrow">Semua Pendaftaran</p>
@@ -909,6 +909,10 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
             </table>
           </div>
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredRegistrations.length} pageSize={pageSize} />
+        </div>
+
+        <div className="mt-8">
+        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
         </div>
       </main>
 

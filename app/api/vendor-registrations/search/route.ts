@@ -31,13 +31,14 @@ type VendorRegistrationRow = {
   security_card_type: SecurityCardType
   security_card_barcode: string | null
   at_work_area: boolean
+  closed_note: string | null
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
-  security_card_type, security_card_barcode, at_work_area`
+  security_card_type, security_card_barcode, at_work_area, closed_note`
 
 // Look up a guest by whichever card they're currently holding (Lobby scans the
 // physical card in front of them — could be any of the five card types).

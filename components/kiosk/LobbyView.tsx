@@ -10,6 +10,7 @@ import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
 import { ReturnCardDialog } from '@/components/kiosk/ReturnCardDialog'
 import { CallRecordDialog } from '@/components/kiosk/CallRecordDialog'
+import { ManualCloseDialog } from '@/components/kiosk/ManualCloseDialog'
 import { lobbyCardProblem, lobbyCardRangeText, type LobbyCardKind } from '@/lib/card-ranges'
 import { KioskThemePicker } from '@/components/kiosk/KioskThemePicker'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -20,7 +21,7 @@ import { Pagination } from '@/components/pagination'
 import { usePagination } from '@/hooks/usePagination'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, formatTimeParts, holdsSecurityCard, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, formatTimeParts, holdsSecurityCard, isRepeatScan, markScanned, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
 
 // A card the Lobby takes back: the two it swaps into (Visitor, Vendor) and, on
 // older rows, a Special Area or Photography card.
@@ -87,7 +88,7 @@ const CARD_LABEL: Record<WorkAreaCardType | 'affiliate', string> = {
 }
 function statusOf(r: Registration): { key: string; label: string } {
   if (r.stage === 'pending_approval') return { key: 'pending_approval', label: 'Menunggu Approval Security' }
-  if (r.stage === 'closed') return { key: 'closed', label: 'Selesai' }
+  if (r.stage === 'closed') return { key: 'closed', label: r.closed_note ? 'Selesai (Tutup Manual)' : 'Selesai' }
   // still on the card Pos Security handed out (Visitor, Vendor or Supplier)
   if (holdsSecurityCard(r)) return { key: r.security_card_type, label: `Kartu ${SECURITY_CARD_LABEL[r.security_card_type]} (Security)` }
   if (r.current_card_type && r.current_card_type in CARD_LABEL) {
@@ -205,6 +206,9 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   const [swapTarget, setSwapTarget] = useState<SwapCardType>(fromSecurity ? 'visitor' : 'vendor')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // A second read of the same card while the first is on its way is dropped, not glued onto it.
+  const submittingRef = useRef(false)
+  const [manualClose, setManualClose] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editFullName, setEditFullName] = useState(registration.full_name)
   const [editIdCard, setEditIdCard] = useState(registration.id_card)
@@ -216,29 +220,37 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   // Picking VISITOR / VENDOR must not take the cursor away from the scan field.
   const swapInputRef = useRef<HTMLInputElement>(null)
   const onEnter = (run: () => void) => (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') { event.preventDefault(); if (!submitting) run() }
+    if (event.key === 'Enter') { event.preventDefault(); if (!submittingRef.current) run() }
   }
   const status = statusOf(registration)
   const isAffiliate = registration.current_card_type === 'affiliate' || Boolean(registration.affiliate_card_barcode)
 
   const runAction = async (action: 'swapToWorkArea' | 'returnWorkArea' | 'returnDirect', cardType?: SwapCardType) => {
+    if (submittingRef.current) return
     if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
+    // The card just scanned (the Security card that opened this panel), read a second time.
+    if (isRepeatScan(barcode)) { setBarcode(''); return }
     setError(null)
+    const code = barcode.trim()
+    submittingRef.current = true
     setSubmitting(true)
+    setBarcode('')
     try {
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${registration.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action, barcode: barcode.trim(), ...(cardType ? { cardType } : {}) }),
+        body: JSON.stringify({ action, barcode: code, ...(cardType ? { cardType } : {}) }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal memproses.'); return }
+      markScanned(code)
       onChanged()
       onClose()
     } catch {
       setError('Tidak dapat menghubungi server.')
     } finally {
+      submittingRef.current = false
       setSubmitting(false)
     }
   }
@@ -350,6 +362,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
           {row('Status :', status.label)}
           {row('Jam Masuk :', formatDateTime(registration.entry_at))}
           {row('Jam Keluar :', formatDateTime(registration.exit_at))}
+          {registration.closed_note && row('Catatan :', registration.closed_note)}
         </>
       )}
 
@@ -383,7 +396,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
             <p className="mb-2 text-[11px] text-muted-foreground">Kartu {WORK_AREA_LABEL[swapTarget]} Lobby bernomor {lobbyCardRangeText(swapTarget)}.</p>
             <div className="relative">
               <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input ref={swapInputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('swapToWorkArea', swapTarget))} autoFocus placeholder={`Scan barcode kartu ${WORK_AREA_LABEL[swapTarget]}...`} className={`${inputClass} pl-10`} />
+              <input ref={swapInputRef} value={barcode} onChange={(e) => { if (!submittingRef.current) setBarcode(e.target.value) }} onKeyDown={onEnter(() => runAction('swapToWorkArea', swapTarget))} autoFocus placeholder={`Scan barcode kartu ${WORK_AREA_LABEL[swapTarget]}...`} className={`${inputClass} pl-10`} />
             </div>
             <button type="button" disabled={submitting} onClick={() => runAction('swapToWorkArea', swapTarget)} className="mt-3 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
               {submitting ? 'Memproses...' : 'Tukar Kartu'}
@@ -404,7 +417,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
               )}
               <div className="relative">
                 <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('returnDirect'))} placeholder="Scan barcode kartu Visitor yang dikembalikan..." className={`${inputClass} pl-10`} />
+                <input value={barcode} onChange={(e) => { if (!submittingRef.current) setBarcode(e.target.value) }} onKeyDown={onEnter(() => runAction('returnDirect'))} placeholder="Scan barcode kartu Visitor yang dikembalikan..." className={`${inputClass} pl-10`} />
               </div>
               {trimmed && (
                 matches
@@ -435,7 +448,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
               )}
               <div className="relative">
                 <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('returnWorkArea'))} autoFocus placeholder="Scan barcode kartu yang dikembalikan..." className={`${inputClass} pl-10`} />
+                <input value={barcode} onChange={(e) => { if (!submittingRef.current) setBarcode(e.target.value) }} onKeyDown={onEnter(() => runAction('returnWorkArea'))} autoFocus placeholder="Scan barcode kartu yang dikembalikan..." className={`${inputClass} pl-10`} />
               </div>
               {trimmed && (
                 matches
@@ -462,7 +475,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
               )}
               <div className="relative">
                 <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input value={barcode} onChange={(e) => setBarcode(e.target.value)} onKeyDown={onEnter(() => runAction('returnDirect'))} autoFocus placeholder="Scan barcode kartu Affiliate yang dikembalikan..." className={`${inputClass} pl-10`} />
+                <input value={barcode} onChange={(e) => { if (!submittingRef.current) setBarcode(e.target.value) }} onKeyDown={onEnter(() => runAction('returnDirect'))} autoFocus placeholder="Scan barcode kartu Affiliate yang dikembalikan..." className={`${inputClass} pl-10`} />
               </div>
               {trimmed && (
                 matches
@@ -481,7 +494,14 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
           </p>
         )}
         {error && <p className="mt-3 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}
+        {/* The card can't be scanned back (lost, the guest left with it): close the visit by hand. */}
+        {registration.stage === 'active' && (
+          <button type="button" onClick={() => setManualClose(true)} className="mt-3 w-full text-center text-xs font-semibold text-muted-foreground underline-offset-2 transition hover:text-destructive hover:underline">
+            Kartu hilang / tidak bisa di-scan? Tutup Manual
+          </button>
+        )}
       </div>
+      {manualClose && <ManualCloseDialog registration={registration} onClose={() => setManualClose(false)} onDone={() => { setManualClose(false); onChanged(); onClose() }} />}
     </div>
   )
 }

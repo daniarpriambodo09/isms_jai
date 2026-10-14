@@ -9,9 +9,9 @@
 // card" buttons.
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowDownUp, Briefcase, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Trash2, Truck, Undo2, UserPlus, X } from 'lucide-react'
+import { ArrowDownUp, Ban, Briefcase, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Trash2, Truck, Undo2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
@@ -19,13 +19,14 @@ import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
 import { KioskThemePicker } from '@/components/kiosk/KioskThemePicker'
 import { ReturnCardDialog } from '@/components/kiosk/ReturnCardDialog'
+import { ManualCloseDialog } from '@/components/kiosk/ManualCloseDialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
-import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, SECURITY_CARD_TYPES, formatDateTime, formatTimeParts, holdsSecurityCard, inputClass, labelClass, stationOf, useKioskAutoRefresh, usePermitCards, type Registration, type SecurityCardType } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, SECURITY_CARD_TYPES, formatDateTime, formatTimeParts, holdsSecurityCard, inputClass, labelClass, markScanned, stationOf, useKioskAutoRefresh, usePermitCards, type Registration, type SecurityCardType } from '@/components/kiosk/kiosk-shared'
 
 const SECURITY_CARD_ICON: Record<SecurityCardType, typeof UserPlus> = { visitor: UserPlus, vendor: Briefcase, supplier: Truck }
 const SECURITY_CARD_BADGE: Record<SecurityCardType, string> = {
@@ -165,15 +166,22 @@ function ScanPrompt({
   const [barcode, setBarcode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // A second read of the same card while the first is on its way is dropped, not glued onto it.
+  const submittingRef = useRef(false)
 
   useEscapeClose(true, onClose)
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
+    if (submittingRef.current) return
     if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
     setError(null)
+    const code = barcode.trim()
+    submittingRef.current = true
     setSubmitting(true)
-    const message = await onSubmit(barcode.trim())
+    setBarcode('')
+    const message = await onSubmit(code)
+    submittingRef.current = false
     setSubmitting(false)
     if (message) setError(message)
   }
@@ -200,7 +208,7 @@ function ScanPrompt({
           )}
           <div className="relative">
             <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus placeholder="Scan atau ketik barcode..." className={`${inputClass} pl-10`} />
+            <input value={barcode} onChange={(e) => { if (!submittingRef.current) setBarcode(e.target.value) }} autoFocus placeholder="Scan atau ketik barcode..." className={`${inputClass} pl-10`} />
           </div>
           {expectedBarcode && trimmed && (
             matches
@@ -229,7 +237,7 @@ const STAGE_BADGE: Record<string, string> = {
 
 function statusOf(r: Registration): { key: string; label: string } {
   if (r.stage === 'pending_approval') return { key: 'pending_approval', label: 'Menunggu Approval' }
-  if (r.stage === 'closed') return { key: 'closed', label: 'Selesai' }
+  if (r.stage === 'closed') return { key: 'closed', label: r.closed_note ? 'Selesai (Tutup Manual)' : 'Selesai' }
   if (holdsSecurityCard(r)) return { key: r.security_card_type, label: `Kartu ${SECURITY_CARD_LABEL[r.security_card_type]}` }
   // a card the Lobby issued by itself (rows from when this post had the Lobby's buttons)
   if (r.entry_path !== 'security') return { key: 'working', label: 'Kartu Lobby' }
@@ -251,6 +259,8 @@ export function SecurityView() {
   const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  // "Tutup Manual": a visit whose card can't be scanned back
+  const [manualTarget, setManualTarget] = useState<Registration | null>(null)
   const [scanTarget, setScanTarget] = useState<{ registration: Registration; action: 'approve' | 'close' } | null>(null)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   // "Pengembalian Kartu ID": a window that only takes this post's cards back
@@ -320,6 +330,7 @@ export function SecurityView() {
     })
     const data = await res.json().catch(() => null)
     if (!res.ok) return data?.message ?? 'Gagal memproses.'
+    markScanned(barcode)
     setScanTarget(null)
     load()
     return null
@@ -494,7 +505,8 @@ export function SecurityView() {
                         })()}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                        <span title={r.closed_note ?? undefined} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                        {r.closed_note && <span className="mt-1 block max-w-[220px] whitespace-normal text-[10px] text-muted-foreground">{r.closed_note}</span>}
                         {r.current_card_type && (
                           <span className="mt-1 block font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
                             {r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}
@@ -517,6 +529,11 @@ export function SecurityView() {
                             <span className="whitespace-nowrap rounded-md bg-secondary/60 px-2 py-1 text-[11px] font-medium text-muted-foreground" title={r.entry_path === 'security' ? 'Tamu masih memegang kartu Lobby — kartu harus ditukar kembali ke kartu Security di Lobby sebelum bisa ditutup di sini' : 'Kartu ini diterbitkan langsung (bukan lewat Pendaftaran) — kunjungannya ditutup di Lobby'}>
                               {r.entry_path === 'security' ? 'Tukar kartu di Lobby dulu' : 'Tutup di Lobby'}
                             </span>
+                          )}
+                          {r.stage !== 'closed' && (
+                            <button type="button" onClick={() => setManualTarget(r)} aria-label={`Tutup manual ${r.full_name}`} title="Tutup Manual — kartu hilang / tidak bisa di-scan" className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+                              <Ban className="size-3.5" />
+                            </button>
                           )}
                           <button type="button" onClick={() => setEditTarget(r)} aria-label={`Edit data ${r.full_name}`} title="Edit data" className="grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary hover:text-foreground">
                             <Pencil className="size-3.5" />
@@ -542,6 +559,7 @@ export function SecurityView() {
       {formOpen && <RegisterModal cardType={formOpen} onClose={() => setFormOpen(null)} onSaved={load} />}
       {editTarget && <RegisterModal editing={editTarget} onClose={() => setEditTarget(null)} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
+      {manualTarget && <ManualCloseDialog registration={manualTarget} onClose={() => setManualTarget(null)} onDone={() => { setManualTarget(null); load() }} />}
       {returnOpen && <ReturnCardDialog station="security" registrations={registrations} onClose={() => setReturnOpen(false)} onChanged={load} />}
       <ConfirmDialog
         open={!!pendingDelete}

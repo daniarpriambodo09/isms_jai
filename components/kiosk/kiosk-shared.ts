@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { API_BASE_PATH } from '@/lib/config'
+import { normalizeCardNo } from '@/lib/card-ranges'
 import type { CardType, PermitCard } from '@/components/kiosk/ActiveCardsWidget'
 
 // Lobby and Security work the same guests from two different kiosks
@@ -36,6 +37,26 @@ export function useKioskAutoRefresh(refresh: () => void, intervalMs = KIOSK_REFR
 // long over, until the photos are marked as taken; a Special Area card until
 // it is scanned back in.
 const PERMIT_CARD_GRACE_MS = 12 * 3_600_000
+
+// A scanner can read one card twice (the trigger pressed twice, or a double
+// read). The second read must not count as a new scan: it would replace the
+// result just shown with a wrong one, or — right after a swap — hand the Lobby
+// card that was just given out straight back. So the card last handled on this
+// page is remembered for a moment, and the same number again is ignored — also
+// just its tail: when the cursor moves to another field halfway through the
+// second read, the first characters land in the old field and the rest in the
+// new one. (Each field is also emptied the moment its scan is sent, so a read
+// can't be glued onto the one before.)
+const REPEAT_SCAN_MS = 4_000
+let lastScan: { code: string; at: number } | null = null
+export function markScanned(code: string) {
+  lastScan = { code: normalizeCardNo(code).toUpperCase(), at: Date.now() }
+}
+export function isRepeatScan(code: string) {
+  const read = code.trim().toUpperCase()
+  if (!read || !lastScan || Date.now() - lastScan.at >= REPEAT_SCAN_MS) return false
+  return lastScan.code === normalizeCardNo(read).toUpperCase() || lastScan.code.endsWith(read)
+}
 
 const CARDS_CHANGED = 'isms:cards-changed'
 /** Call after saving a permit's card number, so "Kartu Sedang Digunakan" doesn't wait for its next refresh. */
@@ -109,6 +130,8 @@ export type Registration = {
   security_card_barcode: string | null
   /** Swapped the Security card for a Lobby card, not swapped back yet. */
   at_work_area: boolean
+  /** Set when the visit was closed by "Tutup Manual" (who, and why). */
+  closed_note?: string | null
 }
 
 export type SecurityCardType = 'visitor' | 'vendor' | 'supplier'

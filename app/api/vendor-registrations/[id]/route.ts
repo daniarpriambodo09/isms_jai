@@ -12,7 +12,7 @@ type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area'
 type SecurityCardType = 'visitor' | 'vendor' | 'supplier'
 // The Lobby cards a guest can swap into.
 type SwapCardType = 'visitor' | 'vendor'
-type Action = 'approve' | 'swapToWorkArea' | 'returnWorkArea' | 'close' | 'returnDirect' | 'editDetails'
+type Action = 'approve' | 'swapToWorkArea' | 'returnWorkArea' | 'close' | 'returnDirect' | 'editDetails' | 'forceClose'
 type CardColumn = 'visitor_card_barcode' | 'vendor_card_barcode' | 'supplier_card_barcode' | 'affiliate_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'
 
 type VendorRegistrationRow = {
@@ -38,15 +38,16 @@ type VendorRegistrationRow = {
   security_card_type: SecurityCardType
   security_card_barcode: string | null
   at_work_area: boolean
+  closed_note: string | null
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
-  security_card_type, security_card_barcode, at_work_area`
+  security_card_type, security_card_barcode, at_work_area, closed_note`
 
-const ACTIONS: Action[] = ['approve', 'swapToWorkArea', 'returnWorkArea', 'close', 'returnDirect', 'editDetails']
+const ACTIONS: Action[] = ['approve', 'swapToWorkArea', 'returnWorkArea', 'close', 'returnDirect', 'editDetails', 'forceClose']
 function isAction(value: unknown): value is Action {
   return typeof value === 'string' && (ACTIONS as string[]).includes(value)
 }
@@ -122,11 +123,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const body = await request.json() as {
       action?: string; barcode?: string; cardType?: string; securityCardType?: string
-      fullName?: string; idCard?: string; picJai?: string; purpose?: string; companyRemark?: string
+      fullName?: string; idCard?: string; picJai?: string; purpose?: string; companyRemark?: string; reason?: string
     }
     if (!isAction(body.action)) return NextResponse.json({ message: 'Aksi tidak valid.' }, { status: 400 })
     const barcode = normalizeCardNo(body.barcode)
-    if (body.action !== 'editDetails' && !barcode) return NextResponse.json({ message: 'Barcode wajib diisi.' }, { status: 400 })
+    if (body.action !== 'editDetails' && body.action !== 'forceClose' && !barcode) return NextResponse.json({ message: 'Barcode wajib diisi.' }, { status: 400 })
 
     const existing = await query<VendorRegistrationRow>(`SELECT ${SELECT_COLUMNS} FROM vendor_registrations WHERE id = $1`, [id])
     const row = existing.rows[0]
@@ -263,6 +264,29 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           `UPDATE vendor_registrations SET stage = 'closed', current_card_type = NULL, exit_at = now() WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
           [id]
         )
+        return NextResponse.json({ registration: result.rows[0] })
+      }
+
+      // "Tutup Manual": the card can't be scanned back (lost, the guest left
+      // with it, a wrong number recorded). The visit is closed without the
+      // card, every card on it is freed, and the reason stays on the record.
+      case 'forceClose': {
+        const reason = typeof body.reason === 'string' ? body.reason.trim().slice(0, 300) : ''
+        if (reason.length < 3) return NextResponse.json({ message: 'Tulis alasannya (mis. kartu hilang).' }, { status: 400 })
+        if (row.stage === 'closed') return NextResponse.json({ message: 'Pendaftaran ini sudah selesai.' }, { status: 409 })
+        const card = row.current_card_type ? row[CARD_COLUMN[row.current_card_type]] : null
+        const held = row.stage === 'active' && row.current_card_type
+          ? `kartu ${CARD_LABEL[row.current_card_type]} ${card ?? ''}`.trim() + (row.entry_path === 'security' && row.at_work_area ? ` + kartu ${CARD_LABEL[row.security_card_type]} Security ${row.security_card_barcode ?? ''}`.trimEnd() : '')
+          : 'belum memegang kartu'
+        const note = `Ditutup manual oleh ${session.username}: ${reason}`
+        const result = await query<VendorRegistrationRow>(
+          `UPDATE vendor_registrations
+           SET stage = 'closed', current_card_type = NULL, at_work_area = false, exit_at = now(), closed_note = $2
+           WHERE id = $1 AND stage <> 'closed' RETURNING ${SELECT_COLUMNS}`,
+          [id, note]
+        )
+        if (!result.rows[0]) return NextResponse.json({ message: 'Pendaftaran ini sudah selesai.' }, { status: 409 })
+        await logActivity(session, 'update', 'vendor_registration', id, `Menutup manual pendaftaran "${row.full_name}" (${held}) — ${reason}`)
         return NextResponse.json({ registration: result.rows[0] })
       }
     }

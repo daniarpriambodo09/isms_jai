@@ -9,11 +9,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowDownToLine, ArrowUpFromLine, Loader2, ScanLine, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
-import { SECURITY_CARD_LABEL, cardsChanged, formatTimeParts, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
+import { SECURITY_CARD_LABEL, cardsChanged, formatTimeParts, inputClass, isRepeatScan, markScanned, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type ScanResult = 'out' | 'returned' | 'swap' | 'in' | 'choose' | 'unknown' | 'blocked'
 // offerKind: the kind of Lobby card the scanned number is (lib/card-ranges.ts) — only that registration is offered; null = none fits.
-type Outcome = { tone: 'in' | 'out' | 'warn'; message: string; at?: string | null; barcode: string; candidates?: Registration[]; pickFor?: 'approve' | 'scan'; offerRegister?: boolean; offerKind?: string | null }
+type Outcome = { tone: 'in' | 'out' | 'warn'; message: string; at?: string | null; barcode: string; candidates?: Registration[]; pickFor?: 'approve' | 'scan'; offerRegister?: boolean; offerKind?: string | null; note?: string }
 
 export function ScanCardBox({
   station,
@@ -34,13 +34,18 @@ export function ScanCardBox({
 }) {
   const [barcode, setBarcode] = useState('')
   const [busy, setBusy] = useState(false)
+  // Set at once (the state above only on the next render): a second read that
+  // arrives while a scan is still on its way is dropped, not glued onto it.
+  const busyRef = useRef(false)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const refocus = () => window.setTimeout(() => inputRef.current?.focus(), 0)
   useEffect(() => { inputRef.current?.focus() }, [focusKey])
 
   const scan = async (code: string, id?: number) => {
+    busyRef.current = true
     setBusy(true)
+    setBarcode('')
     // After a 'swap' the cursor belongs to the detail panel (next scan: the Lobby card).
     let keepFocus = true
     try {
@@ -54,11 +59,11 @@ export function ScanCardBox({
       const message = data?.message ?? 'Gagal memproses scan kartu.'
       switch (data?.result) {
         case 'out':
-          setOutcome({ tone: 'out', message, at: data.registration?.exit_at ?? data.permit?.returned_at, barcode: code }); onChanged(); cardsChanged(); break
+          markScanned(code); setOutcome({ tone: 'out', message, at: data.registration?.exit_at ?? data.permit?.returned_at, barcode: code }); onChanged(); cardsChanged(); break
         case 'returned':
-          setOutcome({ tone: 'out', message, at: new Date().toISOString(), barcode: code }); onChanged(); break
+          markScanned(code); setOutcome({ tone: 'out', message, at: new Date().toISOString(), barcode: code }); onChanged(); break
         case 'swap':
-          setOutcome({ tone: 'in', message, barcode: code }); if (data.registration && onSwap) { onSwap(data.registration); keepFocus = false } break
+          markScanned(code); setOutcome({ tone: 'in', message, barcode: code }); if (data.registration && onSwap) { onSwap(data.registration); keepFocus = false } break
         case 'in':
           setOutcome({ tone: 'in', message, barcode: code, candidates: data.candidates ?? [], pickFor: 'approve' }); break
         case 'choose':
@@ -71,6 +76,7 @@ export function ScanCardBox({
     } catch {
       setOutcome({ tone: 'warn', message: 'Tidak dapat menghubungi server.', barcode: code })
     } finally {
+      busyRef.current = false
       setBusy(false)
       setBarcode('')
       if (keepFocus) refocus()
@@ -79,11 +85,20 @@ export function ScanCardBox({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
-    if (busy) return
+    if (busyRef.current) return
     const code = barcode.trim()
     // Pressed with nothing in the field: say what is expected and put the cursor there.
     if (!code) {
       setOutcome({ tone: 'warn', message: 'Belum ada nomor kartu. Scan kartunya, atau ketik nomornya di kolom ini lalu tekan Enter / Scan.', barcode: '' })
+      refocus()
+      return
+    }
+    // The card just handled, read a second time: the result shown stays.
+    if (isRepeatScan(code)) {
+      setBarcode('')
+      setOutcome((shown) => shown
+        ? { ...shown, note: `${shown.barcode || code} ter-scan 2× — scan kedua diabaikan. Memang perlu di-scan lagi? Tunggu beberapa detik.` }
+        : { tone: 'warn', message: `${code} baru saja di-scan — scan kedua diabaikan.`, barcode: code })
       refocus()
       return
     }
@@ -92,6 +107,8 @@ export function ScanCardBox({
 
   // Scan in at Pos Security: hand the scanned card to the chosen guest.
   const approve = async (guest: Registration, code: string) => {
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     try {
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${guest.id}`, {
@@ -102,11 +119,13 @@ export function ScanCardBox({
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setOutcome({ tone: 'warn', message: data?.message ?? 'Gagal memproses.', barcode: code }); return }
+      markScanned(code)
       setOutcome({ tone: 'in', message: `Scan in — ${guest.full_name} masuk dengan kartu ${SECURITY_CARD_LABEL[guest.security_card_type]}.`, at: data?.registration?.entry_at, barcode: code })
       onChanged()
     } catch {
       setOutcome({ tone: 'warn', message: 'Tidak dapat menghubungi server.', barcode: code })
     } finally {
+      busyRef.current = false
       setBusy(false)
       refocus()
     }
@@ -132,7 +151,7 @@ export function ScanCardBox({
       <form onSubmit={handleSubmit} className="flex gap-2">
         <div className="relative flex-1">
           <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input ref={inputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} aria-label="Scan kartu tamu" placeholder="Scan atau ketik nomor kartu, lalu Enter..." autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
+          <input ref={inputRef} value={barcode} onChange={(e) => { if (!busyRef.current) setBarcode(e.target.value) }} aria-label="Scan kartu tamu" placeholder="Scan atau ketik nomor kartu, lalu Enter..." autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
         </div>
         <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
           {busy ? <Loader2 className="size-4 animate-spin" /> : <ScanLine className="size-4" />}Scan
@@ -146,6 +165,7 @@ export function ScanCardBox({
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{outcome.message}</p>
               {outcome.barcode && <p className="mt-0.5 font-mono text-[11px] opacity-80">{outcome.barcode}{at ? ` · ${at.time}` : ''}</p>}
+              {outcome.note && <p data-testid="scan-note" className="mt-1 text-[11px] font-medium opacity-80">{outcome.note}</p>}
             </div>
             <button type="button" onClick={() => { setOutcome(null); refocus() }} aria-label="Tutup hasil scan" className="grid size-7 flex-shrink-0 place-items-center rounded-full opacity-70 transition hover:bg-black/5 hover:opacity-100">
               <X className="size-4" />

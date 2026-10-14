@@ -15,7 +15,7 @@ import { CheckCircle2, Loader2, ScanLine, Undo2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import type { PermitCard } from '@/components/kiosk/ActiveCardsWidget'
-import { CARD_BARCODE_FIELD, cardsChanged, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, cardsChanged, inputClass, isRepeatScan, markScanned, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type Entry = { ok: boolean; message: string; barcode: string; candidates?: Registration[] }
 
@@ -64,6 +64,8 @@ export function ReturnCardDialog({
 }) {
   const [barcode, setBarcode] = useState('')
   const [busy, setBusy] = useState(false)
+  // A second read of the same card while the first is on its way is dropped, not glued onto it.
+  const busyRef = useRef(false)
   // newest first: what was handed in during this sitting
   const [log, setLog] = useState<Entry[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
@@ -104,7 +106,9 @@ export function ReturnCardDialog({
   }, [registrations, permitCards, station])
 
   const send = async (code: string, id?: number) => {
+    busyRef.current = true
     setBusy(true)
+    setBarcode('')
     try {
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/scan`, {
         method: 'POST',
@@ -115,10 +119,11 @@ export function ReturnCardDialog({
       const data = await res.json().catch(() => null) as { result?: string; message?: string; candidates?: Registration[] } | null
       const done = data?.result === 'out' || data?.result === 'returned'
       setLog((current) => [{ ok: done, message: data?.message ?? 'Gagal memproses.', barcode: code, candidates: data?.result === 'choose' ? data.candidates : undefined }, ...current.filter((entry) => !(entry.candidates && entry.barcode === code))].slice(0, 12))
-      if (done) { onChanged(); cardsChanged() }
+      if (done) { markScanned(code); onChanged(); cardsChanged() }
     } catch {
       setLog((current) => [{ ok: false, message: 'Tidak dapat menghubungi server.', barcode: code }, ...current].slice(0, 12))
     } finally {
+      busyRef.current = false
       setBusy(false)
       setBarcode('')
       window.setTimeout(() => inputRef.current?.focus(), 0)
@@ -127,7 +132,10 @@ export function ReturnCardDialog({
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const code = barcode.trim()
-    if (code && !busy) send(code)
+    if (!code || busyRef.current) return
+    // the card just taken back, read a second time
+    if (isRepeatScan(code)) { setBarcode(''); return }
+    send(code)
   }
   const returned = log.filter((entry) => entry.ok).length
 
@@ -149,7 +157,7 @@ export function ReturnCardDialog({
           <form onSubmit={submit} className="flex gap-2 px-5 pt-5">
             <div className="relative flex-1">
               <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input ref={inputRef} value={barcode} onChange={(e) => setBarcode(e.target.value)} aria-label="Scan kartu yang dikembalikan" placeholder="Scan atau ketik nomor kartu, lalu Enter..." autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
+              <input ref={inputRef} value={barcode} onChange={(e) => { if (!busyRef.current) setBarcode(e.target.value) }} aria-label="Scan kartu yang dikembalikan" placeholder="Scan atau ketik nomor kartu, lalu Enter..." autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
             </div>
             <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60">
               {busy ? <Loader2 className="size-4 animate-spin" /> : <Undo2 className="size-4" />}Terima

@@ -13,7 +13,7 @@ import { ArrowRightLeft, CheckCircle2, Loader2, ScanLine, X } from 'lucide-react
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { lobbyCardProblem, lobbyCardRangeText } from '@/lib/card-ranges'
-import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, inputClass, isRepeatScan, markScanned, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type SwapKind = 'visitor' | 'vendor'
 const SWAP_LABEL: Record<SwapKind, string> = { visitor: 'VISITOR', vendor: 'VENDOR' }
@@ -39,6 +39,8 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
   const [kind, setKind] = useState<SwapKind>('vendor')
   const [lobbyNo, setLobbyNo] = useState('')
   const [busy, setBusy] = useState(false)
+  // A second read of the same card while the first is on its way is dropped, not glued onto it.
+  const busyRef = useRef(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const [swapped, setSwapped] = useState(0)
   // the same number on two kinds of Security card: which guest is it?
@@ -68,7 +70,8 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
   }, [registrations])
 
   const call = async (code: string, id?: number) => {
-    setBusy(true); setMessage(null); setChoices(null)
+    busyRef.current = true
+    setBusy(true); setMessage(null); setChoices(null); setSecurityNo('')
     try {
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/scan`, {
         method: 'POST',
@@ -78,6 +81,7 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
       })
       const data = await res.json().catch(() => null) as { result?: string; message?: string; registration?: Registration; candidates?: Registration[] } | null
       if (data?.result === 'swap' && data.registration) {
+        markScanned(code)
         setGuest(data.registration)
         // a guest registered as Vendor usually gets the Vendor card; anyone else the Visitor card
         setKind(data.registration.security_card_type === 'vendor' ? 'vendor' : 'visitor')
@@ -90,6 +94,7 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
     } catch {
       setMessage({ ok: false, text: 'Tidak dapat menghubungi server.' })
     } finally {
+      busyRef.current = false
       setBusy(false)
       setSecurityNo('')
     }
@@ -97,24 +102,33 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
   const submitCall = (event: FormEvent) => {
     event.preventDefault()
     const code = securityNo.trim()
-    if (code && !busy) call(code)
+    if (!code || busyRef.current) return
+    // the Lobby card just handed over (or the Security card just called up), read a second time
+    if (isRepeatScan(code)) { setSecurityNo(''); return }
+    call(code)
   }
 
   const problem = lobbyNo.trim() ? lobbyCardProblem(lobbyNo, kind) : null
   const submitSwap = async (event: FormEvent) => {
     event.preventDefault()
-    if (!guest || !lobbyNo.trim() || problem || busy) return
-    setBusy(true); setMessage(null)
+    if (busyRef.current) return
+    // the Security card that called this record up, read a second time
+    if (isRepeatScan(lobbyNo)) { setLobbyNo(''); return }
+    const code = lobbyNo.trim()
+    if (!guest || !code || problem) return
+    busyRef.current = true
+    setBusy(true); setMessage(null); setLobbyNo('')
     try {
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${guest.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action: 'swapToWorkArea', cardType: kind, barcode: lobbyNo.trim() }),
+        body: JSON.stringify({ action: 'swapToWorkArea', cardType: kind, barcode: code }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setMessage({ ok: false, text: data?.message ?? 'Gagal menukar kartu.' }); lobbyRef.current?.focus(); return }
-      setMessage({ ok: true, text: `${guest.full_name}: kartu ${SECURITY_CARD_LABEL[guest.security_card_type]} Security ${guest.security_card_barcode ?? ''} ditukar dengan kartu ${SWAP_LABEL[kind]} Lobby ${data?.registration?.[CARD_BARCODE_FIELD[kind]] ?? lobbyNo.trim()}.` })
+      setMessage({ ok: true, text: `${guest.full_name}: kartu ${SECURITY_CARD_LABEL[guest.security_card_type]} Security ${guest.security_card_barcode ?? ''} ditukar dengan kartu ${SWAP_LABEL[kind]} Lobby ${data?.registration?.[CARD_BARCODE_FIELD[kind]] ?? code}.` })
+      markScanned(code)
       setSwapped((n) => n + 1)
       setGuest(null)
       setLobbyNo('')
@@ -123,6 +137,7 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
     } catch {
       setMessage({ ok: false, text: 'Tidak dapat menghubungi server.' })
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }
@@ -175,7 +190,7 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input ref={securityRef} value={securityNo} onChange={(e) => setSecurityNo(e.target.value)} aria-label="Barcode kartu ID dari Security" placeholder="Scan kartu Security yang dibawa tamu, lalu Enter..." autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
+                  <input ref={securityRef} value={securityNo} onChange={(e) => { if (!busyRef.current) setSecurityNo(e.target.value) }} aria-label="Barcode kartu ID dari Security" placeholder="Scan kartu Security yang dibawa tamu, lalu Enter..." autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
                 </div>
                 <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60">
                   {busy && <Loader2 className="size-4 animate-spin" />}Panggil
@@ -202,7 +217,7 @@ export function CallRecordDialog({ station, registrations, onClose, onChanged }:
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input ref={lobbyRef} value={lobbyNo} onChange={(e) => setLobbyNo(e.target.value)} aria-label="Barcode kartu Lobby" placeholder={`Scan kartu ${SWAP_LABEL[kind]} Lobby, lalu Enter...`} autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
+                  <input ref={lobbyRef} value={lobbyNo} onChange={(e) => { if (!busyRef.current) setLobbyNo(e.target.value) }} onKeyDown={(e) => { if (e.key === 'Enter' && isRepeatScan(lobbyNo)) { e.preventDefault(); setLobbyNo('') } }} aria-label="Barcode kartu Lobby" placeholder={`Scan kartu ${SWAP_LABEL[kind]} Lobby, lalu Enter...`} autoComplete="off" className={`${inputClass} h-12 pl-10 text-base`} />
                 </div>
                 <button type="submit" disabled={busy || !lobbyNo.trim() || !!problem} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowRightLeft className="size-4" />}Tukar

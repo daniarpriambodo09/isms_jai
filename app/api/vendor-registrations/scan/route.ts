@@ -49,7 +49,7 @@ const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
-  security_card_type, security_card_barcode, at_work_area`
+  security_card_type, security_card_barcode, at_work_area, closed_note`
 
 const CARD_LABEL: Record<CardType, string> = {
   visitor: 'Visitor', vendor: 'Vendor', supplier: 'Supplier', affiliate: 'Affiliate', special_area: 'Special Area', photography: 'Photography',
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       if (holders.length === 1) {
         const guest = holders[0]
         if (guest.at_work_area) {
-          return NextResponse.json({ result: 'blocked', registration: guest, message: `${guest.full_name} masih memegang kartu Lobby — tukar kembali di Lobby dulu, baru kartu Security bisa ditutup.` }, { status: 409 })
+          return NextResponse.json({ result: 'blocked', registration: guest, message: `${guest.full_name} masih memegang kartu Lobby — tukar kembali di Lobby dulu, baru kartu Security bisa ditutup. (Kartu Lobby-nya hilang? Pakai "Tutup Manual" di daftar.)` }, { status: 409 })
         }
         const closed = await query<Row>(
           `UPDATE vendor_registrations SET stage = 'closed', current_card_type = NULL, at_work_area = false, exit_at = now()

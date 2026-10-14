@@ -149,7 +149,8 @@ export async function resendAllPending() {
 
 export const SELECT_COLUMNS = `id, requester_name, org_company, department, from_at, to_at, area, purpose, id_card_no,
   status, submitted_at, submitted_by, approver_name, approver_title, notified_at, email_error,
-  decided_at, decision_note, verification_code, escort_name, escort_dept, escort_set_by, escort_set_at`
+  decided_at, decision_note, verification_code, escort_name, escort_dept, escort_set_by, escort_set_at,
+  returned_at, returned_by, planned_to_at`
 
 let ready: Promise<void> | null = null
 
@@ -187,9 +188,37 @@ export function ensureSpecialAreaSchema() {
       await query(`ALTER TABLE special_area_requests
         ADD COLUMN IF NOT EXISTS escort_name varchar(150), ADD COLUMN IF NOT EXISTS escort_dept varchar(150),
         ADD COLUMN IF NOT EXISTS escort_set_by varchar(100), ADD COLUMN IF NOT EXISTS escort_set_at timestamptz`)
+      // The ID card scanned back in (migration 0028).
+      await query(`ALTER TABLE special_area_requests
+        ADD COLUMN IF NOT EXISTS returned_at timestamptz, ADD COLUMN IF NOT EXISTS returned_by varchar(100),
+        ADD COLUMN IF NOT EXISTS planned_to_at timestamptz`)
     })().catch((error) => { ready = null; throw error })
   }
   return ready
+}
+
+/**
+ * The Special Area ID card `cardNo` is handed back: the request it went out
+ * with gets its actual exit time (to_at — the time written on it is kept in
+ * planned_to_at) and stops counting the card as out. null when no request
+ * has that card out.
+ */
+export async function returnSpecialAreaCard(cardNo: string, username: string): Promise<SpecialAreaRequest | null> {
+  await ensureSpecialAreaSchema()
+  const result = await query<SpecialAreaRequest>(
+    `UPDATE special_area_requests
+     SET planned_to_at = COALESCE(planned_to_at, to_at),
+         to_at = GREATEST(now(), from_at),
+         returned_at = now(), returned_by = $2
+     WHERE id = (
+       SELECT id FROM special_area_requests
+       WHERE id_card_no = $1 AND returned_at IS NULL AND status <> 'rejected'
+       ORDER BY from_at DESC LIMIT 1
+     )
+     RETURNING ${SELECT_COLUMNS}`,
+    [cardNo, username]
+  )
+  return result.rows[0] ?? null
 }
 
 export async function getRequest(id: number) {

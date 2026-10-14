@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowDownToLine, ArrowUpFromLine, Loader2, ScanLine, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
-import { SECURITY_CARD_LABEL, formatTimeParts, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
+import { SECURITY_CARD_LABEL, cardsChanged, formatTimeParts, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type ScanResult = 'out' | 'returned' | 'swap' | 'in' | 'choose' | 'unknown' | 'blocked'
 // offerKind: the kind of Lobby card the scanned number is (lib/card-ranges.ts) — only that registration is offered; null = none fits.
@@ -50,11 +50,11 @@ export function ScanCardBox({
         credentials: 'include',
         body: JSON.stringify({ barcode: code, station, ...(id ? { id } : {}) }),
       })
-      const data = await res.json().catch(() => null) as { result?: ScanResult; message?: string; registration?: Registration; candidates?: Registration[]; cardKind?: string | null } | null
+      const data = await res.json().catch(() => null) as { result?: ScanResult; message?: string; registration?: Registration; candidates?: Registration[]; cardKind?: string | null; permit?: { returned_at?: string | null } } | null
       const message = data?.message ?? 'Gagal memproses scan kartu.'
       switch (data?.result) {
         case 'out':
-          setOutcome({ tone: 'out', message, at: data.registration?.exit_at, barcode: code }); onChanged(); break
+          setOutcome({ tone: 'out', message, at: data.registration?.exit_at ?? data.permit?.returned_at, barcode: code }); onChanged(); cardsChanged(); break
         case 'returned':
           setOutcome({ tone: 'out', message, at: new Date().toISOString(), barcode: code }); onChanged(); break
         case 'swap':

@@ -32,8 +32,9 @@ export function useKioskAutoRefresh(refresh: () => void, intervalMs = KIOSK_REFR
 // Sedang Digunakan" at both kiosks:
 // - the ID Photography entered on an Ijin Foto/Video request → Photography;
 // - the ID Card No. entered (or scanned) on an Izin Masuk Area Special → Special Area.
-// A card counts while its request isn't rejected and its period isn't long
-// over (and, for photos, until they are marked as taken).
+// A photo card counts while its request isn't rejected and its period isn't
+// long over, until the photos are marked as taken; a Special Area card until
+// it is scanned back in.
 const PERMIT_CARD_GRACE_MS = 12 * 3_600_000
 
 const CARDS_CHANGED = 'isms:cards-changed'
@@ -61,9 +62,10 @@ export function usePermitCards(): PermitCard[] {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/special-area-requests`, { cache: 'no-store', credentials: 'include' })
       if (res.ok) {
-        const data = await res.json() as { requests?: { id: number; requester_name: string; id_card_no: string | null; status: string; from_at: string; to_at: string }[] }
+        const data = await res.json() as { requests?: { id: number; requester_name: string; id_card_no: string | null; status: string; from_at: string; to_at: string; returned_at?: string | null }[] }
+        // out until it is scanned back in (Scan Kartu / Pengembalian Kartu ID) — not dropped by the clock
         setSpecial((data.requests ?? [])
-          .filter((r) => r.id_card_no?.trim() && r.status !== 'rejected' && stillOut(r.to_at))
+          .filter((r) => r.id_card_no?.trim() && r.status !== 'rejected' && !r.returned_at)
           .map((r) => ({ key: `area-${r.id}`, type: 'special_area' as const, name: r.requester_name, code: r.id_card_no!.trim(), from: r.from_at, note: `izin area special${waiting(r.status)}` })))
       }
     } catch { /* keep what is shown */ }

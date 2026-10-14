@@ -15,7 +15,7 @@ import { CheckCircle2, Loader2, ScanLine, Undo2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import type { PermitCard } from '@/components/kiosk/ActiveCardsWidget'
-import { CARD_BARCODE_FIELD, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
+import { CARD_BARCODE_FIELD, cardsChanged, inputClass, type Registration } from '@/components/kiosk/kiosk-shared'
 
 type Entry = { ok: boolean; message: string; barcode: string; candidates?: Registration[] }
 
@@ -96,7 +96,8 @@ export function ReturnCardDialog({
     }
     if (station === 'lobby') {
       for (const card of permitCards) {
-        if (card.type === 'special_area' || card.type === 'photography') add(card.type, { key: card.key, code: card.code, since: card.from, name: card.name, note: card.note, returnable: false })
+        // a Special Area card is scanned back in here (its permit gets the exit time); a photo card is closed on its request
+        if (card.type === 'special_area' || card.type === 'photography') add(card.type, { key: card.key, code: card.code, since: card.from, name: card.name, note: card.note, returnable: card.type === 'special_area' })
       }
     }
     return (station === 'security' ? SECURITY_COLUMNS : LOBBY_COLUMNS).map((column) => ({ ...column, lines: (lines[column.key] ?? []).sort(byCode) }))
@@ -114,7 +115,7 @@ export function ReturnCardDialog({
       const data = await res.json().catch(() => null) as { result?: string; message?: string; candidates?: Registration[] } | null
       const done = data?.result === 'out' || data?.result === 'returned'
       setLog((current) => [{ ok: done, message: data?.message ?? 'Gagal memproses.', barcode: code, candidates: data?.result === 'choose' ? data.candidates : undefined }, ...current.filter((entry) => !(entry.candidates && entry.barcode === code))].slice(0, 12))
-      if (done) onChanged()
+      if (done) { onChanged(); cardsChanged() }
     } catch {
       setLog((current) => [{ ok: false, message: 'Tidak dapat menghubungi server.', barcode: code }, ...current].slice(0, 12))
     } finally {
@@ -220,7 +221,7 @@ export function ReturnCardDialog({
             <p className="mt-2 text-[11px] text-muted-foreground">
               {station === 'security'
                 ? 'Tiap baris: nomor kartu Security ⟹ tanggal ⟹ kartu Lobby yang sedang dipegang tamu sebagai gantinya (kosong bila tidak ada). Tamu yang masih memegang kartu Lobby harus menukarnya kembali di Lobby dulu.'
-                : 'Kolom Security: nomor kartu Security ⟹ tanggal ⟹ kartu Lobby yang dipegang sebagai gantinya (kosong bila belum ditukar). Kartu Security dikembalikan di Pos Security; kartu Special Area dan Photography lewat izinnya.'}
+                : 'Kolom Security: nomor kartu Security ⟹ tanggal ⟹ kartu Lobby yang dipegang sebagai gantinya (kosong bila belum ditukar). Kartu Security dikembalikan di Pos Security. Kartu Special Area di-scan di sini — jam keluar di izinnya ikut tercatat; kartu Photography lewat izinnya.'}
             </p>
           </div>
         </div>

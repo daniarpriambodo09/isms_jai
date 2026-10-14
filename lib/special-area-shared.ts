@@ -54,7 +54,13 @@ export type SpecialAreaRequest = {
   org_company: string
   department: string | null
   from_at: string
+  /** Exit: as written on the request — until the ID card is scanned back in, then the moment it came back. */
   to_at: string
+  /** When the ID card was scanned back in (null while it is still out). */
+  returned_at?: string | null
+  returned_by?: string | null
+  /** The exit time written on the request, kept once to_at took the actual return time. */
+  planned_to_at?: string | null
   area: string
   purpose: string
   id_card_no: string | null

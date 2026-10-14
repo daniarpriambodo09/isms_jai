@@ -119,7 +119,15 @@ export function SpecialAreaTable({ requests, loading, canDelete, onChanged, onDe
                 <tr key={r.id} className="align-top">
                   <td data-cell="title" className="px-4 py-3"><p className="font-medium text-foreground">{r.requester_name}</p><p className="text-xs text-muted-foreground">{r.org_company}{r.department ? ` · ${r.department}` : ''}</p><p className="mt-0.5 max-w-[240px] text-xs text-muted-foreground">Tujuan: {r.purpose}</p><p className="mt-1 text-[11px] text-muted-foreground/80">Diajukan {fmt(r.submitted_at)}{r.submitted_by ? ` · ${r.submitted_by}` : ''}</p></td>
                   <td data-label="Area" className="px-4 py-3"><span className="inline-flex whitespace-nowrap rounded-md bg-red-600/10 px-2 py-0.5 text-xs font-semibold text-red-700">{r.area}</span></td>
-                  <td data-label="Masuk – Keluar" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{fmt(r.from_at)}<br />{fmt(r.to_at)}</td>
+                  <td data-label="Masuk – Keluar" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                    {fmt(r.from_at)}<br />{fmt(r.to_at)}
+                    {/* the exit time is the moment the ID card came back (scan) — the planned one stays visible */}
+                    {r.returned_at
+                      ? <span className="mt-0.5 block text-[10.5px] font-semibold text-emerald-700">kartu kembali{r.planned_to_at && r.planned_to_at !== r.to_at ? ` · rencana ${fmt(r.planned_to_at)}` : ''}</span>
+                      : r.id_card_no && r.status !== 'rejected' && Date.parse(r.to_at) < Date.now()
+                        ? <span className="mt-0.5 block text-[10.5px] font-semibold text-red-700">kartu belum kembali</span>
+                        : null}
+                  </td>
                   <td data-label="PIC Pendamping JAI" className="px-4 py-3"><EscortCell req={r} escorts={escorts} onChanged={onChanged} /></td>
                   <td data-label="ID Card No." className="px-4 py-3"><IdCardCell req={r} onChanged={onChanged} /></td>
                   <td data-label="Status" className="px-4 py-3">

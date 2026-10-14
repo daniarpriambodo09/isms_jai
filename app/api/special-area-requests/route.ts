@@ -10,7 +10,7 @@ import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { recordNotification } from '@/lib/admin-notifications'
 import { SELECT_COLUMNS, ensureSpecialAreaSchema, getRequest, sendApprovalRequest } from '@/lib/special-area'
-import type { SpecialAreaRequest } from '@/lib/special-area-shared'
+import { parseEscort, type SpecialAreaRequest } from '@/lib/special-area-shared'
 import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
 export const dynamic = 'force-dynamic'
@@ -61,10 +61,14 @@ export async function POST(request: NextRequest) {
     if (!toAt || Number.isNaN(Date.parse(toAt))) return NextResponse.json({ message: 'Tanggal/jam keluar tidak valid.' }, { status: 400 })
     if (Date.parse(toAt) <= Date.parse(fromAt)) return NextResponse.json({ message: 'Waktu keluar harus setelah waktu masuk.' }, { status: 400 })
 
+    // PIC Pendamping JAI, when it is already known at the kiosk (it can also be set later in the list).
+    const escort = parseEscort(body)
     const inserted = await query<{ id: number }>(
-      `INSERT INTO special_area_requests (requester_name, org_company, department, from_at, to_at, area, purpose, id_card_no, submitted_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-      [requesterName, orgCompany, department, fromAt, toAt, area, purpose, idCardNo, session.username]
+      `INSERT INTO special_area_requests (requester_name, org_company, department, from_at, to_at, area, purpose, id_card_no, submitted_by,
+                                          escort_name, escort_dept, escort_set_by, escort_set_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text, $10::text, $11::text,
+               CASE WHEN $10::text IS NULL THEN NULL ELSE $9::text END, CASE WHEN $10::text IS NULL THEN NULL ELSE now() END) RETURNING id`,
+      [requesterName, orgCompany, department, fromAt, toAt, area, purpose, idCardNo, session.username, escort.name, escort.dept]
     )
     const id = inserted.rows[0].id
     const emailError = await sendApprovalRequest(id)

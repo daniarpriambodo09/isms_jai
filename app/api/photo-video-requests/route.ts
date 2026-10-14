@@ -39,6 +39,9 @@ type PhotoVideoRequestRow = {
   camera_control_no: string | null
   photo_id_no: string | null
   pic_jai: string | null
+  /** PIC Pendamping JAI: the JAI employee who goes along (set at the kiosk). */
+  escort_name?: string | null
+  escort_dept?: string | null
 }
 
 const REQUEST_TYPES: RequestType[] = ['internal', 'visitor']
@@ -169,8 +172,10 @@ export async function POST(request: NextRequest) {
       if (!dept) return NextResponse.json({ message: 'Department wajib diisi.' }, { status: 400 })
       cameraSerialNo = typeof body.cameraSerialNo === 'string' && body.cameraSerialNo.trim() ? body.cameraSerialNo.trim() : null
 
-      picJai = typeof body.picJai === 'string' ? body.picJai.trim() : ''
-      if (!picJai) return NextResponse.json({ message: 'PIC JAI wajib diisi.' }, { status: 400 })
+      // The form no longer asks for "PIC JAI" — the JAI employee who goes
+      // along is the PIC Pendamping JAI (escort) below. Kept when an older
+      // client still sends it.
+      picJai = typeof body.picJai === 'string' && body.picJai.trim() ? body.picJai.trim() : null
       photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? normalizeCardNo(body.photoIdNo) : null
       const wrongCard = photoIdNo ? lobbyCardProblem(photoIdNo, 'photography', false) : null
       if (wrongCard) return NextResponse.json({ message: wrongCard }, { status: 400 })
@@ -265,7 +270,11 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
       toAt: requestRow.to_at,
       location: requestRow.location,
       objective: requestRow.objective,
-      picJai: requestRow.pic_jai ?? '-',
+      // "PIC JAI" in the e-mail is the PIC Pendamping JAI chosen on the form
+      // (requests from before that field was removed still carry their own).
+      picJai: requestRow.escort_name
+        ? `${requestRow.escort_name}${requestRow.escort_dept ? ` (${requestRow.escort_dept})` : ''}`
+        : requestRow.pic_jai ?? 'Belum ditentukan',
       approveUrl,
       rejectUrl,
     })

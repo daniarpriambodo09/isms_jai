@@ -1135,6 +1135,8 @@ export type SpecialAreaApprovalEmailData = {
   area: string
   purpose: string
   idCardNo: string | null
+  /** PIC Pendamping JAI ("PIC JAI" in the mail): who from JAI accompanies the guest — null while nobody is assigned. */
+  picJai?: string | null
   approveUrl: string
   rejectUrl: string
 }
@@ -1158,6 +1160,7 @@ export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData
     ['Waktu Keluar/Masuk', period],
     ['Area Special Security', `<span style="color:${SA_RED};">${escapeHtml(data.area)}</span>`],
     ['Tujuan', escapeHtml(data.purpose)],
+    ['PIC JAI', escapeHtml(data.picJai ?? 'Belum ditentukan')],
   ]
   if (data.idCardNo) fields.push(['ID Card No.', escapeHtml(data.idCardNo)])
   const rowsHtml = fields.map(([label, value], i) => row(i + 1, label, value, i % 2 === 1)).join('')

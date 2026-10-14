@@ -10,6 +10,7 @@ import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { SPECIAL_AREAS } from '@/lib/special-area-shared'
 import { cardsChanged } from '@/components/kiosk/kiosk-shared'
+import { ESCORT_OTHER, EscortOptions, escortFromChoice, useEscortList } from '@/components/escort-picker'
 
 const input = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const label = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
@@ -86,6 +87,11 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
   const [areaOther, setAreaOther] = useState('')
   const [purpose, setPurpose] = useState('')
   const [idCardNo, setIdCardNo] = useState('')
+  // PIC Pendamping JAI: who from JAI goes along — the approver reads it in the e-mail ("PIC JAI").
+  const escorts = useEscortList()
+  const [escortChoice, setEscortChoice] = useState('')
+  const [escortName, setEscortName] = useState('')
+  const [escortDept, setEscortDept] = useState('')
   // "Scan": the field is cleared and focused, waiting for the scanner to type the card number.
   const idCardRef = useRef<HTMLInputElement>(null)
   const [scanning, setScanning] = useState(false)
@@ -110,6 +116,8 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
     if (!from) { setError('Jam masuk tidak valid — tulis seperti 09:30.'); return }
     if (!to) { setError('Jam keluar tidak valid — tulis seperti 13:30.'); return }
     if (to.getTime() <= from.getTime()) { setError('Waktu keluar harus setelah waktu masuk.'); return }
+    const escort = escortFromChoice(escortChoice, escorts, { name: escortName, dept: escortDept })
+    if (escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping JAI, atau kosongkan pilihannya.'); return }
     setSubmitting(true)
     try {
       const res = await fetch(`${API_BASE_PATH}/api/special-area-requests`, {
@@ -121,6 +129,7 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
           toAt: to.toISOString(),
           area: areaChoice === OTHER ? areaOther : areaChoice,
           purpose, idCardNo,
+          escortName: escort?.name ?? null, escortDept: escort?.dept ?? null,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -205,6 +214,21 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
               <label><span className={label}>Nama area</span><input value={areaOther} onChange={(e) => setAreaOther(e.target.value)} required className={input} /></label>
             )}
             <label className="sm:col-span-2"><span className={label}>Tujuan Keluar/Masuk</span><textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} required rows={2} maxLength={2000} className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15" /></label>
+            <label className="sm:col-span-2">
+              <span className={label}>PIC Pendamping JAI (opsional)</span>
+              <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={input}>
+                <option value="">Belum ditentukan — bisa dipilih nanti di daftar</option>
+                <EscortOptions escorts={escorts} />
+                <option value={ESCORT_OTHER}>Lainnya (ketik nama)…</option>
+              </select>
+              {escortChoice === ESCORT_OTHER && (
+                <span className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping JAI" maxLength={150} aria-label="Nama PIC pendamping JAI" className={input} />
+                  <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} aria-label="Dept. PIC pendamping JAI" className={input} />
+                </span>
+              )}
+              <span className="mt-1 block text-[11px] text-muted-foreground">Karyawan JAI yang mendampingi tamu di area. Tercantum di email ke approver sebagai “PIC JAI”.</span>
+            </label>
             <div className="sm:col-span-2">
               <label htmlFor="sa-id-card" className={label}>ID Card No. (opsional — bisa di-scan / diisi nanti saat kartu diberikan)</label>
               <div className="flex gap-2">

@@ -232,7 +232,6 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const [deptId, setDeptId] = useState('')
   const [sectionId, setSectionId] = useState('')
   const [companyName, setCompanyName] = useState('')
-  const [picJai, setPicJai] = useState('')
   const [photoIdNo, setPhotoIdNo] = useState('')
   const [dept, setDept] = useState('')
   const [cameraSerialNo, setCameraSerialNo] = useState('')
@@ -316,7 +315,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const availablePhotoIds = photoIds.filter(matchesCameraScope)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPicJai(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
+    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(hourAfter(nowTimeStr())); setLocation(''); setObjective('')
     setEscortChoice(''); setEscortName(''); setEscortDept('')
   }
@@ -347,7 +346,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         // picApproveId entirely for this type (see /api/photo-video-requests).
         ...(isInternal
           ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, picApproveId }
-          : { dept, cameraSerialNo, picJai, photoIdNo }),
+          : { dept, cameraSerialNo, photoIdNo }),
         ...(isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
       }
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, {
@@ -424,11 +423,6 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
           <Field label={isInternal ? 'Nama' : 'Full Name'} span={1}>
             <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required className={inputClass} />
           </Field>
-          {!isInternal && (
-            <Field label="PIC JAI">
-              <input value={picJai} onChange={(e) => setPicJai(e.target.value)} required placeholder="Nama PIC JAI yang ditemui" className={inputClass} />
-            </Field>
-          )}
           {isInternal ? (
             <>
               <Field label="Dept.">

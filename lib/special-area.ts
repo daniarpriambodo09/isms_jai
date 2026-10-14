@@ -233,6 +233,7 @@ export async function sendApprovalRequest(id: number): Promise<string | null> {
           area: req.area,
           purpose: req.purpose,
           idCardNo: req.id_card_no,
+          picJai: req.escort_name ? `${req.escort_name}${req.escort_dept ? ` (${req.escort_dept})` : ''}` : null,
           approveUrl: `${base}${API_BASE_PATH}/persetujuan-area-special?token=${token}&action=approve`,
           rejectUrl: `${base}${API_BASE_PATH}/persetujuan-area-special?token=${token}&action=reject`,
         })

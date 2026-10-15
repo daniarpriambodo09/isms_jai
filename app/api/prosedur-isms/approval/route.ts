@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { APPROVAL_LINK_DAYS, approvalCodeRequired, autoPlaceSlots, canPlaceOwnSlots, currentStepsFor, decideByToken, getByToken, linkExpired, replacedLink, revisionHistory, parseRevisionNotes, qrAdjustableUntil, slotsFor, placesQrItself, stepApproverEmail, verifyBaseUrl } from '@/lib/procedure-approval'
 import { sessionOwnsStep } from '@/lib/my-approvals'
+import { query } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,9 +37,6 @@ export async function GET(request: NextRequest) {
     const qrAutoPlaced = (await slotsFor(view.document.id, view.document.file_path)).some((slot) => slot.role_code === view.step.role_code)
     // Approving asks for the code from the e-mail (steps sent before codes existed don't).
     const code = await approvalCodeRequired(view.step.id)
-    // Opened by the logged-in account this request was e-mailed to ("Persetujuan
-    // Saya"): the login stands in for the code.
-    const signedIn = await sessionOwnsStep(request, await stepApproverEmail(view.step.id))
     // An old link (its step was cancelled when the approval started again —
     // a new file, a Form Review added, other approvers): where this position
     // stands in the approval running now, so the page can say what to do.
@@ -57,12 +55,19 @@ export async function GET(request: NextRequest) {
         revising: steps.some((step) => step.status === 'rejected'),
       }
     }
+    const signedIn = await sessionOwnsStep(request, await stepApproverEmail(view.step.id))
+    let codeValue: string | null = null
+    if (signedIn) {
+      codeValue = (await query<{ approval_code: string | null }>('SELECT approval_code FROM procedure_approvals WHERE id = $1', [view.step.id])).rows[0]?.approval_code ?? null
+    }
+
     return NextResponse.json({
       now,
       qrAutoPlaced,
-      codeRequired: code.required && !signedIn,
-      codeLocked: code.locked && !signedIn,
+      codeRequired: code.required,
+      codeLocked: code.locked,
       signedIn,
+      codeValue,
       revisionRequest: history?.requests[0] ?? null,
       history,
       step: view.step,
@@ -116,7 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     const code = typeof body.code === 'string' ? body.code.slice(0, 12) : null
-    const result = await decideByToken(token, action, note, notes, code, (approverEmail) => sessionOwnsStep(request, approverEmail))
+    const result = await decideByToken(token, action, note, notes, code)
     return NextResponse.json({ message: result.message, codeError: result.codeError ?? false }, { status: result.ok ? 200 : result.codeError ? 400 : 409 })
   } catch (error) {
     console.error('[prosedur-isms/approval/POST]', error)

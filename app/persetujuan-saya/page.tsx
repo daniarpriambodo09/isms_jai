@@ -8,18 +8,20 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, ClipboardCheck, Clock, ExternalLink, FileText, History, Hourglass, KeyRound, Loader2, LogIn, PenLine, QrCode, RotateCcw, XCircle } from 'lucide-react'
+import { Check, CheckCircle2, ClipboardCheck, ClipboardPaste, Clock, Copy, ExternalLink, FileText, History, Hourglass, KeyRound, Loader2, LogIn, PenLine, QrCode, RotateCcw, XCircle } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { MyApprovalHistory } from '@/components/approvals/MyApprovalHistory'
+import { copyText, readClipboardText } from '@/lib/clipboard'
 
 type Item = {
   stepId: number; token: string | null; status: 'pending' | 'waiting' | 'approved' | 'rejected'
   roleCode: string; roleTitle: string; signsReview: boolean
   documentId: number; controlNo: string; title: string; revision: number; kindLabel: string
   sentAt: string | null; decidedAt: string | null; waitingFor: string | null; qrPlaced?: boolean
+  code?: string | null; codeLocked?: boolean
 }
 type Data = { email: string | null; pending: Item[]; queued: Item[]; recent: Item[] }
 
@@ -46,11 +48,47 @@ export default function PersetujuanSayaPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<Item | null>(null)
   const [busy, setBusy] = useState(false)
+  const [approvalCode, setApprovalCode] = useState('')
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [copiedCode, setCopiedCode] = useState(false)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [passwordOpen, setPasswordOpen] = useState(false)
   // the full, searchable history instead of the last few decisions
   const [showHistory, setShowHistory] = useState(false)
   const [decided, setDecided] = useState(0)
+
+  const setCodeFromText = (value: string) => {
+    setApprovalCode(value.replace(/\D/g, '').slice(0, 6))
+    setCodeError(null)
+  }
+
+  const openApprovalModal = (item: Item) => {
+    setNotice(null)
+    setConfirm(item)
+    setCodeError(null)
+    setCopiedCode(false)
+    setApprovalCode(item.code ? item.code.trim() : '')
+  }
+
+  const copyCode = async (code: string) => {
+    const ok = await copyText(code)
+    if (ok) {
+      setCopiedCode(true)
+      window.setTimeout(() => setCopiedCode(false), 2000)
+    }
+  }
+
+  const pasteApprovalCode = async () => {
+    const text = await readClipboardText()
+    if (text) {
+      const digits = text.replace(/\D/g, '').slice(0, 6)
+      if (digits) {
+        setCodeFromText(digits)
+        return
+      }
+    }
+    setCodeError('Clipboard tidak dapat dibaca otomatis. Silakan tekan Ctrl+V di kolom input.')
+  }
 
   const load = useCallback(async () => {
     try {
@@ -73,24 +111,46 @@ export default function PersetujuanSayaPage() {
     return () => { window.clearInterval(timer); window.removeEventListener('focus', load) }
   }, [sessionUser, load])
 
+  // If opened with ?stepId=..., automatically open the approval modal for that step
+  useEffect(() => {
+    if (!data?.pending?.length) return
+    const params = new URLSearchParams(window.location.search)
+    const targetStep = params.get('stepId')
+    if (targetStep) {
+      const item = data.pending.find((p) => String(p.stepId) === targetStep)
+      if (item) {
+        openApprovalModal(item)
+      }
+    }
+  }, [data])
+
   const approve = async () => {
-    if (!confirm?.token) return
+    if (!confirm?.token) return false
     setBusy(true)
     setNotice(null)
+    setCodeError(null)
     try {
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ token: confirm.token, action: 'approve' }),
+        body: JSON.stringify({ token: confirm.token, action: 'approve', code: approvalCode }),
       })
       const body = await res.json().catch(() => null)
+      if (!res.ok) {
+        if (body?.codeError) setCodeError(body.message ?? 'Kode persetujuan salah.')
+        else setNotice({ ok: false, text: body?.message ?? 'Gagal memproses.' })
+        return false
+      }
       setNotice({ ok: res.ok, text: body?.message ?? (res.ok ? 'Persetujuan tersimpan.' : 'Gagal memproses.') })
       setConfirm(null)
+      setApprovalCode('')
       setDecided((n) => n + 1)
       await load()
+      return true
     } catch {
       setNotice({ ok: false, text: 'Tidak dapat menghubungi server.' })
+      return false
     } finally {
       setBusy(false)
     }
@@ -104,7 +164,7 @@ export default function PersetujuanSayaPage() {
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-primary/10 text-primary"><ClipboardCheck className="size-7" /></span>
         <h2 className="mt-5 font-display text-2xl font-semibold text-foreground">Persetujuan Saya</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Masuk dengan akun approver Anda untuk melihat semua dokumen dan Form Review yang menunggu persetujuan Anda — tanpa mencari email dan tanpa kode.
+          Masuk dengan akun approver Anda untuk melihat semua dokumen dan Form Review yang menunggu persetujuan Anda. Kode 6 angka dari email tetap diperlukan saat menyetujui.
         </p>
         <button type="button" onClick={() => window.dispatchEvent(new Event('open-admin-login'))} className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90">
           <LogIn className="size-4" /> Masuk
@@ -126,7 +186,7 @@ export default function PersetujuanSayaPage() {
               {data ? (data.pending.length ? `${data.pending.length} menunggu persetujuan Anda` : 'Tidak ada yang menunggu Anda') : 'Memuat…'}
             </h1>
             <p className="mt-3 text-sm leading-6 text-primary-foreground/75">
-              Masuk sebagai <strong className="text-primary-foreground">{sessionUser.username}</strong>{data?.email ? <> · permintaan untuk <strong className="text-primary-foreground">{data.email}</strong></> : null}. Di sini persetujuan tidak memerlukan kode dari email.
+              Masuk sebagai <strong className="text-primary-foreground">{sessionUser.username}</strong>{data?.email ? <> · permintaan untuk <strong className="text-primary-foreground">{data.email}</strong></> : null}. Saat menyetujui, masukkan kode 6 angka dari email pengesahan.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -171,7 +231,7 @@ export default function PersetujuanSayaPage() {
                         <Link href={`/pengesahan?token=${item.token}`} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-secondary">
                           <FileText className="size-4" />Buka
                         </Link>
-                        <button type="button" onClick={() => { setNotice(null); setConfirm(item) }} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700">
+                        <button type="button" onClick={() => openApprovalModal(item)} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700">
                           <CheckCircle2 className="size-4" />Setujui
                         </button>
                         <Link href={`/pengesahan?token=${item.token}`} title="Buka dokumennya untuk menandai bagian yang perlu diperbaiki" className="inline-flex items-center gap-1.5 rounded-full border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50">
@@ -252,9 +312,77 @@ export default function PersetujuanSayaPage() {
         confirmLabel="Ya, setujui"
         danger={false}
         pending={busy}
+        confirmDisabled={approvalCode.length !== 6}
         onConfirm={approve}
-        onCancel={() => setConfirm(null)}
-      />
+        onCancel={() => { setConfirm(null); setApprovalCode(''); setCodeError(null); setCopiedCode(false) }}
+      >
+        <div className="flex flex-col gap-3">
+          {confirm?.code && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 px-3.5 py-2.5">
+              <div className="min-w-0">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-primary">Kode dari Pesan Anda</span>
+                <span className="font-mono text-base font-extrabold tracking-[0.2em] text-foreground select-all">{confirm.code}</span>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => copyCode(confirm.code!)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+                  title="Salin kode ke clipboard"
+                >
+                  <Copy className="size-3.5" />
+                  {copiedCode ? 'Tersalin' : 'Salin'}
+                </button>
+                {approvalCode !== confirm.code && (
+                  <button
+                    type="button"
+                    onClick={() => setCodeFromText(confirm.code!)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                    title="Tempel kode ini ke input"
+                  >
+                    Gunakan
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[12px] font-semibold text-foreground">Kode persetujuan (6 angka dari email pengesahan)</span>
+            <input
+              value={approvalCode}
+              onChange={(event) => setCodeFromText(event.target.value)}
+              onPaste={(event) => { event.preventDefault(); setCodeFromText(event.clipboardData.getData('text')) }}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              aria-label="Kode persetujuan"
+              aria-invalid={!!codeError}
+              placeholder="••••••"
+              className="h-12 rounded-lg border bg-white px-3 text-center font-mono text-2xl font-bold tracking-[0.4em] text-foreground outline-none focus:border-primary"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+              <button
+                type="button"
+                onClick={() => void pasteApprovalCode()}
+                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-primary hover:underline"
+              >
+                <ClipboardPaste className="size-3.5" />Tempel kode dari clipboard
+              </button>
+              {confirm?.code && approvalCode !== confirm.code && (
+                <button
+                  type="button"
+                  onClick={() => setCodeFromText(confirm.code!)}
+                  className="text-[12px] font-semibold text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Isi ulang kode ({confirm.code})
+                </button>
+              )}
+            </div>
+            {codeError && <span role="alert" className="text-[12px] leading-5 text-destructive">{codeError}</span>}
+          </label>
+        </div>
+      </ConfirmDialog>
       {passwordOpen && <ChangePasswordModal onClose={() => setPasswordOpen(false)} />}
     </div>
   )

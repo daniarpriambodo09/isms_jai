@@ -12,13 +12,14 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowLeftRight, Check, Clock, Crosshair, ExternalLink, FileSignature, FileText, History, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeftRight, Check, ClipboardPaste, Clock, Copy, Crosshair, ExternalLink, FileSignature, FileText, History, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { docKindInfo } from '@/lib/document-kinds'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { SignatureCard } from '@/components/documents/SignatureQr'
 import { RevisionNotesDialog, type RevisionPin } from '@/components/documents/RevisionNotes'
 import { RevisionCompareDialog, RevisionHistoryList, hasHistory, openForRequest, type HistoryRequest, type RevisionHistoryData } from '@/components/documents/RevisionHistory'
+import { copyText, readClipboardText } from '@/lib/clipboard'
 
 type Step = {
   id: number
@@ -49,6 +50,8 @@ type View = {
   /** Approving asks for the 6-digit code sent in the e-mail; locked = too many wrong entries. */
   codeRequired?: boolean
   codeLocked?: boolean
+  signedIn?: boolean
+  codeValue?: string | null
   qrAdjustableUntil: string | null
   documentId: number
   verifyBase: string
@@ -78,7 +81,9 @@ function StepIcon({ status }: { status: Step['status'] }) {
 }
 
 function PengesahanContent() {
-  const token = useSearchParams().get('token') ?? ''
+  const searchParams = useSearchParams()
+  const token = searchParams.get('token') ?? ''
+  const urlCode = searchParams.get('code') ?? ''
   const [view, setView] = useState<View | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   // The link was replaced by a newer one (the request was sent again).
@@ -92,11 +97,37 @@ function PengesahanContent() {
   // The approval code typed in the Setujui dialog, and what was wrong with it.
   const [approvalCode, setApprovalCode] = useState('')
   const [codeError, setCodeError] = useState<string | null>(null)
+  const [copiedCode, setCopiedCode] = useState(false)
   const [docTab, setDocTab] = useState<'document' | 'review'>('document')
   // A Form Review approver starts on the Form Review (what they sign).
   const signsReview = !!view?.document?.signs_review
   useEffect(() => { if (signsReview) setDocTab('review') }, [signsReview])
   const [pdfStamp, setPdfStamp] = useState(0) // busts the signed-PDF link after moving QR
+
+  const setCodeFromText = (value: string) => {
+    setApprovalCode(value.replace(/\D/g, '').slice(0, 6))
+    setCodeError(null)
+  }
+
+  const copyCode = async (code: string) => {
+    const ok = await copyText(code)
+    if (ok) {
+      setCopiedCode(true)
+      window.setTimeout(() => setCopiedCode(false), 2000)
+    }
+  }
+
+  const pasteApprovalCode = async () => {
+    const text = await readClipboardText()
+    if (text) {
+      const digits = text.replace(/\D/g, '').slice(0, 6)
+      if (digits) {
+        setCodeFromText(digits)
+        return
+      }
+    }
+    setCodeError('Clipboard tidak dapat dibaca otomatis. Silakan tekan Ctrl+V di kolom input.')
+  }
 
   const load = useCallback(async () => {
     if (!token) { setLoadError('Link tidak lengkap — buka kembali tombol di email Anda.'); return }
@@ -106,11 +137,16 @@ function PengesahanContent() {
       if (res.status === 410 && data.replaced) { setReplaced(data.replaced); return }
       if (!res.ok) throw new Error(data.message)
       setView(data)
+      if (data.codeValue) {
+        setApprovalCode(data.codeValue.trim())
+      } else if (urlCode) {
+        setCodeFromText(urlCode)
+      }
       setLoadError(null)
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Gagal memuat data.')
     }
-  }, [token])
+  }, [token, urlCode])
 
   useEffect(() => { load() }, [load])
 
@@ -460,8 +496,8 @@ function PengesahanContent() {
         danger={false}
         pending={submitting === 'approve'}
         confirmDisabled={!!view.codeRequired && (view.codeLocked || approvalCode.length !== 6)}
-        onConfirm={async () => { const failed = await decide('approve'); if (!failed || !view.codeRequired) { setConfirmApprove(false); setApprovalCode(''); setCodeError(null) } }}
-        onCancel={() => { setConfirmApprove(false); setCodeError(null) }}
+        onConfirm={async () => { const failed = await decide('approve'); if (!failed || !view.codeRequired) { setConfirmApprove(false); setApprovalCode(''); setCodeError(null); setCopiedCode(false) } }}
+        onCancel={() => { setConfirmApprove(false); setCodeError(null); setCopiedCode(false) }}
       >
         {view.codeRequired && (
           view.codeLocked ? (
@@ -469,23 +505,70 @@ function PengesahanContent() {
               Kode persetujuan salah terlalu banyak — persetujuan dikunci. Minta Admin ISM mengirim ulang email pengesahan untuk mendapatkan kode baru.
             </p>
           ) : (
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-semibold" style={{ color: 'var(--p-ink2)' }}>Kode persetujuan (6 angka dari email pengesahan)</span>
-              <input
-                value={approvalCode}
-                onChange={(event) => { setApprovalCode(event.target.value.replace(/\D/g, '').slice(0, 6)); setCodeError(null) }}
-                onKeyDown={(event) => { if (event.key === 'Enter' && approvalCode.length === 6 && submitting === null) { event.preventDefault(); void decide('approve').then((failed) => { if (!failed) { setConfirmApprove(false); setApprovalCode('') } }) } }}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                autoFocus
-                aria-label="Kode persetujuan"
-                aria-invalid={!!codeError}
-                placeholder="••••••"
-                className="h-12 rounded-lg border bg-white px-3 text-center font-mono text-2xl font-bold tracking-[0.4em] outline-none focus:border-[color:var(--p-600)]"
-                style={{ borderColor: codeError ? '#c2412c' : 'var(--p-border)', color: 'var(--p-900)' }}
-              />
-              {codeError && <span role="alert" className="text-[12px] leading-5 text-[#a83522]">{codeError}</span>}
-            </label>
+            <div className="flex flex-col gap-3">
+              {view.codeValue && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--p-border)] bg-[color:var(--p-surface2,#f8fafc)] px-3.5 py-2.5">
+                  <div className="min-w-0">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-[color:var(--p-ink2)]">Kode dari Pesan Anda</span>
+                    <span className="font-mono text-base font-extrabold tracking-[0.2em] text-[color:var(--p-900)] select-all">{view.codeValue}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => copyCode(view.codeValue!)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[color:var(--p-border)] bg-white px-2.5 py-1.5 text-xs font-semibold text-[color:var(--p-ink2)] hover:bg-[color:var(--p-surface)] transition-colors"
+                      title="Salin kode ke clipboard"
+                    >
+                      <Copy className="size-3.5" />
+                      {copiedCode ? 'Tersalin' : 'Salin'}
+                    </button>
+                    {approvalCode !== view.codeValue && (
+                      <button
+                        type="button"
+                        onClick={() => setCodeFromText(view.codeValue!)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-[color:var(--p-600)] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[color:var(--p-700)] transition-colors"
+                        title="Tempel kode ini ke input"
+                      >
+                        Gunakan
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--p-ink2)' }}>Kode persetujuan (6 angka dari email pengesahan)</span>
+                <input
+                  value={approvalCode}
+                  onChange={(event) => setCodeFromText(event.target.value)}
+                  onPaste={(event) => { event.preventDefault(); setCodeFromText(event.clipboardData.getData('text')) }}
+                  onKeyDown={(event) => { if (event.key === 'Enter' && approvalCode.length === 6 && submitting === null) { event.preventDefault(); void decide('approve').then((failed) => { if (!failed) { setConfirmApprove(false); setApprovalCode('') } }) } }}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  aria-label="Kode persetujuan"
+                  aria-invalid={!!codeError}
+                  placeholder="••••••"
+                  className="h-12 rounded-lg border bg-white px-3 text-center font-mono text-2xl font-bold tracking-[0.4em] outline-none focus:border-[color:var(--p-600)]"
+                  style={{ borderColor: codeError ? '#c2412c' : 'var(--p-border)', color: 'var(--p-900)' }}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                  <button type="button" onClick={() => void pasteApprovalCode()} className="inline-flex w-fit items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--p-600)' }}>
+                    <ClipboardPaste className="size-3.5" />Tempel kode dari clipboard
+                  </button>
+                  {view.codeValue && approvalCode !== view.codeValue && (
+                    <button
+                      type="button"
+                      onClick={() => setCodeFromText(view.codeValue!)}
+                      className="text-[12px] font-semibold text-[color:var(--p-ink2)] hover:underline"
+                    >
+                      Isi ulang kode ({view.codeValue})
+                    </button>
+                  )}
+                </div>
+                {codeError && <span role="alert" className="text-[12px] leading-5 text-[#a83522]">{codeError}</span>}
+              </label>
+            </div>
           )
         )}
       </ConfirmDialog>

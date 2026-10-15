@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Aperture, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, LayoutList, LogOut, Mail, MailOpen, Menu, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
+import { Aperture, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { LoginModal } from '@/components/login-modal'
 import { NotificationBell } from '@/components/documents/NotificationBell'
 import { SearchPalette } from '@/components/search-palette'
+import { ApproverMessagesDialog } from '@/components/approvals/ApproverMessagesDialog'
 
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -101,6 +102,7 @@ export function Navbar() {
   const [loginOpen, setLoginOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [approvalMessagesOpen, setApprovalMessagesOpen] = useState(false)
 
   useEffect(() => {
     fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
@@ -511,6 +513,19 @@ export function Navbar() {
             </button>
             {!isLoading && isLoggedIn && <NotificationBell />}
             {!isLoading && showMyApprovals && (
+              <button
+                type="button"
+                onClick={() => setApprovalMessagesOpen(true)}
+                aria-label="Pesan dan kode persetujuan"
+                title="Pesan dan kode persetujuan"
+                className="hidden h-10 items-center gap-2 rounded-full bg-primary-foreground/10 px-3.5 text-[11.5px] font-semibold uppercase tracking-[0.045em] text-primary-foreground transition-colors hover:bg-primary-foreground/20 sm:flex"
+              >
+                <MessageSquare className="size-4" />
+                <span className="hidden xl:inline">Pesan</span>
+                {myApprovals > 0 && <span className="grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold leading-5 text-accent-foreground">{myApprovals}</span>}
+              </button>
+            )}
+            {!isLoading && showMyApprovals && (
               <Link
                 href="/persetujuan-saya"
                 title="Dokumen dan Form Review yang menunggu persetujuan Anda"
@@ -603,6 +618,16 @@ export function Navbar() {
               {myApprovals > 0 && <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-5 text-white">{myApprovals}</span>}
             </Link>
           )}
+          {showMyApprovals && (
+            <button
+              type="button"
+              onClick={() => { setMobileOpen(false); setApprovalMessagesOpen(true) }}
+              className="nav-drawer-item mt-1 flex w-full items-center gap-2 rounded-md bg-secondary/60 px-3 py-3 text-left text-sm font-semibold text-foreground"
+            >
+              <MessageSquare className="size-4" />Pesan & kode persetujuan
+              {myApprovals > 0 && <span className="ml-auto grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold leading-5 text-accent-foreground">{myApprovals}</span>}
+            </button>
+          )}
           {isLoggedIn && (
             <>
               <div className="portal-eyebrow px-3 pb-2 pt-5">Admin Settings</div>
@@ -639,7 +664,7 @@ export function Navbar() {
 
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ApproverMessagesDialog open={approvalMessagesOpen} onClose={() => setApprovalMessagesOpen(false)} />
     </>
   )
 }
-

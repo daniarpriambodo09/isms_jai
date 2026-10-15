@@ -1050,11 +1050,6 @@ export async function decideByToken(
   note: string | null,
   revisionNotes: RevisionNote[] = [],
   approvalCode: string | null = null,
-  /**
-   * Called for the logged-in account this step's e-mail was sent to
-   * ("Persetujuan Saya"): the login stands in for the code of the e-mail.
-   */
-  signedIn?: (approverEmail: string | null) => Promise<boolean>
 ): Promise<{ ok: boolean; message: string; codeError?: boolean }> {
   const view = await getByToken(token)
   if (!view) return { ok: false, message: 'Link tidak ditemukan atau sudah tidak berlaku.' }
@@ -1063,7 +1058,7 @@ export async function decideByToken(
   if (linkExpired(view.step)) return { ok: false, message: `Link ini sudah kedaluwarsa (lebih dari ${APPROVAL_LINK_DAYS} hari). Minta Admin ISM mengirim ulang email pengesahan.` }
   // Signing takes the code from the e-mail body as well as the link — unless
   // the approver is logged in to the account that e-mail was sent to.
-  if (action === 'approve' && !(signedIn && await signedIn(await stepApproverEmail(view.step.id)))) {
+  if (action === 'approve') {
     const wrong = await checkApprovalCode(view.step.id, approvalCode)
     if (wrong) return { ok: false, message: wrong, codeError: true }
   }

@@ -54,12 +54,17 @@ export type MyApproval = {
    * the document then still shows without the QR.
    */
   qrPlaced: boolean
+  /** 6-digit approval code sent to this approver's email / messages. */
+  code?: string | null
+  codeLocked?: boolean
 }
 
 type Row = {
   id: number; token: string | null; status: MyApproval['status']; role_code: string; role_title: string; notified_at: string | null; decided_at: string | null
   document_id: number; control_no: string; title: string; revision: number; kind: string; review_form_path: string | null; review_roles: string[] | null
   qr_placed: boolean
+  approval_code: string | null
+  approval_code_attempts: number
 }
 
 /**
@@ -72,6 +77,7 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
   const address = email.trim().toLowerCase()
   const rows = (await query<Row>(
     `SELECT a.id, a.token, a.status, a.role_code, a.role_title, a.notified_at, a.decided_at,
+            a.approval_code, a.approval_code_attempts,
             d.id AS document_id, d.control_no, d.title, d.revision, d.kind, d.review_form_path, d.review_roles,
             EXISTS (SELECT 1 FROM procedure_signature_slots s WHERE s.document_id = d.id AND s.role_code = a.role_code AND s.file_path IN (d.file_path, d.review_form_path)) AS qr_placed
      FROM procedure_approvals a
@@ -117,6 +123,8 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
       decidedAt: row.decided_at,
       waitingFor: ahead ? ahead.approver_name ?? ahead.role_title : null,
       qrPlaced: row.qr_placed,
+      code: row.status === 'pending' ? row.approval_code : null,
+      codeLocked: (row.approval_code_attempts ?? 0) >= 5,
     }
   }
   return {
@@ -124,6 +132,45 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
     queued: rows.filter((row) => row.status === 'waiting').map(shape),
     recent: rows.filter((row) => row.status === 'approved' || row.status === 'rejected').slice(0, 10).map(shape),
   }
+}
+
+export type ApprovalMessage = {
+  stepId: number
+  controlNo: string
+  title: string
+  roleTitle: string
+  sentAt: string | null
+  code: string | null
+  locked: boolean
+}
+
+/**
+ * The logged-in approver's active e-mail messages. The code deliberately
+ * mirrors the 6-digit code in the e-mail; it is only exposed to the account
+ * whose e-mail address owns that approval step.
+ */
+export async function listMyApprovalMessages(email: string): Promise<ApprovalMessage[]> {
+  const address = email.trim().toLowerCase()
+  const rows = (await query<{
+    id: number; control_no: string; title: string; role_title: string; notified_at: string | null
+    approval_code: string | null; approval_code_attempts: number
+  }>(
+    `SELECT a.id, d.control_no, d.title, a.role_title, a.notified_at, a.approval_code, a.approval_code_attempts
+     FROM procedure_approvals a
+     JOIN procedure_documents d ON d.id = a.document_id AND d.revision = a.revision
+     WHERE a.status = 'pending' AND a.token IS NOT NULL AND lower(a.approver_email) = $1
+     ORDER BY COALESCE(a.notified_at, a.created_at) DESC`,
+    [address]
+  )).rows
+  return rows.map((row) => ({
+    stepId: row.id,
+    controlNo: row.control_no,
+    title: row.title,
+    roleTitle: row.role_title,
+    sentAt: row.notified_at,
+    code: row.approval_code,
+    locked: row.approval_code_attempts >= 5,
+  }))
 }
 
 export type MyHistoryItem = {

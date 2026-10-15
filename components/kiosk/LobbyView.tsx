@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Briefcase, Camera, Check, Download, KeyRound, LogOut, Pencil, ListChecks, RotateCcw, ScanLine, ShieldAlert, ShieldCheck, Search, Sparkles, Trash2, Undo2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -18,9 +18,8 @@ import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { Pagination } from '@/components/pagination'
-import { usePagination } from '@/hooks/usePagination'
 import { downloadExcel } from '@/lib/excel-export'
-import { MONTH_LABELS, availableYears, matchesPeriod } from '@/lib/period-filter'
+import { MONTH_LABELS } from '@/lib/period-filter'
 import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, formatTimeParts, holdsSecurityCard, isRepeatScan, markScanned, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
 
 // A card the Lobby takes back: the two it swaps into (Visitor, Vendor) and, on
@@ -68,6 +67,15 @@ const QUICK_CARD_ICON: Record<QuickCardType, typeof UserPlus> = {
   photography: Camera,
   affiliate: Sparkles,
 }
+
+type RegistrationContext = 'all' | 'lobby' | 'waiting_security' | 'holding_lobby' | 'closed'
+const REGISTRATION_CONTEXTS: { value: RegistrationContext; label: string }[] = [
+  { value: 'all', label: 'Semua' },
+  { value: 'lobby', label: 'Pendaftaran Lobby' },
+  { value: 'waiting_security', label: 'Menunggu dari Security' },
+  { value: 'holding_lobby', label: 'Sedang memakai kartu Lobby' },
+  { value: 'closed', label: 'Kunjungan selesai' },
+]
 
 const STAGE_BADGE: Record<string, string> = {
   pending_approval: 'bg-[#fff3d6] text-[#8a6100]',
@@ -517,10 +525,15 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
   // on that period instead of the unfiltered full list.
   const searchParams = useSearchParams()
   const [registrations, setRegistrations] = useState<Registration[]>([])
+  // The table is paginated, but the card-return dialogs must still show every
+  // card currently out, regardless of the selected table page or filter.
+  const [activeRegistrations, setActiveRegistrations] = useState<Registration[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Registration | null>(null)
   const [quickCardOpen, setQuickCardOpen] = useState<QuickCardType | null>(null)
+  const [photoPermitOpen, setPhotoPermitOpen] = useState(false)
+  const [specialAreaPermitOpen, setSpecialAreaPermitOpen] = useState(false)
   // a card scanned at "Scan Kartu" that nobody holds: the number to register a new guest with
   const [quickCardBarcode, setQuickCardBarcode] = useState('')
   const [scanFocusKey, setScanFocusKey] = useState(0)
@@ -532,8 +545,13 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
   const [deleting, setDeleting] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [tableQuery, setTableQuery] = useState('')
+  const [context, setContext] = useState<RegistrationContext>('all')
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
   const [filterYear, setFilterYear] = useState(searchParams.get('year') ?? '')
+  const [years, setYears] = useState<number[]>([])
+  const [page, setPage] = useState(1)
+  const pageSize = 20
+  const [totalItems, setTotalItems] = useState(0)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
@@ -545,11 +563,25 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
     const silent = options?.silent === true
     if (!silent) setLoading(true)
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations?sort=newest`, { cache: 'no-store', credentials: 'include' })
+      const params = new URLSearchParams({ sort: 'newest', page: String(page), limit: String(pageSize) })
+      if (context !== 'all') params.set('context', context)
+      if (filterMonth) params.set('month', filterMonth)
+      if (filterYear) params.set('year', filterYear)
+      if (tableQuery.trim()) params.set('query', tableQuery.trim())
+      const [res, activeRes] = await Promise.all([
+        fetch(`${API_BASE_PATH}/api/vendor-registrations?${params}`, { cache: 'no-store', credentials: 'include' }),
+        fetch(`${API_BASE_PATH}/api/vendor-registrations?stage=active&sort=newest`, { cache: 'no-store', credentials: 'include' }),
+      ])
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
+      if (activeRes.ok) {
+        const activeData = await activeRes.json()
+        setActiveRegistrations(activeData.registrations ?? [])
+      }
       const fresh: Registration[] = data.registrations ?? []
       setRegistrations(fresh)
+      setTotalItems(data.pagination?.total ?? fresh.length)
+      setYears(data.years ?? [])
       // Keep an open detail panel in step with changes made at the other kiosk.
       setSelected((current) => (current ? fresh.find((r) => r.id === current.id) ?? current : current))
       setListError(null)
@@ -560,29 +592,17 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [])
+  }, [context, filterMonth, filterYear, page, tableQuery])
 
   useEffect(() => { load() }, [load])
   const refreshSilently = useCallback(() => { load({ silent: true }) }, [load])
   useKioskAutoRefresh(refreshSilently)
 
-  const years = useMemo(() => availableYears(registrations, (r) => r.registered_at), [registrations])
-  const filteredRegistrations = useMemo(() => {
-    const value = tableQuery.trim().toLowerCase()
-    return registrations.filter((r) => {
-      if (!matchesPeriod(r.registered_at, filterMonth, filterYear)) return false
-      if (!value) return true
-      return (
-        r.full_name.toLowerCase().includes(value) ||
-        r.pic_jai.toLowerCase().includes(value) ||
-        r.company_remark.toLowerCase().includes(value)
-      )
-    })
-  }, [registrations, tableQuery, filterMonth, filterYear])
-  const { page, setPage, totalPages, pageItems, pageSize } = usePagination(filteredRegistrations, 20)
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const pageItems = registrations
   const emptyMessage = loading
     ? null
-    : registrations.length === 0 ? 'Belum ada pendaftaran.' : filteredRegistrations.length === 0 ? 'Tidak ada yang cocok dengan pencarian.' : null
+    : totalItems === 0 ? 'Tidak ada pendaftaran yang cocok dengan filter.' : null
 
   // The detail panel sits above the list: when a row far down is tapped
   // (on a phone especially), bring the panel into view.
@@ -594,11 +614,21 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
     if (el && el.getBoundingClientRect().top < 0) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [selectedId])
 
-  const handleExportCsv = () => {
-    downloadExcel(
-      `rekap-tamu-${station === 'security' ? 'pos-security' : 'lobby'}-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status', 'Nomor Kartu', 'Jam Masuk', 'Jam Keluar'],
-      filteredRegistrations.map((r) => [
+  const handleExportCsv = async () => {
+    const params = new URLSearchParams({ sort: 'newest', page: '1', limit: '10000' })
+    if (context !== 'all') params.set('context', context)
+    if (filterMonth) params.set('month', filterMonth)
+    if (filterYear) params.set('year', filterYear)
+    if (tableQuery.trim()) params.set('query', tableQuery.trim())
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations?${params}`, { cache: 'no-store', credentials: 'include' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      const rows: Registration[] = data.registrations ?? []
+      downloadExcel(
+        `rekap-tamu-${station === 'security' ? 'pos-security' : 'lobby'}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        ['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status', 'Nomor Kartu', 'Jam Masuk', 'Jam Keluar'],
+        rows.map((r) => [
         formatDateTime(r.registered_at),
         r.full_name,
         r.pic_jai,
@@ -608,8 +638,11 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         r.current_card_type ? (r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '') : '',
         formatDateTime(r.entry_at),
         formatDateTime(r.exit_at),
-      ])
-    )
+        ])
+      )
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : 'Gagal mengekspor data.')
+    }
   }
 
   const confirmDelete = async () => {
@@ -640,16 +673,16 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
       return next
     })
   }
-  const allVisibleSelected = filteredRegistrations.length > 0 && filteredRegistrations.every((r) => selectedIds.has(r.id))
+  const allVisibleSelected = registrations.length > 0 && registrations.every((r) => selectedIds.has(r.id))
   const toggleSelectAll = () => {
     setSelectedIds((prev) => {
       if (allVisibleSelected) {
         const next = new Set(prev)
-        filteredRegistrations.forEach((r) => next.delete(r.id))
+        registrations.forEach((r) => next.delete(r.id))
         return next
       }
       const next = new Set(prev)
-      filteredRegistrations.forEach((r) => next.add(r.id))
+      registrations.forEach((r) => next.add(r.id))
       return next
     })
   }
@@ -721,9 +754,16 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
           </button>
         </div>
 
-        {/* The permits are registrations too: right under the registration buttons. */}
-        <PhotoVideoRequestsPanel />
-        <SpecialAreaRequestsPanel />
+        {/* Keep both primary permit actions together; the panels below are only for tracking their status. */}
+        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Pengajuan izin">
+          <button type="button" onClick={() => setPhotoPermitOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#087b9a] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5">
+            <Camera className="size-4" />Ajukan Izin Foto/Video
+          </button>
+          <button type="button" onClick={() => setSpecialAreaPermitOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#c7161e] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5">
+            <ShieldAlert className="size-4" />Ajukan Izin Area Special
+          </button>
+        </div>
+        {/* The permits are registrations too: right under their action buttons. */}
 
         {/* Scan a card: the guest it belongs to is handled — no searching the list. Right above the list. */}
         <ScanCardBox
@@ -742,28 +782,42 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="portal-eyebrow">Semua Pendaftaran</p>
-            <p className="mt-1 text-sm text-muted-foreground">{filteredRegistrations.length} data</p>
+            <p className="mt-1 text-sm text-muted-foreground">{totalItems} data</p>
           </div>
         </div>
 
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Konteks pendaftaran">
+          {REGISTRATION_CONTEXTS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              aria-pressed={context === item.value}
+              onClick={() => { setContext(item.value); setPage(1); setSelectedIds(new Set()) }}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${context === item.value ? 'border-transparent bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:bg-secondary'}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <select value={filterMonth} onChange={(e) => setFilterMonth(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+          <select value={filterMonth} onChange={(e) => { setFilterMonth(e.target.value); setPage(1) }} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
             <option value="">Semua Bulan</option>
             {MONTH_LABELS.map((label, i) => <option key={label} value={i}>{label}</option>)}
           </select>
-          <select value={filterYear} onChange={(e) => setFilterYear(e.target.value)} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
+          <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setPage(1) }} className="h-9 rounded-lg border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20">
             <option value="">Semua Tahun</option>
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
           {(filterMonth || filterYear) && (
-            <button type="button" onClick={() => { setFilterMonth(''); setFilterYear('') }} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary">
+            <button type="button" onClick={() => { setFilterMonth(''); setFilterYear(''); setPage(1) }} className="rounded-lg border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary">
               Reset Filter
             </button>
           )}
           <button
             type="button"
             onClick={handleExportCsv}
-            disabled={filteredRegistrations.length === 0}
+            disabled={totalItems === 0}
             className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="size-3.5" />Export ke Excel
@@ -775,7 +829,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={tableQuery}
-              onChange={(e) => setTableQuery(e.target.value)}
+              onChange={(e) => { setTableQuery(e.target.value); setPage(1) }}
               aria-label="Cari record tamu"
               placeholder="Cari nama, PIC JAI, atau keterangan..."
               className={`${inputClass} pl-10`}
@@ -863,10 +917,7 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                   <tr><td colSpan={10} className="px-5 py-16 text-center"><div className="mx-auto mb-3 size-8 animate-spin rounded-full border-2 border-border border-b-ring" /><p className="text-sm text-muted-foreground">Memuat...</p></td></tr>
                 )}
                 {!loading && registrations.length === 0 && (
-                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Belum ada pendaftaran.</td></tr>
-                )}
-                {!loading && registrations.length > 0 && filteredRegistrations.length === 0 && (
-                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada yang cocok dengan pencarian.</td></tr>
+                  <tr><td colSpan={10} className="px-5 py-16 text-center text-sm text-muted-foreground">Tidak ada pendaftaran yang cocok dengan filter.</td></tr>
                 )}
                 {pageItems.map((r, index) => {
                   const status = statusOf(r)
@@ -928,16 +979,25 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
               </tbody>
             </table>
           </div>
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredRegistrations.length} pageSize={pageSize} />
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
         </div>
 
         <div className="mt-8">
-        <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
+        <ActiveCardsWidget registrations={activeRegistrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography', 'affiliate']} permitCards={permitCards} />
         </div>
+
+        <section className="mt-8" aria-label="Rekap dan izin">
+          <div className="mb-3">
+            <p className="portal-eyebrow">Rekap &amp; Izin</p>
+            <p className="mt-1 text-sm text-muted-foreground">Pantau pengajuan izin foto/video dan area special.</p>
+          </div>
+          <PhotoVideoRequestsPanel canSubmit={false} formOpen={photoPermitOpen} onFormOpenChange={setPhotoPermitOpen} />
+          <SpecialAreaRequestsPanel canSubmit={false} formOpen={specialAreaPermitOpen} onFormOpenChange={setSpecialAreaPermitOpen} />
+        </section>
       </main>
 
-      {callOpen && <CallRecordDialog station={station} registrations={registrations} onClose={() => { setCallOpen(false); setScanFocusKey((key) => key + 1) }} onChanged={load} />}
-      {returnOpen && <ReturnCardDialog station={station} registrations={registrations} permitCards={permitCards} onClose={() => { setReturnOpen(false); setScanFocusKey((key) => key + 1) }} onChanged={load} />}
+      {callOpen && <CallRecordDialog station={station} registrations={activeRegistrations} onClose={() => { setCallOpen(false); setScanFocusKey((key) => key + 1) }} onChanged={load} />}
+      {returnOpen && <ReturnCardDialog station={station} registrations={activeRegistrations} permitCards={permitCards} onClose={() => { setReturnOpen(false); setScanFocusKey((key) => key + 1) }} onChanged={load} />}
       {quickCardOpen && <QuickCardModal cardType={quickCardOpen} station={station} initialBarcode={quickCardBarcode} onClose={() => { setQuickCardOpen(null); setScanFocusKey((key) => key + 1) }} onSaved={load} />}
       {passwordModalOpen && <ChangePasswordModal onClose={() => setPasswordModalOpen(false)} />}
       <ConfirmDialog

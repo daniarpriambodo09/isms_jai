@@ -22,7 +22,7 @@ export type AdminUser = {
   role: AdminRole
 }
 
-type LoginResult = { success: true } | { success: false; message: string }
+type LoginResult = { success: true; user: AdminUser } | { success: false; message: string }
 
 type AuthContextValue = {
   /** An admin is logged in (ISM Admin, Lobby or Security) — false for an Approver account. */
@@ -32,7 +32,7 @@ type AuthContextValue = {
   /** Whoever is logged in, an Approver account included ("Persetujuan Saya", the navbar's logout). */
   sessionUser: AdminUser | null
   isLoading: boolean
-  login: (username: string, password: string) => Promise<LoginResult>
+  login: (username: string, password: string, expectedRole?: AdminRole) => Promise<LoginResult>
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
 }
@@ -75,17 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval)
   }, [sessionUser, checkAuth])
 
-  const login = useCallback(async (username: string, password: string): Promise<LoginResult> => {
+  const login = useCallback(async (username: string, password: string, expectedRole?: AdminRole): Promise<LoginResult> => {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, expectedRole }),
       })
       const data = await res.json()
       if (res.ok) {
-        setAdminUser(data.admin)
-        return { success: true }
+        const user = data.admin as AdminUser
+        setAdminUser(user)
+        return { success: true, user }
       }
       return { success: false, message: data.message ?? 'Login gagal.' }
     } catch {

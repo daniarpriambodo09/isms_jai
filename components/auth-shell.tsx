@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff, FileCheck2, KeyRound, Loader2, LockKeyhole, QrCode, ShieldCheck, User, Users } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth, type AdminRole, type AdminUser } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { welcomeAdmin, WELCOME_COVERED_MS } from '@/components/admin-welcome'
 
@@ -60,6 +60,13 @@ function AuthStyles() {
 // ─── brand panel ───
 
 type Stats = { documents: number; proceduresApproved: number; visitsTotal: number; specialAreaApproved: number; photoApproved: number }
+
+const ACCESS_OPTIONS: { role: AdminRole; label: string; description: string }[] = [
+  { role: 'ism_admin', label: 'Admin ISM', description: 'Kelola Portal ISMS' },
+  { role: 'lobby', label: 'Admin Lobby', description: 'Pendaftaran dan kartu tamu Lobby' },
+  { role: 'security', label: 'Admin Security', description: 'Penerimaan dan kartu Pos Security' },
+  { role: 'approver', label: 'Approver', description: 'Setujui dokumen di Persetujuan Saya' },
+]
 
 const MESSAGES = [
   { icon: FileCheck2, title: 'Dokumen terkendali', body: 'Prosedur, form, dan standar ISMS selalu tersedia dalam revisi terbaru.' },
@@ -207,6 +214,7 @@ export function AuthSplitLogin({
   onBack,
   topRight,
   usernameRef,
+  accessSelector = false,
 }: {
   kiosk?: boolean
   eyebrow: string
@@ -214,10 +222,12 @@ export function AuthSplitLogin({
   subtitle: string
   successSubtitle: string
   /** Called once the welcome curtain covers the screen. */
-  onSuccess: () => void
+  onSuccess: (user: AdminUser) => void
   onBack?: () => void
   topRight?: ReactNode
   usernameRef?: React.RefObject<HTMLInputElement | null>
+  /** Portal login: choose the destination role before entering credentials. */
+  accessSelector?: boolean
 }) {
   const { login } = useAuth()
   const [username, setUsername] = useState('')
@@ -227,6 +237,7 @@ export function AuthSplitLogin({
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<AdminRole>('ism_admin')
   const timer = useRef<number | null>(null)
 
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current) }, [])
@@ -235,7 +246,7 @@ export function AuthSplitLogin({
     event.preventDefault()
     setError(null)
     setSubmitting(true)
-    const result = await login(username, password)
+    const result = await login(username, password, accessSelector ? selectedRole : undefined)
     setSubmitting(false)
     if (result.success) {
       setSuccess(true)
@@ -243,7 +254,7 @@ export function AuthSplitLogin({
       // this screen closes underneath once its curtain has shut.
       welcomeAdmin(username)
       timer.current = window.setTimeout(() => {
-        onSuccess()
+        onSuccess(result.user)
         setSuccess(false)
         setUsername('')
         setPassword('')
@@ -280,6 +291,25 @@ export function AuthSplitLogin({
               <p className="mt-3 text-[14.5px] leading-relaxed text-muted-foreground">{subtitle}</p>
 
               <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-7">
+                {accessSelector && (
+                  <fieldset>
+                    <legend className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Masuk sebagai</legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ACCESS_OPTIONS.map((option) => (
+                        <button
+                          key={option.role}
+                          type="button"
+                          aria-pressed={selectedRole === option.role}
+                          onClick={() => { setSelectedRole(option.role); setError(null) }}
+                          className={`rounded-xl border px-3 py-2.5 text-left transition ${selectedRole === option.role ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/30' : 'border-border bg-card text-muted-foreground hover:bg-secondary'}`}
+                        >
+                          <span className="block text-xs font-bold">{option.label}</span>
+                          <span className="mt-0.5 block text-[10px] leading-snug opacity-75">{option.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
                 <Field id={kiosk ? 'klf-username' : 'lm-username'} label="Username" icon={User} value={username} onChange={setUsername} autoComplete="username" autoFocus={kiosk} inputRef={usernameRef} />
                 <div>
                   <Field
@@ -317,7 +347,7 @@ export function AuthSplitLogin({
                   disabled={submitting}
                   className="auth-submit group mt-1 flex h-[52px] w-full items-center justify-between rounded-full bg-primary pl-7 pr-2 text-[15px] font-semibold text-primary-foreground shadow-[0_10px_28px_color-mix(in_oklch,var(--primary)_32%,transparent)] transition hover:brightness-110 disabled:opacity-70"
                 >
-                  {submitting ? 'Memproses…' : 'Masuk'}
+                  {submitting ? 'Memproses…' : accessSelector ? `Masuk sebagai ${ACCESS_OPTIONS.find((option) => option.role === selectedRole)?.label}` : 'Masuk'}
                   <span className="grid size-10 place-items-center rounded-full bg-primary-foreground/15">
                     {submitting ? <Loader2 className="size-[18px] animate-spin" /> : <ArrowRight className="auth-submit-arrow size-[18px]" />}
                   </span>

@@ -71,25 +71,59 @@ export async function GET(request: NextRequest) {
   const session = getKioskAdminFromRequest(request)
 
   try {
-    const stage = request.nextUrl.searchParams.get('stage')
-    const entryPath = request.nextUrl.searchParams.get('entryPath')
+    const params = request.nextUrl.searchParams
+    const stage = params.get('stage')
+    const entryPath = params.get('entryPath')
     const sort = request.nextUrl.searchParams.get('sort') === 'oldest' ? 'ASC' : 'DESC'
+    const station = params.get('station')
+    const context = params.get('context')
+    const month = params.get('month')
+    const year = params.get('year')
+    const search = params.get('query')?.trim()
+    const hasPagination = params.has('page') || params.has('limit')
+    const requestedPage = Number(params.get('page'))
+    const requestedLimit = Number(params.get('limit'))
+    const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
+    const limit = Number.isInteger(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 10_000) : 20
 
     const conditions: string[] = []
-    const values: string[] = []
+    const values: (string | number)[] = []
+    const stationSql = `COALESCE(registered_station, CASE WHEN entry_path = 'security' THEN 'security' ELSE 'lobby' END)`
     if (stage) { values.push(stage); conditions.push(`stage = $${values.length}`) }
     if (entryPath) { values.push(entryPath); conditions.push(`entry_path = $${values.length}`) }
+    if (station === 'lobby' || station === 'security') { values.push(station); conditions.push(`${stationSql} = $${values.length}`) }
+    if (context === 'lobby') conditions.push(`${stationSql} = 'lobby'`)
+    if (context === 'waiting_security') conditions.push(`${stationSql} = 'security' AND stage = 'pending_approval'`)
+    if (context === 'holding_lobby') conditions.push(`stage = 'active' AND (entry_path <> 'security' OR at_work_area)`)
+    if (context === 'closed') conditions.push(`stage = 'closed'`)
+    if (month != null && /^(0|[1-9]|1[01])$/.test(month)) { values.push(Number(month) + 1); conditions.push(`EXTRACT(MONTH FROM registered_at AT TIME ZONE 'Asia/Jakarta') = $${values.length}`) }
+    if (year != null && /^\d{4}$/.test(year)) { values.push(Number(year)); conditions.push(`EXTRACT(YEAR FROM registered_at AT TIME ZONE 'Asia/Jakarta') = $${values.length}`) }
+    if (search) {
+      values.push(`%${search}%`)
+      conditions.push(`(full_name ILIKE $${values.length} OR pic_jai ILIKE $${values.length} OR company_remark ILIKE $${values.length})`)
+    }
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
 
-    const result = await query<VendorRegistrationRow>(
-      `SELECT ${SELECT_COLUMNS} FROM vendor_registrations ${whereClause} ORDER BY registered_at ${sort}`,
-      values
-    )
+    const result = hasPagination
+      ? await query<VendorRegistrationRow>(
+          `SELECT ${SELECT_COLUMNS} FROM vendor_registrations ${whereClause} ORDER BY registered_at ${sort} LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+          [...values, limit, (page - 1) * limit]
+        )
+      : await query<VendorRegistrationRow>(`SELECT ${SELECT_COLUMNS} FROM vendor_registrations ${whereClause} ORDER BY registered_at ${sort}`, values)
     const registrations = session
       ? result.rows
       : result.rows.map((row) => ({ ...row, id_card: maskIdCard(row.id_card) }))
+    if (!hasPagination) return NextResponse.json({ registrations })
 
-    return NextResponse.json({ registrations })
+    const [totalResult, yearsResult] = await Promise.all([
+      query<{ total: string }>(`SELECT count(*)::text AS total FROM vendor_registrations ${whereClause}`, values),
+      query<{ year: string }>(`SELECT DISTINCT EXTRACT(YEAR FROM registered_at AT TIME ZONE 'Asia/Jakarta')::text AS year FROM vendor_registrations ${whereClause} ORDER BY year DESC`, values),
+    ])
+    return NextResponse.json({
+      registrations,
+      pagination: { page, limit, total: Number(totalResult.rows[0]?.total ?? 0) },
+      years: yearsResult.rows.map((row) => Number(row.year)).filter(Number.isFinite),
+    })
   } catch (error) {
     console.error('[vendor-registrations/GET]', error)
     return NextResponse.json({ message: 'Gagal memuat daftar pendaftaran.' }, { status: 500 })

@@ -10,9 +10,20 @@ import { SpecialAreaTable } from '@/components/special-area/SpecialAreaTable'
 import { useKioskAutoRefresh } from '@/components/kiosk/kiosk-shared'
 import type { SpecialAreaRequest } from '@/lib/special-area-shared'
 
-export function SpecialAreaRequestsPanel() {
+export function SpecialAreaRequestsPanel({
+  canSubmit = true,
+  formOpen: controlledFormOpen,
+  onFormOpenChange,
+}: {
+  canSubmit?: boolean
+  /** Lets the Lobby place the primary action above both permit recap panels. */
+  formOpen?: boolean
+  onFormOpenChange?: (open: boolean) => void
+}) {
   const [open, setOpen] = useState(false)
-  const [formOpen, setFormOpen] = useState(false)
+  const [uncontrolledFormOpen, setUncontrolledFormOpen] = useState(false)
+  const formOpen = controlledFormOpen ?? uncontrolledFormOpen
+  const setFormOpen = onFormOpenChange ?? setUncontrolledFormOpen
   const [requests, setRequests] = useState<SpecialAreaRequest[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -47,9 +58,11 @@ export function SpecialAreaRequestsPanel() {
           </div>
         </button>
         <div className="flex w-full items-center gap-2 sm:w-auto">
-          <button type="button" onClick={() => setFormOpen(true)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#c7161e] px-3 py-2 text-xs font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5 sm:flex-none">
-            <UserPlus className="size-3.5" />Ajukan Izin Area Special
-          </button>
+          {canSubmit && (
+            <button type="button" onClick={() => setFormOpen(true)} className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#c7161e] px-3 py-2 text-xs font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5 sm:flex-none">
+              <UserPlus className="size-3.5" />Ajukan Izin Area Special
+            </button>
+          )}
           <button type="button" onClick={() => setOpen((v) => !v)} aria-label={open ? 'Tutup daftar' : 'Buka daftar'} className="ml-auto grid size-8 flex-shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-secondary">
             <ChevronDown className={`size-5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
           </button>

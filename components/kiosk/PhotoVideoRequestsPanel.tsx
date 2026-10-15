@@ -57,9 +57,20 @@ function PhotoVideoFormModal({ onClose }: { onClose: () => void }) {
 // the exact same Internal/Visitor table as the full /rekap-foto-video page.
 // "Ajukan Izin Foto/Video" opens the request form (Internal / Visitor) right
 // from the kiosk; canSubmit=false would leave only the recap.
-export function PhotoVideoRequestsPanel({ canSubmit = true }: { canSubmit?: boolean }) {
+export function PhotoVideoRequestsPanel({
+  canSubmit = true,
+  formOpen: controlledFormOpen,
+  onFormOpenChange,
+}: {
+  canSubmit?: boolean
+  /** Lets the Lobby place the primary action above both permit recap panels. */
+  formOpen?: boolean
+  onFormOpenChange?: (open: boolean) => void
+}) {
   const [open, setOpen] = useState(false)
-  const [formOpen, setFormOpen] = useState(false)
+  const [uncontrolledFormOpen, setUncontrolledFormOpen] = useState(false)
+  const formOpen = controlledFormOpen ?? uncontrolledFormOpen
+  const setFormOpen = onFormOpenChange ?? setUncontrolledFormOpen
 
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">

@@ -16,12 +16,16 @@ type AdminRow = {
   username: string
   email: string | null
   password_hash: string
-  role: 'ism_admin' | 'lobby' | 'security'
+  role: 'ism_admin' | 'lobby' | 'security' | 'approver'
 }
+
+const ROLES = ['ism_admin', 'lobby', 'security', 'approver'] as const
+type AdminRole = typeof ROLES[number]
+function isAdminRole(value: unknown): value is AdminRole { return typeof value === 'string' && (ROLES as readonly string[]).includes(value) }
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json()
+    const { username, password, expectedRole } = await request.json()
 
     if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
       return NextResponse.json({ message: 'Username dan password wajib diisi.' }, { status: 400 })
@@ -48,6 +52,12 @@ export async function POST(request: NextRequest) {
     if (!admin || !(await bcrypt.compare(password, admin.password_hash))) {
       recordLoginFailure(rateLimitKey)
       return NextResponse.json({ message: 'Username atau password salah.' }, { status: 401 })
+    }
+
+    // The role picked on the sign-in screen is a routing aid, not an
+    // authority grant. Verify it here before a session cookie is issued.
+    if (expectedRole !== undefined && (!isAdminRole(expectedRole) || admin.role !== expectedRole)) {
+      return NextResponse.json({ message: 'Akun ini tidak sesuai dengan jenis akses yang dipilih.' }, { status: 403 })
     }
 
     recordLoginSuccess(rateLimitKey)

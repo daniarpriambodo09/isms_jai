@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowDownUp, Ban, Briefcase, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldCheck, Trash2, Truck, Undo2, UserPlus, X } from 'lucide-react'
+import { ArrowDownUp, Ban, Briefcase, Camera, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldAlert, ShieldCheck, Trash2, Truck, Undo2, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
@@ -255,6 +255,8 @@ export function SecurityView() {
   const [error, setError] = useState<string | null>(null)
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
   const [formOpen, setFormOpen] = useState<SecurityCardType | null>(null)
+  const [photoPermitOpen, setPhotoPermitOpen] = useState(false)
+  const [specialAreaPermitOpen, setSpecialAreaPermitOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Registration | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Registration | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -403,8 +405,14 @@ export function SecurityView() {
           </button>
         </div>
         {/* The permits are registrations too: right under the registration buttons. */}
-        <PhotoVideoRequestsPanel />
-        <SpecialAreaRequestsPanel />
+        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Pengajuan izin">
+          <button type="button" onClick={() => setPhotoPermitOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#087b9a] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5">
+            <Camera className="size-4" />Ajukan Izin Foto/Video
+          </button>
+          <button type="button" onClick={() => setSpecialAreaPermitOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#c7161e] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5">
+            <ShieldAlert className="size-4" />Ajukan Izin Area Special
+          </button>
+        </div>
 
         {/* Scan a card — a card in use closes that guest's visit, a new one goes to a guest waiting for approval. Right above the list. */}
         <ScanCardBox station="security" onChanged={load} />
@@ -554,6 +562,15 @@ export function SecurityView() {
         <div className="mt-8">
           <ActiveCardsWidget registrations={registrations} cardTypes={['visitor', 'vendor', 'supplier', 'special_area', 'photography']} permitCards={permitCards} />
         </div>
+
+        <section className="mt-8" aria-label="Rekap dan izin">
+          <div className="mb-3">
+            <p className="portal-eyebrow">Rekap &amp; Izin</p>
+            <p className="mt-1 text-sm text-muted-foreground">Pantau pengajuan izin foto/video dan area special.</p>
+          </div>
+          <PhotoVideoRequestsPanel canSubmit={false} formOpen={photoPermitOpen} onFormOpenChange={setPhotoPermitOpen} />
+          <SpecialAreaRequestsPanel canSubmit={false} formOpen={specialAreaPermitOpen} onFormOpenChange={setSpecialAreaPermitOpen} />
+        </section>
       </main>
 
       {formOpen && <RegisterModal cardType={formOpen} onClose={() => setFormOpen(null)} onSaved={load} />}

@@ -2,7 +2,7 @@
 'use client'
 
 // "Persetujuan Saya" (Digital Approval Dashboard):
-// Recreated in the ILS - Digital Approval aesthetic:
+// Recreated in the ISMS - Digital Approval aesthetic:
 // - Modern purple/indigo top badge and KPI header with counter
 // - Status and category filtering tabs
 // - 2-Column approval card: Left = Detail Dokumen, Right = Supporting Document (PDF preview)
@@ -268,7 +268,7 @@ export default function PersetujuanSayaPage() {
         <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
           <ClipboardCheck className="size-8" />
         </span>
-        <h2 className="mt-5 font-display text-2xl font-bold text-foreground">ILS - Digital Approval</h2>
+        <h2 className="mt-5 font-display text-2xl font-bold text-foreground">ISMS - Digital Approval</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Masuk dengan akun Approver Anda untuk membuka Dashboard Persetujuan Digital dan memproses seluruh dokumen pengajuan ISMS secara langsung.
         </p>
@@ -299,7 +299,7 @@ export default function PersetujuanSayaPage() {
             </span>
           </div>
           <span className="hidden font-mono text-xs text-muted-foreground sm:inline-block">
-            ILS - Digital Approval
+            ISMS - Digital Approval
           </span>
         </div>
 
@@ -531,7 +531,7 @@ export default function PersetujuanSayaPage() {
                     data-testid="my-pending"
                     className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-all hover:border-indigo-300/80 hover:shadow-md"
                   >
-                    {/* Card Header Toolbar (ILS Style) */}
+                    {/* Card Header Toolbar (ISMS Style) */}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-5 py-3.5">
                       <div className="flex flex-wrap items-center gap-2">
                         <span

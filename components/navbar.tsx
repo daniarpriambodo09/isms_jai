@@ -97,6 +97,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [deptMenuOpen, setDeptMenuOpen] = useState(false)
   const [ismsStandardMenuOpen, setIsmsStandardMenuOpen] = useState(false)
+  const [formCsMenuOpen, setFormCsMenuOpen] = useState(false)
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
   const [expandedDept, setExpandedDept] = useState<string | null>(null)
   const [departments, setDepartments] = useState<Department[]>([])
@@ -127,17 +128,18 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setIsmsStandardMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
+  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setIsmsStandardMenuOpen(false); setFormCsMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
 
   // Close the desktop dropdowns on a click outside the menu that was clicked,
   // or on Escape. A full-screen click-catcher can't do this: once the page is
   // scrolled, the navbar's backdrop-filter traps position:fixed children
   // inside the bar, so clicks on the page never reached it.
-  const anyMenuOpen = deptMenuOpen || ismsStandardMenuOpen || settingsMenuOpen
+  const anyMenuOpen = deptMenuOpen || ismsStandardMenuOpen || formCsMenuOpen || settingsMenuOpen
   useEffect(() => {
     if (!anyMenuOpen) return
     const closeExcept = (key: string | null) => {
       if (key !== 'isms') setIsmsStandardMenuOpen(false)
+      if (key !== 'formcs') setFormCsMenuOpen(false)
       if (key !== 'dept') setDeptMenuOpen(false)
       if (key !== 'settings') setSettingsMenuOpen(false)
     }
@@ -182,6 +184,7 @@ export function Navbar() {
       setMobileOpen(false)
       setDeptMenuOpen(false)
       setIsmsStandardMenuOpen(false)
+      setFormCsMenuOpen(false)
       setSettingsMenuOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -237,6 +240,15 @@ export function Navbar() {
       <Link href="/prosedur-isms" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">{navLabels.prosedur ?? 'ISMS Procedures'}</Link>
       <Link href="/standard-isms-p14" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Standard Requirement TMMIN</Link>
       <Link href="/working-standard" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">{navLabels.working_standard ?? 'Working Standard'}</Link>
+    </>
+  )
+
+  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs']
+  const isFormCsActive = formCsRoutes.includes(pathname)
+  const formCsItems = (
+    <>
+      <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Application Form</Link>
+      <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">CS Control</Link>
     </>
   )
 
@@ -370,23 +382,31 @@ export function Navbar() {
               .filter((item) => item.href === '/education')
               .map(renderMainNavItem)}
 
-            {/* Application Form direct menu link (no dropdown) */}
-            <Link
-              href="/form-aplikasi"
-              className={cn(navLink, pathname === '/form-aplikasi' && navLinkActive)}
-            >
-              Application Form
-              {pathname === '/form-aplikasi' && activeIndicator}
-            </Link>
-
-            {/* CS Control direct menu link */}
-            <Link
-              href="/kontrol-cs"
-              className={cn(navLink, pathname === '/kontrol-cs' && navLinkActive)}
-            >
-              CS Control
-              {pathname === '/kontrol-cs' && activeIndicator}
-            </Link>
+            {/* Form CS dropdown */}
+            <div data-nav-menu="formcs" className="relative">
+              <button
+                type="button"
+                onClick={() => setFormCsMenuOpen((v) => !v)}
+                className={cn('flex items-center gap-1', navLink, isFormCsActive && navLinkActive)}
+              >
+                {navLabels.form_cs ?? 'Forms & CS Control'}
+                <ChevronDown className={cn('size-4 transition-transform duration-200', formCsMenuOpen && 'rotate-180')} />
+                {isFormCsActive && activeIndicator}
+              </button>
+              {formCsMenuOpen && (
+                <>
+                  {dropdownPanel(
+                    <>
+                      <div className="border-b border-border px-3 pb-2 pt-1">
+                        <p className="portal-eyebrow">Document library</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Choose document category</p>
+                      </div>
+                      {formCsItems}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
 
             {/* Department dropdown */}
             <div data-nav-menu="dept" className="relative">
@@ -593,28 +613,8 @@ export function Navbar() {
           <div className="portal-eyebrow px-3 pb-2 pt-5">ISMS Standard</div>
           {ismsStandardItems}
           {mainNav.filter((item) => item.href === '/education').map(renderMobileNavItem)}
-          <Link
-            href="/form-aplikasi"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              'nav-drawer-item flex items-center justify-between px-3 py-2.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-foreground hover:bg-secondary mt-3',
-              pathname === '/form-aplikasi' && 'bg-secondary font-bold text-accent'
-            )}
-          >
-            <span>Application Form</span>
-            <ArrowRight className="size-3.5 opacity-60" />
-          </Link>
-          <Link
-            href="/kontrol-cs"
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              'nav-drawer-item flex items-center justify-between px-3 py-2.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-foreground hover:bg-secondary mt-1',
-              pathname === '/kontrol-cs' && 'bg-secondary font-bold text-accent'
-            )}
-          >
-            <span>CS Control</span>
-            <ArrowRight className="size-3.5 opacity-60" />
-          </Link>
+          <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.form_cs ?? 'Forms & CS Control'}</div>
+          {formCsItems}
           <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.departemen ?? 'Departments'}</div>
           {departmentItems}
           {showMyApprovals && (

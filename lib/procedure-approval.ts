@@ -718,6 +718,16 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       : null
 
     const base = resolveAppBaseUrl(settings.appUrl)
+    const dashboardUrl = `${base}${API_BASE_PATH}/persetujuan-saya`
+    const pendingCountRes = await query<{ count: string }>(
+      `SELECT count(*)::text AS count
+       FROM procedure_approvals a
+       JOIN procedure_documents d ON d.id = a.document_id AND d.revision = a.revision
+       WHERE a.status = 'pending' AND a.token IS NOT NULL AND lower(a.approver_email) = lower($1)`,
+      [step.approver_email]
+    ).catch(() => ({ rows: [{ count: '1' }] }))
+    const pendingTotal = Math.max(1, Number(pendingCountRes.rows[0]?.count || 1))
+
     const { subject, html } = buildProcedureApprovalEmail({
       reviewForm: reviewForm ? reviewFormSummary(reviewForm) : null,
       reminder,
@@ -751,6 +761,8 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
         decidedAt: row.decided_at,
       })),
       reviewUrl: `${base}${API_BASE_PATH}/pengesahan?token=${token}`,
+      dashboardUrl,
+      pendingTotal,
       approvalCode: step.approval_code,
       // a Form Review approver gets the Form Review's mail, in the form's look
       kind: signsReview ? docKindInfo('review_form') : docKindInfo(doc.kind),

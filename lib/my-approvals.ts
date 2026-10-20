@@ -57,11 +57,17 @@ export type MyApproval = {
   /** 6-digit approval code sent to this approver's email / messages. */
   code?: string | null
   codeLocked?: boolean
+  filePath?: string
+  note?: string | null
+  uploadedAt?: string | null
+  effDate?: string | null
+  approverName?: string | null
 }
 
 type Row = {
   id: number; token: string | null; status: MyApproval['status']; role_code: string; role_title: string; notified_at: string | null; decided_at: string | null
-  document_id: number; control_no: string; title: string; revision: number; kind: string; review_form_path: string | null; review_roles: string[] | null
+  document_id: number; control_no: string; title: string; revision: number; kind: string; file_path: string; note: string | null
+  uploaded_at: string | null; elf_date: string | null; approver_name: string | null; review_form_path: string | null; review_roles: string[] | null
   qr_placed: boolean
   approval_code: string | null
   approval_code_attempts: number
@@ -77,8 +83,11 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
   const address = email.trim().toLowerCase()
   const rows = (await query<Row>(
     `SELECT a.id, a.token, a.status, a.role_code, a.role_title, a.notified_at, a.decided_at,
-            a.approval_code, a.approval_code_attempts,
-            d.id AS document_id, d.control_no, d.title, d.revision, d.kind, d.review_form_path, d.review_roles,
+            a.approval_code, a.approval_code_attempts, a.approver_name,
+            d.id AS document_id, d.control_no, d.title, d.revision, d.kind, d.file_path, d.note,
+            to_char(d.uploaded_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS uploaded_at,
+            to_char(d.elf_date, 'YYYY-MM-DD') AS elf_date,
+            d.review_form_path, d.review_roles,
             EXISTS (SELECT 1 FROM procedure_signature_slots s WHERE s.document_id = d.id AND s.role_code = a.role_code AND s.file_path IN (d.file_path, d.review_form_path)) AS qr_placed
      FROM procedure_approvals a
      JOIN procedure_documents d ON d.id = a.document_id AND d.revision = a.revision
@@ -125,6 +134,11 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
       qrPlaced: row.qr_placed,
       code: row.status === 'pending' ? row.approval_code : null,
       codeLocked: (row.approval_code_attempts ?? 0) >= 5,
+      filePath: row.file_path,
+      note: row.note,
+      uploadedAt: row.uploaded_at,
+      effDate: row.elf_date,
+      approverName: row.approver_name,
     }
   }
   return {

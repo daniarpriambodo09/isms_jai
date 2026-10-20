@@ -741,6 +741,10 @@ export type ProcedureApprovalEmailData = {
   stepTotal: number
   chain: ProcedureChainStep[]
   reviewUrl: string
+  /** Direct dashboard url (/persetujuan-saya) to view all pending approvals. */
+  dashboardUrl?: string
+  /** Total number of pending documents waiting for this approver across the portal. */
+  pendingTotal?: number
   /** The 6-digit code the approver types in when approving (null = none asked). */
   approvalCode?: string | null
   /** Which register the document belongs to (lib/document-kinds.ts); procedure when omitted. */
@@ -776,8 +780,8 @@ function approvalCodeBlock(code: string) {
           <tr><td align="center" style="padding:14px 26px 12px;font-family:Arial,Helvetica,sans-serif;">
             <p style="margin:0;font-size:10.5px;font-weight:bold;letter-spacing:0.14em;color:${MUTED};text-transform:uppercase;">Kode Persetujuan</p>
             <p style="margin:6px 0 4px;font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:bold;letter-spacing:0.18em;color:${NAVY};">${digits}</p>
-            <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.5;">Masukkan kode ini saat menekan <strong>Setujui</strong>. Jangan berikan kode ini kepada siapa pun.</p>
-            <p style="margin:6px 0 0;font-size:11px;color:${MUTED};line-height:1.5;">Punya akun approver? Masuk ke Portal ISMS dan buka <strong>Persetujuan Saya</strong> &mdash; di sana tidak perlu kode.</p>
+            <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.5;">Masukkan kode ini saat menekan <strong>Setujui</strong> pada Pilihan 1 (Link Langsung). Jangan berikan kode ini kepada siapa pun.</p>
+            <p style="margin:6px 0 0;font-size:11px;color:${MUTED};line-height:1.5;">Punya akun approver? Masuk ke Portal ISMS dan buka <strong>Pilihan 2 (Dashboard Approval)</strong> &mdash; di sana persetujuan langsung tanpa perlu kode PIN.</p>
           </td></tr>
         </table>
       </td>
@@ -819,6 +823,9 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     : look
     ? `background:${look.accent};color:${look.dark};border-radius:6px;border-bottom:3px solid ${re ? '#1f7a4d' : look.accentDark};`
     : `background:${NAVY};color:#ffffff;border-radius:4px;border-bottom:3px solid ${re ? '#1f7a4d' : MEMO_SEAL};`
+
+  const dashUrl = data.dashboardUrl || `${data.reviewUrl.split('/pengesahan')[0]}/persetujuan-saya`
+  const pendingCount = typeof data.pendingTotal === 'number' && data.pendingTotal > 0 ? data.pendingTotal : 1
 
   // Re-submission: a green banner first thing in the mail — which round, that
   // older links are void, and what the approver asked to be fixed.
@@ -863,9 +870,9 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
   const rf = data.reviewForm ?? null
   const reviewed = rf ? escapeHtml([rf.docControlNo, rf.docTitle].filter(Boolean).join(' — ')) : ''
   const askLine = fro
-    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review dan dokumennya dapat dibuka lewat tombol di bawah. Pengesahan dokumennya berjalan bersamaan oleh approver dokumen.</p>`
+    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS</strong> untuk dokumen ${escapeHtml(fro.registerLabel)} <strong>${escapeHtml(fro.controlNo)} &mdash; ${escapeHtml(fro.title)}</strong>. Form Review dan dokumennya dapat dibuka lewat pilihan di bawah. Pengesahan dokumennya berjalan bersamaan oleh approver dokumen.</p>`
     : rf
-    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya dapat dibuka lewat tombol di bawah, dan ringkasannya ada di bawah ini.</p>`
+    ? `<p style="${para}">Mohon bantuannya untuk ${re ? '<strong>memeriksa kembali</strong> dan menandatangani' : 'memeriksa dan menandatangani'} <strong>Form Review &amp; Revisi Dokumen ISMS No. ${escapeHtml(rf.formNo)}</strong> untuk dokumen <strong>${reviewed}</strong>. Formulirnya dapat dibuka lewat pilihan di bawah, dan ringkasannya ada di bawah ini.</p>`
     : null
 
   const body = `${reminderBanner}${resubmitBanner}
@@ -873,8 +880,8 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
       <td style="padding:20px 32px 6px;">
         <p style="margin:0 0 14px;font-size:15px;color:${MEMO_INK};line-height:1.7;">Dear ${salutationPrefix(data.approverSalutation)}<strong>${escapeHtml(data.approverName)}</strong>,</p>
         ${askLine ?? (re
-          ? `<p style="${para}">Mohon bantuannya untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> ${re.fileChanged ? 'yang telah diperbaiki sesuai catatan revisi' : ''}. Dokumennya dapat dibuka lewat tombol di bawah.</p>`
-          : `<p style="${para}">Mohon bantuannya untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong>. Dokumennya dapat dibuka lewat tombol di bawah.</p>`)}
+          ? `<p style="${para}">Mohon bantuannya untuk melakukan <strong>review kembali</strong> dan approval atas dokumen ${kind.noun} <strong>${title}</strong> ${re.fileChanged ? 'yang telah diperbaiki sesuai catatan revisi' : ''}. Dokumennya dapat dibuka lewat pilihan aksi di bawah.</p>`
+          : `<p style="${para}">Mohon bantuannya untuk melakukan review dan approval atas dokumen ${kind.noun} <strong>${title}</strong>. Dokumennya dapat dibuka lewat pilihan aksi di bawah.</p>`)}
         <p style="${para}">Apabila terdapat hal yang perlu disesuaikan atau diperbaiki, mohon arahan lebih lanjut agar dapat segera saya tindak lanjuti.</p>
         <p style="margin:0 0 20px;font-size:14.5px;color:${MEMO_INK};line-height:1.75;">Terima kasih atas perhatian dan kerja samanya.</p>
       </td>
@@ -882,9 +889,62 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     ${rf && look ? reviewSummaryBlock(look, rf) : `<tr><td style="padding:0 32px 22px;">${detailTable(rows, look)}</td></tr>`}
     <tr><td style="padding:0 32px;">${chainRow(data.chain, look)}</td></tr>
     <tr>
-      <td align="center" style="padding:26px 32px 6px;">
-        <a href="${data.reviewUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:15px 30px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:14px;letter-spacing:0.04em;${buttonStyle}">&#9998;&nbsp; ${data.reviewForm || fro ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI' : 'PERIKSA &amp; TANDA TANGANI') : re ? 'REVIEW ULANG &amp; APPROVAL' : 'REVIEW &amp; APPROVAL'}</a>
-        <p style="margin:10px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11.5px;color:${MUTED};">Buka dokumen, lalu pilih <strong>Setujui</strong> atau <strong>Tolak</strong> &mdash; tanpa perlu login.</p>
+      <td style="padding:22px 32px 6px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #cbd5e1;background:#f8fafc;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(15,23,42,0.06);">
+          <tr>
+            <td style="background:linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);padding:14px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <span style="display:inline-block;background:rgba(255,255,255,0.22);color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;padding:4px 12px;border-radius:999px;">2 Pilihan Akses &amp; Persetujuan</span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;background:#ffffff;color:#1e3a5f;font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Total ${pendingCount} Antrean Menunggu</span>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:10px 0 0;font-size:13px;color:rgba(255,255,255,0.92);line-height:1.5;">
+                Saat ini terdapat total <strong>${pendingCount} dokumen</strong> yang memerlukan keputusan persetujuan Anda di Portal ISMS. Silakan gunakan salah satu dari 2 pilihan berikut:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Pilihan 1: Setujui Dokumen Ini Langsung -->
+          <tr>
+            <td style="padding:18px 20px;border-bottom:1px solid #e2e8f0;background:#ffffff;">
+              <p style="margin:0 0 4px;font-size:14px;font-weight:bold;color:#0f172a;">
+                <span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px;">PILIHAN 1</span>
+                Setujui Dokumen Ini Langsung (Direct Link)
+              </p>
+              <p style="margin:0 0 12px;font-size:12.5px;color:#64748b;line-height:1.5;">
+                Mengarahkan langsung ke dokumen ini untuk Anda periksa dan setujui / minta revisi tanpa perlu login akun.
+              </p>
+              <div style="text-align:left;">
+                <a href="${data.reviewUrl}" style="display:inline-block;padding:12px 24px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:13.5px;letter-spacing:0.02em;${buttonStyle}">
+                  &#9998;&nbsp; ${data.reviewForm || fro ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI SEKARANG' : 'PERIKSA &amp; TANDA TANGANI LANGSUNG') : re ? 'REVIEW ULANG &amp; APPROVAL SEKARANG' : 'REVIEW &amp; SETUJUI DOKUMEN INI'}
+                </a>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Pilihan 2: Buka via Dashboard Approver -->
+          <tr>
+            <td style="padding:18px 20px;background:#f8fafc;">
+              <p style="margin:0 0 4px;font-size:14px;font-weight:bold;color:#0f172a;">
+                <span style="display:inline-block;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px;">PILIHAN 2</span>
+                Buka via Dashboard Approver (Lihat Semua Antrean)
+              </p>
+              <p style="margin:0 0 12px;font-size:12.5px;color:#64748b;line-height:1.5;">
+                Membuka Dashboard Persetujuan Digital untuk melihat seluruh <strong>${pendingCount} antrean dokumen</strong> Anda secara terpusat dan memprosesnya secara fleksibel.
+              </p>
+              <div style="text-align:left;">
+                <a href="${dashUrl}" style="display:inline-block;padding:12px 24px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:13.5px;background:#6366f1;color:#ffffff;border-radius:6px;border-bottom:3px solid #4338ca;letter-spacing:0.02em;">
+                  &#128203;&nbsp; Buka via Dashboard (${pendingCount} Antrean Menunggu)
+                </a>
+              </div>
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>${data.approvalCode ? approvalCodeBlock(data.approvalCode) : ''}
     <tr>

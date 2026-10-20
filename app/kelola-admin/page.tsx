@@ -13,7 +13,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 
-type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver'
+type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
 type ActivityEntry = {
   id: number
@@ -31,12 +31,14 @@ const ROLE_LABEL: Record<AdminRole, string> = {
   lobby: 'Lobby',
   security: 'Security',
   approver: 'Approver',
+  it: 'IT Admin',
 }
 const ROLE_TONE: Record<AdminRole, string> = {
   ism_admin: 'bg-primary/10 text-primary',
   lobby: 'bg-accent/20 text-accent-foreground',
   security: 'bg-secondary text-secondary-foreground',
   approver: 'bg-emerald-500/10 text-emerald-700',
+  it: 'bg-blue-600/10 text-blue-700',
 }
 const ACTION_LABEL: Record<string, string> = { create: 'Membuat', update: 'Mengubah', delete: 'Menghapus' }
 const ACTION_TONE: Record<string, string> = {
@@ -272,6 +274,7 @@ export default function KelolaAdminPage() {
                     <option value="lobby">Lobby</option>
                     <option value="security">Security</option>
                     <option value="ism_admin">ISM Admin</option>
+                    <option value="it">IT Admin (ISMS-F-03)</option>
                     <option value="approver">Approver (Persetujuan Saya)</option>
                   </select>
                 </div>
@@ -377,6 +380,7 @@ export default function KelolaAdminPage() {
                                   <option value="lobby">Lobby</option>
                                   <option value="security">Security</option>
                                   <option value="ism_admin">ISM Admin</option>
+                                  <option value="it">IT Admin (ISMS-F-03)</option>
                                   <option value="approver">Approver</option>
                                 </select>
                               </div>

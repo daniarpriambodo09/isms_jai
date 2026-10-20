@@ -1,6 +1,6 @@
 // app/api/departments/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
@@ -9,7 +9,7 @@ type DepartmentRow = { id: number; name: string; slug: string }
 
 // Admin only — rename a department.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = getIsmsAdminFromRequest(request)
+  const session = getItAdminFromRequest(request)
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }
@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // Admin only — delete a department along with its sections and documents
 // (cascaded at the DB level). Physical PDF files are cleaned up afterwards.
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = getIsmsAdminFromRequest(request)
+  const session = getItAdminFromRequest(request)
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }

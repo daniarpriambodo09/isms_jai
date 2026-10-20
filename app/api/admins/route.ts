@@ -7,7 +7,7 @@ import { logActivity } from '@/lib/activity-log'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
-const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security', 'approver']
+const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security', 'approver', 'it']
 
 export async function GET(request: NextRequest) {
   if (!getIsmsAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })

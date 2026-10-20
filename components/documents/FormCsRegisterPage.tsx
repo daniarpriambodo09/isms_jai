@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Camera, Download, FileText, Plus, Search, Settings2, Trash2, X } from 'lucide-react'
+import { ArrowRight, Camera, Download, FileSignature, FileText, Fingerprint, Laptop, Plus, Search, Settings2, ShieldAlert, Trash2, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ControlPanelHero, PaperHero } from '@/components/page-hero'
 import { API_BASE_PATH } from '@/lib/config'
@@ -13,6 +13,7 @@ import { FormCsSpreadsheetTable, type FormCsDocument, type FormCsGroupHeader, ty
 import { FormCsGroupHeaderModal } from '@/components/documents/FormCsGroupHeaderModal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { VendorRegistrationsPanel } from '@/components/documents/VendorRegistrationsPanel'
+import { SpecialAreaFormModal } from '@/components/special-area/SpecialAreaForm'
 import { downloadExcel } from '@/lib/excel-export'
 import { useSearchQueryParam } from '@/hooks/useSearchQueryParam'
 import { moveItem } from '@/lib/ordered-ids'
@@ -38,6 +39,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
+  const [specialAreaModalOpen, setSpecialAreaModalOpen] = useState(false)
 
   const loadDocuments = useCallback(async () => {
     setLoading(true)
@@ -168,21 +170,26 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
           title={title}
           count={documents.length}
           action={
-            <div className="flex flex-wrap gap-2 sm:justify-end">
-              <Link href="/ijin-foto-video" className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5">
-                <Camera className="size-4" />Ijin Foto/Video
-              </Link>
-              {isLoggedIn && (
-                <>
-                  <button type="button" onClick={() => setGroupHeaderModalOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary">
-                    <Settings2 className="size-4" />Kelola Baris Grup
-                  </button>
-                  <button type="button" onClick={() => { setEditing(null); setFormOpen(true) }} className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5">
-                    <Plus className="size-4" />Tambah Dokumen
-                  </button>
-                </>
-              )}
-            </div>
+            isLoggedIn ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGroupHeaderModalOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
+                >
+                  <Settings2 className="size-4" />
+                  Kelola Baris Grup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setEditing(null); setFormOpen(true) }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5 hover:opacity-90"
+                >
+                  <Plus className="size-4" />
+                  Tambah Dokumen
+                </button>
+              </div>
+            ) : null
           }
         />
       ) : (
@@ -203,6 +210,170 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
             </>
           )}
         />
+      )}
+
+      {category === 'form-aplikasi' && (
+        <section aria-label="Layanan Formulir Online Resmi" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="portal-eyebrow">Online services</p>
+              <h3 className="font-display text-lg font-bold text-foreground">
+                Layanan Formulir &amp; Pengajuan Izin Online
+              </h3>
+            </div>
+            <span className="hidden rounded-full border border-border bg-secondary/50 px-3 py-1 font-mono-label text-[10px] text-muted-foreground sm:inline-block">
+              5 Layanan Formulir &amp; E-Sign Aktif
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {/* Card 1: Izin Bawa Alat IT */}
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-blue-200/90 bg-gradient-to-b from-blue-50/80 via-card to-card p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-blue-300 hover:shadow-md dark:border-blue-900/50 dark:from-blue-950/30 dark:via-card dark:to-card">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="grid size-10 place-items-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-500/25">
+                    <Laptop className="size-5" />
+                  </div>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
+                    F-03-00-001/002
+                  </span>
+                </div>
+                <h4 className="mt-3.5 font-display text-base font-bold text-foreground">
+                  Izin Bawa Alat IT
+                </h4>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Izin membawa masuk / keluar laptop, USB, kamera &amp; perangkat IT ke area PT. JAI.
+                </p>
+              </div>
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <Link
+                  href="/ijin-masuk-alat-it"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-blue-700 group-hover:shadow"
+                >
+                  <span>Buka Formulir</span>
+                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Card 2: Form E-Sign IT */}
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-emerald-200/90 bg-gradient-to-b from-emerald-50/80 via-card to-card p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-md dark:border-emerald-900/50 dark:from-emerald-950/30 dark:via-card dark:to-card">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="grid size-10 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-500/25">
+                    <FileSignature className="size-5" />
+                  </div>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-300">
+                    6 Template E-Sign
+                  </span>
+                </div>
+                <h4 className="mt-3.5 font-display text-base font-bold text-foreground">
+                  Form E-Sign IT
+                </h4>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Pengadaan PC &amp; Software, Akun Email/User ID, dan Jaringan ber-E-Sign resmi.
+                </p>
+              </div>
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <Link
+                  href="/form-it-esign"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 group-hover:shadow"
+                >
+                  <span>Buka Form E-Sign</span>
+                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Card 3: Registrasi Fingerprint Special Security Area */}
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-indigo-200/90 bg-gradient-to-b from-indigo-50/80 via-card to-card p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md dark:border-indigo-900/50 dark:from-indigo-950/30 dark:via-card dark:to-card">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="grid size-10 place-items-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-500/25">
+                    <Fingerprint className="size-5" />
+                  </div>
+                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                    F-02-00-002
+                  </span>
+                </div>
+                <h4 className="mt-3.5 font-display text-base font-bold text-foreground">
+                  Registrasi Fingerprint
+                </h4>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Pendaftaran sidik jari akses Special Security Area (Server Room, Arsip) E-Sign IAA Teguh Sunjoyo.
+                </p>
+              </div>
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <Link
+                  href="/form-it-esign?form=ISMS-F-02-00-002"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 group-hover:shadow"
+                >
+                  <span>Buka Form Fingerprint</span>
+                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Card 3: Izin Foto & Video */}
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-amber-200/90 bg-gradient-to-b from-amber-50/80 via-card to-card p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-amber-300 hover:shadow-md dark:border-amber-900/50 dark:from-amber-950/30 dark:via-card dark:to-card">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="grid size-10 place-items-center rounded-xl bg-amber-600 text-white shadow-sm shadow-amber-500/25">
+                    <Camera className="size-5" />
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-amber-800 dark:bg-amber-900/60 dark:text-amber-300">
+                    F-04-00-001
+                  </span>
+                </div>
+                <h4 className="mt-3.5 font-display text-base font-bold text-foreground">
+                  Izin Foto &amp; Video
+                </h4>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Permohonan izin pengambilan dokumentasi foto / video di area PT. JAI.
+                </p>
+              </div>
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <Link
+                  href="/ijin-foto-video"
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-amber-700 group-hover:shadow"
+                >
+                  <span>Buka Formulir</span>
+                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </div>
+            </div>
+
+            {/* Card 4: Special Security */}
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-rose-200/90 bg-gradient-to-b from-rose-50/80 via-card to-card p-5 shadow-sm transition-all hover:-translate-y-1 hover:border-rose-300 hover:shadow-md dark:border-rose-900/50 dark:from-rose-950/30 dark:via-card dark:to-card">
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="grid size-10 place-items-center rounded-xl bg-[#c7161e] text-white shadow-sm shadow-red-500/25">
+                    <ShieldAlert className="size-5" />
+                  </div>
+                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-rose-800 dark:bg-rose-900/60 dark:text-rose-300">
+                    Zona Khusus
+                  </span>
+                </div>
+                <h4 className="mt-3.5 font-display text-base font-bold text-foreground">
+                  Special Security Area
+                </h4>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Izin akses ke Server Room, Ruang Arsip, dan Area Berpengawasan Khusus.
+                </p>
+              </div>
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setSpecialAreaModalOpen(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#c7161e] px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#b0131a] group-hover:shadow"
+                >
+                  <span>Buka Pengajuan</span>
+                  <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
       )}
 
       {category === 'kontrol-cs' && <VendorRegistrationsPanel isLoggedIn={isLoggedIn} />}
@@ -287,6 +458,15 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
         onConfirm={confirmBulkDelete}
         onCancel={() => setBulkDeleteOpen(false)}
       />
+      {specialAreaModalOpen && (
+        <SpecialAreaFormModal
+          onClose={() => setSpecialAreaModalOpen(false)}
+          onSaved={() => {
+            setSpecialAreaModalOpen(false)
+            toast('Pengajuan Ijin Masuk Area Special Security berhasil dikirim.')
+          }}
+        />
+      )}
     </div>
   )
 }

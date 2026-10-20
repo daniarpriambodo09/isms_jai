@@ -40,7 +40,7 @@ const STATUS_LABEL: Record<string, string> = { pending: 'Pending', approved: 'Di
 
 function KelolaPermintaanFotoVideoContent() {
   const { isLoggedIn, isLoading, adminUser } = useAuth()
-  const isIsmAdmin = adminUser?.role === 'ism_admin'
+  const isApproverAdmin = adminUser?.role === 'ism_admin' || adminUser?.role === 'it'
   const searchParams = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') ?? '')
   const [typeFilter, setTypeFilter] = useState(searchParams.get('type') ?? '')
@@ -236,7 +236,7 @@ function KelolaPermintaanFotoVideoContent() {
                     {/* Fixed slots on a wide screen — main button, "sudah diambil", PDF, delete — so the
                         buttons line up row after row instead of wrapping unevenly; a plain row on a phone. */}
                     <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap min-[681px]:grid min-[681px]:grid-cols-[4.5rem_7.5rem_2rem_2rem]">
-                      {isIsmAdmin && req.status === 'pending' ? (
+                      {isApproverAdmin && req.status === 'pending' ? (
                         <button type="button" onClick={() => setSelected(req)} className="rounded-md bg-primary px-3 py-1.5 text-center text-xs font-semibold text-primary-foreground transition hover:opacity-90">
                           Tinjau
                         </button>
@@ -245,11 +245,11 @@ function KelolaPermintaanFotoVideoContent() {
                           Lihat
                         </button>
                       )}
-                      {isIsmAdmin && req.status === 'approved' && !req.taken_at ? (
+                      {isApproverAdmin && req.status === 'approved' && !req.taken_at ? (
                         <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-foreground transition hover:bg-secondary">
                           Sudah Diambil
                         </button>
-                      ) : isIsmAdmin && req.status === 'approved' && req.taken_at ? (
+                      ) : isApproverAdmin && req.status === 'approved' && req.taken_at ? (
                         <button type="button" onClick={() => unmarkTaken(req)} disabled={unmarkingId === req.id} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-muted-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60">
                           {unmarkingId === req.id ? 'Membatalkan...' : 'Batalkan Tanda'}
                         </button>
@@ -266,7 +266,7 @@ function KelolaPermintaanFotoVideoContent() {
                           <Eye className="size-3.5" />
                         </a>
                       ) : <span className="hidden min-[681px]:block" />}
-                      {isIsmAdmin && (
+                      {isApproverAdmin && (
                         <button type="button" onClick={() => setPendingDelete(req)} aria-label={`Hapus pengajuan ${req.requester_name}`} title="Hapus pengajuan" className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
                       )}
                     </div>
@@ -280,7 +280,7 @@ function KelolaPermintaanFotoVideoContent() {
       </div>
 
       {selected && (
-        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} readOnly={!isIsmAdmin} />
+        <PhotoVideoDecisionModal request={selected} onClose={() => setSelected(null)} onDecided={load} readOnly={!isApproverAdmin} />
       )}
 
       <ConfirmDialog

@@ -24,7 +24,7 @@ const TABS = [
 
 export default function KelolaIzinAreaSpecialPage() {
   const { isLoggedIn, isLoading, adminUser } = useAuth()
-  const isAdmin = adminUser?.role === 'ism_admin'
+  const isAdmin = adminUser?.role === 'ism_admin' || adminUser?.role === 'it'
   const [requests, setRequests] = useState<SpecialAreaRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('')

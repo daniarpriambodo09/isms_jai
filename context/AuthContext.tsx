@@ -13,7 +13,7 @@ import {
 import { API_BASE_PATH } from '@/lib/config'
 
 // 'approver': only "Persetujuan Saya" — never an admin (see sessionUser below).
-export type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver'
+export type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 
 export type AdminUser = {
   id: number

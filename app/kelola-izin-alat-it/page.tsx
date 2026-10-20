@@ -1,0 +1,1469 @@
+'use client'
+
+import React, { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import {
+  Laptop,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  Search,
+  Filter,
+  Eye,
+  Check,
+  X,
+  Download,
+  Copy,
+  RefreshCw,
+  AlertTriangle,
+  User,
+  Building,
+  Calendar,
+  FileText,
+  ShieldCheck,
+  RotateCcw,
+  Users,
+  FileSignature,
+  ExternalLink,
+  PencilLine,
+  Loader2,
+} from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
+import { IT_FORM_DEFINITIONS, type ItFormSubmission } from '@/lib/it-form-shared'
+
+export default function KelolaIzinAlatItPage() {
+  const { isLoggedIn, adminUser, logout } = useAuth()
+  const role = adminUser?.role
+  const username = adminUser?.username || ''
+  const [mainSection, setMainSection] = useState<'equipment' | 'it_forms'>('equipment')
+  const [requests, setRequests] = useState<ItEquipmentRequest[]>([])
+  const [itSubmissions, setItSubmissions] = useState<ItFormSubmission[]>([])
+  const [loadingItSubmissions, setLoadingItSubmissions] = useState(false)
+  const [selectedItSub, setSelectedItSub] = useState<ItFormSubmission | null>(null)
+  const [itSignLoading, setItSignLoading] = useState(false)
+  const [itSignNote, setItSignNote] = useState('')
+  const [itSignerName, setItSignerName] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'returned' | 'rejected'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const [itSearchQuery, setItSearchQuery] = useState('')
+  const [itFormFilter, setItFormFilter] = useState('all')
+  const [itStatusFilter, setItStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all')
+
+  // Selected for review modal
+  const [selectedReq, setSelectedReq] = useState<ItEquipmentRequest | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [actionSuccess, setActionSuccess] = useState('')
+
+  // Approve state
+  const [approverName, setApproverName] = useState('')
+  const [approverTitle, setApproverTitle] = useState('System Security Administrator (IT)')
+  const [approvalNotes, setApprovalNotes] = useState('')
+
+  // Reject state
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [showRejectForm, setShowRejectForm] = useState(false)
+
+  // Return check state
+  const [showReturnModal, setShowReturnModal] = useState(false)
+  const [checkItems, setCheckItems] = useState(true)
+  const [checkConfidential, setCheckConfidential] = useState(true)
+  const [returnNotes, setReturnNotes] = useState('')
+
+  const [copiedId, setCopiedId] = useState<number | null>(null)
+
+  const fetchRequests = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/it-equipment-requests')
+      const data = await res.json()
+      if (res.ok && data.requests) {
+        setRequests(data.requests)
+      }
+    } catch (err) {
+      console.error('Failed to load IT requests:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchItSubmissions = async () => {
+    setLoadingItSubmissions(true)
+    try {
+      const res = await fetch('/api/it-form-submissions')
+      const data = await res.json()
+      if (res.ok && data.submissions) {
+        setItSubmissions(data.submissions)
+      }
+    } catch (err) {
+      console.error('Failed to load IT submissions:', err)
+    } finally {
+      setLoadingItSubmissions(false)
+    }
+  }
+
+  const handleSignItSub = async (stepNum: number, decision: 'approve' | 'reject') => {
+    if (!selectedItSub) return
+    setItSignLoading(true)
+    try {
+      const res = await fetch(`/api/it-form-submissions/${selectedItSub.id}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          step_number: stepNum,
+          decision,
+          approver_name: itSignerName || username || 'IT Admin',
+          signature_note: itSignNote || null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal memproses tanda tangan')
+      await fetchItSubmissions()
+      if (data.submission) {
+        setSelectedItSub(data.submission)
+      }
+      setItSignNote('')
+    } catch (err: any) {
+      alert(err.message)
+    } finally {
+      setItSignLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchRequests()
+    fetchItSubmissions()
+  }, [])
+
+  useEffect(() => {
+    if (username) {
+      setApproverName(username)
+      setItSignerName(username)
+    }
+  }, [username])
+
+  const filteredRequests = useMemo(() => {
+    return requests.filter((r) => {
+      if (activeTab !== 'all' && r.status !== activeTab) {
+        return false
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase()
+        const matchNo = r.request_no.toLowerCase().includes(q)
+        const matchName = r.applicant_name.toLowerCase().includes(q)
+        const matchCompany = r.company_name.toLowerCase().includes(q)
+        const matchDept = r.department.toLowerCase().includes(q)
+        return matchNo || matchName || matchCompany || matchDept
+      }
+      return true
+    })
+  }, [requests, activeTab, searchQuery])
+
+  const stats = useMemo(() => {
+    return {
+      total: requests.length,
+      pending: requests.filter((r) => r.status === 'pending').length,
+      approved: requests.filter((r) => r.status === 'approved').length,
+      returned: requests.filter((r) => r.status === 'returned').length,
+      rejected: requests.filter((r) => r.status === 'rejected').length,
+    }
+  }, [requests])
+
+  const itStats = useMemo(() => {
+    return {
+      total: itSubmissions.length,
+      pending: itSubmissions.filter((s) => s.status === 'pending').length,
+      approved: itSubmissions.filter((s) => s.status === 'approved').length,
+      rejected: itSubmissions.filter((s) => s.status === 'rejected').length,
+    }
+  }, [itSubmissions])
+
+  const filteredItSubmissions = useMemo(() => {
+    return itSubmissions.filter((s) => {
+      if (itFormFilter !== 'all' && s.form_code !== itFormFilter) return false
+      if (itStatusFilter !== 'all' && s.status !== itStatusFilter) return false
+      if (!itSearchQuery.trim()) return true
+      const q = itSearchQuery.toLowerCase()
+      return (
+        s.request_no.toLowerCase().includes(q) ||
+        s.applicant_name.toLowerCase().includes(q) ||
+        s.department.toLowerCase().includes(q) ||
+        s.form_name.toLowerCase().includes(q)
+      )
+    })
+  }, [itSubmissions, itFormFilter, itStatusFilter, itSearchQuery])
+
+  const handleApprove = async () => {
+    if (!selectedReq) return
+    setActionLoading(true)
+    setActionError('')
+    try {
+      const res = await fetch(`/api/it-equipment-requests/${selectedReq.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'approve',
+          approver_name: approverName,
+          approver_title: approverTitle,
+          notes: approvalNotes,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menyetujui pengajuan')
+
+      setActionSuccess('Pengajuan berhasil di-ACC oleh IT!')
+      setSelectedReq(data.request)
+      fetchRequests()
+    } catch (err: any) {
+      setActionError(err.message || 'Terjadi kesalahan')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!selectedReq || !rejectionReason.trim()) {
+      setActionError('Alasan penolakan wajib diisi.')
+      return
+    }
+    setActionLoading(true)
+    setActionError('')
+    try {
+      const res = await fetch(`/api/it-equipment-requests/${selectedReq.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'reject',
+          rejection_reason: rejectionReason,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menolak pengajuan')
+
+      setActionSuccess('Pengajuan telah ditolak.')
+      setSelectedReq(data.request)
+      setShowRejectForm(false)
+      fetchRequests()
+    } catch (err: any) {
+      setActionError(err.message || 'Terjadi kesalahan')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleReturnCheck = async () => {
+    if (!selectedReq) return
+    setActionLoading(true)
+    setActionError('')
+    try {
+      const res = await fetch(`/api/it-equipment-requests/${selectedReq.id}/return`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          return_check_items: checkItems,
+          return_check_confidential: checkConfidential,
+          returned_notes: returnNotes,
+          inspector_name: username,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal mencatat pengembalian')
+
+      setActionSuccess('Pengecekan pengembalian berhasil dicatat.')
+      setSelectedReq(data.request)
+      setShowReturnModal(false)
+      fetchRequests()
+    } catch (err: any) {
+      setActionError(err.message || 'Terjadi kesalahan')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const copyGuestLink = (req: ItEquipmentRequest) => {
+    const url = `${window.location.origin}/ijin-masuk-alat-it?token=${req.token}`
+    navigator.clipboard.writeText(url)
+    setCopiedId(req.id)
+    setTimeout(() => setCopiedId(null), 2500)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Top Banner Hero */}
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-white/5 backdrop-blur-md p-6 sm:p-8 shadow-lg">
+        <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <Laptop className="size-6" />
+            </div>
+            <div>
+              <p className="portal-eyebrow">IT Division & Security</p>
+              <h1 className="font-display text-2xl font-semibold text-foreground">
+                Kelola Izin & Formulir Divisi IT
+              </h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                ISMS-F-03-00-001/002 (Izin Alat) & ISMS-F-010-001/003/006/007/03-00-003 (E-Sign) · PT. JAI
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/kelola-approver-it"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-blue-600/30 bg-blue-50/60 dark:bg-blue-950/30 px-3.5 py-2 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:bg-blue-100 transition shadow-2xs"
+            >
+              <Users className="size-3.5" /> Pengaturan Approver IT
+            </Link>
+            <Link
+              href="/form-it-esign"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-50/60 dark:bg-emerald-950/30 px-3.5 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 transition shadow-2xs"
+            >
+              <FileSignature className="size-3.5" /> Form E-Sign IT
+            </Link>
+            <Link
+              href="/ijin-masuk-alat-it"
+              target="_blank"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/60 px-3.5 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition"
+            >
+              <Laptop className="size-3.5" /> Buka Form Publik Tamu
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                fetchRequests()
+                fetchItSubmissions()
+              }}
+              disabled={loading || loadingItSubmissions}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition"
+            >
+              <RefreshCw className={`size-3.5 ${loading || loadingItSubmissions ? 'animate-spin' : ''}`} /> Muat Ulang
+            </button>
+          </div>
+        </div>
+
+        {/* Section Switcher Tabs */}
+        <div className="flex border-b border-border mt-6">
+          <button
+            type="button"
+            onClick={() => setMainSection('equipment')}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition ${
+              mainSection === 'equipment'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Laptop className="size-4" /> Izin Masuk/Keluar Alat Tamu ({requests.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainSection('it_forms')}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition ${
+              mainSection === 'it_forms'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <FileSignature className="size-4" /> Formulir E-Sign Divisi IT ({itSubmissions.length})
+          </button>
+        </div>
+
+        {/* Metric KPI Cards for Equipment */}
+        {mainSection === 'equipment' && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 bg-white/5 backdrop-blur-sm p-3 rounded-xl shadow-md">
+            <div
+              onClick={() => setActiveTab('all')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                activeTab === 'all'
+                  ? 'bg-primary/10 border-primary/30 ring-2 ring-primary/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-muted-foreground">Total Pengajuan</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{stats.total}</div>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('pending')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                activeTab === 'pending'
+                  ? 'bg-[#fff3d6] border-[#fde2a6] ring-2 ring-amber-500/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-[#8a6100] flex items-center gap-1">
+                <Clock className="size-3" /> Menunggu ACC
+              </div>
+              <div className="text-2xl font-bold text-[#8a6100] mt-1">{stats.pending}</div>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('approved')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                activeTab === 'approved'
+                  ? 'bg-[#dff5e6] border-[#a3e3b7] ring-2 ring-emerald-500/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-[#1a6e3a] flex items-center gap-1">
+                <CheckCircle2 className="size-3" /> Di-ACC (Aktif)
+              </div>
+              <div className="text-2xl font-bold text-[#1a6e3a] mt-1">{stats.approved}</div>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('returned')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                activeTab === 'returned'
+                  ? 'bg-primary/15 border-primary/30 ring-2 ring-primary/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-primary flex items-center gap-1">
+                <RotateCcw className="size-3" /> Dikembalikan
+              </div>
+              <div className="text-2xl font-bold text-primary mt-1">{stats.returned}</div>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('rejected')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                activeTab === 'rejected'
+                  ? 'bg-[#fdecec] border-[#f5b8b5] ring-2 ring-red-500/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-[#b3413a] flex items-center gap-1">
+                <XCircle className="size-3" /> Ditolak
+              </div>
+              <div className="text-2xl font-bold text-[#b3413a] mt-1">{stats.rejected}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Metric KPI Cards for IT E-Sign */}
+        {mainSection === 'it_forms' && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 bg-white/5 backdrop-blur-sm p-3 rounded-xl shadow-md">
+            <div
+              onClick={() => setItStatusFilter('all')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                itStatusFilter === 'all'
+                  ? 'bg-primary/10 border-primary/30 ring-2 ring-primary/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-muted-foreground">Total Form IT</div>
+              <div className="text-2xl font-bold text-foreground mt-1">{itStats.total}</div>
+            </div>
+
+            <div
+              onClick={() => setItStatusFilter('pending')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                itStatusFilter === 'pending'
+                  ? 'bg-[#fff3d6] border-[#fde2a6] ring-2 ring-amber-500/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-[#8a6100] flex items-center gap-1">
+                <Clock className="size-3" /> Menunggu Approval
+              </div>
+              <div className="text-2xl font-bold text-[#8a6100] mt-1">{itStats.pending}</div>
+            </div>
+
+            <div
+              onClick={() => setItStatusFilter('approved')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                itStatusFilter === 'approved'
+                  ? 'bg-[#dff5e6] border-[#a3e3b7] ring-2 ring-emerald-500/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-[#1a6e3a] flex items-center gap-1">
+                <CheckCircle2 className="size-3" /> Disetujui Lengkap
+              </div>
+              <div className="text-2xl font-bold text-[#1a6e3a] mt-1">{itStats.approved}</div>
+            </div>
+
+            <div
+              onClick={() => setItStatusFilter('rejected')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                itStatusFilter === 'rejected'
+                  ? 'bg-[#fdecec] border-[#f5b8b5] ring-2 ring-red-500/20'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className="text-[11px] font-semibold text-[#b3413a] flex items-center gap-1">
+                <XCircle className="size-3" /> Ditolak / Revisi
+              </div>
+              <div className="text-2xl font-bold text-[#b3413a] mt-1">{itStats.rejected}</div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Main Content Area */}
+      {mainSection === 'equipment' ? (
+        <div className="space-y-4">
+        {/* Controls: Search & Tabs */}
+        <div className="bg-card p-4 rounded-2xl border border-border shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Cari No. Registrasi, Nama Tamu, Perusahaan, Departemen..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs pl-9 pr-4 py-2 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold text-muted-foreground">
+            {(['all', 'pending', 'approved', 'returned', 'rejected'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1.5 rounded-xl capitalize whitespace-nowrap transition ${
+                  activeTab === tab
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'hover:bg-secondary text-foreground'
+                }`}
+              >
+                {tab === 'all'
+                  ? 'Semua'
+                  : tab === 'pending'
+                  ? 'Menunggu ACC'
+                  : tab === 'approved'
+                  ? 'Disetujui'
+                  : tab === 'returned'
+                  ? 'Dikembalikan'
+                  : 'Ditolak'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Requests Table */}
+        <div className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-border text-muted-foreground uppercase tracking-wider text-[10px]" style={{ backgroundClip: 'padding-box' }}>
+                <tr>
+                  <th className="py-3 px-4">No. Pengajuan</th>
+                  <th className="py-3 px-4">Tamu & Perusahaan</th>
+                  <th className="py-3 px-4">Departemen & Area</th>
+                  <th className="py-3 px-4">Jadwal Masuk</th>
+                  <th className="py-3 px-4">Daftar Alat</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                      <div className="animate-spin size-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
+                      Memuat daftar pengajuan izin alat...
+                    </td>
+                  </tr>
+                ) : filteredRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                      Tidak ada data pengajuan yang cocok dengan filter.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRequests.map((req) => {
+                    const isPending = req.status === 'pending'
+                    const isApproved = req.status === 'approved'
+                    const isReturned = req.status === 'returned'
+                    const isRejected = req.status === 'rejected'
+
+                    return (
+                      <tr key={req.id} className="hover:bg-secondary/30 transition">
+                        <td className="py-3 px-4">
+                          <span className="font-mono font-bold text-foreground block">
+                            {req.request_no}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {req.form_type === 'out' ? 'ISMS-F-03-00-002 (Keluar)' : 'ISMS-F-03-00-001 (Masuk)'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-foreground">{req.applicant_name}</div>
+                          <div className="text-muted-foreground text-[11px] flex items-center gap-1 mt-0.5">
+                            <Building className="size-3 text-muted-foreground" />
+                            {req.company_name}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-foreground font-medium">{req.department}</div>
+                          <div className="text-muted-foreground text-[11px]">{req.location}</div>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="text-foreground font-medium">{req.date_in}</div>
+                          <div className="text-muted-foreground text-[10px]">s/d {req.date_out_plan}</div>
+                        </td>
+                        <td className="py-3 px-4 max-w-xs">
+                          <div className="flex flex-wrap gap-1">
+                            {req.items.map((it, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-secondary text-foreground rounded text-[10px] font-medium"
+                              >
+                                <Laptop className="size-2.5 text-primary" />
+                                {it.equipment_type} ({it.brand || '-'})
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          {isPending && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#fff3d6] text-[#8a6100] text-[11px] font-semibold">
+                              <Clock className="size-3" /> Menunggu ACC
+                            </span>
+                          )}
+                          {isApproved && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#dff5e6] text-[#1a6e3a] text-[11px] font-semibold">
+                              <CheckCircle2 className="size-3" /> Di-ACC (Aktif)
+                            </span>
+                          )}
+                          {isReturned && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/15 text-primary text-[11px] font-semibold">
+                              <CheckCircle2 className="size-3" /> Dikembalikan
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#fdecec] text-[#b3413a] text-[11px] font-semibold">
+                              <XCircle className="size-3" /> Ditolak
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedReq(req)
+                                setActionError('')
+                                setActionSuccess('')
+                                setShowRejectForm(false)
+                                setShowReturnModal(false)
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium text-xs transition"
+                            >
+                              <Eye className="size-3.5" /> Review / ACC
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => copyGuestLink(req)}
+                              title="Salin Link Status Tamu"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                            >
+                              {copiedId === req.id ? (
+                                <Check className="size-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="size-3.5" />
+                              )}
+                            </button>
+
+                            <a
+                              href={`/api/it-equipment-requests/${req.id}/pdf`}
+                              target="_blank"
+                              rel="noreferrer"
+                              title="Unduh Form PDF"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                            >
+                              <Download className="size-3.5" />
+                            </a>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      ) : (
+        /* IT Form E-Sign Submissions Table */
+        <div className="space-y-4">
+          {/* Controls: Search & Status Filter */}
+          <div className="bg-card p-4 rounded-2xl border border-border shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari No. Pengajuan, Nama Pemohon, Departemen, Jenis Form..."
+                value={itSearchQuery}
+                onChange={(e) => setItSearchQuery(e.target.value)}
+                className="w-full text-xs pl-9 pr-4 py-2 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold text-muted-foreground">
+              <button
+                type="button"
+                onClick={() => setItStatusFilter('all')}
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                  itStatusFilter === 'all'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    : 'hover:bg-secondary text-foreground'
+                }`}
+              >
+                Semua ({itStats.total})
+              </button>
+              <button
+                type="button"
+                onClick={() => setItStatusFilter('pending')}
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                  itStatusFilter === 'pending'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'hover:bg-secondary text-foreground'
+                }`}
+              >
+                Menunggu ACC ({itStats.pending})
+              </button>
+              <button
+                type="button"
+                onClick={() => setItStatusFilter('approved')}
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                  itStatusFilter === 'approved'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'hover:bg-secondary text-foreground'
+                }`}
+              >
+                Disetujui ({itStats.approved})
+              </button>
+              <button
+                type="button"
+                onClick={() => setItStatusFilter('rejected')}
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                  itStatusFilter === 'rejected'
+                    ? 'bg-red-600 text-white shadow-xs'
+                    : 'hover:bg-secondary text-foreground'
+                }`}
+              >
+                Ditolak ({itStats.rejected})
+              </button>
+            </div>
+          </div>
+
+          {/* Form Code Filter Badges */}
+          <div className="flex items-center gap-1.5 overflow-x-auto text-xs pb-1">
+            <button
+              type="button"
+              onClick={() => setItFormFilter('all')}
+              className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition ${
+                itFormFilter === 'all'
+                  ? 'bg-primary/10 text-primary border border-primary/30'
+                  : 'bg-card text-muted-foreground border border-border hover:bg-secondary'
+              }`}
+            >
+              Semua Formulir
+            </button>
+            {IT_FORM_DEFINITIONS.map((def) => (
+              <button
+                key={def.code}
+                type="button"
+                onClick={() => setItFormFilter(def.code)}
+                className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition whitespace-nowrap ${
+                  itFormFilter === def.code
+                    ? 'bg-primary/10 text-primary border border-primary/30'
+                    : 'bg-card text-muted-foreground border border-border hover:bg-secondary'
+                }`}
+              >
+                {def.code} · {def.name.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+
+          {/* IT Submissions Table */}
+          <div className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-secondary/40 border-b border-border text-muted-foreground uppercase tracking-wider text-[10px]">
+                  <tr>
+                    <th className="py-3 px-4">No. Pengajuan</th>
+                    <th className="py-3 px-4">Formulir</th>
+                    <th className="py-3 px-4">Pemohon & Dept</th>
+                    <th className="py-3 px-4">Tanggal</th>
+                    <th className="py-3 px-4">Progress E-Sign</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {loadingItSubmissions ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                        <div className="animate-spin size-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
+                        Memuat data formulir E-Sign IT...
+                      </td>
+                    </tr>
+                  ) : filteredItSubmissions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="text-center py-12 text-muted-foreground">
+                        <FileSignature className="size-8 text-muted-foreground/40 mx-auto mb-2" />
+                        Belum ada pengajuan formulir IT yang sesuai.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredItSubmissions.map((sub) => {
+                      const approvedCount = (sub.signatures || []).filter((s) => s.status === 'approved').length
+                      const totalSteps = sub.total_steps || (sub.signatures || []).length
+                      return (
+                        <tr key={sub.id} className="hover:bg-secondary/30 transition">
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono font-bold text-foreground block">
+                              {sub.request_no}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              {sub.form_code}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-medium text-foreground">
+                            {sub.form_name}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-semibold text-foreground">{sub.applicant_name}</div>
+                            <div className="text-[11px] text-muted-foreground">{sub.department}</div>
+                          </td>
+                          <td className="py-3.5 px-4 text-muted-foreground">
+                            {sub.request_date}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 bg-secondary rounded-full h-2 overflow-hidden border border-border">
+                                <div
+                                  className="bg-emerald-600 h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${totalSteps > 0 ? (approvedCount / totalSteps) * 100 : 0}%`,
+                                  }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-bold text-foreground">
+                                {approvedCount}/{totalSteps}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground">
+                              {sub.status === 'approved'
+                                ? 'Selesai disetujui'
+                                : sub.status === 'rejected'
+                                ? 'Ditolak / Revisi'
+                                : `Step ${sub.current_step}: Menunggu tanda tangan`}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                sub.status === 'approved'
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : sub.status === 'rejected'
+                                  ? 'bg-red-500/10 text-red-600'
+                                  : 'bg-amber-500/10 text-amber-700'
+                              }`}
+                            >
+                              {sub.status === 'approved' && 'Disetujui'}
+                              {sub.status === 'rejected' && 'Ditolak'}
+                              {sub.status === 'pending' && 'Menunggu'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedItSub(sub)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600/20 text-xs font-semibold transition"
+                              >
+                                <Eye className="size-3" /> Review & Sign
+                              </button>
+                              <a
+                                href={`/api/it-form-submissions/${sub.id}/pdf`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition"
+                                title="Unduh PDF Resmi"
+                              >
+                                <Download className="size-3.5" />
+                              </a>
+                              <Link
+                                href={`/form-it-esign?token=${sub.token}`}
+                                target="_blank"
+                                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition"
+                                title="Buka Form"
+                              >
+                                <ExternalLink className="size-3.5" />
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review & ACC Modal */}
+      {selectedReq && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-blue-600 text-white rounded-xl">
+                  <Laptop className="size-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    Detail Pengajuan Izin Alat IT
+                  </h3>
+                  <p className="text-[11px] font-mono text-slate-500">
+                    {selectedReq.request_no} ({selectedReq.form_type === 'out' ? 'ISMS-F-03-00-002' : 'ISMS-F-03-00-001'})
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedReq(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg transition"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              {actionError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs flex items-center gap-2">
+                  <AlertTriangle className="size-4 shrink-0" /> {actionError}
+                </div>
+              )}
+
+              {actionSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="size-4 shrink-0" /> {actionSuccess}
+                </div>
+              )}
+
+              {/* Status Header */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                    Status Dokumen
+                  </span>
+                  <div className="font-bold text-slate-800 text-sm">
+                    {selectedReq.status === 'pending' && 'Menunggu ACC IT'}
+                    {selectedReq.status === 'approved' && 'Disetujui oleh IT (ACC)'}
+                    {selectedReq.status === 'returned' && 'Telah Dikembalikan & Diperiksa'}
+                    {selectedReq.status === 'rejected' && 'Ditolak'}
+                  </div>
+                </div>
+
+                {selectedReq.approval_code && (
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 uppercase font-semibold block">
+                      Kode ACC
+                    </span>
+                    <span className="font-mono font-bold text-emerald-700 text-xs">
+                      {selectedReq.approval_code}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Visitor & Trip Info */}
+              <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Nama Tamu</span>
+                  <span className="font-semibold text-slate-800">{selectedReq.applicant_name}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Perusahaan Tamu</span>
+                  <span className="font-semibold text-slate-800">{selectedReq.company_name}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Departemen Tujuan</span>
+                  <span className="font-medium text-slate-700">{selectedReq.department}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Lokasi / Ruangan</span>
+                  <span className="font-medium text-slate-700">{selectedReq.location}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Tanggal Masuk</span>
+                  <span className="font-medium text-slate-700">{selectedReq.date_in}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px]">Rencana Kembali</span>
+                  <span className="font-medium text-slate-700">{selectedReq.date_out_plan}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-slate-400 block text-[10px]">Tujuan Membawa Masuk Alat</span>
+                  <span className="font-medium text-slate-700">{selectedReq.purpose}</span>
+                </div>
+                {selectedReq.applicant_phone && (
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">No. Telepon / WA Tamu</span>
+                    <span className="font-mono text-slate-700">{selectedReq.applicant_phone}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Equipment Items */}
+              <div>
+                <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                  <Laptop className="size-3.5 text-blue-600" /> Daftar Perangkat / Alat Elektronik:
+                </h4>
+                <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-200">
+                  {selectedReq.items.map((it, idx) => (
+                    <div key={idx} className="p-3 bg-white flex items-start justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900">{it.equipment_type}</div>
+                        <div className="text-slate-600 mt-0.5">
+                          Merk: <span className="font-medium">{it.brand || '-'}</span> | Model:{' '}
+                          <span className="font-medium">{it.model || '-'}</span>
+                        </div>
+                        <div className="text-slate-500 font-mono text-[11px] mt-0.5">
+                          Serial No: {it.serial_no || '-'} {it.id_no ? `| ID Tag: ${it.id_no}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Form: IT Approval Inputs (if pending) */}
+              {selectedReq.status === 'pending' && !showRejectForm && (
+                <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-3">
+                  <h4 className="font-bold text-blue-900 flex items-center gap-1.5">
+                    <ShieldCheck className="size-4 text-blue-600" /> Persetujuan & E-Sign IT (ACC)
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Nama Petugas IT (Approver)
+                      </label>
+                      <input
+                        type="text"
+                        value={approverName}
+                        onChange={(e) => setApproverName(e.target.value)}
+                        className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Jabatan Petugas IT
+                      </label>
+                      <input
+                        type="text"
+                        value={approverTitle}
+                        onChange={(e) => setApproverTitle(e.target.value)}
+                        className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                        Catatan Persetujuan (Opsional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Diizinkan menggunakan stand-alone tanpa sambungan LAN internal."
+                        value={approvalNotes}
+                        onChange={(e) => setApprovalNotes(e.target.value)}
+                        className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Reject Form */}
+              {showRejectForm && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2">
+                  <h4 className="font-bold text-red-900 flex items-center gap-1.5">
+                    <XCircle className="size-4 text-red-600" /> Penolakan Pengajuan
+                  </h4>
+                  <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    Alasan Penolakan <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    required
+                    placeholder="Tulis alasan mengapa pengajuan ditolak..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full text-xs px-2.5 py-1.5 border border-red-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-red-500"
+                  />
+                  <div className="flex gap-2 justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectForm(false)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-xs font-semibold"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={handleReject}
+                      className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold"
+                    >
+                      {actionLoading ? 'Menyimpan...' : 'Konfirmasi Tolak'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Return Check Modal / Form */}
+              {showReturnModal && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
+                  <h4 className="font-bold text-emerald-900 flex items-center gap-1.5">
+                    <RotateCcw className="size-4 text-emerald-600" /> Pengecheckan Sebelum Tamu Kembali (Selesai Kunjungan)
+                  </h4>
+                  <p className="text-[11px] text-emerald-800">
+                    Berdasarkan ketentuan form ISMS-F-03-00-001, pastikan verifikasi berikut telah dilakukan:
+                  </p>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checkItems}
+                        onChange={(e) => setCheckItems(e.target.checked)}
+                        className="rounded text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="text-xs font-medium text-emerald-950">
+                        PC, flashdisk, camera, dll. sama dengan yang diajukan.
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checkConfidential}
+                        onChange={(e) => setCheckConfidential(e.target.checked)}
+                        className="rounded text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="text-xs font-medium text-emerald-950">
+                        Tidak membawa pulang informasi rahasia tidak terkait.
+                      </span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Catatan Pengecekan (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Perangkat telah diperiksa lengkap di pos security."
+                      value={returnNotes}
+                      onChange={(e) => setReturnNotes(e.target.value)}
+                      className="w-full text-xs px-2.5 py-1.5 border border-emerald-300 rounded-lg bg-white"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowReturnModal(false)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 text-xs font-semibold"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={handleReturnCheck}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
+                    >
+                      {actionLoading ? 'Menyimpan...' : 'Simpan Pengecekan Kembali'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/it-equipment-requests/${selectedReq.id}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition"
+                >
+                  <Download className="size-3.5" /> Unduh Dokumen PDF
+                </a>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {selectedReq.status === 'pending' && !showRejectForm && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectForm(true)}
+                      className="px-3.5 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold transition"
+                    >
+                      Tolak
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={handleApprove}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold transition shadow-sm"
+                    >
+                      <CheckCircle2 className="size-4" />
+                      {actionLoading ? 'Memproses...' : 'Setujui Pengajuan (ACC IT)'}
+                    </button>
+                  </>
+                )}
+
+                {selectedReq.status === 'approved' && !showReturnModal && (
+                  <button
+                    type="button"
+                    onClick={() => setShowReturnModal(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition shadow-sm"
+                  >
+                    <RotateCcw className="size-4" /> Pengecekan Pengembalian (Selesai)
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedReq(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold transition"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IT Form E-Sign Review Modal */}
+      {selectedItSub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card rounded-2xl shadow-xl border border-border max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-border flex items-center justify-between bg-secondary/30">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-emerald-600 text-white rounded-xl">
+                  <FileSignature className="size-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-sm">
+                    Review Formulir E-Sign IT
+                  </h3>
+                  <p className="text-[11px] font-mono text-muted-foreground">
+                    {selectedItSub.request_no} · {selectedItSub.form_code}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedItSub(null)}
+                className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              {/* Form & Applicant Summary */}
+              <div className="rounded-xl border border-border bg-secondary/20 p-4">
+                <div className="text-xs font-bold text-foreground mb-2">
+                  {selectedItSub.form_name}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-[11px]">
+                  <div>
+                    <span className="text-muted-foreground block">Nama Pemohon:</span>
+                    <span className="font-semibold text-foreground">{selectedItSub.applicant_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block">Departemen:</span>
+                    <span className="font-semibold text-foreground">{selectedItSub.department}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block">Tanggal:</span>
+                    <span className="font-semibold text-foreground">{selectedItSub.request_date}</span>
+                  </div>
+                  {selectedItSub.applicant_nik && (
+                    <div>
+                      <span className="text-muted-foreground block">NIK:</span>
+                      <span className="font-semibold text-foreground">{selectedItSub.applicant_nik}</span>
+                    </div>
+                  )}
+                  {selectedItSub.applicant_position && (
+                    <div>
+                      <span className="text-muted-foreground block">Jabatan:</span>
+                      <span className="font-semibold text-foreground">{selectedItSub.applicant_position}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-muted-foreground block">Status:</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      selectedItSub.status === 'approved'
+                        ? 'bg-emerald-500/10 text-emerald-600'
+                        : selectedItSub.status === 'rejected'
+                        ? 'bg-red-500/10 text-red-600'
+                        : 'bg-amber-500/10 text-amber-700'
+                    }`}>
+                      {selectedItSub.status === 'approved' ? 'Disetujui Lengkap' : selectedItSub.status === 'rejected' ? 'Ditolak / Revisi' : 'Menunggu Approval'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Approval Steps & Actions */}
+              <div>
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-2">
+                  Alur Persetujuan & Tanda Tangan Digital (E-Sign)
+                </h4>
+                <div className="space-y-2.5">
+                  {(selectedItSub.signatures || []).map((sig) => {
+                    const isPendingCurrent = sig.status === 'pending'
+                    return (
+                      <div
+                        key={sig.id || sig.step_number}
+                        className={`rounded-xl border p-3.5 transition ${
+                          sig.status === 'approved'
+                            ? 'border-emerald-500/30 bg-emerald-500/5'
+                            : sig.status === 'rejected'
+                            ? 'border-red-500/30 bg-red-500/5'
+                            : isPendingCurrent
+                            ? 'border-amber-500/40 bg-amber-500/5 ring-1 ring-amber-500/20'
+                            : 'border-border bg-card'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                              Step {sig.step_number}: {sig.slot_label}
+                            </span>
+                            <div className="font-semibold text-foreground text-xs mt-0.5">
+                              {sig.approver_name}
+                            </div>
+                            <span className="text-[11px] text-muted-foreground">
+                              {sig.role_title}
+                            </span>
+                          </div>
+                          <div>
+                            {sig.status === 'approved' && (
+                              <div className="text-right">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
+                                  <Check className="size-3" /> Disetujui
+                                </span>
+                                {sig.verification_code && (
+                                  <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                                    {sig.verification_code}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {sig.status === 'rejected' && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-600/10 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                                <X className="size-3" /> Ditolak
+                              </span>
+                            )}
+                            {sig.status === 'pending' && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                                <Clock className="size-3" /> Menunggu Tanda Tangan
+                              </span>
+                            )}
+                            {sig.status === 'waiting' && (
+                              <span className="text-[10px] text-muted-foreground">
+                                Antrean berikutnya
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* If pending and user is admin, allow sign here */}
+                        {isPendingCurrent && (
+                          <div className="mt-3 border-t border-border/60 pt-3">
+                            <div className="mb-2">
+                              <input
+                                type="text"
+                                value={itSignNote}
+                                onChange={(e) => setItSignNote(e.target.value)}
+                                placeholder="Catatan persetujuan / revisi (opsional)..."
+                                className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs outline-none"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSignItSub(sig.step_number, 'approve')}
+                                disabled={itSignLoading}
+                                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-emerald-700 disabled:opacity-50"
+                              >
+                                {itSignLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" strokeWidth={3} />}
+                                {itSignLoading ? 'Memproses...' : 'Setujui & E-Sign'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSignItSub(sig.step_number, 'reject')}
+                                disabled={itSignLoading}
+                                className="inline-flex items-center justify-center gap-1.5 rounded-full border-2 border-[#c2412c]/60 px-4 py-2.5 text-xs font-bold text-[#a83522] transition hover:bg-[#fdf0ec] disabled:opacity-50"
+                              >
+                                {itSignLoading ? <Loader2 className="size-3.5 animate-spin" /> : <PencilLine className="size-3.5" />}
+                                Minta Revisi
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-secondary/30 border-t border-border flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/it-form-submissions/${selectedItSub.id}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-border hover:bg-secondary text-foreground text-xs font-semibold transition"
+                >
+                  <Download className="size-3.5" /> Unduh Dokumen PDF
+                </a>
+                <Link
+                  href={`/form-it-esign?token=${selectedItSub.token}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600/20 text-xs font-semibold transition"
+                >
+                  <ExternalLink className="size-3.5" /> Buka di Portal E-Sign
+                </Link>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedItSub(null)}
+                className="px-4 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold transition"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Aperture, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
+import { Aperture, ArrowRight, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, Laptop, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -36,6 +36,7 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
   },
   {
     title: 'Content',
+    ismOnly: true,
     items: [
       { href: '/pengaturan', label: 'Manage Menu Content', hint: 'Isi & label menu portal', icon: LayoutList },
       { href: '/kelola-hero-slides', label: 'Manage Hero Slides', hint: 'Video & gambar di Home', icon: Images },
@@ -48,6 +49,8 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
       { href: '/kelola-departemen', label: 'Manage Departments', hint: 'Departemen & section', icon: Building2 },
       { href: '/kelola-permintaan-foto-video', label: 'Photo/Video Requests', hint: 'Tinjau izin foto/video', icon: Camera },
       { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk area special', icon: ShieldAlert },
+      { href: '/kelola-izin-alat-it', label: 'IT Equipment Requests', hint: 'Izin bawa PC/alat IT', icon: Laptop },
+      { href: '/kelola-approver-it', label: 'Pengaturan Approver IT', hint: 'Kelola pejabat e-sign form IT', icon: FileSignature },
       { href: '/kelola-kamera', label: 'Camera Equipment', hint: 'Kamera & ID photography', icon: Aperture },
       { href: '/kelola-pic-approve', label: 'PIC Approvers', hint: 'Penyetuju izin foto', icon: UserCheck },
     ],
@@ -94,7 +97,6 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [deptMenuOpen, setDeptMenuOpen] = useState(false)
   const [ismsStandardMenuOpen, setIsmsStandardMenuOpen] = useState(false)
-  const [formCsMenuOpen, setFormCsMenuOpen] = useState(false)
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
   const [expandedDept, setExpandedDept] = useState<string | null>(null)
   const [departments, setDepartments] = useState<Department[]>([])
@@ -125,18 +127,17 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setIsmsStandardMenuOpen(false); setFormCsMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
+  useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setIsmsStandardMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
 
   // Close the desktop dropdowns on a click outside the menu that was clicked,
   // or on Escape. A full-screen click-catcher can't do this: once the page is
   // scrolled, the navbar's backdrop-filter traps position:fixed children
   // inside the bar, so clicks on the page never reached it.
-  const anyMenuOpen = deptMenuOpen || ismsStandardMenuOpen || formCsMenuOpen || settingsMenuOpen
+  const anyMenuOpen = deptMenuOpen || ismsStandardMenuOpen || settingsMenuOpen
   useEffect(() => {
     if (!anyMenuOpen) return
     const closeExcept = (key: string | null) => {
       if (key !== 'isms') setIsmsStandardMenuOpen(false)
-      if (key !== 'formcs') setFormCsMenuOpen(false)
       if (key !== 'dept') setDeptMenuOpen(false)
       if (key !== 'settings') setSettingsMenuOpen(false)
     }
@@ -181,7 +182,6 @@ export function Navbar() {
       setMobileOpen(false)
       setDeptMenuOpen(false)
       setIsmsStandardMenuOpen(false)
-      setFormCsMenuOpen(false)
       setSettingsMenuOpen(false)
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -198,13 +198,6 @@ export function Navbar() {
 
   // Active items are already an acid pill — no extra underline needed.
   const activeIndicator = null
-
-  const formCsItems = (
-    <>
-      <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Application Form</Link>
-      <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">CS Control</Link>
-    </>
-  )
 
   const renderMainNavItem = (item: (typeof mainNav)[number]) => {
     const key = item.href === '/' ? 'home'
@@ -377,31 +370,14 @@ export function Navbar() {
               .filter((item) => item.href === '/education')
               .map(renderMainNavItem)}
 
-            {/* Form CS dropdown */}
-            <div data-nav-menu="formcs" className="relative">
-              <button
-                type="button"
-                onClick={() => setFormCsMenuOpen((v) => !v)}
-                className={cn('flex items-center gap-1', navLink, (pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && navLinkActive)}
-              >
-                {navLabels.form_cs ?? 'Forms & CS Control'}
-                <ChevronDown className={cn('size-4 transition-transform duration-200', formCsMenuOpen && 'rotate-180')} />
-                {(pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && activeIndicator}
-              </button>
-              {formCsMenuOpen && (
-                <>
-                  {dropdownPanel(
-                    <>
-                      <div className="border-b border-border px-3 pb-2 pt-1">
-                        <p className="portal-eyebrow">Document library</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Choose document category</p>
-                      </div>
-                      {formCsItems}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
+            {/* Application Form direct menu link (no dropdown) */}
+            <Link
+              href="/form-aplikasi"
+              className={cn(navLink, (pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && navLinkActive)}
+            >
+              {navLabels.form_cs ?? 'Application Form'}
+              {(pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && activeIndicator}
+            </Link>
 
             {/* Department dropdown */}
             <div data-nav-menu="dept" className="relative">
@@ -547,10 +523,10 @@ export function Navbar() {
                     onClick={() => logout()}
                     aria-label="Logout"
                     title="Logout"
-                    className="flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-full bg-primary-foreground/10 px-3 text-xs font-medium transition-colors hover:bg-primary-foreground/20"
+                    className="flex h-9 items-center justify-center gap-1.5 rounded-full bg-red-500/15 border border-red-400/30 px-3.5 text-xs font-semibold text-white transition-all hover:bg-red-500/25"
                   >
-                    <LogOut className="size-4" />
-                    <span className="hidden 2xl:inline">Logout</span>
+                    <LogOut className="size-3.5" />
+                    <span>Logout</span>
                   </button>
                 </div>
               ) : (
@@ -608,8 +584,17 @@ export function Navbar() {
           <div className="portal-eyebrow px-3 pb-2 pt-5">ISMS Standard</div>
           {ismsStandardItems}
           {mainNav.filter((item) => item.href === '/education').map(renderMobileNavItem)}
-          <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.form_cs ?? 'Forms & CS Control'}</div>
-          {formCsItems}
+          <Link
+            href="/form-aplikasi"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              'nav-drawer-item flex items-center justify-between px-3 py-2.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-foreground hover:bg-secondary mt-3',
+              (pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && 'bg-secondary font-bold text-accent'
+            )}
+          >
+            <span>{navLabels.form_cs ?? 'Application Form'}</span>
+            <ArrowRight className="size-3.5 opacity-60" />
+          </Link>
           <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.departemen ?? 'Departments'}</div>
           {departmentItems}
           {showMyApprovals && (

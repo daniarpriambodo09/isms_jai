@@ -12,6 +12,7 @@ import { recordNotification } from '@/lib/admin-notifications'
 import { SELECT_COLUMNS, ensureSpecialAreaSchema, getRequest, sendApprovalRequest } from '@/lib/special-area'
 import { parseEscort, type SpecialAreaRequest } from '@/lib/special-area-shared'
 import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
+import { isRateLimited } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,7 +35,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const session = getKioskAdminFromRequest(request)
-  if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!session) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+    if (isRateLimited(`special-area-post:${ip}`, 5, 60_000)) {
+      return NextResponse.json({ message: 'Terlalu banyak pengajuan dalam waktu singkat. Coba lagi sebentar.' }, { status: 429 })
+    }
+  }
   try {
     await ensureSpecialAreaSchema()
     const body = await request.json().catch(() => ({}))
@@ -63,21 +69,25 @@ export async function POST(request: NextRequest) {
 
     // PIC Pendamping JAI, when it is already known at the kiosk (it can also be set later in the list).
     const escort = parseEscort(body)
+    const submitterName = session?.username ?? 'Form Aplikasi'
     const inserted = await query<{ id: number }>(
       `INSERT INTO special_area_requests (requester_name, org_company, department, from_at, to_at, area, purpose, id_card_no, submitted_by,
                                           escort_name, escort_dept, escort_set_by, escort_set_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text, $10::text, $11::text,
                CASE WHEN $10::text IS NULL THEN NULL ELSE $9::text END, CASE WHEN $10::text IS NULL THEN NULL ELSE now() END) RETURNING id`,
-      [requesterName, orgCompany, department, fromAt, toAt, area, purpose, idCardNo, session.username, escort.name, escort.dept]
+      [requesterName, orgCompany, department, fromAt, toAt, area, purpose, idCardNo, submitterName, escort.name, escort.dept]
     )
     const id = inserted.rows[0].id
     const emailError = await sendApprovalRequest(id)
-    await logActivity(session, 'create', 'special_area_request', id, `Mengajukan ijin masuk area special "${area}" untuk "${requesterName}"`)
+    if (session) {
+      await logActivity(session, 'create', 'special_area_request', id, `Mengajukan ijin masuk area special "${area}" untuk "${requesterName}"`)
+    }
     // Info in the ISM Admin bell; a failed e-mail shows live under "Perlu tindakan" instead.
+    const sourceLabel = session ? (session.role === 'security' ? 'Pos Security' : session.role === 'lobby' ? 'Lobby' : session.username) : 'Form Aplikasi'
     await recordNotification({
       kind: 'special_new', category: 'special', historyOnly: !!emailError,
       title: `Izin Area Special baru — ${requesterName}`,
-      body: `${orgCompany} · ${area} · diajukan dari ${session.role === 'security' ? 'Pos Security' : session.role === 'lobby' ? 'Lobby' : session.username}${emailError ? ' · email ke approver gagal' : ''}`,
+      body: `${orgCompany} · ${area} · diajukan dari ${sourceLabel}${emailError ? ' · email ke approver gagal' : ''}`,
       href: '/kelola-izin-area-special',
     })
     return NextResponse.json({ request: await getRequest(id), emailError }, { status: 201 })

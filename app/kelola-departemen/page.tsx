@@ -30,7 +30,7 @@ function monogramFor(name: string) {
 
 export default function KelolaDepartemenPage() {
   const { isLoggedIn, isLoading, adminUser } = useAuth()
-  const isAdmin = adminUser?.role === 'ism_admin'
+  const isAdmin = adminUser?.role === 'ism_admin' || adminUser?.role === 'it'
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')

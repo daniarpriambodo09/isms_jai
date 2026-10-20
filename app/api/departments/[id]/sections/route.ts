@@ -1,6 +1,6 @@
 // app/api/departments/[id]/sections/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 
@@ -16,7 +16,7 @@ function slugify(value: string) {
 
 // Admin only — add a new section under a department.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = getIsmsAdminFromRequest(request)
+  const session = getItAdminFromRequest(request)
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   }

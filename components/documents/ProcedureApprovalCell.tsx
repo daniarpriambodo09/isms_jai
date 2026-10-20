@@ -149,6 +149,11 @@ export function ProcedureApprovalCell({
                 <p className="text-[12.5px] font-medium text-foreground">
                   {step.approver_name ?? '-'}
                   <span title={step.role_title} className="ml-1.5 rounded bg-secondary px-1 py-px align-middle font-mono text-[9.5px] font-semibold text-secondary-foreground">{step.role_code}</span>
+                  {step.status === 'approved' && (
+                    <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-800 align-middle">
+                      <Check className="size-3 text-emerald-700" strokeWidth={3} /> Disetujui
+                    </span>
+                  )}
                   {step.status === 'approved' && step.verification_code && step.decided_at && (
                     <SignatureQrButton
                       verifyBase={verifyBase}

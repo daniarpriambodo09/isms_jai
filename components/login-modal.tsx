@@ -22,6 +22,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       lobby: '/admin-lobby',
       security: '/admin-pos-security',
       approver: '/persetujuan-saya',
+      it: '/kelola-izin-alat-it',
     }[user.role]
     router.push(destination)
   }

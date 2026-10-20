@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
-import { getIsmsAdminFromRequest, getKioskAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest, getKioskAdminFromRequest, getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { notifyPhotoDecision } from '@/lib/photo-notify'
@@ -18,7 +18,7 @@ const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = getIsmsAdminFromRequest(request)
+  const admin = getKioskAdminFromRequest(request)
   if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = getIsmsAdminFromRequest(request)
+  const admin = getItAdminFromRequest(request)
   if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params
@@ -107,7 +107,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const action = body?.action
 
   if (action === 'mark-taken') {
-    const admin = getIsmsAdminFromRequest(request)
+    const admin = getItAdminFromRequest(request)
     if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const updated = await query<{ id: number }>(
@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   if (action === 'unmark-taken') {
-    const admin = getIsmsAdminFromRequest(request)
+    const admin = getItAdminFromRequest(request)
     if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const updated = await query<{ id: number }>(
@@ -172,7 +172,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = getIsmsAdminFromRequest(request)
+  const admin = getItAdminFromRequest(request)
   if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params

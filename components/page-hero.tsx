@@ -242,37 +242,102 @@ export function BentoHero({ count, categories, languages, action }: WithAction &
   )
 }
 
-// ─── Form Aplikasi — ruled paper form ───
-export function PaperHero({ title, count, action }: WithAction & { title: string; count: number }) {
-  const checklist: [string, boolean][] = [['Pilih formulir', true], ['Unduh & isi', true], ['Ajukan ke atasan', false]]
+// ─── Form Aplikasi — executive application hub ───
+export function PaperHero({
+  title,
+  count,
+  action,
+}: WithAction & { title: string; count: number }) {
+  const now = useNow(1000)
   return (
-    <section className="hero-paper relative overflow-hidden rounded-md border border-border py-8 pl-16 pr-7 shadow-[0_22px_40px_-24px_color-mix(in_oklch,var(--p-950)_45%,transparent)] sm:pl-24 sm:pr-10">
-      <div aria-hidden className="absolute inset-y-0 left-4 flex flex-col justify-around py-6 sm:left-7">
-        {[0, 1, 2].map((i) => <span key={i} className="block size-4 rounded-full bg-background shadow-[inset_0_1px_3px_color-mix(in_oklch,var(--p-950)_35%,transparent)]" />)}
-      </div>
-      <span aria-hidden className="absolute inset-y-0 left-12 w-px bg-accent sm:left-[4.5rem]" />
-      <span aria-hidden className="absolute inset-y-0 left-[3.15rem] w-px bg-accent/50 sm:left-[4.65rem]" />
-      <div className="relative flex flex-wrap items-center justify-between gap-8">
-        <div className="max-w-xl">
-          <p className="font-mono-label text-[10px] text-muted-foreground">Formulir resmi · {count} berkas</p>
-          <h2 className="mt-3 font-display text-[clamp(2.2rem,4.5vw,3.6rem)] font-semibold leading-[1] text-foreground">{title}</h2>
-          <p className="mt-1 font-serif-accent text-2xl text-[color:var(--p-600)]">isi, ajukan, arsipkan.</p>
-          <ul className="mt-5 flex flex-col gap-2 text-sm text-foreground">
-            {checklist.map(([label, done]) => (
-              <li key={label} className="flex items-center gap-2.5">
-                <span className={`grid size-4.5 place-items-center rounded-[4px] border-2 ${done ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/50'}`}>
-                  {done && <Check className="size-3" strokeWidth={3} />}
-                </span>
-                <span className={done ? 'text-muted-foreground line-through decoration-accent decoration-2' : ''}>{label}</span>
-              </li>
-            ))}
-          </ul>
+    <section className="relative isolate overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-colors">
+      {/* Subtle brand tint gradient at the corner */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-20 -top-20 size-80 rounded-full bg-accent/10 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-24 -left-20 size-80 rounded-full bg-primary/5 blur-3xl"
+      />
+
+      {/* Top status bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-secondary/40 px-6 py-2.5 font-mono text-[11px] tracking-[0.06em] text-muted-foreground">
+        <div className="flex items-center gap-2.5">
+          <span className="hero-blink size-2 rounded-full bg-emerald-500" />
+          <span className="font-semibold text-foreground">YAZAKI · PT. JATIM AUTOCOMP INDONESIA</span>
+          <span className="text-border">/</span>
+          <span className="font-medium text-accent">ISMS DOCUMENT &amp; E-FORM HUB</span>
         </div>
-        <div className="flex flex-col items-start gap-5 sm:items-end">
-          <div aria-hidden className="grid size-28 rotate-[-12deg] place-items-center rounded-full border-[3px] border-double border-accent text-center font-mono-label text-[10px] font-bold leading-4 text-accent">
-            PT. JAI<br />ISMS<br />— Resmi —
+        <div className="flex items-center gap-4 text-xs font-mono">
+          <span className="inline-flex items-center gap-1.5 text-foreground/80">
+            <span className="size-1.5 rounded-full bg-emerald-500" />
+            ISO/IEC 27001
+          </span>
+          <span className="tabular-nums font-semibold text-foreground">
+            {now ? now.toLocaleTimeString('id-ID', { hour12: false }) : '--.--.--'} WIB
+          </span>
+        </div>
+      </div>
+
+      {/* Main hero body */}
+      <div className="p-6 sm:p-8 lg:p-10">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/70 px-3 py-1 font-mono-label text-[10.5px] text-primary">
+              <Layers className="size-3.5 text-accent" />
+              <span>Formulir Terkendali · {count} Dokumen Resmi</span>
+            </div>
+
+            <h2 className="mt-3.5 font-display text-[clamp(2.3rem,4.6vw,3.8rem)] font-bold leading-[0.95] text-foreground">
+              {title}
+            </h2>
+
+            <p className="mt-3.5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+              Pusat pengajuan formulir resmi dan layanan izin online PT. JAI. Unduh berkas resmi yang terkendali atau gunakan formulir elektronik ber-E-Sign untuk persetujuan cepat dan terlacak.
+            </p>
+
+            {/* Quick feature pill highlights */}
+            <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-foreground font-medium">
+                <Check className="size-3.5 text-emerald-600" strokeWidth={3} /> Standar Dokumen ISO 27001
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-foreground font-medium">
+                <Check className="size-3.5 text-emerald-600" strokeWidth={3} /> E-Sign Digital Ber-QR Code
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-foreground font-medium">
+                <Check className="size-3.5 text-emerald-600" strokeWidth={3} /> Terintegrasi Multi-Departemen
+              </span>
+            </div>
           </div>
-          {action}
+
+          {/* Right side stats & action panel */}
+          <div className="flex flex-col gap-4 self-stretch justify-between">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border bg-secondary/35 p-4 shadow-sm">
+                <p className="font-mono-label text-[10px] text-muted-foreground">Total Berkas</p>
+                <p className="mt-2 font-display text-3xl font-bold tabular-nums text-foreground sm:text-4xl">
+                  {count}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Formulir aktif terkendali</p>
+              </div>
+
+              <div className="rounded-xl border border-border bg-secondary/35 p-4 shadow-sm">
+                <p className="font-mono-label text-[10px] text-muted-foreground">Layanan Online</p>
+                <p className="mt-2 font-display text-3xl font-bold tabular-nums text-accent sm:text-4xl">
+                  4
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Form E-Sign &amp; Izin Khusus</p>
+              </div>
+            </div>
+
+            {/* Action buttons (Admin Add Document & Group Header) */}
+            {action && (
+              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2">
+                {action}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>

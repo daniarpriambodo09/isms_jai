@@ -63,9 +63,10 @@ type Stats = { documents: number; proceduresApproved: number; visitsTotal: numbe
 
 const ACCESS_OPTIONS: { role: AdminRole; label: string; description: string }[] = [
   { role: 'ism_admin', label: 'Admin ISM', description: 'Kelola Portal ISMS' },
-  { role: 'lobby', label: 'Admin Lobby', description: 'Pendaftaran dan kartu tamu Lobby' },
-  { role: 'security', label: 'Admin Security', description: 'Penerimaan dan kartu Pos Security' },
-  { role: 'approver', label: 'Approver', description: 'Setujui dokumen di Persetujuan Saya' },
+  { role: 'it', label: 'Admin IT', description: 'Izin Alat & ACC IT' },
+  { role: 'lobby', label: 'Admin Lobby', description: 'Pendaftaran & kartu tamu Lobby' },
+  { role: 'security', label: 'Admin Security', description: 'Penerimaan & Pos Security' },
+  { role: 'approver', label: 'Approver', description: 'Setujui dokumen Persetujuan' },
 ]
 
 const MESSAGES = [
@@ -295,13 +296,15 @@ export function AuthSplitLogin({
                   <fieldset>
                     <legend className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Masuk sebagai</legend>
                     <div className="grid grid-cols-2 gap-2">
-                      {ACCESS_OPTIONS.map((option) => (
+                      {ACCESS_OPTIONS.map((option, idx) => (
                         <button
                           key={option.role}
                           type="button"
                           aria-pressed={selectedRole === option.role}
                           onClick={() => { setSelectedRole(option.role); setError(null) }}
-                          className={`rounded-xl border px-3 py-2.5 text-left transition ${selectedRole === option.role ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/30' : 'border-border bg-card text-muted-foreground hover:bg-secondary'}`}
+                          className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                            idx === 4 ? 'col-span-2' : ''
+                          } ${selectedRole === option.role ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/30' : 'border-border bg-card text-muted-foreground hover:bg-secondary'}`}
                         >
                           <span className="block text-xs font-bold">{option.label}</span>
                           <span className="mt-0.5 block text-[10px] leading-snug opacity-75">{option.description}</span>

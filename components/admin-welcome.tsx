@@ -26,6 +26,7 @@ const ROLE_LABEL: Record<AdminRole, string> = {
   lobby: 'Admin Lobby',
   security: 'Pos Security',
   approver: 'Approver',
+  it: 'IT Administrator',
 }
 
 export function welcomeAdmin(username: string) {

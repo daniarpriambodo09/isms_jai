@@ -8,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET as string
 // 'approver': an account that only decides the approval requests sent to its
 // own e-mail address ("Persetujuan Saya"). It is NOT an admin: every guard
 // below except getSessionFromRequest treats it as not logged in.
-export type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver'
+export type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 export type SessionPayload = { sub: number; username: string; role: AdminRole }
 
 /**
@@ -75,5 +75,15 @@ export function getIsmsAdminFromRequest(request: NextRequest): SessionPayload | 
 export function getKioskAdminFromRequest(request: NextRequest): SessionPayload | null {
   const session = getAdminFromRequest(request)
   if (!session) return null
-  return session.role === 'lobby' || session.role === 'security' || session.role === 'ism_admin' ? session : null
+  return session.role === 'lobby' || session.role === 'security' || session.role === 'ism_admin' || session.role === 'it' ? session : null
+}
+
+/**
+ * Access for IT Administrator and main ISMS Admin.
+ * Use this to guard /api/it-equipment-requests approval & management.
+ */
+export function getItAdminFromRequest(request: NextRequest): SessionPayload | null {
+  const session = getAdminFromRequest(request)
+  if (!session) return null
+  return session.role === 'it' || session.role === 'ism_admin' ? session : null
 }

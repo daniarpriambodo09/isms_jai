@@ -4,7 +4,7 @@
 // PIC Pendamping, or resend the approval email. DELETE: ISM Admin only.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest, getKioskAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest, getKioskAdminFromRequest, getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { ensureSpecialAreaSchema, getRequest, sendApprovalRequest } from '@/lib/special-area'
@@ -62,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = getIsmsAdminFromRequest(request)
+  const session = getItAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
   const { id } = await params
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID tidak valid.' }, { status: 400 })

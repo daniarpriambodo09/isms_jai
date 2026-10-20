@@ -1,6 +1,6 @@
 // app/api/camera-equipment/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 
@@ -17,7 +17,7 @@ const FROM_CLAUSE = `camera_equipment c LEFT JOIN departments d ON d.id = c.depa
 
 // Admin only — rename a camera control code or reassign its department/section.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = getIsmsAdminFromRequest(request)
+  const session = getItAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params
@@ -63,7 +63,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // that already recorded it (camera_control_no is just a plain text snapshot,
 // not a foreign key) keep their history untouched.
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = getIsmsAdminFromRequest(request)
+  const session = getItAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   const { id } = await params

@@ -1,6 +1,6 @@
 // app/api/pic-approvers/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { getIsmsAdminFromRequest } from '@/lib/auth'
+import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 
@@ -25,7 +25,7 @@ export async function GET() {
 
 // Admin only — add a person to the PIC Approve roster.
 export async function POST(request: NextRequest) {
-  const session = getIsmsAdminFromRequest(request)
+  const session = getItAdminFromRequest(request)
   if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {

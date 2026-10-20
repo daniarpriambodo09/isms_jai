@@ -13,8 +13,7 @@ import { parseAreaList } from '@/lib/special-area-shared'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
-  if (!getAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+export async function GET() {
   try {
     return NextResponse.json(await getAreaList())
   } catch (error) {

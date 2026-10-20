@@ -16,10 +16,10 @@ type AdminRow = {
   username: string
   email: string | null
   password_hash: string
-  role: 'ism_admin' | 'lobby' | 'security' | 'approver'
+  role: 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 }
 
-const ROLES = ['ism_admin', 'lobby', 'security', 'approver'] as const
+const ROLES = ['ism_admin', 'lobby', 'security', 'approver', 'it'] as const
 type AdminRole = typeof ROLES[number]
 function isAdminRole(value: unknown): value is AdminRole { return typeof value === 'string' && (ROLES as readonly string[]).includes(value) }
 

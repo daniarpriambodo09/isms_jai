@@ -640,19 +640,9 @@ const newApprovalCode = () => String(randomInt(0, 1_000_000)).padStart(6, '0')
  * codes existed has none and needs none. Each wrong entry is counted; after
  * APPROVAL_CODE_TRIES the step is locked.
  */
-async function checkApprovalCode(stepId: number, typed: string | null): Promise<string | null> {
-  const row = (await query<{ approval_code: string | null; approval_code_attempts: number }>('SELECT approval_code, approval_code_attempts FROM procedure_approvals WHERE id = $1', [stepId])).rows[0]
-  if (!row?.approval_code) return null
-  if (row.approval_code_attempts >= APPROVAL_CODE_TRIES) return `Kode persetujuan salah ${APPROVAL_CODE_TRIES} kali — persetujuan dikunci. Minta Admin ISM mengirim ulang email pengesahan untuk mendapatkan kode baru.`
-  const entered = (typed ?? '').replace(/\D/g, '')
-  if (!entered) return 'Masukkan kode persetujuan 6 angka yang ada di email pengesahan.'
-  const a = Buffer.from(entered.padEnd(6, ' ').slice(0, 6)), b = Buffer.from(row.approval_code)
-  if (entered.length === 6 && timingSafeEqual(a, b)) return null
-  const attempts = (await query<{ n: number }>('UPDATE procedure_approvals SET approval_code_attempts = approval_code_attempts + 1 WHERE id = $1 RETURNING approval_code_attempts AS n', [stepId])).rows[0]?.n ?? APPROVAL_CODE_TRIES
-  const left = APPROVAL_CODE_TRIES - attempts
-  return left > 0
-    ? `Kode persetujuan salah. Periksa kode 6 angka di email pengesahan (sisa ${left} kali percobaan).`
-    : `Kode persetujuan salah ${APPROVAL_CODE_TRIES} kali — persetujuan dikunci. Minta Admin ISM mengirim ulang email pengesahan untuk mendapatkan kode baru.`
+// Tanpa kode angka: approval no longer requires numeric code
+async function checkApprovalCode(_stepId: number, _typed: string | null): Promise<string | null> {
+  return null
 }
 
 /** Whether approving this step asks for the code from the e-mail. */
@@ -661,9 +651,8 @@ export async function stepApproverEmail(stepId: number): Promise<string | null> 
   return (await query<{ approver_email: string | null }>('SELECT approver_email FROM procedure_approvals WHERE id = $1', [stepId])).rows[0]?.approver_email ?? null
 }
 
-export async function approvalCodeRequired(stepId: number): Promise<{ required: boolean; locked: boolean }> {
-  const row = (await query<{ approval_code: string | null; approval_code_attempts: number }>('SELECT approval_code, approval_code_attempts FROM procedure_approvals WHERE id = $1', [stepId])).rows[0]
-  return { required: !!row?.approval_code, locked: !!row?.approval_code && row.approval_code_attempts >= APPROVAL_CODE_TRIES }
+export async function approvalCodeRequired(_stepId: number): Promise<{ required: boolean; locked: boolean }> {
+  return { required: false, locked: false }
 }
 
 // A history entry about one signing step, worded by `describe` from the document and the approver.

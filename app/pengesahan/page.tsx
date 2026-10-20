@@ -11,8 +11,10 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { ArrowLeftRight, Check, ClipboardPaste, Clock, Copy, Crosshair, ExternalLink, FileSignature, FileText, History, Loader2, MapPin, PencilLine, ShieldCheck, X } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { ArrowLeft, ArrowLeftRight, ArrowRight, Check, ClipboardCheck, Clock, Copy, Crosshair, ExternalLink, FileSignature, FileText, Gauge, History, Loader2, LogIn, LogOut, MapPin, PencilLine, ShieldCheck, Sparkles, X } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { docKindInfo } from '@/lib/document-kinds'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -81,7 +83,9 @@ function StepIcon({ status }: { status: Step['status'] }) {
 }
 
 function PengesahanContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
+  const { sessionUser, logout } = useAuth()
   const token = searchParams.get('token') ?? ''
   const urlCode = searchParams.get('code') ?? ''
   const [view, setView] = useState<View | null>(null)
@@ -270,6 +274,56 @@ function PengesahanContent() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Top Navbar with Navigation & Logout */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+          >
+            <ArrowLeft className="size-3.5" /> Portal Utama
+          </Link>
+          <Link
+            href="/persetujuan-saya"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/5 px-3.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
+          >
+            <ClipboardCheck className="size-3.5" /> Persetujuan Saya
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          {sessionUser ? (
+            <>
+              <span className="hidden items-center gap-1.5 rounded-full border border-border bg-secondary/50 px-3 py-1 font-mono text-xs text-foreground sm:inline-flex">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                {sessionUser.username} ({sessionUser.role})
+              </span>
+              <button
+                type="button"
+                onClick={async () => {
+                  await logout()
+                  router.push('/')
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-red-300/80 bg-red-50/90 px-3.5 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                title="Keluar dari akun Anda"
+              >
+                <LogOut className="size-3.5" />
+                <span>Log Out</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event('open-admin-login'))}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+            >
+              <LogIn className="size-3.5" />
+              <span>Masuk Akun</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Document header */}
       <section className="overflow-hidden rounded-2xl bg-[color:var(--p-900)] text-primary-foreground shadow-xl">
         <div className="h-1.5 bg-accent" />
@@ -340,6 +394,11 @@ function PengesahanContent() {
                     <p className="text-sm font-semibold text-foreground">
                       {item.approver_name}
                       {item.id === step.id && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-foreground">Anda</span>}
+                      {item.status === 'approved' && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 align-middle">
+                          <Check className="size-3 text-emerald-700" strokeWidth={3} /> Disetujui
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">{item.role_title}</p>
                     <p className="mt-0.5 text-xs font-medium text-foreground/80">
@@ -445,6 +504,60 @@ function PengesahanContent() {
               >
                 <FileSignature className="size-4" /> Lihat PDF bertanda tangan
               </a>
+
+              {/* 2 Pilihan Dashboard Saat Approved */}
+              <div className="mt-2 flex flex-col gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-50/60 p-4 dark:bg-emerald-950/20">
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                  <Sparkles className="size-3.5 text-emerald-600" />
+                  <span>Pilihan Dashboard Selanjutnya:</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Dokumen telah disetujui. Silakan pilih dashboard untuk melanjutkan aktivitas Anda:
+                </p>
+                <div className="mt-1 flex flex-col gap-2">
+                  {/* Pilihan 1: Dashboard Persetujuan Saya */}
+                  <Link
+                    href="/persetujuan-saya"
+                    className="group flex items-center justify-between rounded-xl border border-primary/20 bg-card p-3 shadow-sm transition hover:border-primary hover:bg-primary/5 hover:shadow"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                        <ClipboardCheck className="size-4" />
+                      </span>
+                      <div className="text-left">
+                        <span className="block text-xs font-bold text-foreground group-hover:text-primary">
+                          1. Dashboard Persetujuan Saya
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          Daftar antrian &amp; dokumen lain yang menunggu persetujuan Anda
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                  </Link>
+
+                  {/* Pilihan 2: Dashboard Monitoring Admin */}
+                  <Link
+                    href="/dashboard-admin"
+                    className="group flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-sm transition hover:border-foreground/30 hover:bg-secondary hover:shadow"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-8 place-items-center rounded-lg bg-secondary text-foreground shadow-sm">
+                        <Gauge className="size-4 text-[color:var(--p-600)]" />
+                      </span>
+                      <div className="text-left">
+                        <span className="block text-xs font-bold text-foreground">
+                          2. Dashboard Admin Monitoring
+                        </span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          Pantau seluruh berkas, jadwal review, dan status ISMS
+                        </span>
+                      </div>
+                    </div>
+                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                  </Link>
+                </div>
+              </div>
             </section>
           ) : (
             <section className="rounded-2xl border border-border bg-card p-5 text-sm leading-6 text-muted-foreground shadow-sm">
@@ -487,7 +600,7 @@ function PengesahanContent() {
         />
       )}
 
-      {/* No placing step: just one confirmation before the signature is given. */}
+      {/* No placing step: just one confirmation before the signature is given. Tanpa kode angka */}
       <ConfirmDialog
         open={confirmApprove}
         title={document.signs_review ? 'Setujui Form Review ini?' : 'Setujui dokumen ini?'}
@@ -495,82 +608,30 @@ function PengesahanContent() {
         confirmLabel="Ya, setujui"
         danger={false}
         pending={submitting === 'approve'}
-        confirmDisabled={!!view.codeRequired && (view.codeLocked || approvalCode.length !== 6)}
-        onConfirm={async () => { const failed = await decide('approve'); if (!failed || !view.codeRequired) { setConfirmApprove(false); setApprovalCode(''); setCodeError(null); setCopiedCode(false) } }}
-        onCancel={() => { setConfirmApprove(false); setCodeError(null); setCopiedCode(false) }}
+        confirmDisabled={submitting !== null}
+        onConfirm={async () => {
+          const failed = await decide('approve')
+          if (!failed) {
+            setConfirmApprove(false)
+            setApprovalCode('')
+            setCodeError(null)
+            setCopiedCode(false)
+          }
+        }}
+        onCancel={() => {
+          setConfirmApprove(false)
+          setCodeError(null)
+          setCopiedCode(false)
+        }}
       >
-        {view.codeRequired && (
-          view.codeLocked ? (
-            <p role="alert" className="rounded-lg bg-[#fdecea] px-3 py-2 text-[12px] leading-5 text-[#a83522]">
-              Kode persetujuan salah terlalu banyak — persetujuan dikunci. Minta Admin ISM mengirim ulang email pengesahan untuk mendapatkan kode baru.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {view.codeValue && (
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-[color:var(--p-border)] bg-[color:var(--p-surface2,#f8fafc)] px-3.5 py-2.5">
-                  <div className="min-w-0">
-                    <span className="block text-[10px] font-bold uppercase tracking-wider text-[color:var(--p-ink2)]">Kode dari Pesan Anda</span>
-                    <span className="font-mono text-base font-extrabold tracking-[0.2em] text-[color:var(--p-900)] select-all">{view.codeValue}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => copyCode(view.codeValue!)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-[color:var(--p-border)] bg-white px-2.5 py-1.5 text-xs font-semibold text-[color:var(--p-ink2)] hover:bg-[color:var(--p-surface)] transition-colors"
-                      title="Salin kode ke clipboard"
-                    >
-                      <Copy className="size-3.5" />
-                      {copiedCode ? 'Tersalin' : 'Salin'}
-                    </button>
-                    {approvalCode !== view.codeValue && (
-                      <button
-                        type="button"
-                        onClick={() => setCodeFromText(view.codeValue!)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-[color:var(--p-600)] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[color:var(--p-700)] transition-colors"
-                        title="Tempel kode ini ke input"
-                      >
-                        Gunakan
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold" style={{ color: 'var(--p-ink2)' }}>Kode persetujuan (6 angka dari email pengesahan)</span>
-                <input
-                  value={approvalCode}
-                  onChange={(event) => setCodeFromText(event.target.value)}
-                  onPaste={(event) => { event.preventDefault(); setCodeFromText(event.clipboardData.getData('text')) }}
-                  onKeyDown={(event) => { if (event.key === 'Enter' && approvalCode.length === 6 && submitting === null) { event.preventDefault(); void decide('approve').then((failed) => { if (!failed) { setConfirmApprove(false); setApprovalCode('') } }) } }}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  autoFocus
-                  aria-label="Kode persetujuan"
-                  aria-invalid={!!codeError}
-                  placeholder="••••••"
-                  className="h-12 rounded-lg border bg-white px-3 text-center font-mono text-2xl font-bold tracking-[0.4em] outline-none focus:border-[color:var(--p-600)]"
-                  style={{ borderColor: codeError ? '#c2412c' : 'var(--p-border)', color: 'var(--p-900)' }}
-                />
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
-                  <button type="button" onClick={() => void pasteApprovalCode()} className="inline-flex w-fit items-center gap-1.5 text-[12px] font-semibold" style={{ color: 'var(--p-600)' }}>
-                    <ClipboardPaste className="size-3.5" />Tempel kode dari clipboard
-                  </button>
-                  {view.codeValue && approvalCode !== view.codeValue && (
-                    <button
-                      type="button"
-                      onClick={() => setCodeFromText(view.codeValue!)}
-                      className="text-[12px] font-semibold text-[color:var(--p-ink2)] hover:underline"
-                    >
-                      Isi ulang kode ({view.codeValue})
-                    </button>
-                  )}
-                </div>
-                {codeError && <span role="alert" className="text-[12px] leading-5 text-[#a83522]">{codeError}</span>}
-              </label>
-            </div>
-          )
-        )}
+        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 text-xs leading-relaxed text-foreground">
+          <p className="font-semibold text-emerald-800 dark:text-emerald-400">
+            Persetujuan Langsung (Tanpa Kode PIN / Angka)
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Tanda tangan elektronik digital (QR E-Sign) resmi Anda akan langsung tercatat dan disahkan pada dokumen ini atas nama <strong className="text-foreground">{step.approver_name}</strong> ({step.role_title}).
+          </p>
+        </div>
       </ConfirmDialog>
 
     </div>

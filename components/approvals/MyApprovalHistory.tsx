@@ -14,6 +14,9 @@ type Item = {
   stepId: number; outcome: 'approved' | 'rejected'; decidedAt: string; roleTitle: string; signsReview: boolean
   documentId: number; controlNo: string; title: string; revision: number; kindLabel: string
   note: string | null; superseded: boolean; token: string | null; qrPending?: boolean
+  category?: 'procedure' | 'it_form' | 'special_area' | 'photo_video'
+  actionUrl?: string
+  applicantName?: string | null
 }
 type Page = { items: Item[]; total: number; page: number; pages: number; pageSize: number }
 type Outcome = '' | 'approved' | 'rejected'
@@ -50,6 +53,14 @@ export function MyApprovalHistory({ refreshKey }: { refreshKey: number }) {
     return () => { cancelled = true }
   }, [q, outcome, page, refreshKey])
 
+  const getItemViewUrl = (item: Item) => {
+    if (item.actionUrl) return item.actionUrl
+    if (item.category === 'it_form' && item.token) return `/form-it-esign?token=${item.token}`
+    if (item.category === 'special_area' && item.token) return `/persetujuan-area-special?token=${item.token}`
+    if (item.category === 'photo_video' && item.token) return `/konfirmasi-approval?token=${item.token}`
+    return `${API_BASE_PATH}/api/prosedur-isms/${item.documentId}/pdf?token=${item.token ?? ''}${item.signsReview ? '&part=review' : ''}`
+  }
+
   return (
     <section aria-label="Riwayat persetujuan" className="rounded-3xl border border-border bg-card shadow-sm">
       <div className="flex flex-col gap-3 border-b border-border px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -84,18 +95,23 @@ export function MyApprovalHistory({ refreshKey }: { refreshKey: number }) {
               <li key={item.stepId} data-testid="my-history" className="flex flex-col gap-2 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${item.signsReview ? 'bg-emerald-500/10 text-emerald-700' : 'bg-primary/10 text-primary'}`}>{item.signsReview ? 'Form Review' : 'Dokumen'}</span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${item.signsReview ? 'bg-emerald-500/10 text-emerald-700' : 'bg-primary/10 text-primary'}`}>
+                      {item.category === 'it_form' ? 'Form IT' : item.category === 'special_area' ? 'Area Special' : item.category === 'photo_video' ? 'Foto/Video' : item.signsReview ? 'Form Review' : 'Dokumen Prosedur'}
+                    </span>
                     <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-semibold text-secondary-foreground">{item.kindLabel}</span>
                     <span className="font-mono text-[11px] text-muted-foreground">{item.controlNo} · Rev. {item.revision}</span>
                     {item.superseded && <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground" title="Pengesahan diulang atau dokumennya sudah direvisi setelah keputusan ini">sudah diganti</span>}
                   </div>
                   <p className="mt-1.5 break-words text-sm font-semibold text-foreground">{item.signsReview ? `Form Review — ${item.title}` : item.title}</p>
+                  {item.applicantName && (
+                    <p className="mt-0.5 text-xs text-foreground/80">Pemohon: <span className="font-medium text-foreground">{item.applicantName}</span></p>
+                  )}
                   <p className="mt-0.5 text-xs text-muted-foreground">Sebagai {item.roleTitle}</p>
                   {item.note && <p className="mt-1.5 line-clamp-2 rounded-lg bg-red-500/5 px-3 py-1.5 text-xs text-red-800">Catatan revisi: {item.note}</p>}
                   {item.qrPending && (
                     <p className="mt-1.5 inline-flex items-start gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs leading-5 text-amber-800" data-testid="qr-pending">
                       <QrCode className="mt-0.5 size-3.5 flex-none" />
-                      <span>Persetujuan Anda sudah tercatat. QR tanda tangan Anda <strong>belum ditempatkan oleh Admin ISM</strong> — sampai itu dilakukan, dokumen masih tampil tanpa QR.</span>
+                      <span>Persetujuan Anda sudah tercatat. QR tanda tangan Anda <strong>belum ditempatkan oleh Admin ISMS</strong> — sampai itu dilakukan, dokumen masih tampil tanpa QR.</span>
                     </p>
                   )}
                 </div>
@@ -105,7 +121,7 @@ export function MyApprovalHistory({ refreshKey }: { refreshKey: number }) {
                   </span>
                   <span className="whitespace-nowrap text-muted-foreground">{when(item.decidedAt)}</span>
                   {item.token && (
-                    <a href={`${API_BASE_PATH}/api/prosedur-isms/${item.documentId}/pdf?token=${item.token}${item.signsReview ? '&part=review' : ''}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-[color:var(--p-600)] hover:underline">Lihat <ExternalLink className="size-3" /></a>
+                    <a href={getItemViewUrl(item)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">Lihat <ExternalLink className="size-3" /></a>
                   )}
                 </div>
               </li>
@@ -113,6 +129,7 @@ export function MyApprovalHistory({ refreshKey }: { refreshKey: number }) {
           </ul>
           <Pagination page={data.page} totalPages={data.pages} onPageChange={setPage} totalItems={data.total} pageSize={data.pageSize} />
         </>
+
       )}
     </section>
   )

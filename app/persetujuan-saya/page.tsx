@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Eye,
   FileCheck2,
+  FileSignature,
   FileText,
   Filter,
   History,
@@ -37,6 +38,8 @@ import {
   QrCode,
   RotateCcw,
   Search,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
   User,
   XCircle,
@@ -72,11 +75,18 @@ type Item = {
   uploadedAt?: string | null
   effDate?: string | null
   approverName?: string | null
+  // Unified fields:
+  category?: 'procedure' | 'it_form' | 'special_area' | 'photo_video'
+  actionUrl?: string
+  applicantName?: string | null
+  department?: string | null
+  verificationCode?: string | null
+  extraData?: Record<string, unknown> | null
 }
 
 type Data = { email: string | null; pending: Item[]; queued: Item[]; recent: Item[] }
 
-const when = (value: string | null) =>
+const when = (value: string | null | undefined) =>
   value
     ? new Date(value).toLocaleString('id-ID', {
         day: '2-digit',
@@ -87,20 +97,44 @@ const when = (value: string | null) =>
       })
     : '—'
 
-const waitedDays = (value: string | null) => (value ? Math.floor((Date.now() - new Date(value).getTime()) / 86_400_000) : 0)
+const waitedDays = (value: string | null | undefined) => (value ? Math.floor((Date.now() - new Date(value).getTime()) / 86_400_000) : 0)
 
 function WhatBadge({ item }: { item: Item }) {
+  let categoryChip = (
+    <span
+      className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold border ${
+        item.signsReview
+          ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/25 dark:text-emerald-300'
+          : 'bg-primary/10 text-primary border-primary/25'
+      }`}
+    >
+      {item.signsReview ? 'Form Review' : 'Dokumen Prosedur'}
+    </span>
+  )
+
+  if (item.category === 'it_form') {
+    categoryChip = (
+      <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-800 dark:text-emerald-300">
+        Form Layanan IT
+      </span>
+    )
+  } else if (item.category === 'special_area') {
+    categoryChip = (
+      <span className="rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-[10.5px] font-bold text-indigo-800 dark:text-indigo-300">
+        Izin Area Special
+      </span>
+    )
+  } else if (item.category === 'photo_video') {
+    categoryChip = (
+      <span className="rounded-full bg-purple-500/15 border border-purple-500/30 px-2.5 py-0.5 text-[10.5px] font-bold text-purple-800 dark:text-purple-300">
+        Izin Foto / Video
+      </span>
+    )
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span
-        className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold border ${
-          item.signsReview
-            ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/25 dark:text-emerald-300'
-            : 'bg-primary/10 text-primary border-primary/25'
-        }`}
-      >
-        {item.signsReview ? 'Form Review' : 'Dokumen Prosedur'}
-      </span>
+      {categoryChip}
       <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10.5px] font-semibold text-secondary-foreground">
         {item.kindLabel}
       </span>
@@ -136,10 +170,25 @@ export default function PersetujuanSayaPage() {
   const [decided, setDecided] = useState(0)
 
   const openApprovalModal = (item: Item, action?: 'approve' | 'reject' | null) => {
-    if (action === 'reject' && item.token) {
-      setReviewModal({ token: item.token, action: 'reject' })
-      return
+    if (action === 'reject') {
+      if (item.category === 'procedure' && item.token) {
+        setReviewModal({ token: item.token, action: 'reject' })
+        return
+      }
+      if (item.category === 'it_form' && item.token) {
+        window.location.href = `/form-it-esign?token=${item.token}`
+        return
+      }
+      if (item.category === 'special_area' && item.token) {
+        window.location.href = `/persetujuan-area-special?token=${item.token}&action=reject`
+        return
+      }
+      if (item.category === 'photo_video' && item.token) {
+        window.location.href = `/konfirmasi-approval?token=${item.token}&action=reject`
+        return
+      }
     }
+
     if (action === 'approve') {
       setNotice(null)
       setConfirm(item)
@@ -148,6 +197,21 @@ export default function PersetujuanSayaPage() {
       setApprovalCode(item.code ? item.code.trim() : '')
       return
     }
+
+    // Default open detail
+    if (item.category === 'it_form') {
+      window.location.href = `/form-it-esign?token=${item.token}`
+      return
+    }
+    if (item.category === 'special_area') {
+      window.location.href = `/persetujuan-area-special?token=${item.token}`
+      return
+    }
+    if (item.category === 'photo_video') {
+      window.location.href = `/konfirmasi-approval?token=${item.token}`
+      return
+    }
+
     if (item.token) {
       setReviewModal({ token: item.token, action: null })
       return
@@ -199,11 +263,74 @@ export default function PersetujuanSayaPage() {
   }, [data])
 
   const approve = async () => {
-    if (!confirm?.token) return false
+    if (!confirm) return false
     setBusy(true)
     setNotice(null)
     setCodeError(null)
     try {
+      if (confirm.category === 'it_form') {
+        const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions/${confirm.documentId}/sign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            step_number: confirm.revision,
+            decision: 'approve',
+            approver_name: confirm.approverName || sessionUser?.username || 'Approver',
+            signature_note: 'Disetujui via Dashboard Approval',
+          }),
+        })
+        const body = await res.json().catch(() => null)
+        if (!res.ok) {
+          setNotice({ ok: false, text: body?.error ?? body?.message ?? 'Gagal memproses persetujuan form IT.' })
+          return false
+        }
+        setNotice({ ok: true, text: `Formulir IT (${confirm.controlNo}) berhasil disetujui & ditandatangani digital.` })
+        setConfirm(null)
+        setDecided((n) => n + 1)
+        await load()
+        return true
+      }
+
+      if (confirm.category === 'special_area') {
+        const res = await fetch(`${API_BASE_PATH}/api/special-area-requests/approval`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token: confirm.token, action: 'approve' }),
+        })
+        const body = await res.json().catch(() => null)
+        if (!res.ok) {
+          setNotice({ ok: false, text: body?.message ?? 'Gagal memproses persetujuan Area Special.' })
+          return false
+        }
+        setNotice({ ok: true, text: `Izin Area Special (${confirm.controlNo}) berhasil disetujui.` })
+        setConfirm(null)
+        setDecided((n) => n + 1)
+        await load()
+        return true
+      }
+
+      if (confirm.category === 'photo_video') {
+        const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token: confirm.token, action: 'approve' }),
+        })
+        const body = await res.json().catch(() => null)
+        if (!res.ok) {
+          setNotice({ ok: false, text: body?.message ?? 'Gagal memproses persetujuan Foto/Video.' })
+          return false
+        }
+        setNotice({ ok: true, text: `Izin Foto / Video (${confirm.controlNo}) berhasil disetujui.` })
+        setConfirm(null)
+        setDecided((n) => n + 1)
+        await load()
+        return true
+      }
+
+      // Default: Prosedur ISMS
       const res = await fetch(`${API_BASE_PATH}/api/prosedur-isms/approval`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -235,24 +362,37 @@ export default function PersetujuanSayaPage() {
     if (!data?.pending) return []
     let list = data.pending
     if (categoryFilter !== 'all') {
-      list = list.filter((item) => (item.signsReview ? 'Form Review' : item.kindLabel) === categoryFilter)
+      list = list.filter((item) => {
+        if (categoryFilter === 'procedure') return !item.category || item.category === 'procedure'
+        return item.category === categoryFilter
+      })
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      list = list.filter((item) => item.controlNo.toLowerCase().includes(q) || item.title.toLowerCase().includes(q) || item.roleTitle.toLowerCase().includes(q))
+      list = list.filter(
+        (item) =>
+          item.controlNo.toLowerCase().includes(q) ||
+          item.title.toLowerCase().includes(q) ||
+          item.roleTitle.toLowerCase().includes(q) ||
+          (item.applicantName && item.applicantName.toLowerCase().includes(q)) ||
+          (item.department && item.department.toLowerCase().includes(q))
+      )
     }
     return list
   }, [data?.pending, categoryFilter, searchQuery])
 
-  // Available categories in pending list
-  const pendingCategories = useMemo(() => {
-    if (!data?.pending) return []
-    const set = new Set<string>()
-    for (const item of data.pending) {
-      set.add(item.signsReview ? 'Form Review' : item.kindLabel)
+  // Category counts
+  const categoryCounts = useMemo(() => {
+    if (!data?.pending) return { all: 0, procedure: 0, it_form: 0, special_area: 0, photo_video: 0 }
+    return {
+      all: data.pending.length,
+      procedure: data.pending.filter((i) => !i.category || i.category === 'procedure').length,
+      it_form: data.pending.filter((i) => i.category === 'it_form').length,
+      special_area: data.pending.filter((i) => i.category === 'special_area').length,
+      photo_video: data.pending.filter((i) => i.category === 'photo_video').length,
     }
-    return Array.from(set)
   }, [data?.pending])
+
 
   if (isLoading) {
     return (
@@ -477,22 +617,60 @@ export default function PersetujuanSayaPage() {
                     : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
                 }`}
               >
-                Semua ({data.pending.length})
+                Semua Formulir ({categoryCounts.all})
               </button>
-              {pendingCategories.map((cat) => (
+              {categoryCounts.procedure > 0 && (
                 <button
-                  key={cat}
                   type="button"
-                  onClick={() => setCategoryFilter(cat)}
+                  onClick={() => setCategoryFilter('procedure')}
                   className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
-                    categoryFilter === cat
+                    categoryFilter === 'procedure'
                       ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
                   }`}
                 >
-                  {cat}
+                  Prosedur ISMS ({categoryCounts.procedure})
                 </button>
-              ))}
+              )}
+              {categoryCounts.it_form > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('it_form')}
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
+                    categoryFilter === 'it_form'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  Form Layanan IT ({categoryCounts.it_form})
+                </button>
+              )}
+              {categoryCounts.special_area > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('special_area')}
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
+                    categoryFilter === 'special_area'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  Izin Area Special ({categoryCounts.special_area})
+                </button>
+              )}
+              {categoryCounts.photo_video > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('photo_video')}
+                  className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
+                    categoryFilter === 'photo_video'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  Izin Foto / Video ({categoryCounts.photo_video})
+                </button>
+              )}
             </div>
 
             <div className="relative w-full sm:w-72">
@@ -501,7 +679,7 @@ export default function PersetujuanSayaPage() {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari no. kontrol atau judul..."
+                placeholder="Cari no. kontrol, pemohon, judul..."
                 className="w-full rounded-full border border-border bg-card py-1.5 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
@@ -513,17 +691,24 @@ export default function PersetujuanSayaPage() {
               <h3 className="mt-3 text-base font-semibold text-foreground">Tidak Ada Dokumen yang Menunggu Persetujuan</h3>
               <p className="mt-1 text-xs text-muted-foreground">
                 {searchQuery || categoryFilter !== 'all'
-                  ? 'Tidak ada dokumen yang cocok dengan filter yang Anda pilih.'
-                  : 'Semua dokumen telah selesai Anda putuskan.'}
+                  ? 'Tidak ada pengajuan yang cocok dengan filter yang Anda pilih.'
+                  : 'Semua dokumen dan formulir telah selesai Anda putuskan.'}
               </p>
             </div>
           ) : (
             <div className="flex flex-col gap-5">
               {filteredPending.map((item) => {
                 const days = waitedDays(item.sentAt)
-                const pdfUrl = `${API_BASE_PATH}/api/prosedur-isms/${item.documentId}/pdf?token=${item.token ?? ''}${
-                  item.signsReview ? '&part=review' : ''
-                }`
+                const isProcedure = !item.category || item.category === 'procedure'
+                const isItForm = item.category === 'it_form'
+                const isSpecialArea = item.category === 'special_area'
+                const isPhotoVideo = item.category === 'photo_video'
+
+                const pdfUrl = isItForm
+                  ? `${API_BASE_PATH}/api/it-form-submissions/${item.documentId}/pdf?token=${item.token ?? ''}`
+                  : `${API_BASE_PATH}/api/prosedur-isms/${item.documentId}/pdf?token=${item.token ?? ''}${
+                      item.signsReview ? '&part=review' : ''
+                    }`
 
                 return (
                   <article
@@ -531,24 +716,10 @@ export default function PersetujuanSayaPage() {
                     data-testid="my-pending"
                     className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
                   >
-                    {/* Card Header Toolbar (ISMS Style) */}
+                    {/* Card Header Toolbar */}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-5 py-3.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
-                            item.signsReview
-                              ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/25 dark:text-emerald-300'
-                              : 'bg-primary/10 text-primary border-primary/25'
-                          }`}
-                        >
-                          {item.signsReview ? 'Form Review' : 'Dokumen Prosedur'}
-                        </span>
-                        <span className="font-mono text-sm font-bold text-foreground">
-                          {item.controlNo}
-                        </span>
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10.5px] font-semibold text-secondary-foreground">
-                          Rev. {item.revision}
-                        </span>
+                        <WhatBadge item={item} />
                         <span className="text-xs text-muted-foreground">
                           · Diminta {when(item.sentAt)}
                         </span>
@@ -561,49 +732,28 @@ export default function PersetujuanSayaPage() {
 
                       {/* Top Action Toolbar */}
                       <div className="flex flex-wrap items-center gap-2">
-                        {item.token ? (
-                          <button
-                            type="button"
-                            onClick={() => setReviewModal({ token: item.token!, action: null })}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
-                          >
-                            <Maximize2 className="size-3.5" />
-                            <span>Buka Detail</span>
-                          </button>
-                        ) : (
-                          <Link
-                            href={`/pengesahan?stepId=${item.stepId}`}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
-                          >
-                            <Maximize2 className="size-3.5" />
-                            <span>Buka Detail</span>
-                          </Link>
-                        )}
-
-                        {item.token ? (
-                          <button
-                            type="button"
-                            onClick={() => setReviewModal({ token: item.token!, action: 'reject' })}
-                            title="Buka dokumen dan tandai catatan revisi dengan sticky pin"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50/50 px-3.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100/80 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300"
-                          >
-                            <PenLine className="size-3.5" />
-                            <span>Catatan Revisi</span>
-                          </button>
-                        ) : (
-                          <Link
-                            href={`/pengesahan?stepId=${item.stepId}`}
-                            title="Buka dokumen untuk meminta revisi"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50/50 px-3.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100/80 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300"
-                          >
-                            <PenLine className="size-3.5" />
-                            <span>Catatan Revisi</span>
-                          </Link>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => openApprovalModal(item, null)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                        >
+                          <Maximize2 className="size-3.5" />
+                          <span>Buka Detail</span>
+                        </button>
 
                         <button
                           type="button"
-                          onClick={() => setReviewModal({ token: item.token!, action: 'reject' })}
+                          onClick={() => openApprovalModal(item, 'reject')}
+                          title="Beri catatan revisi atau penolakan pengajuan"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-red-300 bg-red-50/50 px-3.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100/80 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300"
+                        >
+                          <PenLine className="size-3.5" />
+                          <span>Catatan Revisi</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openApprovalModal(item, 'reject')}
                           className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-red-700"
                         >
                           <XCircle className="size-3.5" />
@@ -628,92 +778,186 @@ export default function PersetujuanSayaPage() {
                         <div className="flex flex-col gap-3">
                           <div className="flex items-center gap-2 border-b border-border/60 pb-2">
                             <Info className="size-4 text-primary" />
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Detail Dokumen</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Detail Dokumen / Pengajuan</h4>
                           </div>
 
-                          <div className="space-y-2 text-xs">
+                          <div className="space-y-2.5 text-xs">
                             <div>
-                              <p className="text-[11px] text-muted-foreground">Judul Dokumen</p>
-                              <p className="font-semibold text-foreground">{item.title}</p>
+                              <p className="text-[11px] text-muted-foreground">Judul / Keperluan</p>
+                              <p className="font-semibold text-foreground text-sm">{item.title}</p>
                             </div>
+
+                            {item.applicantName && (
+                              <div className="grid grid-cols-2 gap-2 rounded-xl bg-card border border-border/60 p-2.5">
+                                <div>
+                                  <p className="text-[11px] text-muted-foreground">Nama Pemohon</p>
+                                  <p className="font-semibold text-foreground">{item.applicantName}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[11px] text-muted-foreground">Departemen / Instansi</p>
+                                  <p className="font-medium text-foreground">{item.department || '-'}</p>
+                                </div>
+                              </div>
+                            )}
+
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <p className="text-[11px] text-muted-foreground">No. Kontrol</p>
+                                <p className="text-[11px] text-muted-foreground">No. Kontrol / Registrasi</p>
                                 <p className="font-mono font-medium text-foreground">{item.controlNo}</p>
                               </div>
                               <div>
-                                <p className="text-[11px] text-muted-foreground">Jenis Register</p>
+                                <p className="text-[11px] text-muted-foreground">Jenis Formulir</p>
                                 <p className="font-medium text-foreground">{item.kindLabel}</p>
                               </div>
                             </div>
+
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <p className="text-[11px] text-muted-foreground">Jabatan Anda</p>
                                 <p className="font-medium text-foreground">{item.roleTitle}</p>
                               </div>
                               <div>
-                                <p className="text-[11px] text-muted-foreground">Tanggal Efektif</p>
+                                <p className="text-[11px] text-muted-foreground">Tanggal Efektif / Diajukan</p>
                                 <p className="font-medium text-foreground">
-                                  {item.effDate ? new Date(item.effDate).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : 'Otomatis approver akhir'}
+                                  {item.effDate ? new Date(item.effDate).toLocaleDateString('id-ID', { dateStyle: 'medium' }) : when(item.sentAt)}
                                 </p>
                               </div>
                             </div>
+
                             {item.note && (
                               <div className="rounded-xl border border-border bg-card p-2.5">
-                                <p className="text-[10.5px] font-medium text-muted-foreground">Catatan Pengajuan:</p>
-                                <p className="mt-0.5 text-xs text-foreground">{item.note}</p>
+                                <p className="text-[10.5px] font-medium text-muted-foreground">Catatan / Keterangan:</p>
+                                <p className="mt-0.5 text-xs text-foreground leading-relaxed">{item.note}</p>
                               </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="mt-4 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-                          Status: <span className="font-semibold text-primary">Menunggu keputusan Anda</span>
+                        <div className="mt-4 border-t border-border/60 pt-3 text-[11px] text-muted-foreground flex items-center justify-between">
+                          <span>Status: <strong className="font-semibold text-primary">Menunggu keputusan Anda</strong></span>
+                          {item.actionUrl && (
+                            <Link href={item.actionUrl} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                              <span>Formulir Asli</span>
+                              <ExternalLink className="size-3" />
+                            </Link>
+                          )}
                         </div>
                       </div>
 
-                      {/* Right Column: Supporting Document (PDF Viewer / Preview) */}
+                      {/* Right Column: Supporting Document / Preview */}
                       <div className="flex flex-col rounded-2xl border border-border/80 bg-muted/20 p-4 lg:col-span-7">
                         <div className="mb-2.5 flex items-center justify-between border-b border-border/60 pb-2">
                           <div className="flex items-center gap-2">
                             <FileText className="size-4 text-primary" />
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Supporting Document</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                              {isSpecialArea ? 'Pratinjau Pengajuan Area Special' : isPhotoVideo ? 'Pratinjau Pengajuan Foto/Video' : 'Supporting Document (PDF)'}
+                            </h4>
                           </div>
                           <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-bold text-secondary-foreground">
-                            PDF Lampiran
+                            {isSpecialArea ? 'Formulir Digital' : isPhotoVideo ? 'Izin Peliputan' : 'PDF E-Sign'}
                           </span>
                         </div>
 
-                        {/* Embedded PDF iframe */}
-                        <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-inner">
-                          <iframe
-                            src={`${pdfUrl}#toolbar=0&navpanes=0`}
-                            className="h-60 w-full rounded-xl"
-                            title={`Supporting Document ${item.controlNo}`}
-                          />
-                        </div>
+                        {/* Embedded PDF iframe or Card Preview */}
+                        {isProcedure || isItForm ? (
+                          <>
+                            <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-inner">
+                              <iframe
+                                src={`${pdfUrl}#toolbar=0&navpanes=0`}
+                                className="h-64 w-full rounded-xl"
+                                title={`Supporting Document ${item.controlNo}`}
+                              />
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                              {isItForm ? (
+                                <Link
+                                  href={`/form-it-esign?token=${item.token}`}
+                                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+                                >
+                                  <Maximize2 className="size-3.5" />
+                                  <span>Buka Formulir &amp; Tanda Tangan</span>
+                                </Link>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setReviewModal({ token: item.token!, action: null })}
+                                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+                                >
+                                  <Maximize2 className="size-3.5" />
+                                  <span>Preview Layar Penuh &amp; Pin Revisi</span>
+                                </button>
+                              )}
 
-                        {/* Preview Actions */}
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setReviewModal({ token: item.token!, action: null })}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
-                          >
-                            <Maximize2 className="size-3.5" />
-                            <span>Preview Layar Penuh &amp; Pin Revisi</span>
-                          </button>
-
-                          <a
-                            href={pdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
-                          >
-                            <Download className="size-3.5" />
-                            <span>Unduh File PDF</span>
-                          </a>
-                        </div>
+                              <a
+                                href={pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                              >
+                                <Download className="size-3.5" />
+                                <span>Unduh PDF</span>
+                              </a>
+                            </div>
+                          </>
+                        ) : isSpecialArea ? (
+                          <div className="flex flex-col justify-between h-full rounded-xl border border-border bg-card p-5">
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3">
+                                <span className="grid size-10 place-items-center rounded-xl bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">
+                                  <ShieldAlert className="size-5" />
+                                </span>
+                                <div>
+                                  <h4 className="font-bold text-foreground text-sm">{item.title}</h4>
+                                  <p className="text-xs text-muted-foreground">Formulir Persetujuan Akses Khusus Ruang Server &amp; Area Kritis</p>
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-muted/40 p-3 space-y-1.5 text-xs">
+                                <p><strong className="text-foreground">Pemohon:</strong> {item.applicantName} ({item.department})</p>
+                                <p><strong className="text-foreground">Waktu Kunjungan:</strong> {when(item.effDate)}</p>
+                                <p><strong className="text-foreground">Tujuan:</strong> {item.note || '-'}</p>
+                              </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Persetujuan terhubung dengan akun Anda</span>
+                              <Link
+                                href={`/persetujuan-area-special?token=${item.token}`}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-indigo-700"
+                              >
+                                <span>Buka Halaman Persetujuan</span>
+                                <ExternalLink className="size-3" />
+                              </Link>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col justify-between h-full rounded-xl border border-border bg-card p-5">
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-3">
+                                <span className="grid size-10 place-items-center rounded-xl bg-purple-500/15 text-purple-700 dark:text-purple-300">
+                                  <FileCheck2 className="size-5" />
+                                </span>
+                                <div>
+                                  <h4 className="font-bold text-foreground text-sm">{item.title}</h4>
+                                  <p className="text-xs text-muted-foreground">Izin Pengambilan Foto &amp; Video Visitor Pabrik JAI</p>
+                                </div>
+                              </div>
+                              <div className="rounded-xl bg-muted/40 p-3 space-y-1.5 text-xs">
+                                <p><strong className="text-foreground">Pemohon:</strong> {item.applicantName} ({item.department})</p>
+                                <p><strong className="text-foreground">Waktu:</strong> {when(item.effDate)}</p>
+                                <p><strong className="text-foreground">Tujuan:</strong> {item.note || '-'}</p>
+                              </div>
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                              <span className="text-xs text-muted-foreground">Persetujuan terhubung dengan akun Anda</span>
+                              <Link
+                                href={`/konfirmasi-approval?token=${item.token}`}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-purple-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-purple-700"
+                              >
+                                <span>Buka Konfirmasi Approval</span>
+                                <ExternalLink className="size-3" />
+                              </Link>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -735,7 +979,7 @@ export default function PersetujuanSayaPage() {
             </span>
           </div>
           {data.queued.length === 0 ? (
-            <p className="px-5 py-12 text-center text-sm text-muted-foreground">Tidak ada dokumen yang sedang mengantre di tahap sebelum Anda.</p>
+            <p className="px-5 py-12 text-center text-sm text-muted-foreground">Tidak ada dokumen atau formulir yang sedang mengantre di tahap sebelum Anda.</p>
           ) : (
             <ul className="divide-y divide-border">
               {data.queued.map((item) => (
@@ -743,6 +987,9 @@ export default function PersetujuanSayaPage() {
                   <div>
                     <WhatBadge item={item} />
                     <p className="mt-1.5 font-semibold text-foreground">{item.title}</p>
+                    {item.applicantName && (
+                      <p className="text-xs text-foreground/80 mt-0.5">Pemohon: <span className="font-medium text-foreground">{item.applicantName}</span> {item.department ? `(${item.department})` : ''}</p>
+                    )}
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {item.waitingFor ? (
                         <>
@@ -751,7 +998,7 @@ export default function PersetujuanSayaPage() {
                       ) : (
                         'Menunggu approver sebelum Anda.'
                       )}{' '}
-                      Dokumen akan otomatis berpindah ke tab Menunggu Persetujuan saat tiba giliran Anda.
+                      Pengajuan akan otomatis berpindah ke tab Menunggu Persetujuan saat tiba giliran Anda.
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1 self-start rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground sm:self-center">
@@ -775,19 +1022,23 @@ export default function PersetujuanSayaPage() {
             </span>
           </div>
           {data.recent.length === 0 ? (
-            <p className="px-5 py-12 text-center text-sm text-muted-foreground">Belum ada dokumen yang Anda putuskan baru-baru ini.</p>
+            <p className="px-5 py-12 text-center text-sm text-muted-foreground">Belum ada dokumen atau formulir yang Anda putuskan baru-baru ini.</p>
           ) : (
             <ul className="divide-y divide-border">
               {data.recent.map((item) => (
                 <li key={item.stepId} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div
-                    className={`min-w-0 ${item.token ? 'cursor-pointer hover:opacity-90' : ''}`}
+                    className={`min-w-0 ${item.actionUrl || item.token ? 'cursor-pointer hover:opacity-90' : ''}`}
                     onClick={() => {
-                      if (item.token) setReviewModal({ token: item.token, action: null })
+                      if (item.category === 'procedure' && item.token) setReviewModal({ token: item.token, action: null })
+                      else if (item.actionUrl) window.open(item.actionUrl, '_blank')
                     }}
                   >
                     <WhatBadge item={item} />
                     <p className="mt-1.5 font-semibold text-foreground">{item.title}</p>
+                    {item.applicantName && (
+                      <p className="text-xs text-foreground/80 mt-0.5">Pemohon: <span className="font-medium text-foreground">{item.applicantName}</span> {item.department ? `(${item.department})` : ''}</p>
+                    )}
                     {item.status === 'approved' && item.qrPlaced === false && (
                       <p className="mt-1.5 inline-flex items-start gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs leading-5 text-amber-800 dark:text-amber-300" data-testid="qr-pending">
                         <QrCode className="mt-0.5 size-3.5 flex-none" />
@@ -807,7 +1058,16 @@ export default function PersetujuanSayaPage() {
                       {item.status === 'approved' ? 'Disetujui' : 'Minta revisi'}
                     </span>
                     <span className="text-muted-foreground">{when(item.decidedAt)}</span>
-                    {item.token ? (
+                    {item.actionUrl ? (
+                      <a
+                        href={item.actionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                      >
+                        Lihat <ExternalLink className="size-3" />
+                      </a>
+                    ) : item.token ? (
                       <button
                         type="button"
                         onClick={() => setReviewModal({ token: item.token!, action: null })}
@@ -815,16 +1075,7 @@ export default function PersetujuanSayaPage() {
                       >
                         Lihat <ExternalLink className="size-3" />
                       </button>
-                    ) : (
-                      <a
-                        href={`${API_BASE_PATH}/api/prosedur-isms/${item.documentId}/pdf?token=${item.token ?? ''}${item.signsReview ? '&part=review' : ''}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
-                      >
-                        Lihat <ExternalLink className="size-3" />
-                      </a>
-                    )}
+                    ) : null}
                   </div>
                 </li>
               ))}
@@ -843,10 +1094,22 @@ export default function PersetujuanSayaPage() {
       {/* Confirm Direct Approval Modal */}
       <ConfirmDialog
         open={confirm !== null}
-        title={confirm?.signsReview ? 'Setujui Form Review ini?' : 'Setujui dokumen ini?'}
+        title={
+          confirm?.category === 'it_form'
+            ? `Setujui Formulir IT (${confirm.controlNo})?`
+            : confirm?.category === 'special_area'
+            ? `Setujui Izin Area Special (${confirm.controlNo})?`
+            : confirm?.category === 'photo_video'
+            ? `Setujui Izin Foto / Video (${confirm.controlNo})?`
+            : confirm?.signsReview
+            ? 'Setujui Form Review ini?'
+            : 'Setujui dokumen ini?'
+        }
         message={
           confirm
-            ? `${confirm.controlNo} — ${confirm.title}. Anda menyetujui sebagai ${confirm.roleTitle}. Tanda tangan elektronik Anda (QR E-Sign) resmi akan langsung disahkan pada dokumen ini.`
+            ? `${confirm.controlNo} — ${confirm.title}. Anda menyetujui sebagai ${confirm.roleTitle}.${
+                confirm.applicantName ? ` Pemohon: ${confirm.applicantName}.` : ''
+              } Tanda tangan elektronik Anda resmi akan langsung disahkan pada formulir/dokumen ini.`
             : ''
         }
         confirmLabel="Ya, Setujui Sekarang"
@@ -866,10 +1129,11 @@ export default function PersetujuanSayaPage() {
             Pengesahan Tanda Tangan Digital Resmi
           </p>
           <p className="mt-1 text-muted-foreground">
-            Karena Anda telah masuk ke akun resmi Approver, tanda tangan elektronik digital (QR E-Sign) Anda akan langsung dibubuhkan pada dokumen ini selaku <strong className="text-foreground">{confirm?.roleTitle}</strong>.
+            Karena Anda telah masuk ke akun resmi Approver ({data?.email}), tanda tangan elektronik digital (QR E-Sign) Anda akan langsung dibubuhkan resmi pada pengajuan ini selaku <strong className="text-foreground">{confirm?.roleTitle}</strong>.
           </p>
         </div>
       </ConfirmDialog>
+
 
       {passwordOpen && <ChangePasswordModal onClose={() => setPasswordOpen(false)} />}
 

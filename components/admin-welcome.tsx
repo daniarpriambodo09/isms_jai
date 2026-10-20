@@ -22,7 +22,7 @@ const REDUCED_MS = 1100
 export const WELCOME_COVERED_MS = 420
 
 const ROLE_LABEL: Record<AdminRole, string> = {
-  ism_admin: 'ISM Admin',
+  ism_admin: 'Admin ISMS',
   lobby: 'Admin Lobby',
   security: 'Pos Security',
   approver: 'Approver',

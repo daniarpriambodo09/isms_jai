@@ -27,7 +27,7 @@ type ActivityEntry = {
 }
 
 const ROLE_LABEL: Record<AdminRole, string> = {
-  ism_admin: 'ISM Admin',
+  ism_admin: 'Admin ISMS',
   lobby: 'Lobby',
   security: 'Security',
   approver: 'Approver',
@@ -180,7 +180,7 @@ export default function KelolaAdminPage() {
 
   if (!isLoading && !isLoggedIn) return <AdminGate />
   if (!isLoading && adminUser && adminUser.role !== 'ism_admin') {
-    return <AdminGate title="Akses terbatas" message="Halaman ini hanya untuk akun ISM Admin." />
+    return <AdminGate title="Akses terbatas" message="Halaman ini hanya untuk akun Admin ISMS." />
   }
 
   return (
@@ -207,7 +207,7 @@ export default function KelolaAdminPage() {
         </div>
         <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="grid size-11 place-items-center rounded-2xl bg-accent/20 text-accent-foreground"><ShieldCheck className="size-5" /></div>
-          <div><div className="text-2xl font-semibold tracking-tight text-foreground">{ismAdminCount}</div><div className="text-xs font-medium text-muted-foreground">Akun ISM Admin</div></div>
+          <div><div className="text-2xl font-semibold tracking-tight text-foreground">{ismAdminCount}</div><div className="text-xs font-medium text-muted-foreground">Akun Admin ISMS</div></div>
         </div>
         <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="grid size-11 place-items-center rounded-2xl bg-secondary text-secondary-foreground"><History className="size-5" /></div>
@@ -240,7 +240,7 @@ export default function KelolaAdminPage() {
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <p className="portal-eyebrow">Direktori akun</p>
-              <p className="mt-1 text-sm text-muted-foreground">Akun lobby/security untuk kiosk, akun ism_admin untuk konten portal, dan akun approver untuk menyetujui dokumen lewat “Persetujuan Saya”.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Akun lobby/security untuk kiosk, akun Admin ISMS untuk kontrol portal, dan akun approver untuk menyetujui seluruh dokumen & formulir lewat “Persetujuan Saya”.</p>
             </div>
             <button
               type="button"
@@ -273,7 +273,7 @@ export default function KelolaAdminPage() {
                   <select value={createRole} onChange={(e) => setCreateRole(e.target.value as AdminRole)} className={inputClass}>
                     <option value="lobby">Lobby</option>
                     <option value="security">Security</option>
-                    <option value="ism_admin">ISM Admin</option>
+                    <option value="ism_admin">Admin ISMS</option>
                     <option value="it">IT Admin (ISMS-F-03)</option>
                     <option value="approver">Approver (Persetujuan Saya)</option>
                   </select>
@@ -281,7 +281,7 @@ export default function KelolaAdminPage() {
               </div>
               {createRole === 'approver' && (
                 <p className="mt-3 rounded-xl bg-secondary/60 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
-                  Akun <strong className="text-foreground">Approver</strong> hanya bisa membuka <strong className="text-foreground">Persetujuan Saya</strong>: daftar dokumen dan Form Review yang dikirim ke emailnya, disetujui tanpa kode. <strong className="text-foreground">Email wajib diisi</strong> dan harus sama dengan email approver di Approver Pengesahan.
+                  Akun <strong className="text-foreground">Approver</strong> terhubung otomatis ke seluruh alur persetujuan: Dokumen Prosedur ISMS, Formulir Layanan IT (E-Sign), Izin Akses Area Special, dan Izin Foto / Video Visitor. <strong className="text-foreground">Email wajib diisi</strong> dan akan menyinkronkan seluruh permohonan yang ditujukan ke alamat email tersebut ke menu Persetujuan Saya & notifikasi.
                 </p>
               )}
               {createError && <p className="mt-3 text-sm text-destructive">{createError}</p>}

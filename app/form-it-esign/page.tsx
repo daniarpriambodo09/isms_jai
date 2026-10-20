@@ -338,6 +338,11 @@ function FormItContent() {
     }
   }, [tokenQuery])
 
+  const activeForms = useMemo(
+    () => IT_FORM_DEFINITIONS.filter((d) => d.code !== 'ISMS-F-03-00-001'),
+    []
+  )
+
   const currentFormDef = useMemo(() => {
     return IT_FORM_DEFINITIONS.find((d) => d.code === selectedFormCode) || IT_FORM_DEFINITIONS[0]
   }, [selectedFormCode])
@@ -826,27 +831,34 @@ function FormItContent() {
       ) : (
         /* FORM SUBMISSION INTERFACE */
         <div className="space-y-8">
-          {/* SECTION HEADER: Form Switcher Cards (Clean Symmetrical 5-Column Row) */}
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+          {/* SECTION HEADER: Form Switcher Cards (Symmetrical 6-Column Responsive Grid) */}
+          <div className="space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
               <div>
-                <h2 className="text-base font-extrabold text-foreground tracking-tight sm:text-lg flex items-center gap-2">
-                  <Layers className="size-5 text-emerald-600" />
-                  <span>Pilih Kategori Layanan Formulir IT</span>
-                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex size-6 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <Layers className="size-3.5" />
+                  </span>
+                  <h2 className="text-base font-extrabold text-foreground tracking-tight sm:text-lg">
+                    Pilih Kategori Layanan Formulir IT
+                  </h2>
+                </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Klik salah satu formulir di bawah untuk membuka lembar pengajuan digital:
+                  Pilih salah satu dari {activeForms.length} formulir layanan digital di bawah ini untuk membuka lembar isian dan alur otorisasi E-Sign:
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full bg-secondary/80 px-3 py-1 text-[11px] font-semibold text-muted-foreground border border-border/80">
-                <CheckCircle2 className="size-3.5 text-emerald-600" />
-                <span>5 Formulir Tersedia</span>
-              </span>
+              <div className="inline-flex items-center gap-2 self-start sm:self-auto rounded-full bg-emerald-500/10 px-3.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shadow-2xs">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                </span>
+                <span>{activeForms.length} Formulir Layanan Tersedia</span>
+              </div>
             </div>
 
-            {/* 5 Form Symmetrical Equal-Height Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {IT_FORM_DEFINITIONS.filter((d) => d.code !== 'ISMS-F-03-00-001').map((def) => {
+            {/* Symmetrical 6-Card Responsive Grid: 6 cols on lg, 3 cols on sm/md, 2 cols on mobile */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {activeForms.map((def, idx) => {
                 const active = selectedFormCode === def.code
                 const meta = FORM_METADATA[def.code] || FORM_METADATA['ISMS-F-010-001']
                 const IconComponent = meta.icon
@@ -859,44 +871,52 @@ function FormItContent() {
                       setSelectedFormCode(def.code)
                       setErrorMsg('')
                     }}
-                    className={`group relative flex flex-col items-center justify-between rounded-2xl border p-4 text-center transition-all duration-150 cursor-pointer min-h-[148px] ${
+                    className={`group relative flex flex-col items-center justify-between rounded-2xl border p-3.5 sm:p-4 text-center transition-all duration-200 cursor-pointer min-h-[162px] ${
                       active
-                        ? 'border-emerald-600 bg-card shadow-md ring-2 ring-emerald-600/25 -translate-y-1'
-                        : 'border-border/80 bg-card/60 hover:bg-card hover:border-border hover:shadow-xs hover:-translate-y-0.5'
+                        ? 'border-emerald-500/90 bg-gradient-to-b from-emerald-500/10 via-card to-card shadow-lg ring-2 ring-emerald-500/30 -translate-y-1'
+                        : 'border-border/80 bg-card/70 hover:bg-card hover:border-border hover:shadow-md hover:-translate-y-0.5'
                     }`}
                   >
                     {active && (
+                      <span className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600" />
+                    )}
+
+                    {active ? (
                       <span className="absolute top-2.5 right-2.5 flex size-2">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex size-2 rounded-full bg-emerald-600" />
                       </span>
+                    ) : (
+                      <span className="absolute top-2.5 right-2.5 font-mono text-[9px] font-bold text-muted-foreground/60 group-hover:text-muted-foreground">
+                        #{idx + 1}
+                      </span>
                     )}
 
                     <div
-                      className={`grid size-12 place-items-center rounded-2xl transition ${
+                      className={`grid size-12 place-items-center rounded-2xl transition-all duration-200 ${
                         active
-                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-2xs'
-                          : 'bg-secondary/70 text-muted-foreground group-hover:bg-secondary group-hover:text-foreground'
+                          ? 'bg-gradient-to-br from-emerald-500/20 to-teal-500/10 text-emerald-600 dark:text-emerald-400 shadow-xs scale-105'
+                          : 'bg-secondary/70 text-muted-foreground group-hover:bg-secondary group-hover:text-foreground group-hover:scale-102'
                       }`}
                     >
                       <IconComponent className="size-6" />
                     </div>
 
-                    <div className="w-full my-1.5">
-                      <span className="font-mono text-[10px] font-bold text-muted-foreground block mb-0.5">
+                    <div className="w-full my-1.5 space-y-0.5">
+                      <span className="font-mono text-[9px] font-bold text-muted-foreground block truncate">
                         {def.code}
                       </span>
-                      <h3 className="font-display text-xs font-bold text-foreground leading-tight">
+                      <h3 className="font-display text-xs font-bold text-foreground leading-snug line-clamp-2">
                         {meta.shortTitle}
                       </h3>
                     </div>
 
                     <div className="w-full pt-2 border-t border-border/50 flex items-center justify-center">
                       <span
-                        className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                        className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold transition ${
                           active
-                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
-                            : 'bg-secondary text-muted-foreground'
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold'
+                            : 'bg-secondary text-muted-foreground group-hover:bg-secondary group-hover:text-foreground'
                         }`}
                       >
                         {meta.tag}
@@ -913,51 +933,96 @@ function FormItContent() {
             onSubmit={handleSubmit}
             className="relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 sm:p-9 shadow-md space-y-8"
           >
-            {/* Form Title Banner with Theme Accent */}
-            <div className={`relative overflow-hidden rounded-2xl border p-5 sm:p-6 bg-gradient-to-r ${currentMeta.activeBg} ${currentMeta.activeBorder}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+            {/* Form Title Banner with Theme Accent & Stepper */}
+            <div className={`relative overflow-hidden rounded-3xl border p-6 sm:p-7 bg-gradient-to-br ${currentMeta.activeBg} ${currentMeta.activeBorder} shadow-sm`}>
+              <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-emerald-500/10 blur-2xl" />
+              <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-start gap-4">
-                  <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-card border border-border shadow-xs">
+                  <div className="relative grid size-16 shrink-0 place-items-center rounded-2xl bg-card/90 border border-border shadow-md">
                     {React.createElement(currentMeta.icon, {
-                      className: `size-7 ${currentMeta.colorClass}`,
+                      className: `size-8 ${currentMeta.colorClass}`,
                     })}
+                    <span className="absolute -bottom-1 -right-1 flex size-3">
+                      <span className="relative inline-flex size-3 rounded-full bg-emerald-500" />
+                    </span>
                   </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-xs font-bold text-foreground bg-card/90 px-2.5 py-0.5 rounded-md border border-border shadow-2xs">
                         {currentFormDef.code}
                       </span>
-                      <span className="rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-[10px] font-extrabold text-red-600 dark:text-red-400">
-                        {currentFormDef.badge.toUpperCase()}
+                      <span className="rounded-full bg-red-500/15 border border-red-500/30 px-2.5 py-0.5 text-[10px] font-extrabold text-red-600 dark:text-red-400 uppercase tracking-wider">
+                        {currentFormDef.badge}
                       </span>
-                      <span className="rounded-full bg-secondary/80 px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground border border-border/60">
-                        {currentMeta.approvalCount} Tingkat Approver
+                      <span className="rounded-full bg-card/80 px-2.5 py-0.5 text-[10px] font-semibold text-foreground/80 border border-border/80 flex items-center gap-1 shadow-2xs">
+                        <Users className="size-3 text-emerald-600" />
+                        <span>{currentMeta.approvalCount} Tingkat Approver E-Sign</span>
+                      </span>
+                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                        {currentMeta.category}
                       </span>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
+
+                    <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
                       {currentFormDef.name}
                     </h2>
-                    <p className="mt-1 text-xs text-muted-foreground/80 font-sans">
-                      {currentFormDef.jpName}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground max-w-2xl leading-relaxed">
+
+                    <div className="inline-flex items-center gap-1.5 rounded-md bg-secondary/80 px-2.5 py-0.5 text-[11px] font-mono text-muted-foreground border border-border/50">
+                      <span>🇯🇵</span>
+                      <span>{currentFormDef.jpName}</span>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed pt-1">
                       {currentMeta.shortDesc}
                     </p>
+
+                    {/* Features Pill Row */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      {currentMeta.features.map((feat, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 rounded-full bg-card/90 px-2.5 py-0.5 text-[10px] font-medium text-foreground/80 border border-border/70 shadow-2xs"
+                        >
+                          <CheckCircle2 className="size-3 text-emerald-600" />
+                          <span>{feat}</span>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Step indicator pills */}
-                <div className="hidden lg:flex items-center gap-1.5 self-center rounded-xl bg-card/90 p-2 border border-border text-[11px] font-semibold text-muted-foreground shadow-2xs">
-                  <span className="rounded-lg bg-emerald-600 px-3 py-1.5 text-white font-bold flex items-center gap-1">
-                    <Check className="size-3" />
-                    1. Pemohon
-                  </span>
-                  <ChevronRight className="size-3 text-muted-foreground" />
-                  <span className="px-2 py-1">2. Spesifikasi</span>
-                  <ChevronRight className="size-3 text-muted-foreground" />
-                  <span className="px-2 py-1">3. Catatan</span>
-                  <ChevronRight className="size-3 text-muted-foreground" />
-                  <span className="px-2 py-1">4. E-Sign</span>
+                {/* 4-Step Progress Indicator */}
+                <div className="rounded-2xl bg-card/90 p-3.5 sm:p-4 border border-border shadow-xs shrink-0 self-stretch lg:self-center">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center justify-between">
+                    <span>Tahapan Pengisian</span>
+                    <span className="text-emerald-600 font-mono">4 Langkah</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2 text-[11px]">
+                    <div className="flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 p-2 font-bold text-emerald-800 dark:text-emerald-300">
+                      <span className="grid size-5 place-items-center rounded-full bg-emerald-600 text-[10px] font-black text-white shrink-0">
+                        1
+                      </span>
+                      <span className="truncate">Data Pemohon</span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/60 p-2 font-medium text-muted-foreground">
+                      <span className="grid size-5 place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground shrink-0">
+                        2
+                      </span>
+                      <span className="truncate">Spesifikasi</span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/60 p-2 font-medium text-muted-foreground">
+                      <span className="grid size-5 place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground shrink-0">
+                        3
+                      </span>
+                      <span className="truncate">Catatan &amp; Alasan</span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/60 p-2 font-medium text-muted-foreground">
+                      <span className="grid size-5 place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground shrink-0">
+                        4
+                      </span>
+                      <span className="truncate">Alur E-Sign</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -970,19 +1035,24 @@ function FormItContent() {
             )}
 
             {/* SECTION 1: APPLICANT INFORMATION */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-bold">
-                  01
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                    Data Pemohon (Applicant Identity)
-                  </h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    Informasi identitas karyawan yang mengajukan permohonan layanan IT ini
-                  </p>
+            <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-6 shadow-xs">
+              <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-8 place-items-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-black shadow-2xs">
+                    01
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                      Data Pemohon (Applicant Identity)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Informasi identitas karyawan yang mengajukan permohonan layanan IT ini
+                    </p>
+                  </div>
                 </div>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                  <span>Langkah 1 dari 4</span>
+                </span>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -998,7 +1068,7 @@ function FormItContent() {
                       value={applicantName}
                       onChange={(e) => setApplicantName(e.target.value)}
                       placeholder="Nama lengkap pemohon..."
-                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15"
+                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 shadow-2xs"
                       required
                     />
                   </div>
@@ -1016,7 +1086,7 @@ function FormItContent() {
                       value={applicantNik}
                       onChange={(e) => setApplicantNik(e.target.value)}
                       placeholder="Contoh: 123456"
-                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 font-mono"
+                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 font-mono shadow-2xs"
                     />
                   </div>
                 </div>
@@ -1033,7 +1103,7 @@ function FormItContent() {
                       value={applicantPosition}
                       onChange={(e) => setApplicantPosition(e.target.value)}
                       placeholder="Contoh: Staff, Leader, Supervisor"
-                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15"
+                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 shadow-2xs"
                     />
                   </div>
                 </div>
@@ -1048,7 +1118,7 @@ function FormItContent() {
                     <select
                       value={department}
                       onChange={(e) => setDepartment(e.target.value)}
-                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-8 text-xs sm:text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15"
+                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-8 text-xs sm:text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 shadow-2xs"
                     >
                       {DEPARTMENTS.map((d) => (
                         <option key={d} value={d}>
@@ -1072,13 +1142,21 @@ function FormItContent() {
                           key={st}
                           type="button"
                           onClick={() => setEmployeeStatus(st)}
-                          className={`flex items-center justify-center gap-1.5 rounded-xl border py-2.5 px-3 text-xs font-bold transition active:scale-95 ${
+                          className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-bold transition active:scale-95 ${
                             isSelected
-                              ? 'border-emerald-600 bg-emerald-50/70 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
-                              : 'border-border bg-card text-muted-foreground hover:bg-secondary/40'
+                              ? 'border-emerald-600 bg-emerald-50/80 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
+                              : 'border-border bg-card text-muted-foreground hover:bg-secondary/50'
                           }`}
                         >
-                          {isSelected && <Check className="size-3.5 text-emerald-600" />}
+                          {isSelected ? (
+                            <Check className="size-3.5 text-emerald-600 shrink-0" />
+                          ) : st === 'TETAP' ? (
+                            <BadgeCheck className="size-3.5 text-muted-foreground/70 shrink-0" />
+                          ) : st === 'KONTRAK' ? (
+                            <CalendarDays className="size-3.5 text-muted-foreground/70 shrink-0" />
+                          ) : (
+                            <User className="size-3.5 text-muted-foreground/70 shrink-0" />
+                          )}
                           <span>{st === 'Other' ? 'Lainnya / Vendor' : st}</span>
                         </button>
                       )
@@ -1106,19 +1184,24 @@ function FormItContent() {
             {/* SECTION 2: FORM SPECIFIC FIELDS */}
             {/* ISMS-F-010-001: Pengadaan PC / Laptop */}
             {selectedFormCode === 'ISMS-F-010-001' && (
-              <div className="space-y-5 border-t border-border/70 pt-6">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                  <span className="grid size-7 place-items-center rounded-lg bg-blue-500/15 text-blue-700 dark:text-blue-400 font-mono text-xs font-bold">
-                    02
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Informasi Pengadaan PC/Laptop &amp; Lisensi Wajib
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Tentukan jenis pengadaan baru atau penggantian unit lama beserta rincian perangkat
-                    </p>
+              <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-8 place-items-center rounded-xl bg-blue-500/15 text-blue-700 dark:text-blue-400 font-mono text-xs font-black shadow-2xs">
+                      02
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                        Informasi Pengadaan PC/Laptop &amp; Lisensi Wajib
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Tentukan jenis pengadaan baru atau penggantian unit lama beserta rincian perangkat
+                      </p>
+                    </div>
                   </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                    <span>Langkah 2 dari 4</span>
+                  </span>
                 </div>
 
                 {/* Jenis Pengadaan Feature Cards */}
@@ -1131,7 +1214,7 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('baru')}
                       className={`relative flex items-start gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'baru'
-                          ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/20 ring-2 ring-blue-500/25 shadow-xs'
+                          ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/25 ring-2 ring-blue-500/25 shadow-xs'
                           : 'border-border bg-card hover:bg-secondary/40'
                       }`}
                     >
@@ -1155,7 +1238,7 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('pembaharuan')}
                       className={`relative flex items-start gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'pembaharuan'
-                          ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/20 ring-2 ring-blue-500/25 shadow-xs'
+                          ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/25 ring-2 ring-blue-500/25 shadow-xs'
                           : 'border-border bg-card hover:bg-secondary/40'
                       }`}
                     >
@@ -1177,11 +1260,28 @@ function FormItContent() {
                   </div>
                 </div>
 
+                {/* Maker, Model, OS with Quick Preset Chips */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-foreground">
-                      Maker / Merk (メーカー名)
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-foreground">Maker / Merk (メーカー名)</label>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {['Dell', 'Lenovo', 'HP', 'ASUS'].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setMaker(m)}
+                          className={`rounded px-2 py-0.5 text-[10px] font-semibold border transition ${
+                            maker === m
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
                     <input
                       type="text"
                       value={maker}
@@ -1190,6 +1290,7 @@ function FormItContent() {
                       className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
                     />
                   </div>
+
                   <div>
                     <label className="mb-1.5 block text-xs font-bold text-foreground">
                       Model / Type (型番)
@@ -1202,10 +1303,27 @@ function FormItContent() {
                       className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15"
                     />
                   </div>
+
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-foreground">
-                      Operating System (OS)
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-foreground">Operating System (OS)</label>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {['Windows 11 Pro', 'Windows 10 Pro'].map((o) => (
+                        <button
+                          key={o}
+                          type="button"
+                          onClick={() => setOsInfo(o)}
+                          className={`rounded px-2 py-0.5 text-[10px] font-semibold border transition ${
+                            osInfo === o
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary'
+                          }`}
+                        >
+                          {o}
+                        </button>
+                      ))}
+                    </div>
                     <input
                       type="text"
                       value={osInfo}
@@ -1258,17 +1376,18 @@ function FormItContent() {
                 </div>
 
                 {/* Software List Section with Quick Chips */}
-                <div className="rounded-2xl border border-border/80 bg-secondary/30 p-4.5 space-y-3">
+                <div className="rounded-2xl border border-border/80 bg-secondary/30 p-5 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                    <label className="text-xs font-bold text-foreground">
-                      List Software yang Diwajibkan dengan Lisensi Resmi (ライセンス必須 ソフトウェアリスト)
+                    <label className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Cpu className="size-4 text-blue-600" />
+                      <span>List Software yang Diwajibkan dengan Lisensi Resmi (ライセンス必須 ソフトウェアリスト)</span>
                     </label>
                     <span className="text-[11px] text-muted-foreground">Tuliskan 1 software per baris</span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[10px] font-bold text-muted-foreground">Pilihan Cepat:</span>
-                    {['Microsoft Office 2021', 'AutoCAD LT', 'Adobe Acrobat Standard', 'SAP Client', 'SolidWorks 2024'].map((sw) => (
+                    {['Microsoft Office 2021', 'AutoCAD LT', 'Adobe Acrobat Standard', 'SAP Client', 'SolidWorks 2024', 'VS Code'].map((sw) => (
                       <button
                         key={sw}
                         type="button"
@@ -1286,7 +1405,7 @@ function FormItContent() {
                     value={softwareListText}
                     onChange={(e) => setSoftwareListText(e.target.value)}
                     placeholder="Contoh:&#10;1. Microsoft Office 2021 Pro&#10;2. AutoCAD LT 2024&#10;3. Adobe Acrobat DC"
-                    className="w-full rounded-xl border border-input bg-card p-3.5 text-xs text-foreground outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 font-mono"
+                    className="w-full rounded-xl border border-input bg-card p-3.5 text-xs text-foreground outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 font-mono shadow-inner"
                   />
                 </div>
               </div>
@@ -1294,19 +1413,24 @@ function FormItContent() {
 
             {/* ISMS-F-010-003: Pengadaan Software */}
             {selectedFormCode === 'ISMS-F-010-003' && (
-              <div className="space-y-5 border-t border-border/70 pt-6">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                  <span className="grid size-7 place-items-center rounded-lg bg-purple-500/15 text-purple-700 dark:text-purple-400 font-mono text-xs font-bold">
-                    02
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Informasi Software &amp; Komputer yang Akan Diinstall
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Rincian lisensi software yang diajukan dan identitas PC tujuan instalasi
-                    </p>
+              <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-8 place-items-center rounded-xl bg-purple-500/15 text-purple-700 dark:text-purple-400 font-mono text-xs font-black shadow-2xs">
+                      02
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                        Informasi Software &amp; Komputer yang Akan Diinstall
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Rincian lisensi software yang diajukan dan identitas PC tujuan instalasi
+                      </p>
+                    </div>
                   </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                    <span>Langkah 2 dari 4</span>
+                  </span>
                 </div>
 
                 <div>
@@ -1318,7 +1442,7 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('baru')}
                       className={`relative flex items-start gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'baru'
-                          ? 'border-purple-500 bg-purple-50/60 dark:bg-purple-950/20 ring-2 ring-purple-500/25 shadow-xs'
+                          ? 'border-purple-500 bg-purple-50/70 dark:bg-purple-950/25 ring-2 ring-purple-500/25 shadow-xs'
                           : 'border-border bg-card hover:bg-secondary/40'
                       }`}
                     >
@@ -1342,7 +1466,7 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('pembaharuan')}
                       className={`relative flex items-start gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'pembaharuan'
-                          ? 'border-purple-500 bg-purple-50/60 dark:bg-purple-950/20 ring-2 ring-purple-500/25 shadow-xs'
+                          ? 'border-purple-500 bg-purple-50/70 dark:bg-purple-950/25 ring-2 ring-purple-500/25 shadow-xs'
                           : 'border-border bg-card hover:bg-secondary/40'
                       }`}
                     >
@@ -1364,10 +1488,11 @@ function FormItContent() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border/80 bg-secondary/30 p-4.5 space-y-3">
+                <div className="rounded-2xl border border-border/80 bg-secondary/30 p-5 space-y-3.5">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                    <label className="text-xs font-bold text-foreground">
-                      Software Wajib Berlisensi yang Akan Diorderkan (ライセンス必須 ソフトウェアリスト)
+                    <label className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <Cpu className="size-4 text-purple-600" />
+                      <span>Software Wajib Berlisensi yang Akan Diorderkan (ライセンス必須 ソフトウェアリスト)</span>
                     </label>
                     <span className="text-[11px] text-muted-foreground">Tuliskan 1 software per baris</span>
                   </div>
@@ -1392,7 +1517,7 @@ function FormItContent() {
                     value={softwareListText}
                     onChange={(e) => setSoftwareListText(e.target.value)}
                     placeholder="Contoh:&#10;1. SolidWorks Professional 2024&#10;2. MATLAB Machine Learning Toolbox"
-                    className="w-full rounded-xl border border-input bg-card p-3.5 text-xs text-foreground outline-none transition focus:border-purple-500 focus:ring-4 focus:ring-purple-500/15 font-mono"
+                    className="w-full rounded-xl border border-input bg-card p-3.5 text-xs text-foreground outline-none transition focus:border-purple-500 focus:ring-4 focus:ring-purple-500/15 font-mono shadow-inner"
                   />
                 </div>
 
@@ -1410,7 +1535,7 @@ function FormItContent() {
                         value={assetNo}
                         onChange={(e) => setAssetNo(e.target.value)}
                         placeholder="e.g. AST-IT-2024-001"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono shadow-2xs"
                       />
                     </div>
                     <div>
@@ -1420,7 +1545,7 @@ function FormItContent() {
                         value={maker}
                         onChange={(e) => setMaker(e.target.value)}
                         placeholder="e.g. Dell, Lenovo"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 shadow-2xs"
                       />
                     </div>
                     <div>
@@ -1430,7 +1555,7 @@ function FormItContent() {
                         value={modelType}
                         onChange={(e) => setModelType(e.target.value)}
                         placeholder="e.g. OptiPlex 7010"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 shadow-2xs"
                       />
                     </div>
                     <div>
@@ -1440,7 +1565,7 @@ function FormItContent() {
                         value={serialNo}
                         onChange={(e) => setSerialNo(e.target.value)}
                         placeholder="e.g. SN12345678"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono shadow-2xs"
                       />
                     </div>
                   </div>
@@ -1453,7 +1578,7 @@ function FormItContent() {
                         value={osInfo}
                         onChange={(e) => setOsInfo(e.target.value)}
                         placeholder="e.g. Windows 11 Pro"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 shadow-2xs"
                       />
                     </div>
                     <div>
@@ -1463,7 +1588,7 @@ function FormItContent() {
                         value={pcName}
                         onChange={(e) => setPcName(e.target.value)}
                         placeholder="e.g. JAI-PC-ENG01"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono shadow-2xs"
                       />
                     </div>
                     <div>
@@ -1473,7 +1598,7 @@ function FormItContent() {
                         value={loginUsername}
                         onChange={(e) => setLoginUsername(e.target.value)}
                         placeholder="e.g. username"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 font-mono shadow-2xs"
                       />
                     </div>
                     <div>
@@ -1483,7 +1608,7 @@ function FormItContent() {
                         value={functionPurpose}
                         onChange={(e) => setFunctionPurpose(e.target.value)}
                         placeholder="e.g. Desain Drawing"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-purple-500 shadow-2xs"
                       />
                     </div>
                   </div>
@@ -1493,28 +1618,33 @@ function FormItContent() {
 
             {/* ISMS-F-010-006: Email & User ID */}
             {selectedFormCode === 'ISMS-F-010-006' && (
-              <div className="space-y-5 border-t border-border/70 pt-6">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                  <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-bold">
-                    02
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Perihal Pengajuan / Perubahan Akun (件名)
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Pilih layanan email atau user ID login yang hendak dibuat atau diubah
-                    </p>
+              <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-8 place-items-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-black shadow-2xs">
+                      02
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                        Perihal Pengajuan / Perubahan Akun (件名)
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Pilih layanan email atau user ID login yang hendak dibuat atau diubah
+                      </p>
+                    </div>
                   </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                    <span>Langkah 2 dari 4</span>
+                  </span>
                 </div>
 
                 {/* 4 Interactive Toggle Cards */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div
                     onClick={() => setReqEmail(!reqEmail)}
-                    className={`flex items-center gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                       reqEmail
-                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 ring-2 ring-emerald-500/25 shadow-xs'
+                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/25 ring-2 ring-emerald-500/25 shadow-xs'
                         : 'border-border bg-card hover:bg-secondary/40'
                     }`}
                   >
@@ -1531,9 +1661,9 @@ function FormItContent() {
 
                   <div
                     onClick={() => setChangeEmail(!changeEmail)}
-                    className={`flex items-center gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                       changeEmail
-                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 ring-2 ring-emerald-500/25 shadow-xs'
+                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/25 ring-2 ring-emerald-500/25 shadow-xs'
                         : 'border-border bg-card hover:bg-secondary/40'
                     }`}
                   >
@@ -1550,9 +1680,9 @@ function FormItContent() {
 
                   <div
                     onClick={() => setReqUserId(!reqUserId)}
-                    className={`flex items-center gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                       reqUserId
-                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 ring-2 ring-emerald-500/25 shadow-xs'
+                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/25 ring-2 ring-emerald-500/25 shadow-xs'
                         : 'border-border bg-card hover:bg-secondary/40'
                     }`}
                   >
@@ -1569,9 +1699,9 @@ function FormItContent() {
 
                   <div
                     onClick={() => setChangeUserId(!changeUserId)}
-                    className={`flex items-center gap-3.5 rounded-2xl border p-4 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                       changeUserId
-                        ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 ring-2 ring-emerald-500/25 shadow-xs'
+                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/25 ring-2 ring-emerald-500/25 shadow-xs'
                         : 'border-border bg-card hover:bg-secondary/40'
                     }`}
                   >
@@ -1589,9 +1719,22 @@ function FormItContent() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
                   <div>
-                    <label className="mb-1.5 block text-xs font-bold text-foreground">
-                      Alamat Email yang Dimohon / Diubah
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-foreground">
+                        Alamat Email yang Dimohon / Diubah
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (targetEmail && !targetEmail.includes('@')) {
+                            setTargetEmail(`${targetEmail}@jai.co.id`)
+                          }
+                        }}
+                        className="text-[10px] font-bold text-emerald-600 hover:underline"
+                      >
+                        + @jai.co.id
+                      </button>
+                    </div>
                     <div className="relative">
                       <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                       <input
@@ -1599,7 +1742,7 @@ function FormItContent() {
                         value={targetEmail}
                         onChange={(e) => setTargetEmail(e.target.value)}
                         placeholder="contoh: nama.karyawan@jai.co.id"
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 font-mono"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 font-mono shadow-2xs"
                       />
                     </div>
                   </div>
@@ -1614,7 +1757,7 @@ function FormItContent() {
                         value={targetUserId}
                         onChange={(e) => setTargetUserId(e.target.value)}
                         placeholder="contoh: jaimfg01 atau username domain"
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 font-mono"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 font-mono shadow-2xs"
                       />
                     </div>
                   </div>
@@ -1624,26 +1767,31 @@ function FormItContent() {
 
             {/* ISMS-F-010-007: Deletion of Email & ID */}
             {selectedFormCode === 'ISMS-F-010-007' && (
-              <div className="space-y-5 border-t border-border/70 pt-6">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                  <span className="grid size-7 place-items-center rounded-lg bg-rose-500/15 text-rose-700 dark:text-rose-400 font-mono text-xs font-bold">
-                    02
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Perihal Penghapusan / Penonaktifan Akun (件名)
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Pilih penonaktifan akun email atau user login untuk karyawan resign / mutasi
-                    </p>
+              <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-8 place-items-center rounded-xl bg-rose-500/15 text-rose-700 dark:text-rose-400 font-mono text-xs font-black shadow-2xs">
+                      02
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                        Perihal Penghapusan / Penonaktifan Akun (件名)
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Pilih penonaktifan akun email atau user login untuk karyawan resign / mutasi
+                      </p>
+                    </div>
                   </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                    <span>Langkah 2 dari 4</span>
+                  </span>
                 </div>
 
-                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-3">
+                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4.5 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-3">
                   <ShieldAlert className="size-5 shrink-0 text-rose-600 mt-0.5" />
                   <div>
-                    <span className="font-bold block">Peringatan Keamanan ISMS:</span>
-                    Penghapusan akun akan mencabut akses ke seluruh email server, active directory, dan sistem internal perusahaan secara permanen.
+                    <span className="font-bold block text-sm mb-1">Peringatan Keamanan ISMS ISO/IEC 27001:</span>
+                    Penghapusan akun akan mencabut akses ke seluruh email server, active directory, dan sistem internal perusahaan secara permanen guna mencegah akses tidak sah pasca purna tugas karyawan.
                   </div>
                 </div>
 
@@ -1652,7 +1800,7 @@ function FormItContent() {
                     onClick={() => setDelEmail(!delEmail)}
                     className={`flex items-center gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                       delEmail
-                        ? 'border-rose-500 bg-rose-50/60 dark:bg-rose-950/20 ring-2 ring-rose-500/25 shadow-xs'
+                        ? 'border-rose-500 bg-rose-50/70 dark:bg-rose-950/25 ring-2 ring-rose-500/25 shadow-xs'
                         : 'border-border bg-card hover:bg-secondary/40'
                     }`}
                   >
@@ -1671,7 +1819,7 @@ function FormItContent() {
                     onClick={() => setDelUserId(!delUserId)}
                     className={`flex items-center gap-3.5 rounded-2xl border p-4.5 cursor-pointer transition ${
                       delUserId
-                        ? 'border-rose-500 bg-rose-50/60 dark:bg-rose-950/20 ring-2 ring-rose-500/25 shadow-xs'
+                        ? 'border-rose-500 bg-rose-50/70 dark:bg-rose-950/25 ring-2 ring-rose-500/25 shadow-xs'
                         : 'border-border bg-card hover:bg-secondary/40'
                     }`}
                   >
@@ -1699,7 +1847,7 @@ function FormItContent() {
                         value={targetEmail}
                         onChange={(e) => setTargetEmail(e.target.value)}
                         placeholder="contoh: nama.karyawan@jai.co.id"
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15 font-mono"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15 font-mono shadow-2xs"
                       />
                     </div>
                   </div>
@@ -1714,7 +1862,7 @@ function FormItContent() {
                         value={targetUserId}
                         onChange={(e) => setTargetUserId(e.target.value)}
                         placeholder="contoh: jaimfg01"
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15 font-mono"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15 font-mono shadow-2xs"
                       />
                     </div>
                   </div>
@@ -1724,19 +1872,24 @@ function FormItContent() {
 
             {/* ISMS-F-03-00-003: Network Connection */}
             {selectedFormCode === 'ISMS-F-03-00-003' && (
-              <div className="space-y-5 border-t border-border/70 pt-6">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                  <span className="grid size-7 place-items-center rounded-lg bg-teal-500/15 text-teal-700 dark:text-teal-400 font-mono text-xs font-bold">
-                    02
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Informasi Koneksi &amp; Perangkat Jaringan (Network Details)
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Rincian durasi sambungan, lokasi fisik, tujuan akses, dan konfigurasi IP perangkat
-                    </p>
+              <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-8 place-items-center rounded-xl bg-teal-500/15 text-teal-700 dark:text-teal-400 font-mono text-xs font-black shadow-2xs">
+                      02
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                        Informasi Koneksi &amp; Perangkat Jaringan (Network Details)
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Rincian durasi sambungan, lokasi fisik, tujuan akses, dan konfigurasi IP perangkat
+                      </p>
+                    </div>
                   </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                    <span>Langkah 2 dari 4</span>
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -1750,7 +1903,7 @@ function FormItContent() {
                         type="date"
                         value={periodFrom}
                         onChange={(e) => setPeriodFrom(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15 font-mono"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15 font-mono shadow-2xs"
                         required
                       />
                     </div>
@@ -1765,7 +1918,7 @@ function FormItContent() {
                         type="date"
                         value={periodTo}
                         onChange={(e) => setPeriodTo(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15 font-mono"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15 font-mono shadow-2xs"
                         required
                       />
                     </div>
@@ -1781,7 +1934,7 @@ function FormItContent() {
                         value={networkLocation}
                         onChange={(e) => setNetworkLocation(e.target.value)}
                         placeholder="e.g. Ruang Meeting, Server Room, MFG"
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/15 shadow-2xs"
                         required
                       />
                     </div>
@@ -1796,50 +1949,50 @@ function FormItContent() {
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div
                       onClick={() => setPurposeInternet(!purposeInternet)}
-                      className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeInternet
-                          ? 'border-teal-500 bg-teal-50/60 dark:bg-teal-950/20 ring-2 ring-teal-500/20 text-foreground font-bold'
+                          ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/25 ring-2 ring-teal-500/20 text-foreground font-bold shadow-2xs'
                           : 'border-border bg-card text-muted-foreground hover:bg-secondary/40'
                       }`}
                     >
                       <Globe className={`size-4 ${purposeInternet ? 'text-teal-600' : 'text-muted-foreground'}`} />
-                      <span className="text-xs">Internet</span>
+                      <span className="text-xs">Internet Browsing</span>
                     </div>
 
                     <div
                       onClick={() => setPurposeEmail(!purposeEmail)}
-                      className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeEmail
-                          ? 'border-teal-500 bg-teal-50/60 dark:bg-teal-950/20 ring-2 ring-teal-500/20 text-foreground font-bold'
+                          ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/25 ring-2 ring-teal-500/20 text-foreground font-bold shadow-2xs'
                           : 'border-border bg-card text-muted-foreground hover:bg-secondary/40'
                       }`}
                     >
                       <Mail className={`size-4 ${purposeEmail ? 'text-teal-600' : 'text-muted-foreground'}`} />
-                      <span className="text-xs">E-Mail</span>
+                      <span className="text-xs">Mail Client</span>
                     </div>
 
                     <div
                       onClick={() => setPurposeWeb(!purposeWeb)}
-                      className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeWeb
-                          ? 'border-teal-500 bg-teal-50/60 dark:bg-teal-950/20 ring-2 ring-teal-500/20 text-foreground font-bold'
+                          ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/25 ring-2 ring-teal-500/20 text-foreground font-bold shadow-2xs'
                           : 'border-border bg-card text-muted-foreground hover:bg-secondary/40'
                       }`}
                     >
                       <Layers className={`size-4 ${purposeWeb ? 'text-teal-600' : 'text-muted-foreground'}`} />
-                      <span className="text-xs">Web Apps</span>
+                      <span className="text-xs">Internal Web Apps</span>
                     </div>
 
                     <div
                       onClick={() => setPurposeFtp(!purposeFtp)}
-                      className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeFtp
-                          ? 'border-teal-500 bg-teal-50/60 dark:bg-teal-950/20 ring-2 ring-teal-500/20 text-foreground font-bold'
+                          ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/25 ring-2 ring-teal-500/20 text-foreground font-bold shadow-2xs'
                           : 'border-border bg-card text-muted-foreground hover:bg-secondary/40'
                       }`}
                     >
                       <HardDrive className={`size-4 ${purposeFtp ? 'text-teal-600' : 'text-muted-foreground'}`} />
-                      <span className="text-xs">FTP / Server</span>
+                      <span className="text-xs">FTP &amp; File Server</span>
                     </div>
                   </div>
                 </div>
@@ -1856,7 +2009,7 @@ function FormItContent() {
                       <select
                         value={antivirusInstalled ? 'yes' : 'no'}
                         onChange={(e) => setAntivirusInstalled(e.target.value === 'yes')}
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 shadow-2xs"
                       >
                         <option value="yes">YES (Wajib Terinstall)</option>
                         <option value="no">NO</option>
@@ -1868,7 +2021,7 @@ function FormItContent() {
                         type="text"
                         value={antivirusName}
                         onChange={(e) => setAntivirusName(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 shadow-2xs"
                       />
                     </div>
                     <div>
@@ -1878,7 +2031,7 @@ function FormItContent() {
                         value={osInfo}
                         onChange={(e) => setOsInfo(e.target.value)}
                         placeholder="Windows 11 / MacOS / Linux"
-                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 shadow-2xs"
                       />
                     </div>
                   </div>
@@ -1891,7 +2044,7 @@ function FormItContent() {
                         onClick={() => setIpMode('dhcp')}
                         className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-4 text-xs font-bold transition active:scale-95 ${
                           ipMode === 'dhcp'
-                            ? 'border-teal-600 bg-teal-50/70 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 ring-2 ring-teal-500/20 shadow-xs'
+                            ? 'border-teal-600 bg-teal-50/80 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 ring-2 ring-teal-500/20 shadow-xs'
                             : 'border-border bg-card text-muted-foreground hover:bg-secondary/40'
                         }`}
                       >
@@ -1904,7 +2057,7 @@ function FormItContent() {
                         onClick={() => setIpMode('static')}
                         className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-4 text-xs font-bold transition active:scale-95 ${
                           ipMode === 'static'
-                            ? 'border-teal-600 bg-teal-50/70 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 ring-2 ring-teal-500/20 shadow-xs'
+                            ? 'border-teal-600 bg-teal-50/80 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300 ring-2 ring-teal-500/20 shadow-xs'
                             : 'border-border bg-card text-muted-foreground hover:bg-secondary/40'
                         }`}
                       >
@@ -1923,7 +2076,7 @@ function FormItContent() {
                           value={staticIp}
                           onChange={(e) => setStaticIp(e.target.value)}
                           placeholder="192.168.1.xxx"
-                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 font-mono"
+                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 font-mono shadow-2xs"
                         />
                       </div>
                       <div>
@@ -1932,7 +2085,7 @@ function FormItContent() {
                           type="text"
                           value={staticSubnet}
                           onChange={(e) => setStaticSubnet(e.target.value)}
-                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 font-mono"
+                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 font-mono shadow-2xs"
                         />
                       </div>
                       <div>
@@ -1942,7 +2095,7 @@ function FormItContent() {
                           value={staticGateway}
                           onChange={(e) => setStaticGateway(e.target.value)}
                           placeholder="192.168.1.1"
-                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 font-mono"
+                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-teal-500 font-mono shadow-2xs"
                         />
                       </div>
                     </div>
@@ -1953,19 +2106,24 @@ function FormItContent() {
 
             {/* FORM 6: ISMS-F-02-00-002 (Fingerprint Special Security Area) */}
             {selectedFormCode === 'ISMS-F-02-00-002' && (
-              <div className="space-y-6 border-t border-border/70 pt-6">
-                <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                  <span className="grid size-7 place-items-center rounded-lg bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 font-mono text-xs font-bold">
-                    02
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Registrasi Akses Sidik Jari (Special Security Area)
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground">
-                      Pendaftaran akses sidik jari area khusus berkeamanan tinggi dengan verifikasi dan persetujuan resmi IAA
-                    </p>
+              <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-6 shadow-xs">
+                <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-8 place-items-center rounded-xl bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 font-mono text-xs font-black shadow-2xs">
+                      02
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                        Registrasi Akses Sidik Jari (Special Security Area)
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        Pendaftaran akses sidik jari area khusus berkeamanan tinggi dengan verifikasi dan persetujuan resmi IAA
+                      </p>
+                    </div>
                   </div>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                    <span>Langkah 2 dari 4</span>
+                  </span>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1999,7 +2157,7 @@ function FormItContent() {
                       value={areaSpecialSecurity}
                       onChange={(e) => setAreaSpecialSecurity(e.target.value)}
                       placeholder="Masukkan atau pilih area special security..."
-                      className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15"
+                      className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 shadow-2xs"
                       required
                     />
                   </div>
@@ -2016,7 +2174,7 @@ function FormItContent() {
                         value={fingerprintId}
                         onChange={(e) => setFingerprintId(e.target.value)}
                         placeholder="Contoh: FP-0129 / Kosongkan jika baru"
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 font-mono"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 font-mono shadow-2xs"
                       />
                     </div>
                   </div>
@@ -2032,13 +2190,13 @@ function FormItContent() {
                           setNoExpiration(!noExpiration)
                           if (!noExpiration) setAccessDeletionDate('')
                         }}
-                        className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                        className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold"
                       >
                         {noExpiration ? 'Tetapkan Tanggal Tertentu' : 'Sesuai Masa Penugasan'}
                       </button>
                     </div>
                     {noExpiration ? (
-                      <div className="flex h-11 w-full items-center rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 px-3.5 text-xs font-medium text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-300">
+                      <div className="flex h-11 w-full items-center rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 px-3.5 text-xs font-semibold text-indigo-800 dark:border-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-300">
                         <Check className="mr-2 size-3.5 text-indigo-600" /> Sesuai Masa Penugasan (Tidak Dibatasi Tanggal)
                       </div>
                     ) : (
@@ -2048,7 +2206,7 @@ function FormItContent() {
                           type="date"
                           value={accessDeletionDate}
                           onChange={(e) => setAccessDeletionDate(e.target.value)}
-                          className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 font-mono"
+                          className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 font-mono shadow-2xs"
                           required={!noExpiration}
                         />
                       </div>
@@ -2057,63 +2215,70 @@ function FormItContent() {
                 </div>
 
                 {/* Komitmen / 約束 Box */}
-                <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 via-amber-50/30 to-transparent p-4 sm:p-5 dark:border-amber-900/60 dark:from-amber-950/20 dark:via-transparent">
-                  <div className="flex items-start gap-3">
-                    <div className="grid size-9 place-items-center rounded-xl bg-amber-500 text-white shadow-sm shrink-0">
+                <div className="rounded-3xl border border-amber-300/80 bg-gradient-to-br from-amber-50/80 via-amber-50/30 to-transparent p-5 sm:p-6 dark:border-amber-900/60 dark:from-amber-950/20 dark:via-transparent shadow-xs">
+                  <div className="flex items-start gap-3.5">
+                    <div className="grid size-10 place-items-center rounded-2xl bg-amber-500 text-white shadow-sm shrink-0">
                       <Shield className="size-5" />
                     </div>
-                    <div className="flex-1 space-y-2">
+                    <div className="flex-1 space-y-2.5">
                       <div className="flex items-center gap-2">
-                        <h4 className="text-xs sm:text-sm font-bold text-foreground">
-                          KOMITMEN KEAMANAN INFORMASI / 約束
+                        <h4 className="text-xs sm:text-sm font-extrabold text-foreground tracking-tight">
+                          KOMITMEN KEAMANAN INFORMASI / 特別区画遵守約束
                         </h4>
-                        <span className="rounded-full bg-amber-200/70 px-2 py-0.5 text-[10px] font-bold text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
+                        <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black text-amber-900 dark:bg-amber-900/60 dark:text-amber-200">
                           Wajib Disetujui
                         </span>
                       </div>
-                      <ul className="space-y-1.5 text-xs text-muted-foreground leading-relaxed">
+                      <ul className="space-y-2 text-xs text-muted-foreground leading-relaxed">
                         <li className="flex items-start gap-2">
-                          <span className="font-bold text-foreground shrink-0">1.</span>
+                          <span className="font-bold text-amber-700 dark:text-amber-400 shrink-0">1.</span>
                           <span>
                             <strong>Menjaga kerahasiaan informasi yang ada di Special Security Area</strong> (特別セキュリティ区画にある情報資産を守ること).
                           </span>
                         </li>
                         <li className="flex items-start gap-2">
-                          <span className="font-bold text-foreground shrink-0">2.</span>
+                          <span className="font-bold text-amber-700 dark:text-amber-400 shrink-0">2.</span>
                           <span>
                             <strong>Melaporkan ke IAA (Teguh Sunjoyo) bila terjadi kebocoran informasi</strong> (情報漏れが発生した場合、情報資産管理者（タグーさん）へ至急に連絡すること).
                           </span>
                         </li>
                       </ul>
 
-                      <label className="mt-3 flex items-center gap-2.5 cursor-pointer pt-2 border-t border-amber-200/60 dark:border-amber-900/40">
+                      <label className={`mt-3 flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition ${
+                        komitmenAgreed
+                          ? 'border-emerald-500/80 bg-emerald-50/80 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-200 shadow-2xs'
+                          : 'border-amber-300/80 bg-amber-50/40 dark:border-amber-900/60 text-foreground'
+                      }`}>
                         <input
                           type="checkbox"
                           checked={komitmenAgreed}
                           onChange={(e) => setKomitmenAgreed(e.target.checked)}
-                          className="size-4 rounded text-indigo-600 focus:ring-indigo-500"
+                          className="size-4.5 rounded text-emerald-600 focus:ring-emerald-500"
                           required
                         />
-                        <span className="text-xs font-semibold text-foreground">
+                        <span className="text-xs font-bold leading-snug">
                           Saya menyatakan memahami, menyetujui, dan berkomitmen mematuhi ketentuan keamanan di atas.
                         </span>
+                        {komitmenAgreed && (
+                          <CheckCircle2 className="size-4 text-emerald-600 ml-auto shrink-0" />
+                        )}
                       </label>
                     </div>
                   </div>
                 </div>
 
                 {/* Approver Highlight Box */}
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-indigo-200/80 bg-indigo-50/50 p-3.5 dark:border-indigo-900/50 dark:bg-indigo-950/20">
-                  <div className="flex items-center gap-3">
-                    <div className="grid size-8 place-items-center rounded-lg bg-indigo-600 text-white font-mono text-xs font-bold">
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-200/80 bg-indigo-50/60 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/25 shadow-2xs">
+                  <div className="flex items-center gap-3.5">
+                    <div className="grid size-9 place-items-center rounded-xl bg-indigo-600 text-white font-mono text-xs font-black shadow-xs">
                       IAA
                     </div>
                     <div>
                       <p className="text-xs font-bold text-foreground">Penyetuju Akhir: Teguh Sunjoyo</p>
-                      <p className="text-[11px] text-muted-foreground">Information Assets Administrator (IAA) • E-Sign Resmi</p>
+                      <p className="text-[11px] text-muted-foreground">Information Assets Administrator (IAA) • E-Sign Resmi ber-QR Code</p>
                     </div>
                   </div>
-                  <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[10px] font-bold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                  <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-extrabold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
                     1 Tahap Approval
                   </span>
                 </div>
@@ -2121,23 +2286,28 @@ function FormItContent() {
             )}
 
             {/* SECTION 3: NOTES & JUSTIFICATION */}
-            <div className="space-y-4 border-t border-border/70 pt-6">
-              <div className="flex items-center gap-2.5 pb-2 border-b border-border/70">
-                <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-bold">
-                  03
-                </span>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                    Catatan Tambahan &amp; Alasan Permohonan (Justification)
-                  </h3>
-                  <p className="text-[11px] text-muted-foreground">
-                    Tuliskan justifikasi operasional atau alasan kebutuhan pengajuan ini
-                  </p>
+            <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-8 place-items-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-black shadow-2xs">
+                    03
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
+                      Catatan Tambahan &amp; Alasan Permohonan (Justification)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Tuliskan justifikasi operasional atau alasan kebutuhan pengajuan ini
+                    </p>
+                  </div>
                 </div>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                  <span>Langkah 3 dari 4</span>
+                </span>
               </div>
 
               <div>
-                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
                   <span className="text-[10px] font-bold text-muted-foreground">Rekomendasi Template:</span>
                   {[
                     'Karyawan Baru Masuk Kerja',
@@ -2149,7 +2319,7 @@ function FormItContent() {
                       key={preset}
                       type="button"
                       onClick={() => setNotes((prev) => (prev ? `${prev}. ${preset}` : preset))}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-medium text-foreground hover:bg-secondary transition active:scale-95"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-semibold text-foreground hover:bg-secondary transition active:scale-95"
                     >
                       <Plus className="size-2.5 text-emerald-600" />
                       <span>{preset}</span>
@@ -2162,20 +2332,20 @@ function FormItContent() {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Tuliskan keterangan detail, alasan pengajuan, atau urgensi permohonan layanan IT ini..."
                   rows={3}
-                  className="w-full rounded-xl border border-input bg-card p-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15"
+                  className="w-full rounded-2xl border border-input bg-card p-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15 shadow-inner"
                 />
               </div>
             </div>
 
             {/* SECTION 4: APPROVERS SEQUENCE PREVIEW */}
-            <div className="space-y-4 border-t border-border/70 pt-6">
-              <div className="flex items-center justify-between pb-2 border-b border-border/70">
-                <div className="flex items-center gap-2.5">
-                  <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-bold">
+            <div className="rounded-3xl border border-border/80 bg-card/50 p-6 sm:p-7 space-y-5 shadow-xs">
+              <div className="flex items-center justify-between pb-3.5 border-b border-border/70">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-8 place-items-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-mono text-xs font-black shadow-2xs">
                     04
                   </span>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                    <h3 className="text-sm font-extrabold text-foreground uppercase tracking-wide">
                       Alur Pejabat Penyetuju Form Ini (Configured Approvers)
                     </h3>
                     <p className="text-[11px] text-muted-foreground">
@@ -2184,40 +2354,45 @@ function FormItContent() {
                   </div>
                 </div>
 
-                {adminUser && (
-                  <Link
-                    href="/kelola-approver-it"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
-                  >
-                    <span>Ubah Pejabat</span>
-                    <ExternalLink className="size-3" />
-                  </Link>
-                )}
+                <div className="flex items-center gap-3">
+                  <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-secondary/80 border border-border/60 px-3 py-1 rounded-full">
+                    <span>Langkah 4 dari 4</span>
+                  </span>
+                  {adminUser && (
+                    <Link
+                      href="/kelola-approver-it"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:underline"
+                    >
+                      <span>Ubah Pejabat</span>
+                      <ExternalLink className="size-3" />
+                    </Link>
+                  )}
+                </div>
               </div>
 
               <div className="rounded-2xl border border-border/80 bg-secondary/30 p-4 sm:p-5">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   {approvers.map((a, idx) => (
                     <React.Fragment key={a.id}>
-                      <div className="flex-1 rounded-xl border border-border bg-card p-3 shadow-2xs">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="font-mono text-[10px] font-extrabold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded">
+                      <div className="flex-1 rounded-2xl border border-border bg-card p-3.5 shadow-2xs hover:shadow-sm transition">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-mono text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/20">
                             STEP {idx + 1}
                           </span>
-                          <span className="text-[10px] text-muted-foreground font-semibold">
+                          <span className="text-[10px] text-muted-foreground font-semibold truncate max-w-[120px]">
                             {a.slot_label}
                           </span>
                         </div>
-                        <div className="text-xs font-bold text-foreground leading-snug">
+                        <div className="text-xs font-extrabold text-foreground leading-snug">
                           {a.person_name}
                         </div>
-                        <div className="text-[10px] text-muted-foreground truncate">
+                        <div className="text-[10px] text-muted-foreground truncate mt-0.5">
                           {a.role_title.split('/')[0]}
                         </div>
                       </div>
                       {idx < approvers.length - 1 && (
                         <div className="hidden md:flex items-center justify-center shrink-0">
-                          <ArrowRight className="size-4 text-muted-foreground/60" />
+                          <ArrowRight className="size-4 text-emerald-600/70" />
                         </div>
                       )}
                     </React.Fragment>
@@ -2240,18 +2415,21 @@ function FormItContent() {
             </div>
 
             {/* GRAND SUBMIT ACTION BAR */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-border/70 pt-6">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <ShieldCheck className="size-4 text-emerald-600 shrink-0" />
-                <span>
+            <div className="rounded-3xl border border-border/80 bg-gradient-to-r from-card via-card/90 to-secondary/30 p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-foreground block">ISMS Digital Compliance</span>
                   Formulir ini dilindungi pengesahan digital ber-QR Code standar ISO/IEC 27001 ISMS PT. JAI.
-                </span>
+                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 px-7 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/20 transition-all hover:from-emerald-500 hover:to-teal-600 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 active:scale-95 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 px-7 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/20 transition-all hover:from-emerald-500 hover:to-teal-600 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 active:scale-95 cursor-pointer shrink-0"
               >
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />

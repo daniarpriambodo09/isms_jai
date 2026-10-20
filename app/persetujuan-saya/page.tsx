@@ -95,8 +95,8 @@ function WhatBadge({ item }: { item: Item }) {
       <span
         className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold border ${
           item.signsReview
-            ? 'bg-amber-100 text-amber-900 border-amber-300/40 dark:bg-amber-950/60 dark:text-amber-300'
-            : 'bg-slate-100 text-slate-800 border-slate-300/40 dark:bg-slate-800 dark:text-slate-200'
+            ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/25 dark:text-emerald-300'
+            : 'bg-primary/10 text-primary border-primary/25'
         }`}
       >
         {item.signsReview ? 'Form Review' : 'Dokumen Prosedur'}
@@ -265,7 +265,7 @@ export default function PersetujuanSayaPage() {
   if (!sessionUser) {
     return (
       <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-10 text-center shadow-sm">
-        <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400">
+        <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
           <ClipboardCheck className="size-8" />
         </span>
         <h2 className="mt-5 font-display text-2xl font-bold text-foreground">ISMS - Digital Approval</h2>
@@ -275,7 +275,7 @@ export default function PersetujuanSayaPage() {
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event('open-admin-login'))}
-          className="mt-6 inline-flex items-center gap-2 rounded-full bg-red-600 px-7 py-3 text-sm font-semibold text-white shadow-md shadow-red-600/25 transition hover:bg-red-700 active:scale-95"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-7 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition hover:bg-primary/90 active:scale-95"
         >
           <LogIn className="size-4" /> Masuk ke Dashboard
         </button>
@@ -291,11 +291,10 @@ export default function PersetujuanSayaPage() {
       {/* Top App Header / Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
         <div className="flex items-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/80 bg-slate-900 px-4 py-1.5 text-xs font-bold text-white shadow-sm shadow-slate-950/20 dark:bg-slate-800">
-            <span className="size-2 rounded-full bg-red-500" />
-            <ClipboardCheck className="size-4 text-red-400" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary shadow-xs">
+            <ClipboardCheck className="size-4" />
             <span>Dashboard Approval</span>
-            <span className="rounded-full bg-red-600 px-2 py-0.2 text-[10.5px] font-bold text-white">
+            <span className="rounded-full bg-primary px-2 py-0.2 text-[10.5px] font-bold text-primary-foreground">
               {data ? data.pending.length : 0}
             </span>
           </div>
@@ -335,46 +334,42 @@ export default function PersetujuanSayaPage() {
         </div>
       </div>
 
-      {/* Hero KPI Card (Yazaki ISMS Executive Style) */}
-      <header className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-gradient-to-br from-[#0c1926] via-[#102334] to-[#0a141f] p-6 text-white shadow-xl shadow-slate-950/25 sm:p-8">
-        {/* Subtle decorative brand glows */}
-        <div className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-red-600/15 blur-3xl" />
-        <div className="pointer-events-none absolute -left-20 -bottom-20 size-72 rounded-full bg-teal-500/10 blur-3xl" />
-
+      {/* Hero KPI Card (Authentic ISMS Portal Theme) */}
+      <header className="relative overflow-hidden rounded-3xl bg-primary px-6 py-7 text-primary-foreground shadow-xl shadow-primary/15 sm:px-8">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/15 px-3 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.1em] text-red-300">
-              <span className="size-1.5 rounded-full bg-red-400" />
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/20 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-foreground">
+              <ClipboardCheck className="size-3.5 text-accent" />
               Sistem Persetujuan Digital ISMS
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+            <h1 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl md:text-4xl">
               {data
                 ? data.pending.length
                   ? `${data.pending.length} Dokumen Menunggu Persetujuan Anda`
                   : 'Semua Dokumen Telah Selesai Disetujui'
                 : 'Memuat antrean...'}
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              Masuk sebagai <strong className="text-white">{sessionUser.username}</strong>
-              {data?.email ? <> · alamat email: <strong className="text-white">{data.email}</strong></> : null}.
+            <p className="mt-2 text-sm leading-relaxed text-primary-foreground/80">
+              Masuk sebagai <strong className="font-semibold text-primary-foreground">{sessionUser.username}</strong>
+              {data?.email ? <> · alamat email: <strong className="font-semibold text-primary-foreground">{data.email}</strong></> : null}.
               Tinjau isi dokumen, beri catatan revisi atau tanda tangani dokumen secara digital langsung dari dashboard.
             </p>
           </div>
 
           {/* Quick Metrics Badges */}
           {data && (
-            <div className="grid grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-black/30 p-3.5 backdrop-blur-md">
+            <div className="grid grid-cols-3 gap-3 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 p-3.5 backdrop-blur-md">
               <div className="text-center">
-                <p className="text-[11px] font-semibold text-amber-400">Menunggu</p>
-                <p className="font-display text-2xl font-bold text-white">{data.pending.length}</p>
+                <p className="text-[11px] font-semibold text-accent">Menunggu</p>
+                <p className="font-display text-2xl font-bold text-primary-foreground">{data.pending.length}</p>
               </div>
-              <div className="border-x border-white/10 px-3 text-center">
-                <p className="text-[11px] font-semibold text-slate-300">Antrean</p>
-                <p className="font-display text-2xl font-bold text-white">{data.queued.length}</p>
+              <div className="border-x border-primary-foreground/20 px-3 text-center">
+                <p className="text-[11px] font-semibold text-primary-foreground/80">Antrean</p>
+                <p className="font-display text-2xl font-bold text-primary-foreground">{data.queued.length}</p>
               </div>
               <div className="text-center">
-                <p className="text-[11px] font-semibold text-emerald-400">Selesai</p>
-                <p className="font-display text-2xl font-bold text-white">{data.recent.length}</p>
+                <p className="text-[11px] font-semibold text-emerald-300">Selesai</p>
+                <p className="font-display text-2xl font-bold text-primary-foreground">{data.recent.length}</p>
               </div>
             </div>
           )}
@@ -408,13 +403,13 @@ export default function PersetujuanSayaPage() {
               onClick={() => setActiveTab('pending')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
                 activeTab === 'pending'
-                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >
-              <Clock className="size-3.5 text-amber-500" />
+              <Clock className="size-3.5" />
               <span>Menunggu Persetujuan</span>
-              <span className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${activeTab === 'pending' ? 'bg-red-600 text-white' : 'bg-muted text-foreground'}`}>
+              <span className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${activeTab === 'pending' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground'}`}>
                 {data.pending.length}
               </span>
             </button>
@@ -424,13 +419,13 @@ export default function PersetujuanSayaPage() {
               onClick={() => setActiveTab('queued')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
                 activeTab === 'queued'
-                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >
               <Hourglass className="size-3.5" />
               <span>Belum Giliran</span>
-              <span className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${activeTab === 'queued' ? 'bg-slate-700 text-white dark:bg-slate-300 dark:text-slate-900' : 'bg-muted text-foreground'}`}>
+              <span className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${activeTab === 'queued' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground'}`}>
                 {data.queued.length}
               </span>
             </button>
@@ -440,13 +435,13 @@ export default function PersetujuanSayaPage() {
               onClick={() => setActiveTab('recent')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
                 activeTab === 'recent'
-                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >
-              <CheckCircle2 className="size-3.5 text-emerald-500" />
+              <CheckCircle2 className="size-3.5" />
               <span>Riwayat Keputusan Terakhir</span>
-              <span className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${activeTab === 'recent' ? 'bg-emerald-600 text-white' : 'bg-muted text-foreground'}`}>
+              <span className={`rounded-full px-2 py-0.2 text-[10px] font-bold ${activeTab === 'recent' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-foreground'}`}>
                 {data.recent.length}
               </span>
             </button>
@@ -456,7 +451,7 @@ export default function PersetujuanSayaPage() {
               onClick={() => setActiveTab('all-history')}
               className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition ${
                 activeTab === 'all-history'
-                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
               }`}
             >
@@ -478,7 +473,7 @@ export default function PersetujuanSayaPage() {
                 onClick={() => setCategoryFilter('all')}
                 className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
                   categoryFilter === 'all'
-                    ? 'bg-red-600 text-white shadow-xs'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
                     : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
                 }`}
               >
@@ -491,7 +486,7 @@ export default function PersetujuanSayaPage() {
                   onClick={() => setCategoryFilter(cat)}
                   className={`rounded-full px-3.5 py-1 text-xs font-semibold transition ${
                     categoryFilter === cat
-                      ? 'bg-red-600 text-white shadow-xs'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
                       : 'border border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
                   }`}
                 >
@@ -507,7 +502,7 @@ export default function PersetujuanSayaPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari no. kontrol atau judul..."
-                className="w-full rounded-full border border-border bg-card py-1.5 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                className="w-full rounded-full border border-border bg-card py-1.5 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
@@ -534,7 +529,7 @@ export default function PersetujuanSayaPage() {
                   <article
                     key={item.stepId}
                     data-testid="my-pending"
-                    className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-all hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-md"
+                    className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-all hover:border-primary/50 hover:shadow-md"
                   >
                     {/* Card Header Toolbar (ISMS Style) */}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-5 py-3.5">
@@ -542,8 +537,8 @@ export default function PersetujuanSayaPage() {
                         <span
                           className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
                             item.signsReview
-                              ? 'bg-amber-100 text-amber-900 border-amber-300/40 dark:bg-amber-950/60 dark:text-amber-300'
-                              : 'bg-slate-100 text-slate-800 border-slate-300/40 dark:bg-slate-800 dark:text-slate-200'
+                              ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/25 dark:text-emerald-300'
+                              : 'bg-primary/10 text-primary border-primary/25'
                           }`}
                         >
                           {item.signsReview ? 'Form Review' : 'Dokumen Prosedur'}
@@ -632,7 +627,7 @@ export default function PersetujuanSayaPage() {
                       <div className="flex flex-col justify-between rounded-2xl border border-border/80 bg-muted/20 p-4 lg:col-span-5">
                         <div className="flex flex-col gap-3">
                           <div className="flex items-center gap-2 border-b border-border/60 pb-2">
-                            <Info className="size-4 text-red-600 dark:text-red-400" />
+                            <Info className="size-4 text-primary" />
                             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Detail Dokumen</h4>
                           </div>
 
@@ -673,7 +668,7 @@ export default function PersetujuanSayaPage() {
                         </div>
 
                         <div className="mt-4 border-t border-border/60 pt-3 text-[11px] text-muted-foreground">
-                          Status: <span className="font-semibold text-amber-600 dark:text-amber-400">Menunggu keputusan Anda</span>
+                          Status: <span className="font-semibold text-primary">Menunggu keputusan Anda</span>
                         </div>
                       </div>
 
@@ -681,7 +676,7 @@ export default function PersetujuanSayaPage() {
                       <div className="flex flex-col rounded-2xl border border-border/80 bg-muted/20 p-4 lg:col-span-7">
                         <div className="mb-2.5 flex items-center justify-between border-b border-border/60 pb-2">
                           <div className="flex items-center gap-2">
-                            <FileText className="size-4 text-slate-700 dark:text-slate-300" />
+                            <FileText className="size-4 text-primary" />
                             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Supporting Document</h4>
                           </div>
                           <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-bold text-secondary-foreground">
@@ -703,7 +698,7 @@ export default function PersetujuanSayaPage() {
                           <button
                             type="button"
                             onClick={() => setReviewModal({ token: item.token!, action: null })}
-                            className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
                           >
                             <Maximize2 className="size-3.5" />
                             <span>Preview Layar Penuh &amp; Pin Revisi</span>
@@ -816,7 +811,7 @@ export default function PersetujuanSayaPage() {
                       <button
                         type="button"
                         onClick={() => setReviewModal({ token: item.token!, action: null })}
-                        className="inline-flex items-center gap-1 font-semibold text-red-600 hover:underline dark:text-red-400"
+                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
                       >
                         Lihat <ExternalLink className="size-3" />
                       </button>
@@ -825,7 +820,7 @@ export default function PersetujuanSayaPage() {
                         href={`${API_BASE_PATH}/api/prosedur-isms/${item.documentId}/pdf?token=${item.token ?? ''}${item.signsReview ? '&part=review' : ''}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-semibold text-red-600 hover:underline dark:text-red-400"
+                        className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
                       >
                         Lihat <ExternalLink className="size-3" />
                       </a>

@@ -83,7 +83,6 @@ function documentEmail(kind: DocKind, variant: string, base: string) {
     reviewUrl: `${base}/pengesahan?token=contoh`,
     dashboardUrl: `${base}/persetujuan-saya`,
     pendingTotal: 3,
-    approvalCode: '482915',
     kind: info,
     resubmission: variant === 'resubmit'
       ? { round: 2, by: request.by, at: request.at, general: request.general, pins: [{ page: 0, note: 'Ganti dengan: 12 digit', strike: true }, { page: 1, note: 'Tambahkan nomor revisi di sini', strike: false }], fileChanged: true }

@@ -626,7 +626,7 @@ function PengesahanContent() {
       >
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 text-xs leading-relaxed text-foreground">
           <p className="font-semibold text-emerald-800 dark:text-emerald-400">
-            Persetujuan Langsung (Tanpa Kode PIN / Angka)
+            Pengesahan Tanda Tangan Digital Resmi
           </p>
           <p className="mt-1 text-muted-foreground">
             Tanda tangan elektronik digital (QR E-Sign) resmi Anda akan langsung tercatat dan disahkan pada dokumen ini atas nama <strong className="text-foreground">{step.approver_name}</strong> ({step.role_title}).

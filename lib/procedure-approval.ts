@@ -763,7 +763,7 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       reviewUrl: `${base}${API_BASE_PATH}/pengesahan?token=${token}`,
       dashboardUrl,
       pendingTotal,
-      approvalCode: step.approval_code,
+      approvalCode: null,
       // a Form Review approver gets the Form Review's mail, in the form's look
       kind: signsReview ? docKindInfo('review_form') : docKindInfo(doc.kind),
       formReviewOf: signsReview ? { controlNo: doc.control_no, title: doc.title, registerLabel: docKindInfo(doc.kind).label } : null,

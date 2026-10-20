@@ -863,7 +863,7 @@ export default function PersetujuanSayaPage() {
       >
         <div className="rounded-xl border border-emerald-500/25 bg-emerald-50/10 p-4 text-xs leading-relaxed text-foreground">
           <p className="font-semibold text-emerald-800 dark:text-emerald-400">
-            Persetujuan Digital Langsung (Tanpa Kode PIN)
+            Pengesahan Tanda Tangan Digital Resmi
           </p>
           <p className="mt-1 text-muted-foreground">
             Karena Anda telah masuk ke akun resmi Approver, tanda tangan elektronik digital (QR E-Sign) Anda akan langsung dibubuhkan pada dokumen ini selaku <strong className="text-foreground">{confirm?.roleTitle}</strong>.

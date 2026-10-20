@@ -466,7 +466,7 @@ export function ApproverReviewModal({
                             <Check className="size-3.5" strokeWidth={3} />
                           </span>
                           <div className="text-xs">
-                            <p className="font-bold text-foreground">Persetujuan Langsung (Tanpa Kode PIN/Angka)</p>
+                            <p className="font-bold text-foreground">Pengesahan Tanda Tangan Digital Resmi</p>
                             <p className="mt-0.5 text-[11px] text-muted-foreground">
                               Tanda tangan elektronik digital (QR E-Sign) resmi Anda akan langsung tercatat dan disahkan pada dokumen ini selaku <strong className="text-foreground">{view.step.role_title}</strong>.
                             </p>

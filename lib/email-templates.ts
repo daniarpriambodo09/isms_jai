@@ -769,25 +769,6 @@ export type ProcedureApprovalEmailData = {
   } | null
 }
 
-// The approval code, set apart under the button: the approver types it in
-// on the approval page when pressing Setujui.
-function approvalCodeBlock(code: string) {
-  const digits = code.split('').join('&nbsp;')
-  return `
-    <tr>
-      <td align="center" style="padding:18px 32px 0;">
-        <table role="presentation" cellpadding="0" cellspacing="0" style="border:1px dashed ${NAVY};border-radius:8px;background:#f6f8fb;">
-          <tr><td align="center" style="padding:14px 26px 12px;font-family:Arial,Helvetica,sans-serif;">
-            <p style="margin:0;font-size:10.5px;font-weight:bold;letter-spacing:0.14em;color:${MUTED};text-transform:uppercase;">Kode Persetujuan</p>
-            <p style="margin:6px 0 4px;font-family:'Courier New',Courier,monospace;font-size:28px;font-weight:bold;letter-spacing:0.18em;color:${NAVY};">${digits}</p>
-            <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.5;">Masukkan kode ini saat menekan <strong>Setujui</strong> pada Pilihan 1 (Link Langsung). Jangan berikan kode ini kepada siapa pun.</p>
-            <p style="margin:6px 0 0;font-size:11px;color:${MUTED};line-height:1.5;">Punya akun approver? Masuk ke Portal ISMS dan buka <strong>Pilihan 2 (Dashboard Approval)</strong> &mdash; di sana persetujuan langsung tanpa perlu kode PIN.</p>
-          </td></tr>
-        </table>
-      </td>
-    </tr>`
-}
-
 export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): { subject: string; html: string } {
   const rows: [string, string][] = [
     ['Nama Dokumen', escapeHtml(data.title)],
@@ -946,7 +927,7 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
           </tr>
         </table>
       </td>
-    </tr>${data.approvalCode ? approvalCodeBlock(data.approvalCode) : ''}
+    </tr>
     <tr>
       <td style="padding:14px 32px 24px;">
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:${MUTED};text-align:center;line-height:1.6;">Link ini khusus untuk Anda dan hanya berlaku untuk tahap ini. Mohon tidak meneruskan email ini.</p>

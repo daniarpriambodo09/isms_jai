@@ -912,14 +912,14 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
           <tr>
             <td style="padding:18px 20px;background:#f8fafc;">
               <p style="margin:0 0 4px;font-size:14px;font-weight:bold;color:#0f172a;">
-                <span style="display:inline-block;background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px;">PILIHAN 2</span>
+                <span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px;">PILIHAN 2</span>
                 Buka via Dashboard Approver (Lihat Semua Antrean)
               </p>
               <p style="margin:0 0 12px;font-size:12.5px;color:#64748b;line-height:1.5;">
                 Membuka Dashboard Persetujuan Digital untuk melihat seluruh <strong>${pendingCount} antrean dokumen</strong> Anda secara terpusat dan memprosesnya secara fleksibel.
               </p>
               <div style="text-align:left;">
-                <a href="${dashUrl}" style="display:inline-block;padding:12px 24px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:13.5px;background:#6366f1;color:#ffffff;border-radius:6px;border-bottom:3px solid #4338ca;letter-spacing:0.02em;">
+                <a href="${dashUrl}" style="display:inline-block;padding:12px 24px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:13.5px;background:#1a5f7a;color:#ffffff;border-radius:6px;border-bottom:3px solid #103b4c;letter-spacing:0.02em;">
                   &#128203;&nbsp; Buka via Dashboard (${pendingCount} Antrean Menunggu)
                 </a>
               </div>

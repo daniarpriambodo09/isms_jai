@@ -291,15 +291,15 @@ export default function PersetujuanSayaPage() {
       {/* Top App Header / Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 pb-3">
         <div className="flex items-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary shadow-xs">
-            <ClipboardCheck className="size-4" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary shadow-xs">
+            <ClipboardCheck className="size-4 text-primary" />
             <span>Dashboard Approval</span>
             <span className="rounded-full bg-primary px-2 py-0.2 text-[10.5px] font-bold text-primary-foreground">
               {data ? data.pending.length : 0}
             </span>
           </div>
-          <span className="hidden font-mono text-xs text-muted-foreground sm:inline-block">
-            ISMS - Digital Approval
+          <span className="hidden text-xs font-semibold text-foreground/75 sm:inline-block">
+            ISMS &middot; Digital Approval
           </span>
         </div>
 
@@ -338,38 +338,38 @@ export default function PersetujuanSayaPage() {
       <header className="relative overflow-hidden rounded-3xl bg-primary px-6 py-7 text-primary-foreground shadow-xl shadow-primary/15 sm:px-8">
         <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-accent/40 bg-accent/20 px-3.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-foreground">
-              <ClipboardCheck className="size-3.5 text-accent" />
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-xs backdrop-blur-sm">
+              <ClipboardCheck className="size-3.5 text-white" />
               Sistem Persetujuan Digital ISMS
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl md:text-4xl">
+            <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
               {data
                 ? data.pending.length
                   ? `${data.pending.length} Dokumen Menunggu Persetujuan Anda`
                   : 'Semua Dokumen Telah Selesai Disetujui'
                 : 'Memuat antrean...'}
             </h1>
-            <p className="mt-2 text-sm leading-relaxed text-primary-foreground/80">
-              Masuk sebagai <strong className="font-semibold text-primary-foreground">{sessionUser.username}</strong>
-              {data?.email ? <> · alamat email: <strong className="font-semibold text-primary-foreground">{data.email}</strong></> : null}.
+            <p className="mt-2 text-sm leading-relaxed text-white/90">
+              Masuk sebagai <strong className="font-bold text-white">{sessionUser.username}</strong>
+              {data?.email ? <> &middot; alamat email: <strong className="font-bold text-white">{data.email}</strong></> : null}.
               Tinjau isi dokumen, beri catatan revisi atau tanda tangani dokumen secara digital langsung dari dashboard.
             </p>
           </div>
 
           {/* Quick Metrics Badges */}
           {data && (
-            <div className="grid grid-cols-3 gap-3 rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10 p-3.5 backdrop-blur-md">
+            <div className="grid grid-cols-3 gap-3 rounded-2xl border border-white/25 bg-black/20 p-3.5 backdrop-blur-md">
               <div className="text-center">
-                <p className="text-[11px] font-semibold text-accent">Menunggu</p>
-                <p className="font-display text-2xl font-bold text-primary-foreground">{data.pending.length}</p>
+                <p className="text-[11px] font-bold text-amber-300">Menunggu</p>
+                <p className="font-display text-2xl font-bold text-white">{data.pending.length}</p>
               </div>
-              <div className="border-x border-primary-foreground/20 px-3 text-center">
-                <p className="text-[11px] font-semibold text-primary-foreground/80">Antrean</p>
-                <p className="font-display text-2xl font-bold text-primary-foreground">{data.queued.length}</p>
+              <div className="border-x border-white/20 px-3 text-center">
+                <p className="text-[11px] font-bold text-white/90">Antrean</p>
+                <p className="font-display text-2xl font-bold text-white">{data.queued.length}</p>
               </div>
               <div className="text-center">
-                <p className="text-[11px] font-semibold text-emerald-300">Selesai</p>
-                <p className="font-display text-2xl font-bold text-primary-foreground">{data.recent.length}</p>
+                <p className="text-[11px] font-bold text-emerald-300">Selesai</p>
+                <p className="font-display text-2xl font-bold text-white">{data.recent.length}</p>
               </div>
             </div>
           )}

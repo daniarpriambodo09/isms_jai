@@ -1459,7 +1459,7 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & { review
   const e = escapeHtml
   const body = `
     <tr><td style="padding:28px 32px 6px;">
-      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear Admin ISM,</p>
+      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear Admin ISMS,</p>
       <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">Ada <strong>pengajuan ijin pengambilan foto/video Internal</strong> baru yang menunggu keputusan Anda:</p>
     </td></tr>
     <tr><td style="padding:0 32px;">${photoDetailRows([
@@ -1475,7 +1475,7 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & { review
     <tr><td style="padding:10px 32px 26px;"><p style="margin:0;font-size:11.5px;color:${MUTED};text-align:center;line-height:1.6;">${data.pendingCount > 1 ? `Saat ini ada <strong>${data.pendingCount} pengajuan Internal</strong> yang menunggu keputusan. ` : ''}Pemohon menerima kabar setelah Anda memutuskan (bila ia mengisi email).</p></td></tr>`
   return {
     subject: `[Perlu keputusan] Ijin Foto/Video Internal — ${data.requesterName} (${data.deptOrCompany})`,
-    html: photoEmailFrame({ title: 'Pengajuan Foto/Video Baru', subtitle: 'Internal &middot; menunggu keputusan Admin ISM', preheader: `${data.requesterName} mengajukan ijin foto/video di ${data.location}.` }, body),
+    html: photoEmailFrame({ title: 'Pengajuan Foto/Video Baru', subtitle: 'Internal &middot; menunggu keputusan Admin ISMS', preheader: `${data.requesterName} mengajukan ijin foto/video di ${data.location}.` }, body),
   }
 }
 
@@ -1521,7 +1521,7 @@ export function buildPhotoPendingDigestEmail(data: { items: PhotoPendingItem[]; 
     <tr><td align="center" style="padding:24px 32px 28px;">${photoButton(data.reviewUrl, 'Buka Permintaan Foto/Video')}</td></tr>`
   return {
     subject: `[Pengingat] ${data.items.length} pengajuan foto/video Internal menunggu keputusan`,
-    html: photoEmailFrame({ title: 'Pengajuan Menunggu Keputusan', subtitle: 'Pengingat harian &middot; Admin ISM', preheader: `${data.items.length} pengajuan foto/video Internal belum diputuskan.` }, body),
+    html: photoEmailFrame({ title: 'Pengajuan Menunggu Keputusan', subtitle: 'Pengingat harian &middot; Admin ISMS', preheader: `${data.items.length} pengajuan foto/video Internal belum diputuskan.` }, body),
   }
 }
 

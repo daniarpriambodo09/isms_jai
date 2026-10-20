@@ -138,7 +138,7 @@ export function KioskThemePicker({ station }: { station: KioskThemeTarget }) {
                     {choice?.kind === 'portal' && <span className="grid size-6 flex-none place-items-center rounded-full bg-primary text-primary-foreground"><Check className="size-3.5" /></span>}
                   </button>
                   {saved.own && !saved.presetId && !choice && (
-                    <p className="rounded-xl bg-secondary/40 px-4 py-3 text-xs text-muted-foreground">Saat ini memakai warna racikan khusus dari Admin ISM. Memilih palet di bawah akan menggantinya.</p>
+                    <p className="rounded-xl bg-secondary/40 px-4 py-3 text-xs text-muted-foreground">Saat ini memakai warna racikan khusus dari Admin ISMS. Memilih palet di bawah akan menggantinya.</p>
                   )}
                   {THEME_GROUPS.map((group) => (
                     <section key={group}>

@@ -62,7 +62,7 @@ function AuthStyles() {
 type Stats = { documents: number; proceduresApproved: number; visitsTotal: number; specialAreaApproved: number; photoApproved: number }
 
 const ACCESS_OPTIONS: { role: AdminRole; label: string; description: string }[] = [
-  { role: 'ism_admin', label: 'Admin ISM', description: 'Kelola Portal ISMS' },
+  { role: 'ism_admin', label: 'Admin ISMS', description: 'Kelola Portal ISMS' },
   { role: 'it', label: 'Admin IT', description: 'Izin Alat & ACC IT' },
   { role: 'lobby', label: 'Admin Lobby', description: 'Pendaftaran & kartu tamu Lobby' },
   { role: 'security', label: 'Admin Security', description: 'Penerimaan & Pos Security' },
@@ -361,7 +361,7 @@ export function AuthSplitLogin({
 
               <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5 text-[12.5px] text-muted-foreground">
                 <span className="flex items-center gap-1.5"><LockKeyhole className="size-3.5" /> {kiosk ? 'Khusus perangkat kiosk resmi' : 'Internal · ISO/IEC 27001'}</span>
-                <span>Lupa password? <span className="font-semibold text-[color:var(--p-600)]">Hubungi Admin ISM</span></span>
+                <span>Lupa password? <span className="font-semibold text-[color:var(--p-600)]">Hubungi Admin ISMS</span></span>
               </div>
               {onBack && (
                 <button type="button" onClick={onBack} className="mt-4 flex items-center gap-1.5 text-[12.5px] text-muted-foreground transition hover:text-foreground">

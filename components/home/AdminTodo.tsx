@@ -86,7 +86,7 @@ export function AdminTodo() {
     <section aria-label="Yang perlu dikerjakan" className="mb-6 rounded-2xl border border-border bg-secondary/30 p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="portal-eyebrow">Untuk Admin ISM</p>
+          <p className="portal-eyebrow">Untuk Admin ISMS</p>
           <h2 className="mt-0.5 text-lg font-bold text-foreground">Yang perlu dikerjakan</h2>
         </div>
         <Link href="/dashboard-admin" className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">

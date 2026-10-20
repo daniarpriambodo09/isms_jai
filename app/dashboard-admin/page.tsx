@@ -193,7 +193,7 @@ export default function DashboardAdminPage() {
                     ))}
                   </tbody>
                 </table>
-                <p className="mt-3 text-xs text-muted-foreground">Ringkasan ini juga dikirim ke email Admin ISM setiap Senin pagi. Setelah dokumen direview, upload revisi baru dengan Eff. Date terbaru.</p>
+                <p className="mt-3 text-xs text-muted-foreground">Ringkasan ini juga dikirim ke email Admin ISMS setiap Senin pagi. Setelah dokumen direview, upload revisi baru dengan Eff. Date terbaru.</p>
               </div>
             )}
           </Panel>

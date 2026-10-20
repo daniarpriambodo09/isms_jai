@@ -404,7 +404,7 @@ export function CalendarHero({ count }: { count: number }) {
         <h2 className="mt-4 font-display text-[clamp(2.4rem,5vw,4.2rem)] font-semibold leading-[0.95] text-foreground">
           Jadwal Audit <span className="font-serif-accent text-[color:var(--p-600)]">Internal</span>
         </h2>
-        <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Jadwal audit internal ISMS terbaru yang diunggah admin ISM. Klik jadwal untuk membukanya dalam ukuran penuh.</p>
+        <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">Jadwal audit internal ISMS terbaru yang diunggah admin ISMS. Klik jadwal untuk membukanya dalam ukuran penuh.</p>
         <div className="mt-6 flex flex-wrap gap-8 border-t border-border pt-5">
           <div><p className="font-display text-4xl font-bold tabular-nums text-foreground">{count}</p><p className="font-mono-label text-[10px] text-muted-foreground">jadwal terunggah</p></div>
           <div><p className="font-display text-4xl font-bold text-foreground">27001</p><p className="font-mono-label text-[10px] text-muted-foreground">siklus ISO/IEC</p></div>

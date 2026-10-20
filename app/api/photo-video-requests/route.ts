@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       // own picApproveId (if any) is ignored here.
       const visitorPic = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`)
       if (visitorPic.rows.length === 0) {
-        return NextResponse.json({ message: 'Approver untuk pengajuan Visitor belum diatur. Hubungi Admin ISM.' }, { status: 400 })
+        return NextResponse.json({ message: 'Approver untuk pengajuan Visitor belum diatur. Hubungi Admin ISMS.' }, { status: 400 })
       }
       picApproveId = visitorPic.rows[0].id
     }

@@ -10,7 +10,7 @@ import { query } from '@/lib/db'
 import { docKindInfo } from '@/lib/document-kinds'
 
 // ─── QR not placed yet ───
-// On Prosedur ISMS and Standard Requirement TMMIN the Admin ISM puts each QR
+// On Prosedur ISMS and Standard Requirement TMMIN the Admin ISMS puts each QR
 // on the page after its approver has signed ("Atur posisi QR"). Until then the
 // document shows without that QR — easy to forget when nothing lists it.
 

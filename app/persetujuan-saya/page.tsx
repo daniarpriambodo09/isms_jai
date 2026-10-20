@@ -280,7 +280,7 @@ export default function PersetujuanSayaPage() {
           <LogIn className="size-4" /> Masuk ke Dashboard
         </button>
         <p className="mt-4 text-xs text-muted-foreground">
-          Belum punya akun approver? Hubungi Admin ISM. Link di email tetap dapat dibuka langsung tanpa perlu login.
+          Belum punya akun approver? Hubungi Admin ISMS. Link di email tetap dapat dibuka langsung tanpa perlu login.
         </p>
       </div>
     )
@@ -390,7 +390,7 @@ export default function PersetujuanSayaPage() {
 
       {data && !data.email && (
         <p className="rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-          Akun ini belum memiliki alamat email yang terdaftar. Minta Admin ISM untuk menambahkan email pada akun Anda di menu Kelola Admin agar sistem dapat mencocokkan dokumen pengajuan.
+          Akun ini belum memiliki alamat email yang terdaftar. Minta Admin ISMS untuk menambahkan email pada akun Anda di menu Kelola Admin agar sistem dapat mencocokkan dokumen pengajuan.
         </p>
       )}
 
@@ -792,7 +792,7 @@ export default function PersetujuanSayaPage() {
                       <p className="mt-1.5 inline-flex items-start gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs leading-5 text-amber-800 dark:text-amber-300" data-testid="qr-pending">
                         <QrCode className="mt-0.5 size-3.5 flex-none" />
                         <span>
-                          Persetujuan Anda sudah tercatat. QR tanda tangan Anda <strong>belum ditempatkan oleh Admin ISM</strong> — sampai itu dilakukan, dokumen masih tampil tanpa QR.
+                          Persetujuan Anda sudah tercatat. QR tanda tangan Anda <strong>belum ditempatkan oleh Admin ISMS</strong> — sampai itu dilakukan, dokumen masih tampil tanpa QR.
                         </span>
                       </p>
                     )}

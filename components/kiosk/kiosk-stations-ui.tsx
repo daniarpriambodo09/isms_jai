@@ -40,7 +40,7 @@ export function StationOff({ station, isIsmAdmin }: { station: 'lobby' | 'securi
         <h1 className="mt-5 font-display text-2xl font-semibold text-foreground">{NAMES[station]} dinonaktifkan</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Semua pendaftaran tamu, vendor dan supplier sekarang dipusatkan di <strong className="text-foreground">{NAMES[other]}</strong>.
-          {' '}Pos ini bisa diaktifkan kembali oleh Admin ISM di Pengaturan Pos.
+          {' '}Pos ini bisa diaktifkan kembali oleh Admin ISMS di Pengaturan Pos.
         </p>
         {!isIsmAdmin && (
           <button type="button" onClick={() => logout()} className="mt-6 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary"><LogOut className="size-4" /> Keluar</button>

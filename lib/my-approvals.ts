@@ -50,7 +50,7 @@ export type MyApproval = {
   waitingFor: string | null
   /**
    * Approved, and the QR of this signature already has its place on the file.
-   * False while the Admin ISM still has to put it there ("Atur posisi QR") —
+   * False while the Admin ISMS still has to put it there ("Atur posisi QR") —
    * the document then still shows without the QR.
    */
   qrPlaced: boolean
@@ -204,7 +204,7 @@ export type MyHistoryItem = {
   superseded: boolean
   /** The account's own link to what it signed — only while that decision still stands. */
   token: string | null
-  /** Approved and still standing, but the Admin ISM has not placed its QR on the file yet. */
+  /** Approved and still standing, but the Admin ISMS has not placed its QR on the file yet. */
   qrPending: boolean
 }
 

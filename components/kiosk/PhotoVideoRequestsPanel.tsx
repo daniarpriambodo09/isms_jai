@@ -90,7 +90,7 @@ export function PhotoVideoRequestsPanel({
           </span>
           <div>
             <p className="text-sm font-semibold text-foreground">Izin Foto/Video</p>
-            <p className="text-xs text-muted-foreground">Rekap pengajuan izin foto/video Internal &amp; Visitor — Visitor disetujui PIC Approve lewat email, Internal oleh Admin ISM</p>
+            <p className="text-xs text-muted-foreground">Rekap pengajuan izin foto/video Internal &amp; Visitor — Visitor disetujui PIC Approve lewat email, Internal oleh Admin ISMS</p>
           </div>
         </button>
         <div className="flex w-full items-center gap-2 sm:w-auto">

@@ -35,20 +35,20 @@ const DOC_VARIANTS = [
   ['request', 'Pengajuan approval', 'Approver'],
   ['resubmit', 'Pengajuan ulang setelah revisi', 'Approver'],
   ['reminder', 'Pengingat', 'Approver'],
-  ['approved', 'Notifikasi: dokumen disahkan', 'Admin ISM'],
-  ['revision', 'Notifikasi: perlu revisi', 'Admin ISM'],
+  ['approved', 'Notifikasi: dokumen disahkan', 'Admin ISMS'],
+  ['revision', 'Notifikasi: perlu revisi', 'Admin ISMS'],
 ] as const
 
 export const EMAIL_PREVIEWS: EmailPreviewItem[] = [
   ...(Object.keys(DOC_KIND_INFO) as DocKind[]).flatMap((kind) =>
     DOC_VARIANTS.map(([variant, label, to]) => ({ id: `${kind}:${variant}`, group: DOC_KIND_INFO[kind].label, label, to }))),
   { id: 'photo:request', group: 'Izin Foto/Video', label: 'Permintaan persetujuan (Visitor)', to: 'PIC Approver' },
-  { id: 'photo:admin', group: 'Izin Foto/Video', label: 'Pengajuan Internal baru', to: 'Admin ISM' },
-  { id: 'photo:digest', group: 'Izin Foto/Video', label: 'Pengingat harian: pengajuan belum diputuskan', to: 'Admin ISM' },
+  { id: 'photo:admin', group: 'Izin Foto/Video', label: 'Pengajuan Internal baru', to: 'Admin ISMS' },
+  { id: 'photo:digest', group: 'Izin Foto/Video', label: 'Pengingat harian: pengajuan belum diputuskan', to: 'Admin ISMS' },
   { id: 'photo:result', group: 'Izin Foto/Video', label: 'Hasil keputusan (disetujui)', to: 'Pemohon' },
   { id: 'photo:result-rejected', group: 'Izin Foto/Video', label: 'Hasil keputusan (ditolak)', to: 'Pemohon' },
   { id: 'special:request', group: 'Izin Area Special', label: 'Permintaan persetujuan', to: 'Approver' },
-  { id: 'review:digest', group: 'Review Dokumen', label: 'Pengingat mingguan review dokumen', to: 'Admin ISM' },
+  { id: 'review:digest', group: 'Review Dokumen', label: 'Pengingat mingguan review dokumen', to: 'Admin ISMS' },
 ]
 
 function documentEmail(kind: DocKind, variant: string, base: string) {

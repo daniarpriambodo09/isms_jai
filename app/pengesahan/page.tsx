@@ -3,7 +3,7 @@
 // Where an approver lands from the "Buka & Proses Pengesahan" email button:
 // the document (PDF inline), the signing chain so far, and Setujui / Tolak.
 // Setujui is one confirmation — the approver never places anything: the QR
-// goes where the portal found the signature box, or where the Admin ISM put
+// goes where the portal found the signature box, or where the Admin ISMS put
 // it ("Atur posisi QR" in the register), before or after the approval.
 // No login — the ?token= from the email is the credential (see
 // app/api/prosedur-isms/approval/route.ts).
@@ -47,7 +47,7 @@ type View = {
   linkExpired: boolean
   linkValidDays: number
   canPlaceQr: boolean
-  /** This approver's QR already has its place on the document (found by the portal or set by the Admin ISM). */
+  /** This approver's QR already has its place on the document (found by the portal or set by the Admin ISMS). */
   qrAutoPlaced?: boolean
   /** Approving asks for the 6-digit code sent in the e-mail; locked = too many wrong entries. */
   codeRequired?: boolean
@@ -196,7 +196,7 @@ function PengesahanContent() {
             ? <>Buka email <strong>terbaru</strong> untuk dokumen ini (dikirim {formatDate(replaced.replacedAt, true)} atau sesudahnya), lalu tekan tombol <strong>REVIEW &amp; APPROVAL</strong> di sana.</>
             : <>Permintaan ini sudah diproses lewat link yang baru — tidak ada yang perlu Anda lakukan lagi.</>}
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">Tidak menemukan emailnya? Minta Admin ISM menekan <strong>Kirim ulang</strong>.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Tidak menemukan emailnya? Minta Admin ISMS menekan <strong>Kirim ulang</strong>.</p>
       </div>
     )
   }
@@ -252,7 +252,7 @@ function PengesahanContent() {
             <>Buka email <strong>terbaru</strong> untuk dokumen ini, lalu tekan tombol <strong>REVIEW &amp; APPROVAL</strong> di sana.</>
           )}
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">Tidak menemukan emailnya? Minta Admin ISM menekan <strong>Kirim ulang</strong>.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Tidak menemukan emailnya? Minta Admin ISMS menekan <strong>Kirim ulang</strong>.</p>
       </div>
     )
   }
@@ -466,7 +466,7 @@ function PengesahanContent() {
                 <Crosshair className="mt-0.5 size-3.5 flex-none text-[color:var(--p-600)]" />
                 {view.qrAutoPlaced
                   ? <span>QR tanda tangan Anda <strong className="text-foreground">otomatis tercetak di kolom {step.role_title}</strong> pada dokumen — tidak perlu diatur.</span>
-                  : <span>Anda cukup menekan Setujui. Setelah itu <strong className="text-foreground">Admin ISM</strong> menempatkan QR tanda tangan Anda di kolom tanda tangan dokumen.</span>}
+                  : <span>Anda cukup menekan Setujui. Setelah itu <strong className="text-foreground">Admin ISMS</strong> menempatkan QR tanda tangan Anda di kolom tanda tangan dokumen.</span>}
               </p>
               <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-5 text-muted-foreground">
                 <PencilLine className="mt-0.5 size-3.5 flex-none text-[#c2412c]" />
@@ -493,7 +493,7 @@ function PengesahanContent() {
                 </p>
               ) : (
                 <p className="rounded-xl bg-secondary px-3 py-2 text-center text-xs text-muted-foreground">
-                  Persetujuan Anda sudah tercatat. Posisi QR pada dokumen diatur oleh Admin ISM.
+                  Persetujuan Anda sudah tercatat. Posisi QR pada dokumen diatur oleh Admin ISMS.
                 </p>
               )}
               <a
@@ -564,11 +564,11 @@ function PengesahanContent() {
               {view.superseded
                 ? 'Dokumen ini sudah direvisi setelah email dikirim — link ini tidak berlaku lagi. Anda akan menerima email baru untuk revisi terbaru.'
                 : view.linkExpired
-                  ? `Link pengesahan ini sudah kedaluwarsa (berlaku ${view.linkValidDays} hari sejak dikirim). Minta Admin ISM mengirim ulang email pengesahan — Anda akan menerima link baru.`
+                  ? `Link pengesahan ini sudah kedaluwarsa (berlaku ${view.linkValidDays} hari sejak dikirim). Minta Admin ISMS mengirim ulang email pengesahan — Anda akan menerima link baru.`
                 : step.status === 'approved'
                   ? `Anda telah menyetujui dokumen ini pada ${step.decided_at ? formatDate(step.decided_at, true) : '-'}.`
                   : step.status === 'rejected'
-                    ? 'Anda telah meminta revisi dokumen ini. Admin ISM akan memperbaikinya dan mengajukan ulang — Anda akan menerima email baru.'
+                    ? 'Anda telah meminta revisi dokumen ini. Admin ISMS akan memperbaikinya dan mengajukan ulang — Anda akan menerima email baru.'
                     : 'Tahap ini tidak lagi menunggu keputusan Anda.'}
             </section>
           )}
@@ -604,7 +604,7 @@ function PengesahanContent() {
       <ConfirmDialog
         open={confirmApprove}
         title={document.signs_review ? 'Setujui Form Review ini?' : 'Setujui dokumen ini?'}
-        message={`${document.control_no} — ${document.title}. QR tanda tangan Anda (${step.role_title}) ${view.qrAutoPlaced ? 'otomatis tercetak di kolomnya pada dokumen' : 'ditempatkan di kolom tanda tangan dokumen oleh Admin ISM setelah Anda menyetujui'}. Persetujuan tidak dapat dibatalkan.`}
+        message={`${document.control_no} — ${document.title}. QR tanda tangan Anda (${step.role_title}) ${view.qrAutoPlaced ? 'otomatis tercetak di kolomnya pada dokumen' : 'ditempatkan di kolom tanda tangan dokumen oleh Admin ISMS setelah Anda menyetujui'}. Persetujuan tidak dapat dibatalkan.`}
         confirmLabel="Ya, setujui"
         danger={false}
         pending={submitting === 'approve'}

@@ -510,7 +510,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                   ))}
                 </select>
                 {deptPicKameraId && availableCameras.length === 0 && (
-                  <p className="mt-1 text-[11px] text-destructive">Belum ada kamera terdaftar untuk departemen ini — hubungi Admin ISM.</p>
+                  <p className="mt-1 text-[11px] text-destructive">Belum ada kamera terdaftar untuk departemen ini — hubungi Admin ISMS.</p>
                 )}
               </Field>
               <Field label="No. ID Photography" span={2}>
@@ -527,7 +527,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                   ))}
                 </select>
                 {deptPicKameraId && availablePhotoIds.length === 0 && (
-                  <p className="mt-1 text-[11px] text-destructive">Belum ada ID Photography terdaftar untuk departemen ini — hubungi Admin ISM.</p>
+                  <p className="mt-1 text-[11px] text-destructive">Belum ada ID Photography terdaftar untuk departemen ini — hubungi Admin ISMS.</p>
                 )}
               </Field>
             </>
@@ -556,13 +556,13 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Pengajuan akan berstatus Menunggu sampai disetujui atau ditolak oleh Admin ISM (Admin ISM langsung menerima email). Setelah mengirim, Anda mendapat link status pengajuan.
+                Pengajuan akan berstatus Menunggu sampai disetujui atau ditolak oleh Admin ISMS (Admin ISMS langsung menerima email). Setelah mengirim, Anda mendapat link status pengajuan.
               </p>
             </Field>
           ) : (
             <Field label="Approver" span={2}>
               <div className={`${inputClass} flex items-center text-muted-foreground`}>
-                {visitorApprover?.fullName ?? 'Admin ISM'}
+                {visitorApprover?.fullName ?? 'Admin ISMS'}
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">
                 This registration will be routed automatically to the approver above — no need to select one.
@@ -582,7 +582,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                   <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} className={inputClass} />
                 </div>
               )}
-              <p className="mt-1 text-[11px] text-muted-foreground">Karyawan yang mendampingi selama pengambilan foto/video. Daftar namanya diatur Admin ISM di Izin Area Special → Daftar PIC Pendamping JAI.</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Karyawan yang mendampingi selama pengambilan foto/video. Daftar namanya diatur Admin ISMS di Izin Area Special → Daftar PIC Pendamping JAI.</p>
             </Field>
           )}
           <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>

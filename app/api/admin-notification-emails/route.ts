@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
     const state = await current()
     if (!state.smtpReady) return NextResponse.json({ message: 'SMTP belum diatur (Kelola SMTP).' }, { status: 409 })
     const sent = await sendToAdmins(
-      'Email uji — notifikasi Admin ISM',
-      `<p>Ini email uji dari Portal ISMS, dikirim oleh <b>${session.username}</b>.</p><p>Alamat ini terdaftar sebagai penerima notifikasi Admin ISM (pengesahan dokumen, permintaan foto/video, pengingat review dokumen).</p>`
+      'Email uji — notifikasi Admin ISMS',
+      `<p>Ini email uji dari Portal ISMS, dikirim oleh <b>${session.username}</b>.</p><p>Alamat ini terdaftar sebagai penerima notifikasi Admin ISMS (pengesahan dokumen, permintaan foto/video, pengingat review dokumen).</p>`
     )
     if (!sent) return NextResponse.json({ message: 'Email uji gagal dikirim — periksa pengaturan SMTP.' }, { status: 502 })
     return NextResponse.json({ sentTo: state.recipients })

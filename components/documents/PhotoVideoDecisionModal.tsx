@@ -181,7 +181,7 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
             <p className="mt-5 rounded-lg bg-secondary/40 px-3 py-2 text-center text-xs text-muted-foreground">
               {request.status !== 'pending'
                 ? 'Pengajuan ini sudah diputuskan dan tidak bisa diubah lagi dari sini.'
-                : 'Tampilan lihat saja — keputusan hanya dapat diproses oleh Admin ISM.'}
+                : 'Tampilan lihat saja — keputusan hanya dapat diproses oleh Admin ISMS.'}
             </p>
           ) : (
             <>

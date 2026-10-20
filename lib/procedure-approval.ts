@@ -418,15 +418,15 @@ export async function startApprovalCycle(documentId: number, roleCodes: string[]
   // a QR shows on the document once its approver has approved.
   // - Working Standard: every QR is placed automatically above (the sheet's
   //   boxes, else the default spot) — nobody has to set anything.
-  // - The other registers: the Admin ISM sets where each position's QR is
+  // - The other registers: the Admin ISMS sets where each position's QR is
   //   printed once that position has approved (boxed templates found above).
   if (started) await activateNextStep(documentId)
 }
 
 /**
  * Working Standard: every QR is placed by the portal (the sheet's signature
- * boxes, else a default spot), so nobody has to set it; the Admin ISM may
- * still move them at any time. The other registers: the Admin ISM places a
+ * boxes, else a default spot), so nobody has to set it; the Admin ISMS may
+ * still move them at any time. The other registers: the Admin ISMS places a
  * position's QR once it has approved.
  */
 export function autoPlacesEveryQr(kind: DocKind) {
@@ -556,7 +556,7 @@ export async function sendHeld(documentId: number): Promise<boolean> {
   return activateNextStep(documentId)
 }
 
-/** The positions of the current cycle that have approved — the only ones whose QR the Admin ISM may place. */
+/** The positions of the current cycle that have approved — the only ones whose QR the Admin ISMS may place. */
 export async function approvedRoleCodes(documentId: number): Promise<string[]> {
   const doc = await getDocument(documentId)
   if (!doc) return []
@@ -631,7 +631,7 @@ export async function sendStepRequest(stepId: number): Promise<{ sent: boolean; 
   return { sent: error === null, error }
 }
 
-// Wrong codes allowed before a step is locked (the Admin ISM re-sends to unlock it).
+// Wrong codes allowed before a step is locked (the Admin ISMS re-sends to unlock it).
 export const APPROVAL_CODE_TRIES = 5
 const newApprovalCode = () => String(randomInt(0, 1_000_000)).padStart(6, '0')
 
@@ -1056,7 +1056,7 @@ export async function decideByToken(
   if (!view) return { ok: false, message: 'Link tidak ditemukan atau sudah tidak berlaku.' }
   if (view.step.status !== 'pending') return { ok: false, message: 'Tahap ini sudah diproses sebelumnya.' }
   if (view.step.revision !== view.document.revision) return { ok: false, message: 'Dokumen sudah direvisi — link ini tidak berlaku lagi.' }
-  if (linkExpired(view.step)) return { ok: false, message: `Link ini sudah kedaluwarsa (lebih dari ${APPROVAL_LINK_DAYS} hari). Minta Admin ISM mengirim ulang email pengesahan.` }
+  if (linkExpired(view.step)) return { ok: false, message: `Link ini sudah kedaluwarsa (lebih dari ${APPROVAL_LINK_DAYS} hari). Minta Admin ISMS mengirim ulang email pengesahan.` }
   // Signing takes the code from the e-mail body as well as the link — unless
   // the approver is logged in to the account that e-mail was sent to.
   if (action === 'approve') {
@@ -1141,7 +1141,7 @@ export async function decideByToken(
   }
   if (outcome === 'rejected') {
     await notifyAdmins(view.document.id, 'rejected')
-    return { ok: true, message: 'Permintaan revisi terkirim. Admin ISM menerima pemberitahuan beserta catatan Anda.' }
+    return { ok: true, message: 'Permintaan revisi terkirim. Admin ISMS menerima pemberitahuan beserta catatan Anda.' }
   }
   if (outcome === 'approved') {
     // The document takes effect the day its last approver signs: Eff Date

@@ -84,7 +84,7 @@ export default function KelolaIzinAreaSpecialPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Izin Masuk Area Special Security</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Pengajuan form ISMS-F-006-001 dari Lobby maupun Admin ISM. Persetujuan dikirim via email ke approver di bawah — bisa diganti kapan saja saat ada pergantian jabatan.
+            Pengajuan form ISMS-F-006-001 dari Lobby maupun Admin ISMS. Persetujuan dikirim via email ke approver di bawah — bisa diganti kapan saja saat ada pergantian jabatan.
           </p>
         </div>
         <button type="button" onClick={() => setFormOpen(true)} className="inline-flex items-center gap-2 rounded-full bg-[#c7161e] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#a51219]">

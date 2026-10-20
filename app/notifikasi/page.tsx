@@ -86,7 +86,7 @@ export default function NotifikasiPage() {
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-foreground sm:text-3xl"><History className="size-7 text-[color:var(--p-600)]" />Riwayat Notifikasi</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Semua kejadian yang diberitahukan ke Admin ISM selama 90 hari terakhir. Yang masih perlu ditindaklanjuti ada di lonceng notifikasi.
+            Semua kejadian yang diberitahukan ke Admin ISMS selama 90 hari terakhir. Yang masih perlu ditindaklanjuti ada di lonceng notifikasi.
           </p>
         </div>
         <button type="button" onClick={load} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">

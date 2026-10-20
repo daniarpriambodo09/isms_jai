@@ -388,7 +388,7 @@ export function FormReviewOverview({ open, onClose, startWith = null, onChanged 
       <div role="dialog" aria-modal="true" aria-label="Cek Form Review" onClick={(e) => e.stopPropagation()} className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden bg-card shadow-2xl sm:rounded-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 font-mono-label text-[10px] text-muted-foreground"><ClipboardCheck className="size-3.5" /> Khusus Admin ISM</p>
+            <p className="flex items-center gap-1.5 font-mono-label text-[10px] text-muted-foreground"><ClipboardCheck className="size-3.5" /> Khusus Admin ISMS</p>
             <h2 className="mt-1 text-lg font-semibold text-foreground">Cek Form Review</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Prosedur ISMS dan Standard Requirement TMMIN — Form Review tiap dokumen, status pengesahannya, unggah Form Review dan atur approver.</p>
           </div>

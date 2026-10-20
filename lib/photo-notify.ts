@@ -65,7 +65,7 @@ export async function notifyNewPhotoRequest(id: number) {
       kind: 'photo_new',
       category: 'photo',
       title: `Pengajuan foto/video ${typeLabel(row)} baru — ${row.requester_name}`,
-      body: `${row.dept_or_company} · ${row.location}${internal ? ' · menunggu keputusan Admin ISM' : ` · dikirim ke PIC ${row.pic_name ?? '-'}`}`,
+      body: `${row.dept_or_company} · ${row.location}${internal ? ' · menunggu keputusan Admin ISMS' : ` · dikirim ke PIC ${row.pic_name ?? '-'}`}`,
       href: `/kelola-permintaan-foto-video?status=pending&type=${row.request_type}`,
       // Internal: shown live under "Perlu tindakan" until decided.
       historyOnly: internal,
@@ -96,7 +96,7 @@ export async function notifyPhotoDecision(id: number, decidedVia: 'admin' | 'ema
       kind: `photo_${approved ? 'approved' : 'rejected'}`,
       category: 'photo',
       title: `Foto/video ${typeLabel(row)} ${approved ? 'disetujui' : 'ditolak'} — ${row.requester_name}`,
-      body: `${decidedVia === 'email' ? `Oleh PIC ${row.decided_by ?? '-'} lewat email` : `Oleh ${row.decided_by ?? 'Admin ISM'}`} · ${row.location}`,
+      body: `${decidedVia === 'email' ? `Oleh PIC ${row.decided_by ?? '-'} lewat email` : `Oleh ${row.decided_by ?? 'Admin ISMS'}`} · ${row.location}`,
       href: '/kelola-permintaan-foto-video',
       // The admin's own decision needs no heads-up; the PIC's does.
       historyOnly: decidedVia === 'admin',

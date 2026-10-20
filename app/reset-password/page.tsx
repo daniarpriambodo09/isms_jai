@@ -41,7 +41,7 @@ function RequestLink() {
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-emerald-500/10 text-emerald-700"><MailCheck className="size-7" /></span>
         <h2 className="mt-5 font-display text-2xl font-semibold text-foreground">Periksa email Anda</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground" role="status">{sent}</p>
-        <p className="mt-4 text-xs leading-5 text-muted-foreground">Tidak menerima email? Periksa folder spam, atau akun Anda belum punya alamat email — minta Admin ISM mengatur ulang password dari Kelola Admin.</p>
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">Tidak menerima email? Periksa folder spam, atau akun Anda belum punya alamat email — minta Admin ISMS mengatur ulang password dari Kelola Admin.</p>
         <button type="button" onClick={() => { setSent(null); setIdentifier('') }} className="mt-5 text-sm font-semibold text-[color:var(--p-600)] hover:underline">Kirim untuk akun lain</button>
       </div>
     )

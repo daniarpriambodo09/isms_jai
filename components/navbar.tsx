@@ -373,10 +373,19 @@ export function Navbar() {
             {/* Application Form direct menu link (no dropdown) */}
             <Link
               href="/form-aplikasi"
-              className={cn(navLink, (pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && navLinkActive)}
+              className={cn(navLink, pathname === '/form-aplikasi' && navLinkActive)}
             >
-              {navLabels.form_cs ?? 'Application Form'}
-              {(pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && activeIndicator}
+              Application Form
+              {pathname === '/form-aplikasi' && activeIndicator}
+            </Link>
+
+            {/* CS Control direct menu link */}
+            <Link
+              href="/kontrol-cs"
+              className={cn(navLink, pathname === '/kontrol-cs' && navLinkActive)}
+            >
+              CS Control
+              {pathname === '/kontrol-cs' && activeIndicator}
             </Link>
 
             {/* Department dropdown */}
@@ -589,10 +598,21 @@ export function Navbar() {
             onClick={() => setMobileOpen(false)}
             className={cn(
               'nav-drawer-item flex items-center justify-between px-3 py-2.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-foreground hover:bg-secondary mt-3',
-              (pathname === '/form-aplikasi' || pathname === '/kontrol-cs') && 'bg-secondary font-bold text-accent'
+              pathname === '/form-aplikasi' && 'bg-secondary font-bold text-accent'
             )}
           >
-            <span>{navLabels.form_cs ?? 'Application Form'}</span>
+            <span>Application Form</span>
+            <ArrowRight className="size-3.5 opacity-60" />
+          </Link>
+          <Link
+            href="/kontrol-cs"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              'nav-drawer-item flex items-center justify-between px-3 py-2.5 text-[12.5px] font-semibold uppercase tracking-[0.04em] text-foreground hover:bg-secondary mt-1',
+              pathname === '/kontrol-cs' && 'bg-secondary font-bold text-accent'
+            )}
+          >
+            <span>CS Control</span>
             <ArrowRight className="size-3.5 opacity-60" />
           </Link>
           <div className="portal-eyebrow px-3 pb-2 pt-5">{navLabels.departemen ?? 'Departments'}</div>

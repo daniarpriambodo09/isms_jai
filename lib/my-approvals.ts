@@ -18,6 +18,7 @@ import { getSessionFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { docKindInfo } from '@/lib/document-kinds'
 import { ensureItFormTables } from '@/lib/it-form-service'
+import { API_BASE_PATH } from '@/lib/config'
 
 export type SessionAccount = { id: number; username: string; role: string; email: string | null }
 
@@ -223,13 +224,13 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
         qrPlaced: true,
         code: null,
         codeLocked: false,
-        filePath: `/api/it-form-submissions/${row.sub_id}/pdf?token=${row.token}`,
+        filePath: `${API_BASE_PATH}/api/it-form-submissions/${row.sub_id}/pdf?token=${row.token}`,
         note: row.signature_note || row.notes,
         uploadedAt: row.submitted_at,
         effDate: row.submitted_at,
         approverName: row.approver_name,
         category: 'it_form',
-        actionUrl: `/form-it-esign?token=${row.token}`,
+        actionUrl: `${API_BASE_PATH}${row.form_code === 'ISMS-F-02-00-002' ? '/registrasi-fingerprint' : '/form-it-esign'}?token=${row.token}`,
         applicantName: row.applicant_name,
         department: row.department,
         verificationCode: row.verification_code,
@@ -285,13 +286,13 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
         qrPlaced: true,
         code: null,
         codeLocked: false,
-        filePath: `/api/special-area-requests/${r.id}/pdf`,
+        filePath: `${API_BASE_PATH}/api/special-area-requests/${r.id}/pdf`,
         note: r.decision_note || r.purpose,
         uploadedAt: r.submitted_at,
         effDate: r.from_at,
         approverName: r.approver_name,
         category: 'special_area',
-        actionUrl: `/persetujuan-area-special?token=${r.token}`,
+        actionUrl: `${API_BASE_PATH}/persetujuan-area-special?token=${r.token}`,
         applicantName: r.requester_name,
         department: r.org_company || r.department || null,
         verificationCode: r.verification_code,
@@ -343,13 +344,13 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
         qrPlaced: true,
         code: null,
         codeLocked: false,
-        filePath: `/api/photo-video-requests/${r.id}/pdf`,
+        filePath: `${API_BASE_PATH}/api/photo-video-requests/${r.id}/pdf`,
         note: r.objective,
         uploadedAt: r.submitted_at,
         effDate: r.from_at,
         approverName: r.pic_full_name || r.pic_name,
         category: 'photo_video',
-        actionUrl: r.approval_token ? `/konfirmasi-approval?token=${r.approval_token}` : `/kelola-permintaan-foto-video`,
+        actionUrl: r.approval_token ? `${API_BASE_PATH}/konfirmasi-approval?token=${r.approval_token}` : `${API_BASE_PATH}/kelola-permintaan-foto-video`,
         applicantName: r.requester_name,
         department: r.dept_or_company || r.dept || null,
         verificationCode: r.verification_code,
@@ -464,7 +465,7 @@ export async function listMyApprovalMessages(email: string): Promise<ApprovalMes
         code: null,
         locked: false,
         category: 'it_form',
-        actionUrl: `/form-it-esign?token=${r.token}`,
+        actionUrl: r.form_code === 'ISMS-F-02-00-002' ? `/registrasi-fingerprint?token=${r.token}` : `/form-it-esign?token=${r.token}`,
         applicantName: r.applicant_name,
         department: r.department,
       })
@@ -658,7 +659,7 @@ export async function listMyHistory(email: string, opts: { q?: string; page?: nu
         token: r.token,
         qrPending: false,
         category: 'it_form',
-        actionUrl: `/form-it-esign?token=${r.token}`,
+        actionUrl: r.form_code === 'ISMS-F-02-00-002' ? `/registrasi-fingerprint?token=${r.token}` : `/form-it-esign?token=${r.token}`,
         applicantName: r.applicant_name,
       })
     }

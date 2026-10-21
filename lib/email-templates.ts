@@ -805,7 +805,16 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
     ? `background:${look.accent};color:${look.dark};border-radius:6px;border-bottom:3px solid ${re ? '#1f7a4d' : look.accentDark};`
     : `background:${NAVY};color:#ffffff;border-radius:4px;border-bottom:3px solid ${re ? '#1f7a4d' : MEMO_SEAL};`
 
-  const dashUrl = data.dashboardUrl || `${data.reviewUrl.split('/pengesahan')[0]}/persetujuan-saya`
+  const dashUrl = (() => {
+    if (data.dashboardUrl) {
+      if (data.dashboardUrl.includes('token=')) return data.dashboardUrl
+      const tokenMatch = data.reviewUrl.match(/[?&]token=([^&]+)/)
+      return tokenMatch ? `${data.dashboardUrl}${data.dashboardUrl.includes('?') ? '&' : '?'}token=${tokenMatch[1]}` : data.dashboardUrl
+    }
+    const tokenMatch = data.reviewUrl.match(/[?&]token=([^&]+)/)
+    const t = tokenMatch ? `?token=${tokenMatch[1]}` : ''
+    return `${data.reviewUrl.split('/pengesahan')[0]}/persetujuan-saya${t}`
+  })()
   const pendingCount = typeof data.pendingTotal === 'number' && data.pendingTotal > 0 ? data.pendingTotal : 1
 
   // Re-submission: a green banner first thing in the mail — which round, that
@@ -1579,3 +1588,543 @@ export function buildPhotoResultEmail(data: {
     }, body),
   }
 }
+
+// ─── IT Form & Special Security Area E-Sign: Approval Notice ───
+
+export type ItFormApprovalEmailData = {
+  approverName: string
+  approverSalutation?: string | null
+  roleTitle: string
+  requestNo: string
+  formCode: string
+  formName: string
+  applicantName: string
+  applicantNik?: string | null
+  applicantPosition?: string | null
+  department: string
+  employeeStatus: string
+  purpose?: string | null
+  requestDate: string
+  stepNumber: number
+  totalSteps: number
+  actionUrl: string
+  dashboardUrl?: string
+  isFingerprint?: boolean
+  chain?: { roleTitle: string; name: string; state: 'done' | 'current' | 'waiting'; decidedAt: string | null }[]
+}
+
+export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subject: string; html: string } {
+  const e = escapeHtml
+  const isFinger = data.isFingerprint || data.formCode === 'ISMS-F-02-00-002'
+  const domainLabel = isFinger ? 'Special Security Area (Fingerprint)' : 'Layanan & E-Sign IT'
+  const headerTitle = isFinger ? 'Permohonan Registrasi Fingerprint' : 'Permohonan Formulir Layanan IT'
+  const ribbonColor = isFinger ? '#1a6e3a' : '#1a5f7a'
+  const dashUrl = (() => {
+    if (data.dashboardUrl) {
+      if (data.dashboardUrl.includes('token=')) return data.dashboardUrl
+      const tokenMatch = data.actionUrl.match(/[?&]token=([^&]+)/)
+      return tokenMatch ? `${data.dashboardUrl}${data.dashboardUrl.includes('?') ? '&' : '?'}token=${tokenMatch[1]}` : data.dashboardUrl
+    }
+    const tokenMatch = data.actionUrl.match(/[?&]token=([^&]+)/)
+    const t = tokenMatch ? `?token=${tokenMatch[1]}` : ''
+    return `${data.actionUrl.split('/form-it-esign')[0]}/persetujuan-saya${t}`
+  })()
+
+  const rows: [string, string][] = [
+    ['Nomor Permohonan', `<span style="font-family:'Courier New',Courier,monospace;font-weight:bold;color:${NAVY};">${e(data.requestNo)}</span>`],
+    ['Jenis Formulir', `<strong>${e(data.formName)}</strong> <span style="font-size:11.5px;color:${MUTED};">(${e(data.formCode)})</span>`],
+    ['Nama Pemohon', `<strong>${e(data.applicantName)}</strong>`],
+    ['Departemen', `<strong>${e(data.department)}</strong>`],
+    ['Status Karyawan', e(data.employeeStatus || 'TETAP')],
+  ]
+  if (data.applicantNik || data.applicantPosition) {
+    rows.push(['NIK / Jabatan', `${e(data.applicantNik || '-')} / ${e(data.applicantPosition || '-')}`])
+  }
+  rows.push(['Tanggal Pengajuan', fmtDate(data.requestDate)])
+  if (data.purpose) {
+    rows.push(['Keperluan / Tujuan', e(data.purpose)])
+  }
+  rows.push([
+    'Tahapan Otorisasi',
+    `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#eef6f5;color:${TEAL};font-weight:bold;font-size:11.5px;">Langkah ${data.stepNumber} dari ${data.totalSteps} &middot; ${e(data.roleTitle)}</span>`,
+  ])
+
+  const rowsHtml = rows
+    .map(
+      ([label, value], i) => `
+    <tr>
+      <td style="padding:10px 14px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:12.5px;color:${MUTED};width:140px;vertical-align:top;font-weight:600;">${label}</td>
+      <td style="padding:10px 16px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:13px;color:${TEXT};vertical-align:top;">${value}</td>
+    </tr>`
+    )
+    .join('')
+
+  const chainHtml =
+    data.chain && data.chain.length > 0
+      ? `
+    <tr>
+      <td style="padding:16px 32px 4px;">
+        <p style="margin:0 0 10px;font-size:11.5px;font-weight:bold;color:${MUTED};letter-spacing:0.08em;text-transform:uppercase;">Alur Pengesahan Digital (E-Sign Chain)</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          ${data.chain
+            .map((c, idx) => {
+              const isCur = c.state === 'current'
+              const isDone = c.state === 'done'
+              const bg = isCur ? '#eef6f5' : isDone ? '#f4fbf7' : '#ffffff'
+              const mark = isDone ? '&#10003;' : isCur ? '&#9998;' : `${idx + 1}`
+              const badgeBg = isDone ? GREEN : isCur ? TEAL : '#cbd5e1'
+              return `
+            <tr style="background:${bg};border-bottom:${idx < data.chain!.length - 1 ? `1px solid ${BORDER}` : 'none'};">
+              <td style="padding:10px 12px;width:30px;vertical-align:middle;text-align:center;">
+                <span style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:50%;background:${badgeBg};color:#ffffff;font-size:11px;font-weight:bold;">${mark}</span>
+              </td>
+              <td style="padding:10px 8px;vertical-align:middle;">
+                <p style="margin:0;font-size:13px;font-weight:bold;color:${TEXT};">${e(c.name)}</p>
+                <p style="margin:2px 0 0;font-size:11px;color:${MUTED};">${e(c.roleTitle)}</p>
+              </td>
+              <td align="right" style="padding:10px 14px;vertical-align:middle;">
+                <span style="display:inline-block;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:bold;${
+                  isDone
+                    ? 'background:#dcfce7;color:#15803d;'
+                    : isCur
+                    ? 'background:#ccfbf1;color:#0f766e;'
+                    : 'background:#f1f5f9;color:#64748b;'
+                }">
+                  ${isDone ? `Disetujui ${c.decidedAt ? fmtDate(c.decidedAt) : ''}` : isCur ? 'Giliran Anda' : 'Menunggu'}
+                </span>
+              </td>
+            </tr>`
+            })
+            .join('')}
+        </table>
+      </td>
+    </tr>`
+      : ''
+
+  const html = `
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eef2f4;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f4;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(18,40,58,0.16);">
+
+          <!-- Accent ribbon -->
+          <tr>
+            <td style="background:${ribbonColor};height:6px;line-height:6px;font-size:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 50%, ${TEAL} 100%);background-color:${NAVY};padding:28px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <span style="display:inline-block;background:#ffffff;border-radius:8px;padding:6px 10px;line-height:0;">
+                      <img src="cid:${LOGO_CID}" alt="YAZAKI" width="72" style="display:block;border:0;outline:none;height:auto;" />
+                    </span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;border:1px solid rgba(255,255,255,0.35);border-radius:999px;padding:5px 12px;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">${domainLabel}</span>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:18px 0 0;color:#ffffff;font-size:21px;font-weight:bold;line-height:1.3;">${headerTitle}</p>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:12.5px;">PT. Jatim Autocomp Indonesia &middot; Menunggu persetujuan Anda (${e(data.requestNo)})</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 32px 10px;">
+              <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear ${salutationPrefix(data.approverSalutation)}<strong>${e(data.approverName)}</strong>,</p>
+              <p style="margin:0 0 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">Semoga selalu dalam keadaan sehat dan sukses dalam menjalankan aktivitas.</p>
+              <p style="margin:0 0 16px;font-size:13.5px;color:${TEXT};line-height:1.75;">
+                Bersama email ini kami memberitahukan bahwa terdapat pengajuan <strong>${e(data.formName)}</strong> (${e(data.formCode)}) dengan nomor registrasi <strong>${e(data.requestNo)}</strong> yang membutuhkan persetujuan serta tanda tangan digital (E-Sign) Anda selaku <strong>${e(data.roleTitle)}</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Detail Table -->
+          <tr>
+            <td style="padding:0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:12px;overflow:hidden;">
+                ${rowsHtml}
+              </table>
+            </td>
+          </tr>
+
+          ${chainHtml}
+
+          <!-- Action Button CTA -->
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
+                <tr>
+                  <td style="padding:20px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">
+                    Pilih salah satu metode di bawah untuk memeriksa dan memberikan persetujuan (E-Sign):
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:6px 20px 8px;">
+                    <a href="${dashUrl}" style="display:inline-block;min-width:260px;text-align:center;padding:13px 32px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
+                      &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:6px 20px 14px;">
+                    <a href="${data.actionUrl}" style="display:inline-block;min-width:260px;text-align:center;padding:12px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.22);">
+                      &#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 24px 18px;text-align:center;font-size:11.5px;color:${MUTED};line-height:1.5;">
+                    <em>Catatan: Tombol <strong>Dashboard Persetujuan Saya</strong> akan langsung mengarahkan Anda ke antrean dokumen tanpa perlu login jika alamat email approver sama dengan email akun ISMS Anda.</em>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px 28px;text-align:center;border-top:1px solid ${BORDER};margin-top:20px;">
+              <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.6;">
+                Email otomatis dari Sistem Informasi Manajemen Keamanan Informasi (ISMS) &middot; PT. Jatim Autocomp Indonesia.<br />
+                Pesan ini dikirimkan ke alamat approver resmi terdaftar. Harap tidak membalas email ini secara langsung.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+  const subject = `[Persetujuan ${isFinger ? 'Akses Fingerprint' : 'Form IT'}] ${data.requestNo} — ${data.formName}`
+  return { subject, html }
+}
+
+export type ItFormCompletedEmailData = {
+  requestNo: string
+  formCode: string
+  formName: string
+  applicantName: string
+  department: string
+  purpose?: string | null
+  requestDate: string
+  completedDate: string
+  actionUrl: string
+  pdfUrl?: string
+  isFingerprint?: boolean
+  chain?: { roleTitle: string; name: string; verificationCode?: string | null; decidedAt?: string | null }[]
+}
+
+export function buildItFormCompletedEmail(data: ItFormCompletedEmailData): { subject: string; html: string } {
+  const e = escapeHtml
+  const isFinger = data.isFingerprint || data.formCode === 'ISMS-F-02-00-002'
+  const domainLabel = isFinger ? 'Special Security Area (Fingerprint)' : 'Layanan & E-Sign IT'
+  const headerTitle = isFinger ? 'Akses Fingerprint Resmi Disetujui' : 'Formulir IT Resmi Disetujui'
+  const ribbonColor = '#1f8a4c'
+
+  const rows: [string, string][] = [
+    ['Nomor Permohonan', `<span style="font-family:'Courier New',Courier,monospace;font-weight:bold;color:${NAVY};">${e(data.requestNo)}</span>`],
+    ['Jenis Formulir', `<strong>${e(data.formName)}</strong> <span style="font-size:11.5px;color:${MUTED};">(${e(data.formCode)})</span>`],
+    ['Nama Pemohon', `<strong>${e(data.applicantName)}</strong>`],
+    ['Departemen', `<strong>${e(data.department)}</strong>`],
+    ['Status Pengajuan', `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#dcfce7;color:#15803d;font-weight:bold;font-size:11.5px;">&#10003; SELESAI / DISETUJUI PENUH</span>`],
+    ['Tanggal Pengajuan', fmtDate(data.requestDate)],
+    ['Selesai Diverifikasi', fmtDate(data.completedDate)],
+  ]
+  if (data.purpose) {
+    rows.push(['Keperluan / Tujuan', e(data.purpose)])
+  }
+
+  const rowsHtml = rows
+    .map(
+      ([label, value], i) => `
+    <tr>
+      <td style="padding:10px 14px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:12.5px;color:${MUTED};width:140px;vertical-align:top;font-weight:600;">${label}</td>
+      <td style="padding:10px 16px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:13px;color:${TEXT};vertical-align:top;">${value}</td>
+    </tr>`
+    )
+    .join('')
+
+  const chainHtml =
+    data.chain && data.chain.length > 0
+      ? `
+    <tr>
+      <td style="padding:16px 32px 4px;">
+        <p style="margin:0 0 10px;font-size:11.5px;font-weight:bold;color:${MUTED};letter-spacing:0.08em;text-transform:uppercase;">Tanda Tangan Digital Resmi (E-Sign Verification)</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+          ${data.chain
+            .map((c, idx) => `
+            <tr style="background:#f4fbf7;border-bottom:${idx < data.chain!.length - 1 ? `1px solid ${BORDER}` : 'none'};">
+              <td style="padding:10px 12px;width:30px;vertical-align:middle;text-align:center;">
+                <span style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:50%;background:${GREEN};color:#ffffff;font-size:11px;font-weight:bold;">&#10003;</span>
+              </td>
+              <td style="padding:10px 8px;vertical-align:middle;">
+                <p style="margin:0;font-size:13px;font-weight:bold;color:${TEXT};">${e(c.name)}</p>
+                <p style="margin:2px 0 0;font-size:11px;color:${MUTED};">${e(c.roleTitle)}</p>
+              </td>
+              <td align="right" style="padding:10px 14px;vertical-align:middle;">
+                <span style="font-family:'Courier New',Courier,monospace;font-size:11px;font-weight:bold;color:${GREEN};">
+                  ${e(c.verificationCode || 'VERIFIED')}
+                </span>
+                <p style="margin:2px 0 0;font-size:10px;color:${MUTED};">${c.decidedAt ? fmtDate(c.decidedAt) : ''}</p>
+              </td>
+            </tr>`)
+            .join('')}
+        </table>
+      </td>
+    </tr>`
+      : ''
+
+  const html = `
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eef2f4;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f4;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(18,40,58,0.16);">
+
+          <!-- Accent ribbon -->
+          <tr>
+            <td style="background:${ribbonColor};height:6px;line-height:6px;font-size:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg, ${NAVY} 0%, #1f4e38 50%, #15803d 100%);background-color:${NAVY};padding:28px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <span style="display:inline-block;background:#ffffff;border-radius:8px;padding:6px 10px;line-height:0;">
+                      <img src="cid:${LOGO_CID}" alt="YAZAKI" width="72" style="display:block;border:0;outline:none;height:auto;" />
+                    </span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;border:1px solid rgba(255,255,255,0.35);border-radius:999px;padding:5px 12px;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">${domainLabel}</span>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:18px 0 0;color:#ffffff;font-size:21px;font-weight:bold;line-height:1.3;">${headerTitle}</p>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:12.5px;">PT. Jatim Autocomp Indonesia &middot; Seluruh tahapan persetujuan telah lengkap (${e(data.requestNo)})</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 32px 10px;">
+              <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Pemberitahuan kepada Pemohon &amp; Tim Otorisasi,</p>
+              <p style="margin:0 0 16px;font-size:13.5px;color:${TEXT};line-height:1.75;">
+                Dengan hormat diberitahukan bahwa permohonan <strong>${e(data.formName)}</strong> (${e(data.formCode)}) dengan nomor <strong>${e(data.requestNo)}</strong> atas nama <strong>${e(data.applicantName)}</strong> (${e(data.department)}) telah <strong>disetujui penuh (Approved)</strong> oleh seluruh pejabat penandatangan digital.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Detail Table -->
+          <tr>
+            <td style="padding:0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:12px;overflow:hidden;">
+                ${rowsHtml}
+              </table>
+            </td>
+          </tr>
+
+          ${chainHtml}
+
+          <!-- Action Button CTA -->
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4fbf7;border:1px solid ${BORDER};border-radius:16px;">
+                <tr>
+                  <td style="padding:20px 20px 6px;text-align:center;font-size:12.5px;color:${MUTED};">
+                    Dokumen resmi lengkap dengan kode verifikasi E-Sign dapat dilihat atau diunduh di portal:
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:10px 20px 8px;">
+                    <a href="${data.pdfUrl || data.actionUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:13px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 6px 14px rgba(26,110,58,0.28);">
+                      &#128196;&nbsp; Buka / Unduh Dokumen PDF Resmi
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:4px 20px 18px;">
+                    <a href="${data.actionUrl}" style="display:inline-block;padding:9px 24px;background:#ffffff;color:${NAVY};border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;font-weight:bold;font-size:12.5px;box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                      &#128065;&nbsp; Lihat Rincian Pengajuan di Portal
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px 28px;text-align:center;border-top:1px solid ${BORDER};margin-top:20px;">
+              <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.6;">
+                Email otomatis dari Sistem Informasi Manajemen Keamanan Informasi (ISMS) &middot; PT. Jatim Autocomp Indonesia.<br />
+                Pesan ini dikirimkan ke alamat terdaftar. Harap tidak membalas email ini secara langsung.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+  const subject = `[Selesai Disetujui] ${data.requestNo} — ${data.formName}`
+  return { subject, html }
+}
+
+export type ItFormRejectedEmailData = {
+  requestNo: string
+  formCode: string
+  formName: string
+  applicantName: string
+  department: string
+  rejectorName: string
+  rejectorRole: string
+  reasonNote?: string | null
+  actionUrl: string
+  isFingerprint?: boolean
+}
+
+export function buildItFormRejectedEmail(data: ItFormRejectedEmailData): { subject: string; html: string } {
+  const e = escapeHtml
+  const isFinger = data.isFingerprint || data.formCode === 'ISMS-F-02-00-002'
+  const domainLabel = isFinger ? 'Special Security Area (Fingerprint)' : 'Layanan & E-Sign IT'
+  const headerTitle = isFinger ? 'Permohonan Fingerprint Ditolak / Perlu Revisi' : 'Permohonan Formulir IT Ditolak / Perlu Revisi'
+  const ribbonColor = '#dc2626'
+
+  const rows: [string, string][] = [
+    ['Nomor Permohonan', `<span style="font-family:'Courier New',Courier,monospace;font-weight:bold;color:${NAVY};">${e(data.requestNo)}</span>`],
+    ['Jenis Formulir', `<strong>${e(data.formName)}</strong> <span style="font-size:11.5px;color:${MUTED};">(${e(data.formCode)})</span>`],
+    ['Nama Pemohon', `<strong>${e(data.applicantName)}</strong>`],
+    ['Departemen', `<strong>${e(data.department)}</strong>`],
+    ['Status Keputusan', `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#fef2f2;color:#b91c1c;font-weight:bold;font-size:11.5px;">&#10007; DITOLAK / PERLU REVISI</span>`],
+    ['Ditolak Oleh', `<strong>${e(data.rejectorName)}</strong> (${e(data.rejectorRole)})`],
+  ]
+  if (data.reasonNote) {
+    rows.push(['Alasan / Catatan Revisi', `<span style="color:#b91c1c;font-weight:600;">${e(data.reasonNote)}</span>`])
+  }
+
+  const rowsHtml = rows
+    .map(
+      ([label, value], i) => `
+    <tr>
+      <td style="padding:10px 14px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:12.5px;color:${MUTED};width:140px;vertical-align:top;font-weight:600;">${label}</td>
+      <td style="padding:10px 16px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:13px;color:${TEXT};vertical-align:top;">${value}</td>
+    </tr>`
+    )
+    .join('')
+
+  const html = `
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eef2f4;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f4;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(18,40,58,0.16);">
+
+          <!-- Accent ribbon -->
+          <tr>
+            <td style="background:${ribbonColor};height:6px;line-height:6px;font-size:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg, ${NAVY} 0%, #7f1d1d 50%, #b91c1c 100%);background-color:${NAVY};padding:28px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <span style="display:inline-block;background:#ffffff;border-radius:8px;padding:6px 10px;line-height:0;">
+                      <img src="cid:${LOGO_CID}" alt="YAZAKI" width="72" style="display:block;border:0;outline:none;height:auto;" />
+                    </span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;border:1px solid rgba(255,255,255,0.35);border-radius:999px;padding:5px 12px;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">${domainLabel}</span>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:18px 0 0;color:#ffffff;font-size:21px;font-weight:bold;line-height:1.3;">${headerTitle}</p>
+              <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:12.5px;">PT. Jatim Autocomp Indonesia &middot; Catatan penolakan / revisi (${e(data.requestNo)})</p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 32px 10px;">
+              <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Pemberitahuan kepada Pemohon &amp; Tim Otorisasi,</p>
+              <p style="margin:0 0 16px;font-size:13.5px;color:${TEXT};line-height:1.75;">
+                Diberitahukan bahwa permohonan <strong>${e(data.formName)}</strong> (${e(data.formCode)}) dengan nomor <strong>${e(data.requestNo)}</strong> atas nama <strong>${e(data.applicantName)}</strong> <strong>ditolak atau diminta untuk direvisi</strong> oleh <strong>${e(data.rejectorName)}</strong> (${e(data.rejectorRole)}).
+              </p>
+            </td>
+          </tr>
+
+          <!-- Detail Table -->
+          <tr>
+            <td style="padding:0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:12px;overflow:hidden;">
+                ${rowsHtml}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Action Button CTA -->
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border:1px solid ${BORDER};border-radius:16px;">
+                <tr>
+                  <td style="padding:20px 20px 6px;text-align:center;font-size:12.5px;color:${MUTED};">
+                    Silakan periksa catatan revisi dan ajukan kembali permohonan melalui portal:
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:10px 20px 18px;">
+                    <a href="${data.actionUrl}" style="display:inline-block;min-width:220px;text-align:center;padding:14px 32px;background:linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;box-shadow:0 6px 14px rgba(185,28,28,0.28);">
+                      Lihat Rincian Permohonan
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px 28px;text-align:center;border-top:1px solid ${BORDER};margin-top:20px;">
+              <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.6;">
+                Email otomatis dari Sistem Informasi Manajemen Keamanan Informasi (ISMS) &middot; PT. Jatim Autocomp Indonesia.<br />
+                Harap tidak membalas email ini secara langsung.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+  const subject = `[Perlu Revisi / Ditolak] ${data.requestNo} — ${data.formName}`
+  return { subject, html }
+}
+
+

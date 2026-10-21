@@ -22,6 +22,9 @@ import {
   AlertCircle,
   HelpCircle,
   Settings2,
+  ShieldAlert,
+  Filter,
+  Building,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { AdminGate } from '@/components/admin-gate'
@@ -53,7 +56,21 @@ export default function KelolaApproverItPage() {
   const [initials, setInitials] = useState('')
   const [email, setEmail] = useState('')
   const [department, setDepartment] = useState('')
+  const [availableDepts, setAvailableDepts] = useState<string[]>([])
+  const [customDeptMode, setCustomDeptMode] = useState(false)
+  const [filterDept, setFilterDept] = useState<string>('all')
   const [isActive, setIsActive] = useState(true)
+
+  useEffect(() => {
+    fetch(`${API_BASE_PATH}/api/departments`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.departments)) {
+          setAvailableDepts(data.departments.map((d: any) => d.name))
+        }
+      })
+      .catch((err) => console.error('Failed to load departments:', err))
+  }, [])
 
   const [saving, setSaving] = useState(false)
   const [modalError, setModalError] = useState('')
@@ -93,8 +110,13 @@ export default function KelolaApproverItPage() {
   const filteredApprovers = useMemo(() => {
     return approvers
       .filter((a) => a.form_code === selectedFormCode)
+      .filter((a) => {
+        if (filterDept === 'all') return true
+        if (filterDept === 'general') return !a.department || a.department === 'Departemen Pemohon'
+        return a.department === filterDept
+      })
       .sort((a, b) => (a.sort_order || a.slot_number) - (b.sort_order || b.slot_number))
-  }, [approvers, selectedFormCode])
+  }, [approvers, selectedFormCode, filterDept])
 
   const openAddModal = () => {
     setEditingApprover(null)
@@ -107,7 +129,8 @@ export default function KelolaApproverItPage() {
     setSalutation('Bapak')
     setInitials('')
     setEmail('')
-    setDepartment('IT Section')
+    setCustomDeptMode(false)
+    setDepartment(selectedFormCode === 'ISMS-F-02-00-002' ? 'Information Assets Administrator' : 'IT Section')
     setIsActive(true)
     setModalError('')
     setIsModalOpen(true)
@@ -123,7 +146,13 @@ export default function KelolaApproverItPage() {
     setSalutation(item.salutation || 'Bapak')
     setInitials(item.initials || '')
     setEmail(item.email || '')
-    setDepartment(item.department || '')
+    const deptVal = item.department || ''
+    setDepartment(deptVal)
+    const isStandard =
+      !deptVal ||
+      ['Departemen Pemohon', 'IT Section', 'Information Assets Administrator'].includes(deptVal) ||
+      availableDepts.includes(deptVal)
+    setCustomDeptMode(!isStandard && Boolean(deptVal))
     setIsActive(item.is_active)
     setModalError('')
     setIsModalOpen(true)
@@ -248,15 +277,14 @@ export default function KelolaApproverItPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight text-foreground">
-                  Pengaturan Approver Form IT (E-Sign)
+                  Pengaturan Approver Form Digital &amp; E-Sign
                 </h1>
                 <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                  IT Admin
+                  IT &amp; Security Admin
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                Atur pejabat penandatangan digital (ganti nama, jabatan, email, atau tambah approver baru)
-                untuk formulir IT.
+                Atur pejabat penandatangan digital (E-Sign) untuk formulir Layanan IT dan Global &amp; Special Security Area (Fingerprint).
               </p>
             </div>
           </div>
@@ -270,12 +298,12 @@ export default function KelolaApproverItPage() {
               Kelola Permohonan IT
             </Link>
             <Link
-              href="/form-it-esign"
+              href={selectedFormCode === 'ISMS-F-02-00-002' ? '/registrasi-fingerprint' : `/form-it-esign?form=${selectedFormCode}`}
               target="_blank"
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-95"
             >
               <ExternalLink className="size-4" />
-              Buka Form Digital
+              Buka Form {selectedFormCode === 'ISMS-F-02-00-002' ? 'Fingerprint' : 'IT'}
             </Link>
           </div>
         </div>
@@ -288,41 +316,121 @@ export default function KelolaApproverItPage() {
           </div>
         )}
 
-        {/* Tabs for Forms */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {IT_FORM_DEFINITIONS.map((def) => {
-            const isSelected = selectedFormCode === def.code
-            const count = approvers.filter((a) => a.form_code === def.code).length
-            return (
-              <button
-                key={def.code}
-                type="button"
-                onClick={() => setSelectedFormCode(def.code)}
-                className={`flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition ${
-                  isSelected
-                    ? 'border-blue-600 bg-blue-50/50 shadow-sm dark:bg-blue-950/20'
-                    : 'border-border bg-card hover:bg-secondary/30'
-                }`}
-              >
-                <div className="flex w-full items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-blue-600">{def.code}</span>
-                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                    {count} Approver
-                  </span>
-                </div>
-                <div className="line-clamp-1 text-xs font-semibold text-foreground">{def.name}</div>
-                <div className="line-clamp-1 text-[11px] text-muted-foreground">{def.category}</div>
-              </button>
-            )
-          })}
+        {/* Tabs for Forms grouped into IT Service & Global Security */}
+        <div className="space-y-4">
+          {/* Section 1: IT Service Forms */}
+          <div>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Laptop className="size-3.5 text-blue-600" />
+                Formulir Layanan IT (E-Sign)
+              </span>
+              <span className="text-[11px] text-muted-foreground">5 Formulir Aktif</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {IT_FORM_DEFINITIONS.filter((d) => d.code !== 'ISMS-F-02-00-002').map((def) => {
+                const isSelected = selectedFormCode === def.code
+                const count = approvers.filter((a) => a.form_code === def.code).length
+                return (
+                  <button
+                    key={def.code}
+                    type="button"
+                    onClick={() => {
+                      setSelectedFormCode(def.code)
+                      setFilterDept('all')
+                    }}
+                    className={`flex flex-col items-start gap-1 rounded-2xl border p-3.5 text-left transition ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-50/50 shadow-sm dark:bg-blue-950/20 ring-2 ring-blue-500/20'
+                        : 'border-border bg-card hover:bg-secondary/30'
+                    }`}
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-blue-600">{def.code}</span>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        {count} Approver
+                      </span>
+                    </div>
+                    <div className="line-clamp-1 text-xs font-semibold text-foreground">{def.name}</div>
+                    <div className="line-clamp-1 text-[11px] text-muted-foreground">{def.category}</div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Section 2: Global Special Security Area (Fingerprint) */}
+          <div>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
+                <ShieldAlert className="size-3.5 text-indigo-600 dark:text-indigo-400" />
+                Global &amp; Special Security Area (Bukan Layanan IT)
+              </span>
+              <span className="rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 text-[10px] font-bold">
+                Pengesahan IAA Teguh Sunjoyo
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {IT_FORM_DEFINITIONS.filter((d) => d.code === 'ISMS-F-02-00-002').map((def) => {
+                const isSelected = selectedFormCode === def.code
+                const count = approvers.filter((a) => a.form_code === def.code).length
+                return (
+                  <button
+                    key={def.code}
+                    type="button"
+                    onClick={() => {
+                      setSelectedFormCode(def.code)
+                      setFilterDept('all')
+                    }}
+                    className={`flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition ${
+                      isSelected
+                        ? 'border-indigo-600 bg-gradient-to-r from-indigo-500/15 via-purple-500/10 to-indigo-500/5 shadow-sm ring-2 ring-indigo-500/30'
+                        : 'border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10'
+                    }`}
+                  >
+                    <div className="flex w-full items-center justify-between">
+                      <span className="font-mono text-xs font-extrabold text-indigo-600 dark:text-indigo-400">{def.code}</span>
+                      <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-800 dark:text-indigo-300">
+                        {count} Approver (IAA)
+                      </span>
+                    </div>
+                    <div className="line-clamp-1 text-xs font-bold text-foreground">{def.name}</div>
+                    <div className="line-clamp-1 text-[11px] text-indigo-700 dark:text-indigo-300">
+                      Otorisasi Akses Fisik Special Security Area (Server Room &amp; Arsip)
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Selected Form Details & Approver Management */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-5">
+          {/* Fingerprint Special Notice */}
+          {selectedFormCode === 'ISMS-F-02-00-002' && (
+            <div className="flex items-start gap-3 rounded-2xl border border-indigo-500/40 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/5 p-4 text-xs text-indigo-950 dark:text-indigo-200 shadow-2xs">
+              <ShieldAlert className="size-5 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-extrabold text-xs uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+                    Ranah Khusus: Global Security Area (Bukan Layanan IT)
+                  </span>
+                  <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-800 dark:text-indigo-300 border border-indigo-500/30">
+                    Pengesahan Langsung IAA Teguh Sunjoyo
+                  </span>
+                </div>
+                <p className="leading-relaxed text-foreground/90">
+                  Formulir pendaftaran / perubahan akses sidik jari (fingerprint) ini khusus untuk pintu masuk fisik Special Security Area (Server Room &amp; Ruang Arsip), <strong>bukan ranah permohonan perangkat/jaringan IT</strong>. Otorisasi disahkan langsung oleh <strong>Information Assets Administrator (IAA) Bapak Teguh Sunjoyo</strong> sesuai kebijakan ISMS ISO/IEC 27001.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-bold text-blue-600">
+                <span className={`font-mono text-sm font-bold ${selectedFormCode === 'ISMS-F-02-00-002' ? 'text-indigo-600 dark:text-indigo-400' : 'text-blue-600'}`}>
                   {currentFormDef.code}
                 </span>
                 <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-600">
@@ -352,6 +460,40 @@ export default function KelolaApproverItPage() {
                 Tambah Approver / Slot
               </button>
             </div>
+          </div>
+
+          {/* Department Filter Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary/30 p-3 text-xs border border-border/60">
+            <div className="flex items-center gap-2">
+              <Filter className="size-4 text-muted-foreground shrink-0" />
+              <span className="font-bold text-foreground">Filter Departemen:</span>
+              <select
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                className="h-8 rounded-lg border border-input bg-card px-2.5 text-xs font-semibold text-foreground outline-none transition focus:border-blue-500 shadow-2xs"
+              >
+                <option value="all">
+                  Semua Departemen ({approvers.filter((a) => a.form_code === selectedFormCode).length} Approver)
+                </option>
+                <option value="general">Umum / Departemen Pemohon</option>
+                <optgroup label="─── Master Departemen Menu ISMS ───">
+                  {availableDepts.map((d) => (
+                    <option key={d} value={d}>
+                      Departemen {d}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+            {filterDept !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setFilterDept('all')}
+                className="text-[11px] font-bold text-blue-600 hover:underline"
+              >
+                Reset Filter
+              </button>
+            )}
           </div>
 
           {/* Visual Approval Chain Flow */}
@@ -608,14 +750,65 @@ export default function KelolaApproverItPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Departemen</label>
-                    <input
-                      type="text"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      placeholder="e.g. IT Section, HR, Management"
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={labelClass}>Departemen (Master ISMS)</label>
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        Sync Master
+                      </span>
+                    </div>
+                    <select
+                      value={
+                        customDeptMode
+                          ? '__custom__'
+                          : !department
+                          ? ''
+                          : department === 'Departemen Pemohon'
+                          ? 'Departemen Pemohon'
+                          : department === 'IT Section'
+                          ? 'IT Section'
+                          : department === 'Information Assets Administrator'
+                          ? 'Information Assets Administrator'
+                          : availableDepts.includes(department)
+                          ? department
+                          : '__custom__'
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value
+                        if (val === '__custom__') {
+                          setCustomDeptMode(true)
+                        } else {
+                          setCustomDeptMode(false)
+                          setDepartment(val)
+                        }
+                      }}
                       className={inputClass}
-                    />
+                    >
+                      <option value="">Semua Departemen (Umum / Global)</option>
+                      <option value="Departemen Pemohon">Departemen Pemohon (Dynamic / Sesuai Pemohon)</option>
+                      <option value="IT Section">IT Section</option>
+                      <option value="Information Assets Administrator">Information Assets Administrator (IAA)</option>
+                      <optgroup label="─── Master Departemen Menu ISMS ───">
+                        {availableDepts.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <option value="__custom__">Lainnya / Ketik Manual...</option>
+                    </select>
+
+                    {customDeptMode && (
+                      <div className="mt-2">
+                        <input
+                          type="text"
+                          value={department}
+                          onChange={(e) => setDepartment(e.target.value)}
+                          placeholder="Ketik nama departemen spesifik..."
+                          className={inputClass}
+                          autoFocus
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

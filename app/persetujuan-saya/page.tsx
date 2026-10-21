@@ -151,7 +151,7 @@ function WhatBadge({ item }: { item: Item }) {
 }
 
 export default function PersetujuanSayaPage() {
-  const { sessionUser, isLoading, logout } = useAuth()
+  const { sessionUser, isLoading, logout, checkAuth } = useAuth()
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<Item | null>(null)
@@ -162,6 +162,10 @@ export default function PersetujuanSayaPage() {
   const [copiedCode, setCopiedCode] = useState(false)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [passwordOpen, setPasswordOpen] = useState(false)
+
+  // Direct Token Login: auto authenticates approvers whose email matches an account in admins
+  const [tokenAuthChecking, setTokenAuthChecking] = useState(false)
+  const [tokenAuthMessage, setTokenAuthMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   // Tabs: 'pending' (default) | 'queued' | 'recent' | 'all-history'
   const [activeTab, setActiveTab] = useState<'pending' | 'queued' | 'recent' | 'all-history'>('pending')
@@ -176,7 +180,7 @@ export default function PersetujuanSayaPage() {
         return
       }
       if (item.category === 'it_form' && item.token) {
-        window.location.href = `/form-it-esign?token=${item.token}`
+        window.location.href = item.actionUrl || (item.title?.includes('ISMS-F-02-00-002') ? `/registrasi-fingerprint?token=${item.token}` : `/form-it-esign?token=${item.token}`)
         return
       }
       if (item.category === 'special_area' && item.token) {
@@ -200,7 +204,7 @@ export default function PersetujuanSayaPage() {
 
     // Default open detail
     if (item.category === 'it_form') {
-      window.location.href = `/form-it-esign?token=${item.token}`
+      window.location.href = item.actionUrl || (item.title?.includes('ISMS-F-02-00-002') ? `/registrasi-fingerprint?token=${item.token}` : `/form-it-esign?token=${item.token}`)
       return
     }
     if (item.category === 'special_area') {
@@ -249,15 +253,70 @@ export default function PersetujuanSayaPage() {
     }
   }, [sessionUser, load])
 
-  // If opened with ?stepId=..., automatically open the approval modal for that step
+  // Direct Token Login: If opened via email link with ?token=..., authenticate matching admin automatically
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    if (!token) return
+
+    let cancelled = false
+    setTokenAuthChecking(true)
+
+    fetch(`${API_BASE_PATH}/api/auth/approver-token-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+      .then(async (res) => {
+        const body = await res.json().catch(() => null)
+        if (cancelled) return
+
+        if (res.ok && body?.success && body?.admin) {
+          setTokenAuthMessage({
+            ok: true,
+            text: `Terhubung otomatis sebagai ${body.admin.username} (${body.matchedEmail}) melalui link persetujuan email.`,
+          })
+          await checkAuth()
+        } else if (body?.matchedEmail) {
+          setTokenAuthMessage({
+            ok: false,
+            text: `Email notifikasi persetujuan (${body.matchedEmail}) belum terdaftar pada akun ISMS. Silakan masuk manual dengan akun Anda atau hubungi Admin ISMS.`,
+          })
+        } else if (body?.message) {
+          setTokenAuthMessage({
+            ok: false,
+            text: body.message,
+          })
+        }
+      })
+      .catch((err) => {
+        console.error('[persetujuan-saya/token-login]', err)
+      })
+      .finally(() => {
+        if (!cancelled) setTokenAuthChecking(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [checkAuth])
+
+  // If opened with ?stepId=... or ?token=..., automatically open the approval modal for that step
   useEffect(() => {
     if (!data?.pending?.length) return
     const params = new URLSearchParams(window.location.search)
     const targetStep = params.get('stepId')
+    const targetToken = params.get('token')
     if (targetStep) {
       const item = data.pending.find((p) => String(p.stepId) === targetStep)
       if (item) {
         openApprovalModal(item, 'approve')
+      }
+    } else if (targetToken) {
+      const item = data.pending.find((p) => p.token === targetToken)
+      if (item) {
+        openApprovalModal(item, null)
       }
     }
   }, [data])
@@ -394,10 +453,15 @@ export default function PersetujuanSayaPage() {
   }, [data?.pending])
 
 
-  if (isLoading) {
+  if (isLoading || tokenAuthChecking) {
     return (
-      <div className="grid place-items-center py-24 text-muted-foreground">
-        <Loader2 className="size-7 animate-spin" />
+      <div className="flex flex-col items-center justify-center gap-3 py-24 text-muted-foreground">
+        <Loader2 className="size-8 animate-spin text-primary" />
+        <p className="text-sm font-medium">
+          {tokenAuthChecking
+            ? 'Memverifikasi akses persetujuan & menghubungkan akun Anda...'
+            : 'Memuat dashboard persetujuan...'}
+        </p>
       </div>
     )
   }
@@ -409,7 +473,15 @@ export default function PersetujuanSayaPage() {
           <ClipboardCheck className="size-8" />
         </span>
         <h2 className="mt-5 font-display text-2xl font-bold text-foreground">ISMS - Digital Approval</h2>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+
+        {tokenAuthMessage && !tokenAuthMessage.ok && (
+          <div className="mt-4 rounded-2xl border border-amber-300/80 bg-amber-50/80 p-4 text-left text-xs text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300">
+            <p className="font-bold flex items-center gap-1.5"><Info className="size-4 text-amber-600" /> Akses Langsung Memerlukan Akun:</p>
+            <p className="mt-1 leading-relaxed">{tokenAuthMessage.text}</p>
+          </div>
+        )}
+
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
           Masuk dengan akun Approver Anda untuk membuka Dashboard Persetujuan Digital dan memproses seluruh dokumen pengajuan ISMS secara langsung.
         </p>
         <button
@@ -515,6 +587,22 @@ export default function PersetujuanSayaPage() {
           )}
         </div>
       </header>
+
+      {tokenAuthMessage && tokenAuthMessage.ok && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-emerald-600 dark:text-emerald-400" />
+            <span>{tokenAuthMessage.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTokenAuthMessage(null)}
+            className="text-xs font-bold text-emerald-700 hover:underline dark:text-emerald-400"
+          >
+            Tutup
+          </button>
+        </div>
+      )}
 
       {error && <p className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
       {notice && (
@@ -871,7 +959,7 @@ export default function PersetujuanSayaPage() {
                             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                               {isItForm ? (
                                 <Link
-                                  href={`/form-it-esign?token=${item.token}`}
+                                  href={item.actionUrl || (item.title?.includes('ISMS-F-02-00-002') ? `/registrasi-fingerprint?token=${item.token}` : `/form-it-esign?token=${item.token}`)}
                                   className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
                                 >
                                   <Maximize2 className="size-3.5" />
@@ -1031,7 +1119,12 @@ export default function PersetujuanSayaPage() {
                     className={`min-w-0 ${item.actionUrl || item.token ? 'cursor-pointer hover:opacity-90' : ''}`}
                     onClick={() => {
                       if (item.category === 'procedure' && item.token) setReviewModal({ token: item.token, action: null })
-                      else if (item.actionUrl) window.open(item.actionUrl, '_blank')
+                      else if (item.actionUrl) {
+                        const target = item.actionUrl.startsWith('http') || item.actionUrl.startsWith(API_BASE_PATH)
+                          ? item.actionUrl
+                          : `${API_BASE_PATH}${item.actionUrl}`
+                        window.open(target, '_blank')
+                      }
                     }}
                   >
                     <WhatBadge item={item} />
@@ -1048,7 +1141,7 @@ export default function PersetujuanSayaPage() {
                       </p>
                     )}
                   </div>
-                  <div className="flex flex-shrink-0 items-center gap-3 text-xs">
+                  <div className="flex flex-shrink-0 items-center gap-2.5 text-xs">
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${
                         item.status === 'approved' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/10 text-red-700 dark:text-red-300'
@@ -1058,9 +1151,21 @@ export default function PersetujuanSayaPage() {
                       {item.status === 'approved' ? 'Disetujui' : 'Minta revisi'}
                     </span>
                     <span className="text-muted-foreground">{when(item.decidedAt)}</span>
+                    {item.filePath && (
+                      <a
+                        href={item.filePath.startsWith('http') || item.filePath.startsWith(API_BASE_PATH) ? item.filePath : `${API_BASE_PATH}${item.filePath}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 font-semibold text-foreground transition hover:bg-secondary"
+                        title="Unduh / Lihat PDF Resmi"
+                      >
+                        <Download className="size-3" />
+                        <span>PDF</span>
+                      </a>
+                    )}
                     {item.actionUrl ? (
                       <a
-                        href={item.actionUrl}
+                        href={item.actionUrl.startsWith('http') || item.actionUrl.startsWith(API_BASE_PATH) ? item.actionUrl : `${API_BASE_PATH}${item.actionUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"

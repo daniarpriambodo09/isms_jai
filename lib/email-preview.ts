@@ -18,6 +18,9 @@ import {
   buildPhotoResultEmail,
   buildSpecialAreaApprovalEmail,
   buildVisitorApprovalEmail,
+  buildItFormApprovalEmail,
+  buildItFormCompletedEmail,
+  buildItFormRejectedEmail,
   type ProcedureChainStep,
 } from '@/lib/email-templates'
 
@@ -48,6 +51,10 @@ export const EMAIL_PREVIEWS: EmailPreviewItem[] = [
   { id: 'photo:result', group: 'Izin Foto/Video', label: 'Hasil keputusan (disetujui)', to: 'Pemohon' },
   { id: 'photo:result-rejected', group: 'Izin Foto/Video', label: 'Hasil keputusan (ditolak)', to: 'Pemohon' },
   { id: 'special:request', group: 'Izin Area Special', label: 'Permintaan persetujuan', to: 'Approver' },
+  { id: 'it_form:request', group: 'Form IT & E-Sign', label: 'Permintaan persetujuan Form IT', to: 'Approver' },
+  { id: 'it_form:fingerprint', group: 'Special Security Area', label: 'Permintaan akses Fingerprint', to: 'IAA (Teguh Sunjoyo)' },
+  { id: 'it_form:completed', group: 'Form IT & E-Sign', label: 'Notifikasi: Form IT disetujui penuh', to: 'Pemohon & Approver' },
+  { id: 'it_form:rejected', group: 'Form IT & E-Sign', label: 'Notifikasi: Form IT perlu revisi / ditolak', to: 'Pemohon & Approver' },
   { id: 'review:digest', group: 'Review Dokumen', label: 'Pengingat mingguan review dokumen', to: 'Admin ISMS' },
 ]
 
@@ -151,6 +158,86 @@ export function renderEmailPreview(id: string, origin: string): { subject: strin
       overdue: [item('Prosedur ISMS', 'P14-001', 'Prosedur Pengendalian Dokumen', -12)] as never,
       soon: [item('Working Standard', 'ISMS-OS-010-001', 'Standard Mengganti Password pada Windows 11', 9)] as never,
       dashboardUrl: `${base}/dashboard-admin`,
+    })
+  } else if (group === 'it_form' && variant === 'fingerprint') {
+    mail = buildItFormApprovalEmail({
+      approverName: 'Teguh Sunjoyo',
+      approverSalutation: 'Bapak',
+      roleTitle: 'Information Assets Administrator (IAA)',
+      requestNo: 'REQ-F0200002-20261021-9988',
+      formCode: 'ISMS-F-02-00-002',
+      formName: 'Pengajuan Registrasi Finger Print Special Security Area',
+      applicantName: 'Fadil',
+      applicantNik: '109921',
+      applicantPosition: 'Staff IT & Server',
+      department: 'IT Section',
+      employeeStatus: 'TETAP',
+      purpose: 'Pendaftaran akses masuk Ruang Server untuk pemeliharaan rutin',
+      requestDate: at(0),
+      stepNumber: 1,
+      totalSteps: 1,
+      actionUrl: `${base}/form-it-esign?token=preview-fp-token`,
+      isFingerprint: true,
+      chain: [
+        { roleTitle: 'Information Assets Administrator (IAA)', name: 'Teguh Sunjoyo', state: 'current', decidedAt: null },
+      ],
+    })
+  } else if (group === 'it_form' && variant === 'completed') {
+    mail = buildItFormCompletedEmail({
+      requestNo: 'REQ-F010006-20261021-4321',
+      formCode: 'ISMS-F-010-006',
+      formName: 'Pengajuan / Perubahan Email Address / Login User ID',
+      applicantName: 'Naufal Aqil',
+      department: 'Accounting',
+      purpose: 'Pembuatan akun email @jai.co.id untuk staf baru finance',
+      requestDate: at(2),
+      completedDate: at(0),
+      actionUrl: `${base}/form-it-esign?token=preview-completed-token`,
+      pdfUrl: `${base}/api/it-form-submissions/1/pdf?token=preview-completed-token`,
+      isFingerprint: false,
+      chain: [
+        { roleTitle: 'Section Head Pemohon', name: 'Accounting Head', verificationCode: 'IT-ESIGN-8A7B2C', decidedAt: at(2) },
+        { roleTitle: 'IT Section Head / SSA', name: 'SSA Approver', verificationCode: 'IT-ESIGN-9D4E1F', decidedAt: at(1) },
+        { roleTitle: 'Department Head / IAA', name: 'Teguh Sunjoyo', verificationCode: 'IT-ESIGN-3C2A9B', decidedAt: at(0) },
+      ],
+    })
+  } else if (group === 'it_form' && variant === 'rejected') {
+    mail = buildItFormRejectedEmail({
+      requestNo: 'REQ-F010001-20261021-1122',
+      formCode: 'ISMS-F-010-001',
+      formName: 'Form Pengadaan Baru atau Pembaharuan PC/Laptop',
+      applicantName: 'Budi Santoso',
+      department: 'Production 1',
+      rejectorName: 'Teguh Sunjoyo',
+      rejectorRole: 'Information Assets Administrator (IAA)',
+      reasonNote: 'Spesifikasi unit laptop mohon disesuaikan dengan standard engineering JAI.',
+      actionUrl: `${base}/form-it-esign?token=preview-rejected-token`,
+      isFingerprint: false,
+    })
+  } else if (group === 'it_form') {
+    mail = buildItFormApprovalEmail({
+      approverName: 'Naufal Aqil',
+      approverSalutation: 'Bapak',
+      roleTitle: 'IT Section Head / System Security Administrator (SSA)',
+      requestNo: 'REQ-F010006-20261021-1234',
+      formCode: 'ISMS-F-010-006',
+      formName: 'Pengajuan / Perubahan Email Address / Login User ID',
+      applicantName: 'Dewi Lestari',
+      applicantNik: '108872',
+      applicantPosition: 'Staff Accounting',
+      department: 'Accounting',
+      employeeStatus: 'TETAP',
+      purpose: 'Pembuatan akun email perusahaan domain @jai.co.id',
+      requestDate: at(0),
+      stepNumber: 2,
+      totalSteps: 3,
+      actionUrl: `${base}/form-it-esign?token=preview-it-token`,
+      isFingerprint: false,
+      chain: [
+        { roleTitle: 'Section Head Pemohon', name: 'Accounting Head', state: 'done', decidedAt: at(1) },
+        { roleTitle: 'IT Section Head (SSA)', name: 'Naufal Aqil', state: 'current', decidedAt: null },
+        { roleTitle: 'Dept Head / IAA', name: 'Teguh Sunjoyo', state: 'waiting', decidedAt: null },
+      ],
     })
   } else {
     mail = documentEmail(group as DocKind, variant, base)

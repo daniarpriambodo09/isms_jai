@@ -184,16 +184,16 @@ describe('Unified MyApprovals System (Procedure, IT Forms, Special Area, Photo/V
 
       // Verify actionUrls and details
       const itItem = result.pending.find((p) => p.category === 'it_form')
-      expect(itItem?.actionUrl).toBe('/form-it-esign?token=tok-it-sub-21')
+      expect(itItem?.actionUrl).toBe('/isms-jai/form-it-esign?token=tok-it-sub-21')
       expect(itItem?.applicantName).toBe('Budi Hartono')
       expect(itItem?.department).toBe('Production')
 
       const saItem = result.pending.find((p) => p.category === 'special_area')
-      expect(saItem?.actionUrl).toBe('/persetujuan-area-special?token=tok-sa-301')
+      expect(saItem?.actionUrl).toBe('/isms-jai/persetujuan-area-special?token=tok-sa-301')
       expect(saItem?.applicantName).toBe('Vendor IT Solution')
 
       const pvItem = result.pending.find((p) => p.category === 'photo_video')
-      expect(pvItem?.actionUrl).toBe('/konfirmasi-approval?token=tok-pv-401')
+      expect(pvItem?.actionUrl).toBe('/isms-jai/konfirmasi-approval?token=tok-pv-401')
       expect(pvItem?.applicantName).toBe('Tim Dokumentasi Audit')
     })
   })

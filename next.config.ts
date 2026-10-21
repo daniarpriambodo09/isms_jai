@@ -10,6 +10,48 @@ const nextConfig: NextConfig = {
         destination: '/isms-jai',
         permanent: false,
       },
+      {
+        source: '/registrasi-fingerprint',
+        basePath: false,
+        destination: '/isms-jai/registrasi-fingerprint',
+        permanent: false,
+      },
+      {
+        source: '/form-it-esign',
+        basePath: false,
+        destination: '/isms-jai/form-it-esign',
+        permanent: false,
+      },
+      {
+        source: '/persetujuan-saya',
+        basePath: false,
+        destination: '/isms-jai/persetujuan-saya',
+        permanent: false,
+      },
+      {
+        source: '/ijin-masuk-alat-it',
+        basePath: false,
+        destination: '/isms-jai/ijin-masuk-alat-it',
+        permanent: false,
+      },
+      {
+        source: '/form-aplikasi',
+        basePath: false,
+        destination: '/isms-jai/form-aplikasi',
+        permanent: false,
+      },
+      {
+        source: '/kontrol-cs',
+        basePath: false,
+        destination: '/isms-jai/kontrol-cs',
+        permanent: false,
+      },
+      {
+        source: '/api/:path*',
+        basePath: false,
+        destination: '/isms-jai/api/:path*',
+        permanent: false,
+      },
     ];
   },
   // NEXT_DIST_DIR=.next-verify npm run build → a check build in its own

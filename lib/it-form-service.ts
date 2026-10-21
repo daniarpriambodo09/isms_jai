@@ -1,7 +1,17 @@
 // lib/it-form-service.ts
 import 'server-only'
-import { query } from '@/lib/db'
+import path from 'node:path'
 import crypto from 'node:crypto'
+import { query } from '@/lib/db'
+import { getSmtpSettings, sendMail } from '@/lib/smtp'
+import { resolveAppBaseUrl } from '@/lib/request-origin'
+import { API_BASE_PATH } from '@/lib/config'
+import {
+  buildItFormApprovalEmail,
+  buildItFormCompletedEmail,
+  buildItFormRejectedEmail,
+  LOGO_CID,
+} from '@/lib/email-templates'
 import {
   IT_FORM_DEFINITIONS,
   type ItFormApprover,
@@ -343,8 +353,54 @@ export async function seedDefaultApprovers() {
   }
 }
 
-export async function getItApprovers(formCode?: string): Promise<ItFormApprover[]> {
+export async function getItApprovers(formCode?: string, department?: string): Promise<ItFormApprover[]> {
   await ensureItFormTables()
+
+  if (department && formCode) {
+    const res = await query<ItFormApprover>(
+      `SELECT * FROM it_form_approvers
+       WHERE form_code = $1 AND is_active = true
+       ORDER BY slot_number ASC,
+         (CASE
+            WHEN lower(trim(COALESCE(department, ''))) = lower(trim($2)) THEN 0
+            WHEN lower(trim(COALESCE(department, ''))) = 'departemen pemohon' THEN 1
+            ELSE 2
+          END) ASC,
+         sort_order ASC`,
+      [formCode, department]
+    )
+
+    // Deduplicate by slot_number (prioritizing the best matched department per slot)
+    const slotMap = new Map<number, ItFormApprover>()
+    for (const app of res.rows) {
+      if (!slotMap.has(app.slot_number)) {
+        slotMap.set(app.slot_number, app)
+      }
+    }
+    const deduplicated = Array.from(slotMap.values()).sort((a, b) => a.slot_number - b.slot_number)
+
+    if (deduplicated.length === 0 && formCode === 'ISMS-F-02-00-002') {
+      deduplicated.push({
+        id: 0,
+        form_code: 'ISMS-F-02-00-002',
+        form_name: 'Pengajuan Registrasi Finger Print Special Security Area',
+        slot_number: 1,
+        slot_label: 'MENYETUJUI / APPROVAL',
+        role_title: 'Information Assets Administrator (IAA)',
+        person_name: 'Teguh Sunjoyo',
+        salutation: 'Bapak',
+        initials: 'IAA',
+        email: 'teguh.sunjoyo@jai.co.id',
+        department: 'Information Assets Administrator',
+        is_active: true,
+        sort_order: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+    }
+    return deduplicated
+  }
+
   let sql = 'SELECT * FROM it_form_approvers'
   const params: any[] = []
   if (formCode) {
@@ -501,15 +557,29 @@ export async function createItFormSubmission(data: {
 
   const token = crypto.randomBytes(24).toString('hex')
 
-  // Get active approvers configured for this form
+  // Get active approvers configured for this form, prioritizing matches for applicant's department
   const approvers = await query<ItFormApprover>(
     `SELECT * FROM it_form_approvers
      WHERE form_code = $1 AND is_active = true
-     ORDER BY sort_order ASC, slot_number ASC`,
-    [data.form_code]
+     ORDER BY slot_number ASC,
+       (CASE
+          WHEN lower(trim(COALESCE(department, ''))) = lower(trim($2)) THEN 0
+          WHEN lower(trim(COALESCE(department, ''))) = 'departemen pemohon' THEN 1
+          ELSE 2
+        END) ASC,
+       sort_order ASC`,
+    [data.form_code, data.department]
   )
 
-  const activeApprovers = [...approvers.rows]
+  // Deduplicate by slot_number (keeping the best matching approver per slot)
+  const slotMap = new Map<number, ItFormApprover>()
+  for (const app of approvers.rows) {
+    if (!slotMap.has(app.slot_number)) {
+      slotMap.set(app.slot_number, app)
+    }
+  }
+  const activeApprovers = Array.from(slotMap.values()).sort((a, b) => a.slot_number - b.slot_number)
+
   if (activeApprovers.length === 0 && data.form_code === 'ISMS-F-02-00-002') {
     activeApprovers.push({
       id: 0,
@@ -586,6 +656,12 @@ export async function createItFormSubmission(data: {
   )
 
   submission.signatures = sigs.rows
+
+  // Asynchronously send notification email to Step 1 approver
+  sendItFormApprovalEmail(submission.id, 1).catch((err) => {
+    console.error('[it-form-service] Error sending initial approval email:', err)
+  })
+
   return submission
 }
 
@@ -707,6 +783,16 @@ export async function signItFormStep(
       [data.signatureNote || 'Ditolak oleh ' + (data.approverName || sig.approver_name), submissionId]
     )
 
+    // Asynchronously send notification email to approvers/applicant
+    sendItFormRejectedEmail(
+      submissionId,
+      data.approverName || sig.approver_name,
+      sig.role_title,
+      data.signatureNote
+    ).catch((err) => {
+      console.error('[it-form-service] Error sending rejection email:', err)
+    })
+
     const updated = await getItFormSubmissionByToken(sub.token)
     return { success: true, message: 'Permohonan berhasil ditolak / diminta revisi', submission: updated || undefined }
   }
@@ -735,6 +821,11 @@ export async function signItFormStep(
        WHERE id = $2`,
       [nextStep, submissionId]
     )
+
+    // Asynchronously send notification email to next approver
+    sendItFormApprovalEmail(submissionId, nextStep).catch((err) => {
+      console.error('[it-form-service] Error sending next step approval email:', err)
+    })
   } else {
     // All steps complete!
     await query(
@@ -743,8 +834,246 @@ export async function signItFormStep(
        WHERE id = $2`,
       [nextStep, submissionId]
     )
+
+    // Asynchronously send notification email when all steps are approved
+    sendItFormCompletedEmail(submissionId).catch((err) => {
+      console.error('[it-form-service] Error sending completion email:', err)
+    })
   }
 
   const updated = await getItFormSubmissionByToken(sub.token)
   return { success: true, message: 'Approval berhasil disimpan', submission: updated || undefined }
 }
+
+/**
+ * Sends an email notification to the approver of a specific step in an IT Form submission.
+ * Includes direct action links and request details.
+ */
+export async function sendItFormApprovalEmail(submissionId: number, stepNumber: number): Promise<boolean> {
+  try {
+    const subRes = await query<ItFormSubmission>(`SELECT * FROM it_form_submissions WHERE id = $1`, [submissionId])
+    if (!subRes.rowCount || subRes.rowCount === 0) return false
+    const sub = subRes.rows[0]
+
+    const sigsRes = await query<ItFormSignature>(
+      `SELECT * FROM it_form_signatures WHERE submission_id = $1 ORDER BY step_number ASC`,
+      [submissionId]
+    )
+    const sigs = sigsRes.rows
+    const currentSig = sigs.find((s) => s.step_number === stepNumber)
+    if (!currentSig || !currentSig.approver_email || !currentSig.approver_email.trim()) {
+      console.log(`[it-form/email] No approver email configured for step ${stepNumber} on submission ${submissionId}`)
+      return false
+    }
+
+    const settings = await getSmtpSettings()
+    if (!settings?.host || !settings.port || !settings.senderEmail) {
+      console.log('[it-form/email] SMTP settings not configured, skipping approval email')
+      return false
+    }
+
+    const baseUrl = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
+    const isFingerprint = sub.form_code === 'ISMS-F-02-00-002'
+    const targetPath = isFingerprint ? '/registrasi-fingerprint' : '/form-it-esign'
+    const actionUrl = `${baseUrl}${targetPath}?token=${sub.token}`
+    const dashboardUrl = `${baseUrl}/api/auth/approver-token-login?token=${encodeURIComponent(sub.token)}`
+
+    const chain = sigs.map((s) => ({
+      roleTitle: s.role_title,
+      name: s.approver_name,
+      state: (s.status === 'approved' ? 'done' : s.step_number === stepNumber ? 'current' : 'waiting') as 'done' | 'current' | 'waiting',
+      decidedAt: s.signed_at,
+    }))
+
+    const { subject, html } = buildItFormApprovalEmail({
+      approverName: currentSig.approver_name,
+      approverSalutation: 'Bapak',
+      roleTitle: currentSig.role_title,
+      requestNo: sub.request_no,
+      formCode: sub.form_code,
+      formName: sub.form_name,
+      applicantName: sub.applicant_name,
+      applicantNik: sub.applicant_nik,
+      applicantPosition: sub.applicant_position,
+      department: sub.department,
+      employeeStatus: sub.employee_status,
+      purpose: sub.purpose,
+      requestDate: typeof sub.request_date === 'string' ? sub.request_date : new Date(sub.request_date).toISOString(),
+      stepNumber,
+      totalSteps: sub.total_steps,
+      actionUrl,
+      dashboardUrl,
+      isFingerprint,
+      chain,
+    })
+
+    const logoPath = path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg')
+    const attachments = [{ filename: 'yazaki-logo.jpg', path: logoPath, cid: LOGO_CID }]
+
+    await sendMail(settings, {
+      to: currentSig.approver_email.trim(),
+      subject,
+      html,
+      attachments,
+    })
+
+    console.log(`[it-form/email] Sent approval notification for ${sub.request_no} (step ${stepNumber}) to ${currentSig.approver_email}`)
+    return true
+  } catch (err) {
+    console.error(`[it-form/email] Failed to send approval email for submission ${submissionId}:`, err)
+    return false
+  }
+}
+
+/**
+ * Sends notification email when all approval steps of an IT Form or Special Area submission have been completed.
+ * Notifies all approvers in the chain with their verification codes and a link to view/download the signed PDF.
+ */
+export async function sendItFormCompletedEmail(submissionId: number): Promise<boolean> {
+  try {
+    const subRes = await query<ItFormSubmission>(`SELECT * FROM it_form_submissions WHERE id = $1`, [submissionId])
+    if (!subRes.rowCount || subRes.rowCount === 0) return false
+    const sub = subRes.rows[0]
+
+    const sigsRes = await query<ItFormSignature>(
+      `SELECT * FROM it_form_signatures WHERE submission_id = $1 ORDER BY step_number ASC`,
+      [submissionId]
+    )
+    const sigs = sigsRes.rows
+    const recipientEmails = Array.from(
+      new Set(
+        sigs
+          .map((s) => s.approver_email?.trim())
+          .filter((e): e is string => Boolean(e && e.length > 0))
+      )
+    )
+
+    if (recipientEmails.length === 0) {
+      console.log(`[it-form/email] No approver emails to notify for completed submission ${submissionId}`)
+      return false
+    }
+
+    const settings = await getSmtpSettings()
+    if (!settings?.host || !settings.port || !settings.senderEmail) {
+      return false
+    }
+
+    const baseUrl = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
+    const isFingerprint = sub.form_code === 'ISMS-F-02-00-002'
+    const targetPath = isFingerprint ? '/registrasi-fingerprint' : '/form-it-esign'
+    const actionUrl = `${baseUrl}${targetPath}?token=${sub.token}`
+    const pdfUrl = `${baseUrl}/api/it-form-submissions/${sub.id}/pdf?token=${sub.token}`
+
+    const chain = sigs.map((s) => ({
+      roleTitle: s.role_title,
+      name: s.approver_name,
+      verificationCode: s.verification_code,
+      decidedAt: s.signed_at,
+    }))
+
+    const { subject, html } = buildItFormCompletedEmail({
+      requestNo: sub.request_no,
+      formCode: sub.form_code,
+      formName: sub.form_name,
+      applicantName: sub.applicant_name,
+      department: sub.department,
+      purpose: sub.purpose,
+      requestDate: typeof sub.request_date === 'string' ? sub.request_date : new Date(sub.request_date).toISOString(),
+      completedDate: new Date().toISOString(),
+      actionUrl,
+      pdfUrl,
+      isFingerprint,
+      chain,
+    })
+
+    const logoPath = path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg')
+    const attachments = [{ filename: 'yazaki-logo.jpg', path: logoPath, cid: LOGO_CID }]
+
+    for (const email of recipientEmails) {
+      await sendMail(settings, {
+        to: email,
+        subject,
+        html,
+        attachments,
+      }).catch((e) => console.error(`Failed to send completion email to ${email}:`, e))
+    }
+
+    console.log(`[it-form/email] Sent completion notification for ${sub.request_no} to ${recipientEmails.join(', ')}`)
+    return true
+  } catch (err) {
+    console.error(`[it-form/email] Failed to send completion email for submission ${submissionId}:`, err)
+    return false
+  }
+}
+
+/**
+ * Sends notification email when an IT Form or Special Area submission is rejected or needs revision.
+ */
+export async function sendItFormRejectedEmail(
+  submissionId: number,
+  rejectorName: string,
+  rejectorRole: string,
+  reasonNote?: string | null
+): Promise<boolean> {
+  try {
+    const subRes = await query<ItFormSubmission>(`SELECT * FROM it_form_submissions WHERE id = $1`, [submissionId])
+    if (!subRes.rowCount || subRes.rowCount === 0) return false
+    const sub = subRes.rows[0]
+
+    const sigsRes = await query<ItFormSignature>(
+      `SELECT * FROM it_form_signatures WHERE submission_id = $1 ORDER BY step_number ASC`,
+      [submissionId]
+    )
+    const sigs = sigsRes.rows
+    const recipientEmails = Array.from(
+      new Set(
+        sigs
+          .map((s) => s.approver_email?.trim())
+          .filter((e): e is string => Boolean(e && e.length > 0))
+      )
+    )
+
+    if (recipientEmails.length === 0) return false
+
+    const settings = await getSmtpSettings()
+    if (!settings?.host || !settings.port || !settings.senderEmail) return false
+
+    const baseUrl = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
+    const isFingerprint = sub.form_code === 'ISMS-F-02-00-002'
+    const targetPath = isFingerprint ? '/registrasi-fingerprint' : '/form-it-esign'
+    const actionUrl = `${baseUrl}${targetPath}?token=${sub.token}`
+
+    const { subject, html } = buildItFormRejectedEmail({
+      requestNo: sub.request_no,
+      formCode: sub.form_code,
+      formName: sub.form_name,
+      applicantName: sub.applicant_name,
+      department: sub.department,
+      rejectorName,
+      rejectorRole,
+      reasonNote,
+      actionUrl,
+      isFingerprint,
+    })
+
+    const logoPath = path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg')
+    const attachments = [{ filename: 'yazaki-logo.jpg', path: logoPath, cid: LOGO_CID }]
+
+    for (const email of recipientEmails) {
+      await sendMail(settings, {
+        to: email,
+        subject,
+        html,
+        attachments,
+      }).catch((e) => console.error(`Failed to send rejection email to ${email}:`, e))
+    }
+
+    console.log(`[it-form/email] Sent rejection notification for ${sub.request_no} to ${recipientEmails.join(', ')}`)
+    return true
+  } catch (err) {
+    console.error(`[it-form/email] Failed to send rejection email for submission ${submissionId}:`, err)
+    return false
+  }
+}
+
+

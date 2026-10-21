@@ -718,7 +718,7 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       : null
 
     const base = resolveAppBaseUrl(settings.appUrl)
-    const dashboardUrl = `${base}${API_BASE_PATH}/persetujuan-saya`
+    const dashboardUrl = `${base}${API_BASE_PATH}/persetujuan-saya?token=${encodeURIComponent(token)}`
     const pendingCountRes = await query<{ count: string }>(
       `SELECT count(*)::text AS count
        FROM procedure_approvals a

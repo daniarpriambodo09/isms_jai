@@ -7,7 +7,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const formCode = searchParams.get('form_code') || undefined
-    const approvers = await getItApprovers(formCode)
+    const department = searchParams.get('department') || undefined
+    const approvers = await getItApprovers(formCode, department)
     return NextResponse.json({ approvers })
   } catch (error: any) {
     console.error('Error fetching IT approvers:', error)

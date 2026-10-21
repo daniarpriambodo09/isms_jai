@@ -44,6 +44,20 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
   const [requesterName, setRequesterName] = useState('')
   const [orgCompany, setOrgCompany] = useState('')
   const [department, setDepartment] = useState('')
+  const [customDept, setCustomDept] = useState(false)
+  const [departments, setDepartments] = useState<Array<{ id: number; name: string }>>([])
+
+  useEffect(() => {
+    fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { departments: [] }))
+      .then((data: { departments: Array<{ id: number; name: string }> }) => {
+        if (Array.isArray(data.departments)) {
+          setDepartments(data.departments)
+        }
+      })
+      .catch(() => setDepartments([]))
+  }, [])
+
   // Masuk (dari): "right now" by default — shown live and stamped by the server
   // at the moment of submitting — or typed in by hand (manual mode).
   const [now, setNow] = useState(() => new Date())
@@ -170,7 +184,51 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
           <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
             <label className="sm:col-span-2"><span className={label}>Nama</span><input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required autoFocus className={input} /></label>
             <label><span className={label}>Nama Organisasi / Perusahaan</span><input value={orgCompany} onChange={(e) => setOrgCompany(e.target.value)} required className={input} /></label>
-            <label><span className={label}>Departemen</span><input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Opsional" className={input} /></label>
+            <div>
+              <span className={label}>Departemen</span>
+              {customDept ? (
+                <div className="flex gap-2">
+                  <input
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    placeholder="Nama departemen / bagian"
+                    className={input}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomDept(false)
+                      setDepartment('')
+                    }}
+                    className="flex-none rounded-xl border border-input px-3 text-xs font-semibold text-muted-foreground hover:bg-secondary"
+                  >
+                    Pilih List
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={department}
+                  onChange={(e) => {
+                    if (e.target.value === '__custom__') {
+                      setCustomDept(true)
+                      setDepartment('')
+                    } else {
+                      setDepartment(e.target.value)
+                    }
+                  }}
+                  className={input}
+                >
+                  <option value="">-- Pilih Departemen (Opsional) --</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                  <option value="__custom__">-- Ketik Departemen Lain / Manual --</option>
+                </select>
+              )}
+            </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-muted-foreground">Masuk (dari){fromManual ? ' — manual' : ' — otomatis saat ini'}</span>

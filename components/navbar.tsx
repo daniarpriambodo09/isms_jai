@@ -50,7 +50,7 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
       { href: '/kelola-permintaan-foto-video', label: 'Photo/Video Requests', hint: 'Tinjau izin foto/video', icon: Camera },
       { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk area special', icon: ShieldAlert },
       { href: '/kelola-izin-alat-it', label: 'IT Equipment Requests', hint: 'Izin bawa PC/alat IT', icon: Laptop },
-      { href: '/kelola-approver-it', label: 'Pengaturan Approver IT', hint: 'Kelola pejabat e-sign form IT', icon: FileSignature },
+      { href: '/kelola-approver-it', label: 'Pengaturan Approver Form & IT', hint: 'Kelola pejabat e-sign IT & Special Area', icon: FileSignature },
       { href: '/kelola-kamera', label: 'Camera Equipment', hint: 'Kamera & ID photography', icon: Aperture },
       { href: '/kelola-pic-approve', label: 'PIC Approvers', hint: 'Penyetuju izin foto', icon: UserCheck },
     ],
@@ -243,7 +243,7 @@ export function Navbar() {
     </>
   )
 
-  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs']
+  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs', '/form-it-esign', '/registrasi-fingerprint']
   const isFormCsActive = formCsRoutes.includes(pathname)
   const formCsItems = (
     <>

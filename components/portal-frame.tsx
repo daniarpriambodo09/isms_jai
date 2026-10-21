@@ -84,8 +84,9 @@ const PAGE_TITLES: Record<string, string> = {
   '/kelola-pos': 'Pengaturan Pos',
   '/ijin-masuk-alat-it': 'Ijin Bawa PC/Alat IT',
   '/kelola-izin-alat-it': 'Kelola Izin Alat IT',
-  '/kelola-approver-it': 'Pengaturan Approver IT',
-  '/form-it-esign': 'Form Layanan & E-Sign IT',
+  '/kelola-approver-it': 'Pengaturan Approver Form & IT',
+  '/form-it-esign': 'Form Layanan Digital & E-Sign',
+  '/registrasi-fingerprint': 'Registrasi Fingerprint Special Security Area',
 }
 
 // Menu pages that render their own themed hero (components/page-hero.tsx);
@@ -93,7 +94,7 @@ const PAGE_TITLES: Record<string, string> = {
 const OWN_HERO_PREFIXES = [
   '/kebijakan-dasar-ISMS', '/prosedur-isms', '/standard-isms-p14', '/working-standard', '/form-review-dokumen', '/education',
   '/form-aplikasi', '/kontrol-cs', '/audits', '/news', '/documents', '/ijin-foto-video', '/rekap-foto-video', '/pengesahan', '/persetujuan-saya', '/reset-password', '/verifikasi-pengesahan', '/persetujuan-area-special', '/verifikasi-area-special',
-  '/ijin-masuk-alat-it', '/form-it-esign',
+  '/ijin-masuk-alat-it', '/form-it-esign', '/registrasi-fingerprint',
   // Admin pages open with their own "Admin workspace" header or page heading.
   '/dashboard-admin', '/pengaturan', '/kelola-hero-slides', '/kelola-jadwal', '/kelola-departemen', '/kelola-permintaan-foto-video',
   '/kelola-izin-area-special', '/kelola-kamera', '/kelola-pic-approve', '/kelola-admin', '/kelola-pengesahan',

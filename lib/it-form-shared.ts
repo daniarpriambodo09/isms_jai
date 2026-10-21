@@ -120,8 +120,21 @@ export const IT_FORM_DEFINITIONS: ItFormDefinition[] = [
     code: 'ISMS-F-02-00-002',
     name: 'Pengajuan Registrasi Finger Print Special Security Area',
     jpName: '【記録】特別セキュリティ区画指紋入退システム申請書',
-    category: 'Special Security Area',
-    description: 'Form pendaftaran akses sidik jari masuk dan keluar area khusus berkeamanan tinggi dengan pengesahan IAA (Teguh Sunjoyo).',
-    badge: 'Confidential',
+    category: 'Global & Special Security Area',
+    description: 'Form pendaftaran / perubahan akses sidik jari masuk dan keluar area khusus berkeamanan tinggi (Special Security Area) dengan pengesahan IAA (Teguh Sunjoyo).',
+    badge: 'Global Security',
   },
 ]
+
+export const FINGERPRINT_FORM_DEFINITION: ItFormDefinition = {
+  code: 'ISMS-F-02-00-002',
+  name: 'Pengajuan Registrasi Finger Print Special Security Area',
+  jpName: '【記録】特別セキュリティ区画指紋入退システム申請書',
+  category: 'Special Security Area',
+  description: 'Form pendaftaran dan otorisasi akses sidik jari (fingerprint) masuk dan keluar kawasan berkeamanan khusus (Special Security Area) dengan pengesahan IAA (Teguh Sunjoyo).',
+  badge: 'Special Security',
+}
+
+export const IT_SERVICE_FORM_DEFINITIONS: ItFormDefinition[] = IT_FORM_DEFINITIONS.filter(
+  (d) => d.code !== 'ISMS-F-02-00-002' && d.code !== 'ISMS-F-03-00-001'
+)

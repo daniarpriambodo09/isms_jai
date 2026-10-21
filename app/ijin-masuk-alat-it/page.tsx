@@ -60,6 +60,18 @@ function FormContent() {
   const [applicantEmail, setApplicantEmail] = useState('')
   const [agreeRules, setAgreeRules] = useState(true)
 
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([])
+  useEffect(() => {
+    fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { departments: [] }))
+      .then((data: { departments: Array<{ id: number; name: string }> }) => {
+        if (Array.isArray(data.departments) && data.departments.length > 0) {
+          setAvailableDepartments(data.departments.map((d) => d.name))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   const [items, setItems] = useState<ItEquipmentItem[]>([
     {
       equipment_type: 'PC / Laptop',
@@ -695,7 +707,7 @@ function FormContent() {
                 className={inputClass}
               >
                 <option value="">-- Pilih Departemen --</option>
-                {DEFAULT_DEPARTMENTS.map((dept) => (
+                {(availableDepartments.length > 0 ? availableDepartments : DEFAULT_DEPARTMENTS).map((dept) => (
                   <option key={dept} value={dept}>
                     {dept}
                   </option>

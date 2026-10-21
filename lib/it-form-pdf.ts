@@ -14,9 +14,12 @@ const COLOR_LIGHT_BG = rgb(0.96, 0.97, 0.99)
 const COLOR_APPROVED_BG = rgb(0.93, 0.98, 0.94)
 
 function formatDateId(dateStr?: string | null): string {
-  if (!dateStr) return '-'
+  if (!dateStr || dateStr === 'null' || dateStr === 'undefined' || dateStr === 'Invalid Date') return '-'
   try {
     const d = new Date(dateStr)
+    if (Number.isNaN(d.getTime())) {
+      return dateStr
+    }
     return d.toLocaleDateString('id-ID', {
       day: '2-digit',
       month: '2-digit',
@@ -25,6 +28,14 @@ function formatDateId(dateStr?: string | null): string {
   } catch {
     return dateStr
   }
+}
+
+function formatDeptSection(dept?: string | null, section?: string | null): string {
+  if (!dept) return '-'
+  if (section && section !== '-' && !dept.toLowerCase().includes(section.toLowerCase())) {
+    return `${dept} / ${section}`
+  }
+  return dept
 }
 
 function safeText(val?: string | null): string {
@@ -58,6 +69,9 @@ export async function buildItFormPdf(
   }
 
   if (templateBytes) {
+    if (sub.form_code === 'ISMS-F-02-00-002') {
+      return stampFingerprintTemplate(sub, templateBytes, verifyUrl)
+    }
     return stampOnTemplate(sub, templateBytes, verifyUrl)
   }
 
@@ -92,6 +106,19 @@ async function stampOnTemplate(
   ) => {
     if (!val) return
     page.drawText(safeText(val), { x, y, size, font, color })
+  }
+
+  const writeCenter = (
+    val: string,
+    centerX: number,
+    y: number,
+    size = 8.5,
+    font = fontRegular,
+    color = COLOR_INK
+  ) => {
+    if (!val) return
+    const textW = font.widthOfTextAtSize(safeText(val), size)
+    page.drawText(safeText(val), { x: centerX - textW / 2, y, size, font, color })
   }
 
   const tick = (x: number, y: number) => {
@@ -166,7 +193,7 @@ async function stampOnTemplate(
     }
 
     write(formData.old_pc_name || '-', 215, 407, 9)
-    write(sub.department || '-', 215, 377, 9)
+    write(formatDeptSection(sub.department, formData.section), 215, 377, 9)
     write(formData.login_username || '-', 215, 347, 9)
     write(formData.function_purpose || sub.purpose || '-', 215, 317, 9)
 
@@ -234,7 +261,7 @@ async function stampOnTemplate(
     write(formData.serial_no || '-', 215, 407, 9)
     write(formData.os_info || '-', 215, 377, 9)
     write(formData.pc_name || '-', 215, 347, 9)
-    write(sub.department || '-', 215, 317, 9)
+    write(formatDeptSection(sub.department, formData.section), 215, 317, 9)
     write(formData.login_username || '-', 215, 287, 9)
     write(formData.function_purpose || sub.purpose || '-', 215, 257, 9)
 
@@ -287,7 +314,7 @@ async function stampOnTemplate(
       }
 
       write(sub.applicant_nik || '-', 145, 644 + d, 9, fontBold)
-      write(sub.department, 145, 614 + d, 9)
+      write(formatDeptSection(sub.department, formData.section), 145, 614 + d, 9)
 
       // Perihal checkboxes
       if (formData.request_email) tick(408, 652 + d)
@@ -356,7 +383,7 @@ async function stampOnTemplate(
       }
 
       write(sub.applicant_nik || '-', 145, 644 + d, 9, fontBold)
-      write(sub.department, 145, 614 + d, 9)
+      write(formatDeptSection(sub.department, formData.section), 145, 614 + d, 9)
 
       if (formData.delete_email) tick(408, 652 + d)
       if (formData.delete_user_id) tick(408, 622 + d)
@@ -403,7 +430,7 @@ async function stampOnTemplate(
     write(formatDateId(sub.request_date), 225, 685, 9, fontBold)
     write(`${sub.applicant_name} ${sub.applicant_nik ? `(${sub.applicant_nik})` : ''}`, 225, 655, 9, fontBold)
     write(sub.company_name || 'PT. Jatim Autocomp Indonesia', 225, 625, 9)
-    write(sub.department, 225, 595, 9)
+    write(formatDeptSection(sub.department, formData.section), 225, 595, 9)
 
     // Connection Periode
     write(formatDateId(formData.period_from), 245, 565, 8.5)
@@ -462,48 +489,166 @@ async function stampOnTemplate(
     }
   }
 
-  // -------------------------------------------------------------
-  // FORM 6: ISMS-F-02-00-002 (Fingerprint Special Security Area)
-  // Dual-copy layout on single page (Top copy & Bottom copy, delta = -385.6)
-  // -------------------------------------------------------------
-  else if (sub.form_code === 'ISMS-F-02-00-002') {
-    const deltas = [0, -385.6]
+  return pdf.save()
+}
 
-    for (const d of deltas) {
-      write(`No. ${sub.request_no}`, 440, 689.3 + d, 7.5, fontBold, COLOR_RED)
-      write(formatDateId(sub.request_date), 232, 655 + d, 8.5, fontBold)
-      if (formData.fingerprint_id) {
-        write(formData.fingerprint_id, 495, 638 + d, 8.5, fontBold)
-      }
-      write(sub.applicant_name, 232, 626 + d, 8.5, fontBold)
-      write(sub.applicant_nik || '-', 232, 597 + d, 8.5, fontBold)
-      write(sub.department, 232, 568 + d, 8.5, fontBold)
+/**
+ * Stamps fingerprint data onto a single-copy extracted PDF page (612x396 with 0,0 origin).
+ * Guarantees 100% viewer compatibility without double copies or MediaBox offset bugs.
+ */
+async function stampFingerprintTemplate(
+  sub: ItFormSubmission,
+  templateBytes: Buffer,
+  verifyUrl: string
+): Promise<Uint8Array> {
+  const srcPdf = await PDFDocument.load(templateBytes)
+  const dstPdf = await PDFDocument.create()
 
-      const areaText = formData.area_special_security || sub.purpose || 'Ruang Server / Server Room'
-      write(areaText.slice(0, 40), 232, 540 + d, 8, fontBold)
+  // Extract only the top single copy of the form [left=0, bottom=396, right=612, top=792]
+  const [embeddedTop] = await dstPdf.embedPages(
+    [srcPdf.getPage(0)],
+    [{ left: 0, bottom: 396, right: 612, top: 792 }]
+  )
+  const page = dstPdf.addPage([612, 396])
+  page.drawPage(embeddedTop, { x: 0, y: 0, width: 612, height: 396 })
 
-      const delDateStr = formData.access_deletion_date
-        ? (formatDateId(formData.access_deletion_date) || formData.access_deletion_date)
-        : 'Sesuai Masa Penugasan'
-      write(delDateStr, 280, 432.2 + d, 8, fontBold)
+  const fontRegular = await dstPdf.embedFont(StandardFonts.Helvetica)
+  const fontBold = await dstPdf.embedFont(StandardFonts.HelveticaBold)
+  const fontOblique = await dstPdf.embedFont(StandardFonts.HelveticaOblique)
 
-      // Signature box (Information Assets Administrator - Teguh Sunjoyo)
-      const sig = signatures.find((s) => s.step_number === 1) || signatures[0]
-      if (sig && sig.status === 'approved') {
-        const qrUrl = `${verifyUrl}&step=1&code=${sig.verification_code || ''}`
-        await stampQr(qrUrl, 395, 460 + d, 42)
-        write('E-SIGN VERIFIED', 445, 492 + d, 6.5, fontBold, COLOR_RED)
-        write(sig.approver_name || 'Teguh Sunjoyo', 445, 480 + d, 8, fontBold)
-        write('IAA Administrator', 445, 471 + d, 6.5, fontRegular, COLOR_MUTED)
-        write(formatDateId(sig.signed_at), 445, 462 + d, 6.5, fontRegular, COLOR_MUTED)
-      } else {
-        write('[ PENDING APPROVAL ]', 415, 485 + d, 7, fontOblique, COLOR_MUTED)
-        write('Teguh Sunjoyo (IAA)', 415, 473 + d, 7, fontRegular, COLOR_MUTED)
-      }
+  const formData = sub.form_data || {}
+  const signatures = sub.signatures || []
+
+  const write = (
+    val: string,
+    x: number,
+    y: number,
+    size = 9,
+    font = fontRegular,
+    color = COLOR_INK
+  ) => {
+    if (!val) return
+    page.drawText(safeText(val), { x, y, size, font, color })
+  }
+
+  const writeCenter = (
+    val: string,
+    centerX: number,
+    y: number,
+    size = 8.5,
+    font = fontRegular,
+    color = COLOR_INK
+  ) => {
+    if (!val) return
+    const textW = font.widthOfTextAtSize(safeText(val), size)
+    page.drawText(safeText(val), { x: centerX - textW / 2, y, size, font, color })
+  }
+
+  const stampQr = async (
+    qrContent: string,
+    x: number,
+    y: number,
+    size = 40
+  ) => {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(qrContent, {
+        margin: 1,
+        width: size * 2,
+        errorCorrectionLevel: 'M',
+      })
+      const qrBase64 = qrDataUrl.split(',')[1]
+      const qrImage = await dstPdf.embedPng(Buffer.from(qrBase64, 'base64'))
+      page.drawImage(qrImage, { x, y, width: size, height: size })
+    } catch (e) {
+      console.error('Failed to stamp QR code:', e)
     }
   }
 
-  return pdf.save()
+  const CENTER_COL2 = 412.6 // Center of "Tanda tangan" column
+  const CENTER_COL3 = 513.8 // Center of "MENYETUJUI" and "Kode ID" column
+
+  // Coordinates shifted down by 396 for the single-form page:
+  // No. Reg: y = 701 - 396 = 305 (x = 443)
+  write(`No. Reg : ${sub.request_no}`, 443, 305, 7.5, fontBold, COLOR_RED)
+
+  // Tanggal Pengajuan: y = 655 - 396 = 259 (x = 232)
+  write(formatDateId(sub.request_date), 232, 259, 8.5, fontBold)
+
+  // Kode ID: y = 630 - 396 = 234 (centered in Col 3)
+  const kodeIdVal = (formData.fingerprint_id?.trim() || sub.applicant_nik || '-').toUpperCase()
+  writeCenter(kodeIdVal, CENTER_COL3, 234, 8.5, fontBold)
+
+  // Data Pemohon
+  write(sub.applicant_name, 232, 230, 8.5, fontBold) // y = 626 - 396 = 230
+  write(sub.applicant_nik || '-', 232, 201, 8.5, fontBold) // y = 597 - 396 = 201
+
+  // Tanggal Menyetujui (/ /20): y = 582.1 - 396 = 186.1
+  const sig = signatures.find((s) => s.step_number === 1) || signatures[0]
+  const effDate = sig?.signed_at ? new Date(sig.signed_at) : sub.request_date ? new Date(sub.request_date) : null
+  if (effDate && !Number.isNaN(effDate.getTime())) {
+    const dd = String(effDate.getDate()).padStart(2, '0')
+    const mm = String(effDate.getMonth() + 1).padStart(2, '0')
+    const yy = String(effDate.getFullYear()).slice(-2)
+    write(dd, 480, 186.1, 8, fontBold)
+    write(mm, 506, 186.1, 8, fontBold)
+    write(yy, 536, 186.1, 8, fontBold)
+  }
+
+  // Department & Section combined: y = 568 - 396 = 172
+  const deptFull = formatDeptSection(sub.department, formData.section)
+  write(deptFull.slice(0, 44), 232, 172, 8.5, fontBold)
+
+  // Area Special Security: y = 540 - 396 = 144
+  const areaText = formData.area_special_security || sub.purpose || 'Ruang Server / Server Room'
+  write(areaText.slice(0, 40), 232, 144, 8, fontBold)
+
+  // Tanggal Penghapusan Akses: y = 432.2 - 396 = 36.2
+  const rawDel = formData.access_deletion_date
+  const delDateStr = rawDel && rawDel !== 'Invalid Date' && rawDel !== 'null' && rawDel !== 'undefined'
+    ? formatDateId(rawDel)
+    : 'Sesuai Masa Penugasan'
+  write(delDateStr, 280, 36.2, 8, fontBold)
+
+  // =============================================================
+  // COLUMN 2: PARAF / TANDA TANGAN PEMOHON (KOMITMEN AREA SPECIAL)
+  // Perfectly centered at CENTER_COL2 = 412.6
+  // =============================================================
+  writeCenter('PARAF PEMOHON', CENTER_COL2, 97, 7, fontBold, rgb(0.08, 0.52, 0.25))
+
+  // Applicant Name with clean signature underline
+  const appName = sub.applicant_name || 'Pemohon'
+  writeCenter(appName, CENTER_COL2, 79, 9.5, fontBold, COLOR_INK)
+  const nameW = fontBold.widthOfTextAtSize(safeText(appName), 9.5)
+  const lineHalfW = Math.min(Math.max(nameW / 2 + 10, 28), 50)
+  page.drawLine({
+    start: { x: CENTER_COL2 - lineHalfW, y: 74 },
+    end: { x: CENTER_COL2 + lineHalfW, y: 74 },
+    thickness: 0.75,
+    color: COLOR_LINE,
+  })
+
+  // NIK & Tanggal Pengajuan (safely padded above the 45pt bottom border)
+  writeCenter(`NIK: ${sub.applicant_nik || '-'}`, CENTER_COL2, 62, 7, fontRegular, COLOR_MUTED)
+  writeCenter(`Tgl: ${formatDateId(sub.request_date)}`, CENTER_COL2, 52, 6.5, fontRegular, COLOR_MUTED)
+
+  // =============================================================
+  // COLUMN 3: MENYETUJUI / E-SIGN VERIFIED (IAA)
+  // Perfectly centered at CENTER_COL3 = 513.8
+  // =============================================================
+  if (sig && sig.status === 'approved') {
+    const qrUrl = `${verifyUrl}&step=1&code=${sig.verification_code || ''}`
+    const qrSize = 38
+    const qrX = CENTER_COL3 - qrSize / 2 // 513.8 - 19 = 494.8
+
+    writeCenter('E-SIGN VERIFIED', CENTER_COL3, 137, 6.5, fontBold, COLOR_RED)
+    await stampQr(qrUrl, qrX, 94, qrSize)
+    writeCenter(sig.approver_name || 'Teguh Sunjoyo', CENTER_COL3, 81, 7.5, fontBold)
+  } else {
+    writeCenter('[ MENUNGGU PERSETUJUAN ]', CENTER_COL3, 105, 6.5, fontOblique, COLOR_MUTED)
+    writeCenter('Teguh Sunjoyo (IAA)', CENTER_COL3, 93, 7, fontRegular, COLOR_MUTED)
+  }
+
+  return dstPdf.save()
 }
 
 /**
@@ -525,6 +670,7 @@ async function renderDynamicPdf(
   const page = pdf.addPage([PAGE_W, PAGE_H])
   const W = PAGE_W - 2 * MARGIN_X
   const leftX = MARGIN_X
+  const formData = (typeof sub.form_data === 'string' ? JSON.parse(sub.form_data) : sub.form_data) || {}
 
   const text = (
     val: string,
@@ -563,7 +709,7 @@ async function renderDynamicPdf(
   text('DATA PEMOHON', leftX + 8, y - 14, 8, fontBold)
   text(`Nama Pemohon: ${sub.applicant_name}`, leftX + 8, y - 30, 8.5)
   text(`NIK: ${sub.applicant_nik || '-'}`, leftX + 8, y - 46, 8.5)
-  text(`Departemen: ${sub.department}`, leftX + 8, y - 62, 8.5)
+  text(`Departemen: ${formatDeptSection(sub.department, formData.section)}`, leftX + 8, y - 62, 8.5)
   text(`Tanggal Pengajuan: ${formatDateId(sub.request_date)}`, leftX + 8, y - 78, 8.5)
 
   y -= 120

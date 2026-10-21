@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { query } from '@/lib/db'
 import { buildItFormPdf } from '@/lib/it-form-pdf'
 import type { ItFormSubmission, ItFormSignature } from '@/lib/it-form-service'
+import { API_BASE_PATH } from '@/lib/config'
 
 export async function GET(
   request: NextRequest,
@@ -48,9 +49,10 @@ export async function GET(
     )
     subRecord.signatures = sigs.rows
 
-    const host = request.headers.get('host') || 'localhost:3000'
     const protocol = request.headers.get('x-forwarded-proto') || 'http'
-    const verifyUrl = `${protocol}://${host}/form-it-esign?token=${subRecord.token || ''}`
+    const host = request.headers.get('host') || 'localhost:3000'
+    const targetPath = subRecord.form_code === 'ISMS-F-02-00-002' ? '/registrasi-fingerprint' : '/form-it-esign'
+    const verifyUrl = `${protocol}://${host}${API_BASE_PATH}${targetPath}?token=${subRecord.token || ''}`
 
     const pdfBytes = await buildItFormPdf(subRecord, verifyUrl)
     const filename = `${subRecord.form_code}-${subRecord.request_no}.pdf`

@@ -121,9 +121,6 @@ function FingerprintPageInner() {
   // In-page Token / Review state
   const [searchInput, setSearchInput] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
-  const [approvalNoteInput, setApprovalNoteInput] = useState('')
-  const [approverNameInput, setApproverNameInput] = useState('')
-  const [actionLoading, setActionLoading] = useState(false)
 
   // Approvers list
   const [approvers, setApprovers] = useState<ItFormApprover[]>([])
@@ -150,13 +147,6 @@ function FingerprintPageInner() {
       cancelled = true
     }
   }, [])
-
-  // Initialize official approver name
-  useEffect(() => {
-    if (!approverNameInput) {
-      setApproverNameInput('Teguh Sunjoyo')
-    }
-  }, [approverNameInput])
 
   // Current department object and its sections
   const currentDeptObj = useMemo(() => {
@@ -209,10 +199,6 @@ function FingerprintPageInner() {
       const data = await res.json()
       if (res.ok && data.submission) {
         setSubmissionResult(data.submission)
-        const currentSig = data.submission.signatures?.find(
-          (s: any) => s.step_number === data.submission.current_step
-        )
-        setApproverNameInput(currentSig?.approver_name || 'Teguh Sunjoyo')
       } else {
         alert(data.error || 'Permohonan tidak ditemukan')
       }
@@ -307,43 +293,7 @@ function FingerprintPageInner() {
     }
   }
 
-  // Handle Approver Sign / Reject
-  const handleSignAction = async (decision: 'approve' | 'reject') => {
-    if (!submissionResult) return
-    const stepNumber = submissionResult.current_step || 1
-    const approverName = approverNameInput.trim() || 'Teguh Sunjoyo'
 
-    if (decision === 'reject' && !approvalNoteInput.trim()) {
-      alert('Wajib mengisi catatan/alasan penolakan.')
-      return
-    }
-
-    setActionLoading(true)
-    try {
-      const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions/${submissionResult.id}/sign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          step_number: stepNumber,
-          decision,
-          approver_name: approverName,
-          signature_note: approvalNoteInput.trim() || null,
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Gagal memproses tanda tangan.')
-
-      alert(decision === 'approve' ? 'Permohonan berhasil disetujui (E-Sign diverifikasi)!' : 'Permohonan telah ditolak.')
-      if (submissionResult.token) {
-        await fetchSubmissionByToken(submissionResult.token)
-      }
-    } catch (err: any) {
-      alert(err.message || 'Gagal memproses keputusan')
-    } finally {
-      setActionLoading(false)
-    }
-  }
 
   const copyVerifyLink = () => {
     if (!submissionResult) return
@@ -626,75 +576,48 @@ function FingerprintPageInner() {
             </div>
           </div>
 
-          {/* Action Box for Approver (if pending) */}
+          {/* Status Alur Pengesahan Pejabat (Official Workflow Status - Read Only) */}
           {submissionResult.status === 'pending' && (
-            <div className="mt-6 rounded-2xl border border-indigo-300 bg-indigo-50/50 p-5 dark:border-indigo-800 dark:bg-indigo-950/30">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-200/70 pb-3.5 dark:border-indigo-900/70">
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5 dark:border-slate-800">
                 <div>
-                  <h3 className="font-display text-sm font-bold text-indigo-950 dark:text-indigo-200 flex items-center gap-2">
-                    <PencilLine className="size-4 text-indigo-600" />
-                    <span>Panel Pengesahan E-Sign — Information Assets Administrator</span>
+                  <h3 className="font-display text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <ShieldCheck className="size-4 text-amber-500" />
+                    <span>Status Pengesahan: Menunggu Persetujuan Pejabat Berwenang</span>
                   </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Verifikasi keputusan tanda tangan digital pejabat berwenang resmi (Teguh Sunjoyo / IAA).
+                  <p className="mt-0.5 text-xs text-slate-500 font-medium">
+                    Dokumen ini sedang dalam antrean pengesahan digital oleh pejabat resmi yang ditunjuk.
                   </p>
                 </div>
-                <Link
-                  href={`/persetujuan-saya?token=${encodeURIComponent(submissionResult.token)}`}
-                  className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-indigo-300 bg-white px-3 py-1.5 text-xs font-bold text-indigo-900 shadow-2xs transition hover:bg-indigo-50 dark:border-indigo-700 dark:bg-card dark:text-indigo-300"
-                >
-                  <ExternalLink className="size-3.5" />
-                  <span>Buka di Dashboard Persetujuan Saya</span>
-                </Link>
+                <div className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
+                  <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span>MENUNGGU PERSETUJUAN</span>
+                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Pejabat Penyetuju (Official Approver)
-                  </label>
-                  <div className="flex items-center gap-2.5 rounded-xl border border-input bg-card px-3.5 py-2.5 text-xs">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
+                  <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+                    Pejabat Penyetuju Resmi (Official Approver)
+                  </span>
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
                     <ShieldCheck className="size-4 text-emerald-600 shrink-0" />
-                    <span className="font-bold text-foreground">
-                      {approverNameInput || 'Teguh Sunjoyo'}
+                    <span>
+                      {submissionResult.signatures?.find((s) => s.step_number === submissionResult.current_step)?.approver_name || 'Teguh Sunjoyo'}
                     </span>
-                    <span className="rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-700 font-semibold dark:bg-slate-700 dark:text-slate-300">
                       IAA Administrator
                     </span>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Catatan / Komentar (Opsional untuk setuju, wajib bila tolak)
-                  </label>
-                  <input
-                    type="text"
-                    value={approvalNoteInput}
-                    onChange={(e) => setApprovalNoteInput(e.target.value)}
-                    placeholder="Contoh: Akses Ruang Server disetujui untuk maintenance"
-                    className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
-                  />
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
+                  <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">
+                    Mekanisme Otorisasi
+                  </span>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
+                    Persetujuan sah dilakukan langsung oleh pejabat bersangkutan melalui notifikasi email dinas atau portal Persetujuan Pejabat resmi.
+                  </p>
                 </div>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-end gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleSignAction('reject')}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-xs font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 disabled:opacity-50"
-                >
-                  <XCircle className="size-4" />
-                  <span>Tolak Permohonan</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSignAction('approve')}
-                  disabled={actionLoading}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
-                >
-                  {actionLoading ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
-                  <span>Setujui Permohonan (E-Sign)</span>
-                </button>
               </div>
             </div>
           )}

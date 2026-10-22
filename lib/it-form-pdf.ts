@@ -30,6 +30,20 @@ function formatDateId(dateStr?: string | null): string {
   }
 }
 
+function parseDateParts(dateStr?: string | null): { dd: string; mm: string; yy: string } | null {
+  if (!dateStr || dateStr === 'null' || dateStr === 'undefined' || dateStr === 'Invalid Date') return null
+  try {
+    const d = new Date(dateStr)
+    if (Number.isNaN(d.getTime())) return null
+    const dd = String(d.getDate()).padStart(2, '0')
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const yy = String(d.getFullYear()).slice(-2)
+    return { dd, mm, yy }
+  } catch {
+    return null
+  }
+}
+
 function formatDeptSection(dept?: string | null, section?: string | null): string {
   if (!dept) return '-'
   if (section && section !== '-' && !dept.toLowerCase().includes(section.toLowerCase())) {
@@ -156,6 +170,23 @@ async function stampOnTemplate(
     }
   }
 
+  const stampSlashedDate = (
+    dateStr: string | null | undefined,
+    slashX1: number,
+    slashX2: number,
+    baselineY: number,
+    size = 8,
+    font = fontBold,
+    color = COLOR_INK
+  ) => {
+    const parts = parseDateParts(dateStr)
+    if (!parts) return
+    const ddW = font.widthOfTextAtSize(parts.dd, size)
+    write(parts.dd, slashX1 - 2.5 - ddW, baselineY, size, font, color)
+    writeCenter(parts.mm, (slashX1 + 4 + slashX2) / 2, baselineY, size, font, color)
+    write(parts.yy, slashX2 + 4 + 2.5, baselineY, size, font, color)
+  }
+
   // -------------------------------------------------------------
   // FORM 1: ISMS-F-010-001 (Pengadaan PC / Laptop)
   // -------------------------------------------------------------
@@ -201,24 +232,26 @@ async function stampOnTemplate(
       write(sub.notes.slice(0, 95), 70, 280, 8, fontOblique, COLOR_MUTED)
     }
 
-    // Signature boxes: IT Section Check (x=345..445, y=95..175) & Manager (x=450..550, y=95..175)
+    // Signature boxes: IT Section Check (centerX=411.0) & Manager (centerX=510.5)
     const sigIt = signatures.find((s) => s.step_number === 1) || signatures[0]
     const sigMgr = signatures.find((s) => s.step_number === 2) || signatures[1]
 
     if (sigIt && sigIt.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=${sigIt.step_number}&code=${sigIt.verification_code || ''}`
-      await stampQr(qrUrl, 356, 118, 42)
-      write('E-SIGN VERIFIED', 350, 110, 6.5, fontBold, COLOR_RED)
-      write(sigIt.approver_name.slice(0, 18), 350, 102, 7.5, fontBold)
-      write(formatDateId(sigIt.signed_at), 350, 94, 6.5, fontRegular, COLOR_MUTED)
+      const qrSize = 38
+      await stampQr(qrUrl, 411.0 - qrSize / 2, 120, qrSize)
+      writeCenter('E-SIGN VERIFIED', 411.0, 109, 6.5, fontBold, COLOR_RED)
+      writeCenter(sigIt.approver_name.slice(0, 18), 411.0, 99, 7.5, fontBold, COLOR_INK)
+      stampSlashedDate(sigIt.signed_at, 401.3, 420.5, 83.0, 8, fontBold)
     }
 
     if (sigMgr && sigMgr.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=${sigMgr.step_number}&code=${sigMgr.verification_code || ''}`
-      await stampQr(qrUrl, 460, 118, 42)
-      write('E-SIGN VERIFIED', 454, 110, 6.5, fontBold, COLOR_RED)
-      write(sigMgr.approver_name.slice(0, 18), 454, 102, 7.5, fontBold)
-      write(formatDateId(sigMgr.signed_at), 454, 94, 6.5, fontRegular, COLOR_MUTED)
+      const qrSize = 38
+      await stampQr(qrUrl, 510.5 - qrSize / 2, 120, qrSize)
+      writeCenter('E-SIGN VERIFIED', 510.5, 109, 6.5, fontBold, COLOR_RED)
+      writeCenter(sigMgr.approver_name.slice(0, 18), 510.5, 99, 7.5, fontBold, COLOR_INK)
+      stampSlashedDate(sigMgr.signed_at, 499.9, 519.1, 83.0, 8, fontBold)
     }
   }
 
@@ -269,22 +302,26 @@ async function stampOnTemplate(
       write(sub.notes.slice(0, 95), 70, 220, 8, fontOblique, COLOR_MUTED)
     }
 
-    // Signature boxes: IT Section Check & Manager
+    // Signature boxes: IT Section Check (centerX=411.0) & Manager (centerX=510.5)
     const sigIt = signatures.find((s) => s.step_number === 1) || signatures[0]
     const sigMgr = signatures.find((s) => s.step_number === 2) || signatures[1]
 
     if (sigIt && sigIt.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=${sigIt.step_number}&code=${sigIt.verification_code || ''}`
-      await stampQr(qrUrl, 356, 102, 42)
-      write('E-SIGN VERIFIED', 350, 94, 6.5, fontBold, COLOR_RED)
-      write(sigIt.approver_name.slice(0, 18), 350, 86, 7.5, fontBold)
+      const qrSize = 38
+      await stampQr(qrUrl, 411.0 - qrSize / 2, 90, qrSize)
+      writeCenter('E-SIGN VERIFIED', 411.0, 79, 6.5, fontBold, COLOR_RED)
+      writeCenter(sigIt.approver_name.slice(0, 18), 411.0, 69, 7.5, fontBold, COLOR_INK)
+      stampSlashedDate(sigIt.signed_at, 401.3, 420.5, 53.2, 8, fontBold)
     }
 
     if (sigMgr && sigMgr.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=${sigMgr.step_number}&code=${sigMgr.verification_code || ''}`
-      await stampQr(qrUrl, 460, 102, 42)
-      write('E-SIGN VERIFIED', 454, 94, 6.5, fontBold, COLOR_RED)
-      write(sigMgr.approver_name.slice(0, 18), 454, 86, 7.5, fontBold)
+      const qrSize = 38
+      await stampQr(qrUrl, 510.5 - qrSize / 2, 90, qrSize)
+      writeCenter('E-SIGN VERIFIED', 510.5, 79, 6.5, fontBold, COLOR_RED)
+      writeCenter(sigMgr.approver_name.slice(0, 18), 510.5, 69, 7.5, fontBold, COLOR_INK)
+      stampSlashedDate(sigMgr.signed_at, 499.9, 519.1, 53.2, 8, fontBold)
     }
   }
 
@@ -329,32 +366,36 @@ async function stampOnTemplate(
       if (sub.notes) {
         write(sub.notes.slice(0, 95), 65, 574 + d, 7.5, fontOblique, COLOR_MUTED)
       }
-    }
 
-    // Top Signatures (y=440..525): 1: IT SPV, 2: IR/HR, 3: Dept Mgr
-    const sig1 = signatures.find((s) => s.step_number === 1) || signatures[0]
-    const sig2 = signatures.find((s) => s.step_number === 2) || signatures[1]
-    const sig3 = signatures.find((s) => s.step_number === 3) || signatures[2]
+      // Stamped signatures for both copies (Top & Bottom):
+      // Col 1: IT SPV / SSA (centerX=128.0)
+      // Col 2: IR / HR (centerX=298.0)
+      // Col 3: Dept Mgr (centerX=467.0)
+      const sig1 = signatures.find((s) => s.step_number === 1) || signatures[0]
+      const sig2 = signatures.find((s) => s.step_number === 2) || signatures[1]
+      const sig3 = signatures.find((s) => s.step_number === 3) || signatures[2]
+      const qrSize = 34
 
-    if (sig1 && sig1.status === 'approved') {
-      const qrUrl = `${verifyUrl}&step=1&code=${sig1.verification_code || ''}`
-      await stampQr(qrUrl, 52, 455, 38)
-      write(sig1.approver_name.slice(0, 16), 94, 478, 7.5, fontBold)
-      write(formatDateId(sig1.signed_at), 94, 466, 6.5, fontRegular, COLOR_MUTED)
-    }
+      if (sig1 && sig1.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=1&code=${sig1.verification_code || ''}`
+        await stampQr(qrUrl, 128.0 - qrSize / 2, 486 + d, qrSize)
+        writeCenter(sig1.approver_name.slice(0, 16), 128.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sig1.signed_at), 128.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+      }
 
-    if (sig2 && sig2.status === 'approved') {
-      const qrUrl = `${verifyUrl}&step=2&code=${sig2.verification_code || ''}`
-      await stampQr(qrUrl, 218, 455, 38)
-      write(sig2.approver_name.slice(0, 16), 260, 478, 7.5, fontBold)
-      write(formatDateId(sig2.signed_at), 260, 466, 6.5, fontRegular, COLOR_MUTED)
-    }
+      if (sig2 && sig2.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=2&code=${sig2.verification_code || ''}`
+        await stampQr(qrUrl, 298.0 - qrSize / 2, 486 + d, qrSize)
+        writeCenter(sig2.approver_name.slice(0, 16), 298.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sig2.signed_at), 298.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+      }
 
-    if (sig3 && sig3.status === 'approved') {
-      const qrUrl = `${verifyUrl}&step=3&code=${sig3.verification_code || ''}`
-      await stampQr(qrUrl, 388, 455, 38)
-      write(sig3.approver_name.slice(0, 16), 430, 478, 7.5, fontBold)
-      write(formatDateId(sig3.signed_at), 430, 466, 6.5, fontRegular, COLOR_MUTED)
+      if (sig3 && sig3.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=3&code=${sig3.verification_code || ''}`
+        await stampQr(qrUrl, 467.0 - qrSize / 2, 486 + d, qrSize)
+        writeCenter(sig3.approver_name.slice(0, 16), 467.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sig3.signed_at), 467.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+      }
     }
   }
 
@@ -394,31 +435,36 @@ async function stampOnTemplate(
       if (sub.notes) {
         write(sub.notes.slice(0, 95), 65, 574 + d, 7.5, fontOblique, COLOR_MUTED)
       }
-    }
 
-    const sig1 = signatures.find((s) => s.step_number === 1) || signatures[0]
-    const sig2 = signatures.find((s) => s.step_number === 2) || signatures[1]
-    const sig3 = signatures.find((s) => s.step_number === 3) || signatures[2]
+      // Stamped signatures for both copies:
+      // Col 1: DIREQUESTKAN OLEH - IR/HR (centerX=128.0)
+      // Col 2: MENGETAHUI - Dept Manager (centerX=298.0)
+      // Col 3: MENYETUJUI - IT SPV / SSA (centerX=467.0)
+      const sig1 = signatures.find((s) => s.step_number === 1) || signatures[0]
+      const sig2 = signatures.find((s) => s.step_number === 2) || signatures[1]
+      const sig3 = signatures.find((s) => s.step_number === 3) || signatures[2]
+      const qrSize = 34
 
-    if (sig1 && sig1.status === 'approved') {
-      const qrUrl = `${verifyUrl}&step=1&code=${sig1.verification_code || ''}`
-      await stampQr(qrUrl, 52, 455, 38)
-      write(sig1.approver_name.slice(0, 16), 94, 478, 7.5, fontBold)
-      write(formatDateId(sig1.signed_at), 94, 466, 6.5, fontRegular, COLOR_MUTED)
-    }
+      if (sig1 && sig1.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=1&code=${sig1.verification_code || ''}`
+        await stampQr(qrUrl, 128.0 - qrSize / 2, 486 + d, qrSize)
+        writeCenter(sig1.approver_name.slice(0, 16), 128.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sig1.signed_at), 128.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+      }
 
-    if (sig2 && sig2.status === 'approved') {
-      const qrUrl = `${verifyUrl}&step=2&code=${sig2.verification_code || ''}`
-      await stampQr(qrUrl, 218, 455, 38)
-      write(sig2.approver_name.slice(0, 16), 260, 478, 7.5, fontBold)
-      write(formatDateId(sig2.signed_at), 260, 466, 6.5, fontRegular, COLOR_MUTED)
-    }
+      if (sig2 && sig2.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=2&code=${sig2.verification_code || ''}`
+        await stampQr(qrUrl, 298.0 - qrSize / 2, 486 + d, qrSize)
+        writeCenter(sig2.approver_name.slice(0, 16), 298.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sig2.signed_at), 298.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+      }
 
-    if (sig3 && sig3.status === 'approved') {
-      const qrUrl = `${verifyUrl}&step=3&code=${sig3.verification_code || ''}`
-      await stampQr(qrUrl, 388, 455, 38)
-      write(sig3.approver_name.slice(0, 16), 430, 478, 7.5, fontBold)
-      write(formatDateId(sig3.signed_at), 430, 466, 6.5, fontRegular, COLOR_MUTED)
+      if (sig3 && sig3.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=3&code=${sig3.verification_code || ''}`
+        await stampQr(qrUrl, 467.0 - qrSize / 2, 486 + d, qrSize)
+        writeCenter(sig3.approver_name.slice(0, 16), 467.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sig3.signed_at), 467.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+      }
     }
   }
 
@@ -470,22 +516,33 @@ async function stampOnTemplate(
       tick(390, 220) // DHCP
     }
 
-    // Approvals: IT Check (x=360..455) & IAA Approval (x=465..555)
+    // Approvals: IT Check (centerX=410.0) & IAA Approval (centerX=510.0)
     const sig1 = signatures.find((s) => s.step_number === 1) || signatures[0]
     const sig2 = signatures.find((s) => s.step_number === 2) || signatures[1]
+    const qrSize = 38
 
     if (sig1 && sig1.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=1&code=${sig1.verification_code || ''}`
-      await stampQr(qrUrl, 380, 118, 42)
-      write(sig1.approver_name.slice(0, 18), 375, 108, 7.5, fontBold)
-      write(formatDateId(sig1.signed_at), 375, 98, 6.5, fontRegular, COLOR_MUTED)
+      await stampQr(qrUrl, 410.0 - qrSize / 2, 118, qrSize)
+      writeCenter('E-SIGN VERIFIED', 410.0, 107, 6.5, fontBold, COLOR_RED)
+      writeCenter(sig1.approver_name.slice(0, 18), 410.0, 97, 7.5, fontBold, COLOR_INK)
+      writeCenter(formatDateId(sig1.signed_at), 410.0, 86, 6.5, fontRegular, COLOR_MUTED)
     }
 
     if (sig2 && sig2.status === 'approved') {
+      // Cover pre-printed "TEGUH SUNJOYO" inside the box so actual approver name replaces it cleanly
+      page.drawRectangle({
+        x: 468,
+        y: 72,
+        width: 88,
+        height: 16,
+        color: rgb(1, 1, 1),
+      })
       const qrUrl = `${verifyUrl}&step=2&code=${sig2.verification_code || ''}`
-      await stampQr(qrUrl, 480, 118, 42)
-      write(sig2.approver_name.slice(0, 18), 475, 108, 7.5, fontBold)
-      write(formatDateId(sig2.signed_at), 475, 98, 6.5, fontRegular, COLOR_MUTED)
+      await stampQr(qrUrl, 510.0 - qrSize / 2, 118, qrSize)
+      writeCenter('E-SIGN VERIFIED', 510.0, 107, 6.5, fontBold, COLOR_RED)
+      writeCenter(sig2.approver_name.slice(0, 18), 510.0, 97, 7.5, fontBold, COLOR_INK)
+      writeCenter(formatDateId(sig2.signed_at), 510.0, 77, 6.5, fontRegular, COLOR_MUTED)
     }
   }
 
@@ -635,17 +692,26 @@ async function stampFingerprintTemplate(
   // COLUMN 3: MENYETUJUI / E-SIGN VERIFIED (IAA)
   // Perfectly centered at CENTER_COL3 = 513.8
   // =============================================================
+  // Cover pre-printed "Teguh Sunjoyo" so actual approver name replaces it cleanly
+  page.drawRectangle({
+    x: 468,
+    y: 83,
+    width: 92,
+    height: 17,
+    color: rgb(1, 1, 1),
+  })
+
   if (sig && sig.status === 'approved') {
     const qrUrl = `${verifyUrl}&step=1&code=${sig.verification_code || ''}`
     const qrSize = 38
     const qrX = CENTER_COL3 - qrSize / 2 // 513.8 - 19 = 494.8
 
-    writeCenter('E-SIGN VERIFIED', CENTER_COL3, 137, 6.5, fontBold, COLOR_RED)
-    await stampQr(qrUrl, qrX, 94, qrSize)
-    writeCenter(sig.approver_name || 'Teguh Sunjoyo', CENTER_COL3, 81, 7.5, fontBold)
+    writeCenter('E-SIGN VERIFIED', CENTER_COL3, 140, 6.5, fontBold, COLOR_RED)
+    await stampQr(qrUrl, qrX, 98, qrSize)
+    writeCenter(sig.approver_name || 'Teguh Sunjoyo', CENTER_COL3, 87, 7.5, fontBold)
   } else {
     writeCenter('[ MENUNGGU PERSETUJUAN ]', CENTER_COL3, 105, 6.5, fontOblique, COLOR_MUTED)
-    writeCenter('Teguh Sunjoyo (IAA)', CENTER_COL3, 93, 7, fontRegular, COLOR_MUTED)
+    writeCenter('Teguh Sunjoyo (IAA)', CENTER_COL3, 87, 7, fontRegular, COLOR_MUTED)
   }
 
   return dstPdf.save()

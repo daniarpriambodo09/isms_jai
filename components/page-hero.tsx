@@ -242,7 +242,7 @@ export function BentoHero({ count, categories, languages, action }: WithAction &
   )
 }
 
-// ─── Form Aplikasi — executive application hub ───
+// ─── Form Aplikasi — official ruled paper & executive document desk ───
 export function PaperHero({
   title,
   count,
@@ -250,100 +250,107 @@ export function PaperHero({
 }: WithAction & { title: string; count: number }) {
   const now = useNow(1000)
   return (
-    <section className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[color:var(--p-950)] via-[color:var(--p-900)] to-[#081220] text-primary-foreground shadow-2xl transition-all">
-      {/* Decorative Blueprint Corner Brackets */}
-      <span className="pointer-events-none absolute left-3 top-3 size-4 border-l-2 border-t-2 border-white/20" />
-      <span className="pointer-events-none absolute right-3 top-3 size-4 border-r-2 border-t-2 border-white/20" />
-      <span className="pointer-events-none absolute bottom-3 left-3 size-4 border-b-2 border-l-2 border-white/20" />
-      <span className="pointer-events-none absolute bottom-3 right-3 size-4 border-b-2 border-r-2 border-white/20" />
-
-      {/* Subtle brand tint gradient at the corner */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-accent/15 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-primary/20 blur-3xl"
-      />
-
-      {/* Top telemetry status bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/25 px-6 py-2.5 font-mono text-[11px] tracking-[0.06em] text-primary-foreground/75 backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
-          <span className="hero-blink size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-          <span className="font-bold text-white tracking-wider">YAZAKI &bull; PT. JATIM AUTOCOMP INDONESIA</span>
-          <span className="text-white/30">/</span>
-          <span className="font-semibold text-accent tracking-wide">ISMS DOCUMENT &amp; E-FORM HUB</span>
+    <section className="hero-paper relative isolate overflow-hidden rounded-3xl border-2 border-border/80 text-foreground shadow-xl transition-all">
+      {/* Official Japanese/ISO 27001 Red Hanko Approval Stamp Watermark */}
+      <div className="pointer-events-none absolute right-12 top-12 -rotate-12 select-none opacity-90 max-[900px]:hidden">
+        <div className="rounded-full border-2 border-dashed border-red-600/70 p-2 text-red-600 dark:border-red-500/70 dark:text-red-400">
+          <div className="flex size-28 flex-col items-center justify-center rounded-full border-2 border-red-600/90 text-center font-mono leading-none">
+            <span className="text-[8px] font-black uppercase tracking-widest text-red-700 dark:text-red-300">★ PT. JAI ★</span>
+            <span className="my-1 text-[11px] font-black tracking-tight">ISO 27001</span>
+            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white dark:bg-red-500">TERKENDALI</span>
+            <span className="mt-1 text-[7.5px] font-bold tracking-wider">OFFICIAL FORM</span>
+          </div>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 font-semibold text-emerald-300">
-            <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
-            ISO/IEC 27001
+      </div>
+
+      {/* Top Document Classification Bar (Distinct from Kontrol CS telemetry) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-secondary/60 px-6 py-2.5 font-mono text-[11px] tracking-[0.05em] text-muted-foreground backdrop-blur-xs">
+        <div className="flex items-center gap-2.5">
+          <span className="size-2 rounded-full bg-rose-500" />
+          <span className="font-bold text-foreground">DOKUMEN TERKENDALI</span>
+          <span className="text-border">/</span>
+          <span className="font-semibold text-rose-600 dark:text-rose-400">ISMS-F-000 HUB</span>
+          <span className="text-border max-[640px]:hidden">&bull;</span>
+          <span className="font-medium text-muted-foreground max-[640px]:hidden">PT. JATIM AUTOCOMP INDONESIA</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-[10.5px] font-bold text-rose-700 dark:text-rose-300">
+            RESMI BERLAKU
           </span>
-          <span className="tabular-nums font-bold text-white bg-white/10 border border-white/10 rounded-md px-2.5 py-0.5">
+          <span className="tabular-nums font-bold text-foreground">
             {now ? now.toLocaleTimeString('id-ID', { hour12: false }) : '--.--.--'} WIB
           </span>
         </div>
       </div>
 
-      {/* Main hero body */}
-      <div className="p-6 sm:p-8 lg:p-10">
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 font-mono-label text-[11px] font-bold text-accent shadow-xs">
-              <Layers className="size-3.5" />
-              <span>Formulir Terkendali &bull; {count} Dokumen Master</span>
+      {/* Main hero body with vertical binder filing rule */}
+      <div className="relative grid grid-cols-1 items-start gap-8 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:p-10">
+        {/* Left red margin line & punch holes (official paper filing motif) */}
+        <div className="pointer-events-none absolute bottom-0 left-0 top-0 hidden w-6 flex-col items-center justify-around border-r-2 border-rose-500/20 py-8 lg:flex">
+          <span className="size-3 rounded-full border border-border bg-background shadow-inner" />
+          <span className="size-3 rounded-full border border-border bg-background shadow-inner" />
+          <span className="size-3 rounded-full border border-border bg-background shadow-inner" />
+        </div>
+
+        <div className="lg:pl-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/80 px-3.5 py-1 font-mono-label text-[11px] font-bold text-foreground shadow-2xs">
+            <Layers className="size-3.5 text-primary" />
+            <span>Katalog Formulir &bull; {count} Dokumen Master Terdaftar</span>
+          </div>
+
+          <h2 className="mt-4 font-display text-[clamp(2.4rem,4.8vw,4rem)] font-extrabold leading-[0.95] text-foreground tracking-tight">
+            Form Aplikasi <span className="font-serif-accent text-primary italic font-normal">&amp; Dokumen</span>
+          </h2>
+
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Pusat arsip formulir resmi dan pengajuan izin online PT. JAI. Unduh berkas fisik terkendali atau gunakan formulir elektronik ber-E-Sign untuk persetujuan cepat dan terlacak.
+          </p>
+
+          {/* Quick feature pill highlights with document checkmark */}
+          <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs">
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 font-semibold text-foreground shadow-2xs">
+              <Check className="size-3.5 text-rose-600 dark:text-rose-400" strokeWidth={3} /> Standar Dokumen ISO/IEC 27001
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 font-semibold text-foreground shadow-2xs">
+              <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} /> E-Sign Digital Ber-QR Code
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 font-semibold text-foreground shadow-2xs">
+              <Check className="size-3.5 text-primary" strokeWidth={3} /> Alur Otorisasi Multi-Departemen
+            </span>
+          </div>
+        </div>
+
+        {/* Right side: Archival Docket Index Card */}
+        <div className="flex flex-col gap-4 self-stretch justify-between rounded-2xl border-2 border-dashed border-border bg-card/90 p-5 shadow-sm backdrop-blur-xs">
+          <div className="flex items-center justify-between border-b border-border/80 pb-2.5 font-mono text-[10.5px]">
+            <span className="font-bold text-muted-foreground uppercase tracking-wider">Lembar Kendali Berkas</span>
+            <span className="rounded bg-primary/10 px-2 py-0.5 font-bold text-primary">ISO 27001</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3.5 my-2">
+            <div className="rounded-xl border border-border bg-secondary/50 p-4">
+              <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Total Dokumen</p>
+              <p className="mt-1.5 font-display text-3xl font-black tabular-nums text-foreground sm:text-4xl">
+                {count}
+              </p>
+              <p className="mt-1 text-[11px] font-medium text-muted-foreground">Berkas master aktif</p>
             </div>
 
-            <h2 className="mt-4 font-display text-[clamp(2.4rem,4.8vw,4rem)] font-extrabold leading-[0.95] text-white tracking-tight">
-              {title}
-            </h2>
-
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
-              Pusat pengajuan formulir resmi dan layanan izin online PT. JAI. Unduh berkas resmi yang terkendali atau gunakan formulir elektronik ber-E-Sign untuk persetujuan cepat dan terlacak.
-            </p>
-
-            {/* Quick feature pill highlights */}
-            <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs">
-              <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 font-semibold text-white shadow-sm backdrop-blur-sm">
-                <Check className="size-3.5 text-emerald-400" strokeWidth={3} /> Standar Dokumen ISO 27001
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 font-semibold text-white shadow-sm backdrop-blur-sm">
-                <Check className="size-3.5 text-emerald-400" strokeWidth={3} /> E-Sign Digital Ber-QR Code
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 font-semibold text-white shadow-sm backdrop-blur-sm">
-                <Check className="size-3.5 text-emerald-400" strokeWidth={3} /> Terintegrasi Multi-Departemen
-              </span>
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-4">
+              <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">Layanan Online</p>
+              <p className="mt-1.5 font-display text-3xl font-black tabular-nums text-rose-600 dark:text-rose-400 sm:text-4xl">
+                5
+              </p>
+              <p className="mt-1 text-[11px] font-medium text-rose-600/80 dark:text-rose-300/80">E-Sign &amp; Izin Digital</p>
             </div>
           </div>
 
-          {/* Right side stats & action panel */}
-          <div className="flex flex-col gap-4 self-stretch justify-between">
-            <div className="grid grid-cols-2 gap-3.5">
-              <div className="rounded-2xl border border-white/15 bg-white/5 p-4.5 shadow-lg backdrop-blur-md transition hover:bg-white/[0.08]">
-                <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-primary-foreground/60">Total Berkas</p>
-                <p className="mt-2 font-display text-3xl font-black tabular-nums text-white sm:text-4xl">
-                  {count}
-                </p>
-                <p className="mt-1 text-[11px] font-medium text-primary-foreground/70">Formulir aktif terkendali</p>
-              </div>
-
-              <div className="rounded-2xl border border-accent/30 bg-accent/10 p-4.5 shadow-lg backdrop-blur-md transition hover:bg-accent/15">
-                <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-accent">Layanan Online</p>
-                <p className="mt-2 font-display text-3xl font-black tabular-nums text-accent sm:text-4xl">
-                  5
-                </p>
-                <p className="mt-1 text-[11px] font-medium text-primary-foreground/80">Form E-Sign &amp; Izin Khusus</p>
-              </div>
+          {/* Action buttons (Admin Add Document & Group Header) */}
+          {action && (
+            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-border/80">
+              {action}
             </div>
-
-            {/* Action buttons (Admin Add Document & Group Header) */}
-            {action && (
-              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2">
-                {action}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </section>

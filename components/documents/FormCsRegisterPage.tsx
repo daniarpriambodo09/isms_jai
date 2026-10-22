@@ -175,17 +175,17 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                 <button
                   type="button"
                   onClick={() => setGroupHeaderModalOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white shadow-sm backdrop-blur-sm transition-all hover:bg-white/20 hover:-translate-y-0.5 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/70 px-3.5 py-2 text-xs font-semibold text-foreground shadow-2xs transition-all hover:bg-secondary hover:text-foreground cursor-pointer"
                 >
-                  <Settings2 className="size-4" />
+                  <Settings2 className="size-3.5" />
                   Kelola Baris Grup
                 </button>
                 <button
                   type="button"
                   onClick={() => { setEditing(null); setFormOpen(true) }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-accent-foreground shadow-lg shadow-accent/20 transition-all hover:brightness-110 hover:-translate-y-0.5 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:-translate-y-0.5 cursor-pointer"
                 >
-                  <Plus className="size-4" />
+                  <Plus className="size-3.5" />
                   Tambah Dokumen
                 </button>
               </div>

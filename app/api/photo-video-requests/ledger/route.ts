@@ -27,6 +27,10 @@ type LedgerRow = {
   escort_dept: string | null
   escort_set_by: string | null
   taken_at: string | null
+  usb_control_no: string | null
+  returned_at: string | null
+  returned_by: string | null
+  return_notes: string | null
 }
 
 // Public, read-only — a company-wide ledger of every photo/video request
@@ -48,7 +52,8 @@ export async function GET(request: NextRequest) {
       `SELECT r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
               r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at,
               pic.name AS pic_approve_name, r.camera_control_no, r.photo_id_no, r.camera_serial_no, r.pic_jai,
-              r.escort_name, r.escort_dept, r.escort_set_by, r.taken_at
+              r.escort_name, r.escort_dept, r.escort_set_by, r.taken_at,
+              r.usb_control_no, r.returned_at, r.returned_by, r.return_notes
        FROM photo_video_requests r
        LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
        ORDER BY r.submitted_at ASC`

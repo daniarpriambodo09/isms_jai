@@ -40,6 +40,10 @@ type LedgerRequest = {
   escort_dept: string | null
   escort_set_by: string | null
   taken_at: string | null
+  usb_control_no: string | null
+  returned_at: string | null
+  returned_by: string | null
+  return_notes: string | null
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -183,7 +187,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     if (locale === 'internal') {
       downloadExcel(
         `rekap-foto-video-internal-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.nik ?? '',
@@ -192,10 +196,12 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
           r.dept_pic_kamera ?? '',
           r.camera_control_no ?? '',
           r.photo_id_no ?? '',
+          r.usb_control_no ?? '',
           r.pic_approve_name ?? '',
           r.escort_name ? `${r.escort_name}${r.escort_dept ? ` (${r.escort_dept})` : ''}` : '',
           formatDateTime(r.from_at),
           formatDateTime(r.to_at),
+          r.returned_at ? formatDateTime(r.returned_at) : 'Belum Dikembalikan',
           r.location,
           r.objective,
           STATUS_LABEL[r.status],
@@ -205,7 +211,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     } else {
       downloadExcel(
         `rekap-foto-video-visitor-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.requester_name,
@@ -217,6 +223,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
           r.escort_name ? `${r.escort_name}${r.escort_dept ? ` (${r.escort_dept})` : ''}` : '',
           formatDateTime(r.from_at),
           formatDateTime(r.to_at),
+          r.returned_at ? formatDateTime(r.returned_at) : 'Belum Dikembalikan',
           r.location,
           r.objective,
           STATUS_LABEL[r.status],
@@ -227,8 +234,8 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   }
 
   const visitorActions = canViewPdf || canDelete
-  const internalColCount = canDelete ? 16 : 15
-  const visitorColCount = visitorActions ? 15 : 14
+  const internalColCount = canDelete ? 18 : 17
+  const visitorColCount = visitorActions ? 16 : 15
 
   return (
     <div className="flex flex-col gap-6">
@@ -273,10 +280,10 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           {locale === 'internal' ? (
-            <table className="w-full min-w-[1640px] text-sm">
+            <table className="w-full min-w-[1800px] text-sm">
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -298,10 +305,20 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.dept_pic_kamera ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.camera_control_no ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.photo_id_no ?? '—'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs font-mono font-medium text-primary">{r.usb_control_no ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_approve_name ?? '—'}</td>
                     {escortCell(r)}
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.from_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.to_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                      {r.returned_at ? (
+                        <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                          {formatDateTime(r.returned_at)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/60">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.location}</td>
                     <td className="min-w-[160px] px-4 py-3 text-xs text-muted-foreground">{r.objective}</td>
                     <StatusCell r={r} />
@@ -314,7 +331,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
             <table className={`w-full text-sm ${visitorActions ? 'min-w-[1600px]' : 'min-w-[1520px]'}`}>
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Lokasi', 'Tujuan', 'Status', ...(visitorActions ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', ...(visitorActions ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -339,6 +356,15 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     {escortCell(r)}
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.from_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.to_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                      {r.returned_at ? (
+                        <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                          {formatDateTime(r.returned_at)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/60">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.location}</td>
                     <td className="min-w-[160px] px-4 py-3 text-xs text-muted-foreground">{r.objective}</td>
                     <StatusCell r={r} />

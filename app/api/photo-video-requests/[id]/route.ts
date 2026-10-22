@@ -14,6 +14,7 @@ function isDecisionStatus(value: unknown): value is Status { return typeof value
 const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
   r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no,
+  r.usb_control_no, r.returned_at, r.returned_by, r.return_notes,
   r.escort_name, r.escort_dept, r.escort_set_by`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
@@ -51,6 +52,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // old system's approval screen.
     const cameraControlNo = typeof body.cameraControlNo === 'string' && body.cameraControlNo.trim() ? body.cameraControlNo.trim() : null
     const photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? body.photoIdNo.trim() : null
+    const usbControlNo = typeof body.usbControlNo === 'string' && body.usbControlNo.trim() ? body.usbControlNo.trim() : null
 
     // Only a pending request can be decided — once approved/rejected, a
     // second PUT (e.g. someone re-opening the modal and misclicking) must
@@ -66,11 +68,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const updated = await query<{ id: number }>(
       `UPDATE photo_video_requests
        SET status = $1, decided_at = now(), decided_by = $2, decision_note = $3,
-           camera_control_no = COALESCE($5, camera_control_no), photo_id_no = COALESCE($6, photo_id_no),
+           camera_control_no = COALESCE($5, camera_control_no),
+           photo_id_no = COALESCE($6, photo_id_no),
+           usb_control_no = COALESCE($8, usb_control_no),
            verification_code = CASE WHEN request_type = 'visitor' THEN $7 ELSE verification_code END
        WHERE id = $4 AND status = 'pending'
        RETURNING id`,
-      [body.status, admin.username, decisionNote, id, cameraControlNo, photoIdNo, verificationCode]
+      [body.status, admin.username, decisionNote, id, cameraControlNo, photoIdNo, verificationCode, usbControlNo]
     )
     if (updated.rows.length === 0) {
       const existing = await query<{ status: string }>('SELECT status FROM photo_video_requests WHERE id = $1', [id])
@@ -164,6 +168,54 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await logActivity(staff, 'update', 'photo_video_request', id, escort.name
       ? `Menetapkan PIC pendamping JAI "${escort.name}${escort.dept ? ` (${escort.dept})` : ''}" untuk pengajuan foto/video "${updated.rows[0].requester_name}"`
       : `Menghapus PIC pendamping JAI pengajuan foto/video "${updated.rows[0].requester_name}"`)
+    const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
+    return NextResponse.json({ request: result.rows[0] })
+  }
+
+  // Mark camera/USB returned — stamps actual return timestamp and updates to_at officially
+  if (action === 'mark-returned') {
+    const staff = getKioskAdminFromRequest(request)
+    if (!staff) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+
+    const returnTime = body?.returnTime && !Number.isNaN(Date.parse(body.returnTime))
+      ? new Date(body.returnTime)
+      : new Date()
+    const returnNotes = typeof body?.returnNotes === 'string' && body.returnNotes.trim() ? body.returnNotes.trim() : null
+
+    const updated = await query<{ id: number; requester_name: string }>(
+      `UPDATE photo_video_requests
+       SET returned_at = $2,
+           to_at = $2,
+           returned_by = $3,
+           return_notes = $4
+       WHERE id = $1 AND status = 'approved'
+       RETURNING id, requester_name`,
+      [id, returnTime, staff.username, returnNotes]
+    )
+    if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan atau belum disetujui.' }, { status: 404 })
+
+    await logActivity(staff, 'update', 'photo_video_request', id, `Mencatat pengembalian kamera/USB "${updated.rows[0].requester_name}"`)
+    const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
+    return NextResponse.json({ request: result.rows[0] })
+  }
+
+  // Revert camera/USB return
+  if (action === 'unmark-returned') {
+    const staff = getKioskAdminFromRequest(request)
+    if (!staff) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+
+    const updated = await query<{ id: number; requester_name: string }>(
+      `UPDATE photo_video_requests
+       SET returned_at = NULL,
+           returned_by = NULL,
+           return_notes = NULL
+       WHERE id = $1
+       RETURNING id, requester_name`,
+      [id]
+    )
+    if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan.' }, { status: 404 })
+
+    await logActivity(staff, 'update', 'photo_video_request', id, `Membatalkan tanda pengembalian kamera/USB "${updated.rows[0].requester_name}"`)
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     return NextResponse.json({ request: result.rows[0] })
   }

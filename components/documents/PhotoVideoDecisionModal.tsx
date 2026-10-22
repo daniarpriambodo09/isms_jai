@@ -28,12 +28,17 @@ export type PhotoVideoRequest = {
   taken_ack_at: string | null
   camera_control_no: string | null
   photo_id_no: string | null
+  usb_control_no?: string | null
+  returned_at?: string | null
+  returned_by?: string | null
+  return_notes?: string | null
   pic_jai: string | null
   escort_name?: string | null
   escort_dept?: string | null
 }
 
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null }
+type UsbItem = { id: number; code: string; department_id: number | null; department_name: string | null }
 type Department = { id: number; name: string }
 
 const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
@@ -45,9 +50,11 @@ function formatDateTime(value: string) {
 export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly = false }: { request: PhotoVideoRequest; onClose: () => void; onDecided?: () => void; readOnly?: boolean }) {
   const [note, setNote] = useState('')
   const [cameras, setCameras] = useState<CameraItem[]>([])
+  const [usbs, setUsbs] = useState<UsbItem[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [cameraControlNo, setCameraControlNo] = useState(request.camera_control_no ?? '')
   const [photoIdNo, setPhotoIdNo] = useState(request.photo_id_no ?? '')
+  const [usbControlNo, setUsbControlNo] = useState(request.usb_control_no ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,6 +75,10 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
 
   useEffect(() => {
     loadCameras()
+    fetch(`${API_BASE_PATH}/api/usb-equipment`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { usbList: [] }))
+      .then((data: { usbList: UsbItem[] }) => setUsbs(data.usbList ?? []))
+      .catch(() => setUsbs([]))
     fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { departments: [] }))
       .then((data: { departments: Department[] }) => setDepartments(data.departments ?? []))
@@ -119,6 +130,7 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
           decisionNote: note,
           cameraControlNo: status === 'approved' ? cameraControlNo : null,
           photoIdNo: status === 'approved' ? photoIdNo : null,
+          usbControlNo: status === 'approved' ? (usbControlNo.trim() || null) : null,
         }),
       })
       if (!response.ok) {
@@ -168,6 +180,9 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
             <dt className="text-muted-foreground">Diajukan</dt><dd className="text-foreground">{formatDateTime(request.submitted_at)}</dd>
             {request.camera_control_no && (<><dt className="text-muted-foreground">Kontrol No. Kamera</dt><dd className="text-foreground">{request.camera_control_no}</dd></>)}
             {request.photo_id_no && (<><dt className="text-muted-foreground">No ID Photography</dt><dd className="text-foreground">{request.photo_id_no}</dd></>)}
+            {request.usb_control_no && (<><dt className="text-muted-foreground">Kontrol No. USB</dt><dd className="text-foreground">{request.usb_control_no}</dd></>)}
+            {request.returned_at && (<><dt className="text-muted-foreground">Waktu Dikembalikan</dt><dd className="text-foreground font-semibold text-emerald-600">{formatDateTime(request.returned_at)}{request.returned_by ? ` (diterima oleh ${request.returned_by})` : ''}</dd></>)}
+            {request.return_notes && (<><dt className="text-muted-foreground">Catatan Kembali</dt><dd className="text-foreground">{request.return_notes}</dd></>)}
           </dl>
 
           {request.status !== 'pending' && (
@@ -238,6 +253,21 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
                       <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                       <input value={photoIdNo} onChange={(e) => setPhotoIdNo(e.target.value)} placeholder="Scan atau ketik ID..." className={`${inputClass} pl-10`} />
                     </div>
+                  </label>
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-xs font-semibold text-muted-foreground">Kontrol No. USB (opsional)</span>
+                    <select
+                      value={usbControlNo}
+                      onChange={(e) => setUsbControlNo(e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Tidak meminjam USB / Kosong</option>
+                      {usbs.map((u) => (
+                        <option key={u.id} value={u.code}>
+                          {u.code}{u.department_name ? ` (${u.department_name})` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                 </div>
               </div>

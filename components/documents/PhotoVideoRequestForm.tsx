@@ -12,6 +12,7 @@ type Department = { id: number; name: string; slug: string; sections: Section[] 
 type Pic = { id: number; name: string; department_id: number | null }
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type PhotoIdItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
+type UsbItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type VisitorApprover = { id: number; fullName: string | null }
 
 type LookupRequest = {
@@ -249,6 +250,8 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const [pics, setPics] = useState<Pic[]>([])
   const [cameras, setCameras] = useState<CameraItem[]>([])
   const [photoIds, setPhotoIds] = useState<PhotoIdItem[]>([])
+  const [usbs, setUsbs] = useState<UsbItem[]>([])
+  const [usbControlNo, setUsbControlNo] = useState('')
   const [visitorApprover, setVisitorApprover] = useState<VisitorApprover | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successInfo, setSuccessInfo] = useState<{ id: number; referenceCode: string; submittedAt: string; emailed: boolean } | null>(null)
@@ -287,6 +290,14 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   }, [isInternal])
 
   useEffect(() => {
+    if (!isInternal) return
+    fetch(`${API_BASE_PATH}/api/usb-equipment`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { usbList: [] }))
+      .then((data: { usbList: UsbItem[] }) => setUsbs(data.usbList ?? []))
+      .catch(() => setUsbs([]))
+  }, [isInternal])
+
+  useEffect(() => {
     if (isInternal) return
     fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { approver: null }))
@@ -313,9 +324,10 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   }
   const availableCameras = cameras.filter(matchesCameraScope)
   const availablePhotoIds = photoIds.filter(matchesCameraScope)
+  const availableUsbs = usbs.filter(matchesCameraScope)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setPicApproveId('')
+    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setUsbControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(hourAfter(nowTimeStr())); setLocation(''); setObjective('')
     setEscortChoice(''); setEscortName(''); setEscortDept('')
   }
@@ -345,7 +357,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         // as the Visitor default — the server resolves it and ignores
         // picApproveId entirely for this type (see /api/photo-video-requests).
         ...(isInternal
-          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, picApproveId }
+          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, usbControlNo: usbControlNo.trim() || null, picApproveId }
           : { dept, cameraSerialNo, photoIdNo }),
         ...(isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
       }
@@ -373,19 +385,36 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
 
   return (
     <div className="mx-auto w-full max-w-2xl">
-      {/* Form slip header — light, so it doesn't compete with the page's viewfinder hero */}
-      <section className="relative overflow-hidden rounded-t-[1.75rem] border border-b-0 border-border bg-card px-6 pb-6 pt-6 sm:px-8">
-        <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-accent" />
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 font-mono-label text-[10px] font-semibold text-primary">
-              {isInternal ? <Users className="size-3.5" /> : <Sparkles className="size-3.5" />}
-              {isInternal ? 'Internal / All Dept.' : 'Visitor'}
-            </div>
-            <h1 className="mt-3 text-balance font-display text-2xl font-semibold text-foreground sm:text-3xl">{heading}</h1>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">{subheading}</p>
+      {/* Form header — distinctive corporate enterprise card */}
+      <section className="relative overflow-hidden rounded-t-[1.75rem] border border-b-0 border-border bg-card shadow-sm">
+        <div className="h-2 w-full" style={{ background: 'repeating-linear-gradient(-45deg, #0284c7 0 10px, #0369a1 10px 20px)' }} />
+        <div className="px-6 pb-6 pt-5 sm:px-8">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+            <span className="size-2 rounded-full bg-sky-500 animate-pulse" />
+            <span>PT. JATIM AUTOCOMP INDONESIA</span>
+            <span className="text-slate-300 dark:text-slate-700">/</span>
+            <span>ISO/IEC 27001 ISMS CONTROLLED</span>
+            <span className="text-slate-300 dark:text-slate-700">/</span>
+            <span className="font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800">
+              {isInternal ? 'ISMS-F-01-00-002' : 'ISMS-F-005-001'}
+            </span>
           </div>
-          <span aria-hidden className="font-mono text-[10px] text-muted-foreground max-[520px]:hidden">FORM · {isInternal ? 'INT' : 'VIS'}</span>
+
+          <div className="mt-4 flex items-start gap-4">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-sky-950 text-sky-400 shadow-sm border border-sky-800/40 dark:bg-sky-900/60">
+              <Camera className="size-6" />
+            </div>
+            <div className="flex-1">
+              <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+                {heading}
+              </h1>
+              <p className="mt-1 text-xs text-muted-foreground sm:text-sm max-w-xl leading-relaxed">
+                {isInternal
+                  ? 'Formulir resmi izin pengambilan foto/video & peminjaman kamera/USB terkontrol ISMS.'
+                  : 'Official registration form for photo and video recording at PT. Jatim Autocomp Indonesia.'}
+              </p>
+            </div>
+          </div>
         </div>
         <div aria-hidden className="absolute inset-x-6 bottom-0 border-b-2 border-dashed border-border sm:inset-x-8" />
       </section>
@@ -530,6 +559,20 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                   <p className="mt-1 text-[11px] text-destructive">Belum ada ID Photography terdaftar untuk departemen ini — hubungi Admin ISMS.</p>
                 )}
               </Field>
+              <Field label="No. Kontrol USB (opsional)" span={2}>
+                <select
+                  value={usbControlNo}
+                  onChange={(e) => setUsbControlNo(e.target.value)}
+                  className={inputClass}
+                  disabled={!deptPicKameraId}
+                >
+                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Flashdisk / USB (Opsional)'}</option>
+                  {availableUsbs.map((u) => (
+                    <option key={u.id} value={u.code}>{u.code}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol USB hanya jika Anda meminjam media penyimpanan Flashdisk/USB bersama kamera.</p>
+              </Field>
             </>
           )}
           {!isInternal && (
@@ -611,8 +654,19 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
           <Field label={isInternal ? 'Sampai Jam' : 'To Time'}>
             <div className="relative">
               <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input type="time" value={toTime} onChange={(e) => setToTime(e.target.value)} required className={`${inputClass} pl-10`} />
+              <input
+                type="time"
+                value={toTime}
+                onChange={(e) => setToTime(e.target.value)}
+                required
+                className={`${inputClass} pl-10`}
+              />
             </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {isInternal
+                ? 'Catatan: Jam aktual pengembalian kamera/USB akan dicatat saat alat diserahkan kembali.'
+                : 'Expected return time.'}
+            </p>
           </Field>
           <Field label={isInternal ? 'Lokasi' : 'Location'}>
             <div className="relative">

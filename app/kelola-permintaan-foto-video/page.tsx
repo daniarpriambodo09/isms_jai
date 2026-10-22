@@ -5,7 +5,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, Camera, Eye, Search, Settings, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, Camera, Check, Eye, Loader2, RotateCcw, Search, Settings, Trash2, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
@@ -54,6 +54,10 @@ function KelolaPermintaanFotoVideoContent() {
   const [pendingMarkTaken, setPendingMarkTaken] = useState<PhotoVideoRequest | null>(null)
   const [markingTaken, setMarkingTaken] = useState(false)
   const [unmarkingId, setUnmarkingId] = useState<number | null>(null)
+  const [pendingReturn, setPendingReturn] = useState<PhotoVideoRequest | null>(null)
+  const [returnNotes, setReturnNotes] = useState('')
+  const [returning, setReturning] = useState(false)
+  const [unmarkingReturnId, setUnmarkingReturnId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -115,6 +119,51 @@ function KelolaPermintaanFotoVideoContent() {
       if (!response.ok) { const data = await response.json().catch(() => null); setError(data?.message ?? 'Gagal membatalkan tanda.'); return }
       await load()
     } catch { setError('Tidak dapat menghubungi server.') } finally { setUnmarkingId(null) }
+  }
+
+  const confirmReturn = async () => {
+    if (!pendingReturn) return
+    setReturning(true)
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${pendingReturn.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark-returned', returnNotes: returnNotes.trim() || null }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        setError(data?.message ?? 'Gagal mencatat pengembalian.')
+        return
+      }
+      setPendingReturn(null)
+      setReturnNotes('')
+      await load()
+    } catch {
+      setError('Tidak dapat menghubungi server.')
+    } finally {
+      setReturning(false)
+    }
+  }
+
+  const unmarkReturned = async (req: PhotoVideoRequest) => {
+    setUnmarkingReturnId(req.id)
+    try {
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'unmark-returned' }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        setError(data?.message ?? 'Gagal membatalkan pengembalian.')
+        return
+      }
+      await load()
+    } catch {
+      setError('Tidak dapat menghubungi server.')
+    } finally {
+      setUnmarkingReturnId(null)
+    }
   }
 
   const filteredRequests = useMemo(() => {
@@ -218,7 +267,15 @@ function KelolaPermintaanFotoVideoContent() {
                   <td data-label="Dept/Company" className="px-4 py-3 text-xs text-muted-foreground">{req.dept_or_company}</td>
                   <td data-label="Lokasi" className="px-4 py-3 text-xs text-muted-foreground">{req.location}</td>
                   <td data-label="Periode" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(req.from_at)} &ndash;<br />{formatDateTime(req.to_at)}</td>
-                  <td data-label="ID Photography" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{req.photo_id_no ?? '—'}</td>
+                  <td data-label="ID / Perangkat" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                    <span>{req.photo_id_no ?? '—'}</span>
+                    {req.camera_control_no && (
+                      <span className="block text-[11px] font-mono text-foreground font-medium">Cam: {req.camera_control_no}</span>
+                    )}
+                    {req.usb_control_no && (
+                      <span className="block text-[11px] font-mono font-bold text-primary">USB: {req.usb_control_no}</span>
+                    )}
+                  </td>
                   <td data-label="Status" className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span>
                     {req.status === 'pending' && new Date(req.to_at).getTime() < Date.now() && (
@@ -228,14 +285,21 @@ function KelolaPermintaanFotoVideoContent() {
                     )}
                     {req.taken_at && (
                       <span className="mt-1 block text-[10px] font-semibold text-accent-foreground">
-                        {req.taken_ack_at ? 'Sudah diambil · dikonfirmasi' : 'Sudah diambil · menunggu dikonfirmasi admin'}
+                        {req.taken_ack_at ? 'Sudah diambil · dikonfirmasi' : 'Sudah diambil · menunggu dikonfirmasi'}
                       </span>
                     )}
+                    {req.returned_at ? (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                        ✓ Kembali: {formatDateTime(req.returned_at)}
+                      </span>
+                    ) : req.taken_at ? (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+                        Dipinjam (Belum Kembali)
+                      </span>
+                    ) : null}
                   </td>
                   <td data-cell="actions" className="w-px px-4 py-3">
-                    {/* Fixed slots on a wide screen — main button, "sudah diambil", PDF, delete — so the
-                        buttons line up row after row instead of wrapping unevenly; a plain row on a phone. */}
-                    <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap min-[681px]:grid min-[681px]:grid-cols-[4.5rem_7.5rem_2rem_2rem]">
+                    <div className="flex flex-wrap items-center gap-1.5 whitespace-nowrap min-[760px]:grid min-[760px]:grid-cols-[4rem_7rem_7rem_2rem_2rem]">
                       {isApproverAdmin && req.status === 'pending' ? (
                         <button type="button" onClick={() => setSelected(req)} className="rounded-md bg-primary px-3 py-1.5 text-center text-xs font-semibold text-primary-foreground transition hover:opacity-90">
                           Tinjau
@@ -249,11 +313,32 @@ function KelolaPermintaanFotoVideoContent() {
                         <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-foreground transition hover:bg-secondary">
                           Sudah Diambil
                         </button>
-                      ) : isApproverAdmin && req.status === 'approved' && req.taken_at ? (
+                      ) : isApproverAdmin && req.status === 'approved' && req.taken_at && !req.returned_at ? (
                         <button type="button" onClick={() => unmarkTaken(req)} disabled={unmarkingId === req.id} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-muted-foreground transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60">
-                          {unmarkingId === req.id ? 'Membatalkan...' : 'Batalkan Tanda'}
+                          {unmarkingId === req.id ? '...' : 'Batal Ambil'}
                         </button>
-                      ) : <span className="hidden min-[681px]:block" />}
+                      ) : <span className="hidden min-[760px]:block" />}
+
+                      {/* Return Action: Catat Kembali / Batal Kembali */}
+                      {isApproverAdmin && req.status === 'approved' && req.taken_at && !req.returned_at ? (
+                        <button
+                          type="button"
+                          onClick={() => { setPendingReturn(req); setReturnNotes('') }}
+                          className="rounded-md bg-emerald-600 px-2.5 py-1.5 text-center text-xs font-bold text-white shadow-2xs transition hover:bg-emerald-700"
+                        >
+                          Catat Kembali
+                        </button>
+                      ) : isApproverAdmin && req.status === 'approved' && req.returned_at ? (
+                        <button
+                          type="button"
+                          onClick={() => unmarkReturned(req)}
+                          disabled={unmarkingReturnId === req.id}
+                          className="rounded-md border border-border px-2.5 py-1.5 text-center text-xs font-medium text-muted-foreground transition hover:bg-secondary disabled:opacity-50"
+                        >
+                          {unmarkingReturnId === req.id ? '...' : 'Batal Kembali'}
+                        </button>
+                      ) : <span className="hidden min-[760px]:block" />}
+
                       {req.request_type === 'visitor' && req.status !== 'pending' ? (
                         <a
                           href={`${API_BASE_PATH}/api/photo-video-requests/${req.id}/pdf`}
@@ -265,7 +350,7 @@ function KelolaPermintaanFotoVideoContent() {
                         >
                           <Eye className="size-3.5" />
                         </a>
-                      ) : <span className="hidden min-[681px]:block" />}
+                      ) : <span className="hidden min-[760px]:block" />}
                       {isApproverAdmin && (
                         <button type="button" onClick={() => setPendingDelete(req)} aria-label={`Hapus pengajuan ${req.requester_name}`} title="Hapus pengajuan" className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-3.5" /></button>
                       )}
@@ -302,6 +387,53 @@ function KelolaPermintaanFotoVideoContent() {
         onConfirm={confirmMarkTaken}
         onCancel={() => setPendingMarkTaken(null)}
       />
+
+      {/* Return Dialog Modal */}
+      {pendingReturn && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                <RotateCcw className="size-4 text-emerald-600" />
+                <span>Konfirmasi Pengembalian Kamera / USB</span>
+              </h3>
+              <button type="button" onClick={() => setPendingReturn(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="text-xs space-y-2 text-muted-foreground">
+              <p>Catat pengembalian peralatan untuk pemohon <strong className="text-foreground">{pendingReturn.requester_name}</strong>.</p>
+              <p className="bg-secondary/40 p-2.5 rounded-xl text-foreground font-medium">
+                Waktu pengembalian resmi (Jam Selesai Aktual) akan dicatat pada <strong className="text-emerald-700">{new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</strong>.
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Catatan Kondisi / Kelengkapan (Opsional)</label>
+              <input
+                type="text"
+                value={returnNotes}
+                onChange={(e) => setReturnNotes(e.target.value)}
+                placeholder="Contoh: Kamera &amp; USB kembali lengkap, kondisi baik"
+                className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs outline-none focus:border-ring"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setPendingReturn(null)} className="rounded-xl border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary">
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={returning}
+                onClick={confirmReturn}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {returning ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                <span>Simpan Pengembalian</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

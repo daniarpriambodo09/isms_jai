@@ -38,6 +38,10 @@ type PhotoVideoRequestRow = {
   taken_ack_at: string | null
   camera_control_no: string | null
   photo_id_no: string | null
+  usb_control_no?: string | null
+  returned_at?: string | null
+  returned_by?: string | null
+  return_notes?: string | null
   pic_jai: string | null
   /** PIC Pendamping JAI: the JAI employee who goes along (set at the kiosk). */
   escort_name?: string | null
@@ -52,7 +56,8 @@ function isStatus(value: unknown): value is Status { return typeof value === 'st
 
 const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
-  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no, r.pic_jai,
+  r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no, r.usb_control_no,
+  r.returned_at, r.returned_by, r.return_notes, r.pic_jai,
   r.escort_name, r.escort_dept, r.escort_set_by`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
@@ -111,8 +116,17 @@ export async function POST(request: NextRequest) {
     if (!objective) return NextResponse.json({ message: 'Tujuan wajib diisi.' }, { status: 400 })
     if (objective.length > 2000) return NextResponse.json({ message: 'Tujuan maksimal 2000 karakter.' }, { status: 400 })
     if (!fromAt || Number.isNaN(Date.parse(fromAt))) return NextResponse.json({ message: 'Tanggal/jam mulai tidak valid.' }, { status: 400 })
-    if (!toAt || Number.isNaN(Date.parse(toAt))) return NextResponse.json({ message: 'Tanggal/jam selesai tidak valid.' }, { status: 400 })
-    if (new Date(toAt).getTime() < new Date(fromAt).getTime()) return NextResponse.json({ message: 'Tanggal/jam selesai harus setelah mulai.' }, { status: 400 })
+
+    const returnOnActual = body.returnOnActual === true
+    let resolvedToAt = toAt
+    if (returnOnActual && (!resolvedToAt || Number.isNaN(Date.parse(resolvedToAt)) || new Date(resolvedToAt).getTime() < new Date(fromAt).getTime())) {
+      // Return time will be recorded when the camera/USB is actually returned.
+      // Default to 8 hours after start (standard shift duration) so DB NOT NULL and check constraints never fail.
+      resolvedToAt = new Date(new Date(fromAt).getTime() + 8 * 3600 * 1000).toISOString()
+    } else {
+      if (!resolvedToAt || Number.isNaN(Date.parse(resolvedToAt))) return NextResponse.json({ message: 'Tanggal/jam selesai tidak valid.' }, { status: 400 })
+      if (new Date(resolvedToAt).getTime() < new Date(fromAt).getTime()) return NextResponse.json({ message: 'Tanggal/jam selesai harus setelah mulai.' }, { status: 400 })
+    }
     // Optional, Internal only: where to send the decision. A visitor's request
     // takes no e-mail address — they hear the result at the Lobby / Pos Security.
     const requesterEmail = requestType === 'internal' && typeof body.requesterEmail === 'string' && body.requesterEmail.trim() ? body.requesterEmail.trim().slice(0, 255) : null
@@ -160,6 +174,19 @@ export async function POST(request: NextRequest) {
         [photoIdNo, deptPicKamera, deptPicKameraSection]
       )
       if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen/section ini.' }, { status: 400 })
+
+      // Optional USB equipment check
+      const usbControlNo = typeof body.usbControlNo === 'string' && body.usbControlNo.trim() ? body.usbControlNo.trim() : null
+      if (usbControlNo) {
+        const usbCheck = await query<{ id: number }>(
+          `SELECT u.id FROM usb_equipment u
+           LEFT JOIN departments d ON d.id = u.department_id
+           LEFT JOIN sections s ON s.id = u.section_id
+           WHERE u.code = $1 AND (u.department_id IS NULL OR d.name = $2) AND (u.section_id IS NULL OR s.name = $3)`,
+          [usbControlNo, deptPicKamera, deptPicKameraSection]
+        )
+        if (usbCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol USB tidak valid untuk departemen/section ini.' }, { status: 400 })
+      }
 
       picApproveId = Number(body.picApproveId)
       if (!Number.isInteger(picApproveId) || picApproveId <= 0) {
@@ -212,15 +239,17 @@ export async function POST(request: NextRequest) {
     // people's pending requests just by counting.
     const refToken = randomBytes(5).toString('hex').toUpperCase()
 
+    const usbControlNo = requestType === 'internal' && typeof body.usbControlNo === 'string' && body.usbControlNo.trim() ? body.usbControlNo.trim() : null
+
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
          (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token, requester_email,
-          escort_name, escort_dept, escort_set_by, escort_set_at)
+          escort_name, escort_dept, escort_set_by, escort_set_at, usb_control_no)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-               $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END)
+               $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END, $23)
        RETURNING id`,
-      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, toAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail,
-        escort.name, escort.dept, staff?.username ?? null]
+      [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, resolvedToAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail,
+        escort.name, escort.dept, staff?.username ?? null, usbControlNo]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,

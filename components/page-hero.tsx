@@ -250,31 +250,37 @@ export function PaperHero({
 }: WithAction & { title: string; count: number }) {
   const now = useNow(1000)
   return (
-    <section className="relative isolate overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] transition-all dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+    <section className="relative isolate overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[color:var(--p-950)] via-[color:var(--p-900)] to-[#081220] text-primary-foreground shadow-2xl transition-all">
+      {/* Decorative Blueprint Corner Brackets */}
+      <span className="pointer-events-none absolute left-3 top-3 size-4 border-l-2 border-t-2 border-white/20" />
+      <span className="pointer-events-none absolute right-3 top-3 size-4 border-r-2 border-t-2 border-white/20" />
+      <span className="pointer-events-none absolute bottom-3 left-3 size-4 border-b-2 border-l-2 border-white/20" />
+      <span className="pointer-events-none absolute bottom-3 right-3 size-4 border-b-2 border-r-2 border-white/20" />
+
       {/* Subtle brand tint gradient at the corner */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-20 -top-20 size-80 rounded-full bg-blue-500/10 blur-3xl"
+        className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-accent/15 blur-3xl"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -bottom-24 -left-20 size-80 rounded-full bg-slate-500/5 blur-3xl"
+        className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-primary/20 blur-3xl"
       />
 
-      {/* Top status bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/90 px-6 py-2.5 font-mono text-[11px] tracking-[0.06em] text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-400">
+      {/* Top telemetry status bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-black/25 px-6 py-2.5 font-mono text-[11px] tracking-[0.06em] text-primary-foreground/75 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
-          <span className="hero-blink size-2 rounded-full bg-emerald-500" />
-          <span className="font-bold text-slate-900 dark:text-white">YAZAKI · PT. JATIM AUTOCOMP INDONESIA</span>
-          <span className="text-slate-300 dark:text-slate-600">/</span>
-          <span className="font-semibold text-rose-600 dark:text-rose-400">ISMS DOCUMENT &amp; E-FORM HUB</span>
+          <span className="hero-blink size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+          <span className="font-bold text-white tracking-wider">YAZAKI &bull; PT. JATIM AUTOCOMP INDONESIA</span>
+          <span className="text-white/30">/</span>
+          <span className="font-semibold text-accent tracking-wide">ISMS DOCUMENT &amp; E-FORM HUB</span>
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
-          <span className="inline-flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-300">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 font-semibold text-emerald-300">
+            <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
             ISO/IEC 27001
           </span>
-          <span className="tabular-nums font-bold text-slate-900 dark:text-white">
+          <span className="tabular-nums font-bold text-white bg-white/10 border border-white/10 rounded-md px-2.5 py-0.5">
             {now ? now.toLocaleTimeString('id-ID', { hour12: false }) : '--.--.--'} WIB
           </span>
         </div>
@@ -284,50 +290,50 @@ export function PaperHero({
       <div className="p-6 sm:p-8 lg:p-10">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-mono-label text-[10.5px] font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Layers className="size-3.5 text-blue-600 dark:text-blue-400" />
-              <span>Formulir Terkendali · {count} Dokumen Resmi</span>
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 font-mono-label text-[11px] font-bold text-accent shadow-xs">
+              <Layers className="size-3.5" />
+              <span>Formulir Terkendali &bull; {count} Dokumen Master</span>
             </div>
 
-            <h2 className="mt-3.5 font-display text-[clamp(2.3rem,4.6vw,3.8rem)] font-extrabold leading-[0.95] text-slate-900 dark:text-white">
+            <h2 className="mt-4 font-display text-[clamp(2.4rem,4.8vw,4rem)] font-extrabold leading-[0.95] text-white tracking-tight">
               {title}
             </h2>
 
-            <p className="mt-3.5 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300 sm:text-base">
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
               Pusat pengajuan formulir resmi dan layanan izin online PT. JAI. Unduh berkas resmi yang terkendali atau gunakan formulir elektronik ber-E-Sign untuk persetujuan cepat dan terlacak.
             </p>
 
             {/* Quick feature pill highlights */}
             <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs">
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} /> Standar Dokumen ISO 27001
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 font-semibold text-white shadow-sm backdrop-blur-sm">
+                <Check className="size-3.5 text-emerald-400" strokeWidth={3} /> Standar Dokumen ISO 27001
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} /> E-Sign Digital Ber-QR Code
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 font-semibold text-white shadow-sm backdrop-blur-sm">
+                <Check className="size-3.5 text-emerald-400" strokeWidth={3} /> E-Sign Digital Ber-QR Code
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-semibold text-slate-800 shadow-2xs dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} /> Terintegrasi Multi-Departemen
+              <span className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/10 px-3 py-1.5 font-semibold text-white shadow-sm backdrop-blur-sm">
+                <Check className="size-3.5 text-emerald-400" strokeWidth={3} /> Terintegrasi Multi-Departemen
               </span>
             </div>
           </div>
 
           {/* Right side stats & action panel */}
           <div className="flex flex-col gap-4 self-stretch justify-between">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
-                <p className="font-mono-label text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Berkas</p>
-                <p className="mt-2 font-display text-3xl font-extrabold tabular-nums text-slate-900 sm:text-4xl dark:text-white">
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="rounded-2xl border border-white/15 bg-white/5 p-4.5 shadow-lg backdrop-blur-md transition hover:bg-white/[0.08]">
+                <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-primary-foreground/60">Total Berkas</p>
+                <p className="mt-2 font-display text-3xl font-black tabular-nums text-white sm:text-4xl">
                   {count}
                 </p>
-                <p className="mt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">Formulir aktif terkendali</p>
+                <p className="mt-1 text-[11px] font-medium text-primary-foreground/70">Formulir aktif terkendali</p>
               </div>
 
-              <div className="rounded-xl border border-blue-200/80 bg-blue-50/60 p-4 shadow-sm dark:border-blue-900/60 dark:bg-blue-950/40">
-                <p className="font-mono-label text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Layanan Online</p>
-                <p className="mt-2 font-display text-3xl font-extrabold tabular-nums text-blue-700 sm:text-4xl dark:text-blue-400">
+              <div className="rounded-2xl border border-accent/30 bg-accent/10 p-4.5 shadow-lg backdrop-blur-md transition hover:bg-accent/15">
+                <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-accent">Layanan Online</p>
+                <p className="mt-2 font-display text-3xl font-black tabular-nums text-accent sm:text-4xl">
                   5
                 </p>
-                <p className="mt-1 text-[11px] font-medium text-blue-600/90 dark:text-blue-300/80">Form E-Sign &amp; Izin Khusus</p>
+                <p className="mt-1 text-[11px] font-medium text-primary-foreground/80">Form E-Sign &amp; Izin Khusus</p>
               </div>
             </div>
 

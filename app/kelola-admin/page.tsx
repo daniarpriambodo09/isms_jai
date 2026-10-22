@@ -3,7 +3,23 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, History, Loader2, Plus, Shield, ShieldCheck, Trash2, Users, X } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Download,
+  Eye,
+  EyeOff,
+  History,
+  Loader2,
+  PartyPopper,
+  Plus,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  Users,
+  X,
+} from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
@@ -15,6 +31,13 @@ import { Pagination } from '@/components/pagination'
 
 type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
+type CreatedAccountInfo = {
+  username: string
+  password: string
+  role: AdminRole
+  email: string | null
+  created_at: string
+}
 type ActivityEntry = {
   id: number
   actor_username: string
@@ -70,6 +93,11 @@ export default function KelolaAdminPage() {
   const [createError, setCreateError] = useState('')
   const [creating, setCreating] = useState(false)
 
+  // Celebratory account created modal state
+  const [createdAccount, setCreatedAccount] = useState<CreatedAccountInfo | null>(null)
+  const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(true)
+
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editRole, setEditRole] = useState<AdminRole>('lobby')
   const [editPassword, setEditPassword] = useState('')
@@ -104,6 +132,73 @@ export default function KelolaAdminPage() {
 
   const { page, setPage, totalPages, pageItems: logPageItems, pageSize } = usePagination(log, 20)
 
+  const copyText = (text: string, fieldName: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text)
+      setCopiedField(fieldName)
+      setTimeout(() => setCopiedField(null), 2500)
+    }
+  }
+
+  const copyFullWelcomeMessage = () => {
+    if (!createdAccount) return
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const msg = [
+      '==================================================',
+      '🎉 SELAMAT! AKUN ISMS PORTAL ANDA TELAH DIBUAT',
+      'PT. JATIM AUTOCOMP INDONESIA',
+      '==================================================',
+      '',
+      'Yth. Rekan Kerja,',
+      'Akun Anda telah didaftarkan secara resmi di Portal ISMS PT. JAI.',
+      '',
+      'Berikut detail kredensial akun Anda:',
+      `• Username     : ${createdAccount.username}`,
+      `• Password     : ${createdAccount.password}`,
+      `• Hak Akses    : ${ROLE_LABEL[createdAccount.role]}`,
+      createdAccount.email ? `• Email Dinas  : ${createdAccount.email}` : null,
+      `• Tautan Login : ${origin}/login`,
+      '',
+      'Panduan Keamanan Informasi (ISO/IEC 27001):',
+      '1. Harap jaga kerahasiaan username dan password ini.',
+      '2. Jangan membagikan informasi login kepada pihak manapun.',
+      '3. Disarankan untuk segera memperbarui password setelah berhasil login pertama kali.',
+      '==================================================',
+    ].filter(Boolean).join('\n')
+
+    copyText(msg, 'all')
+  }
+
+  const downloadCredentialsTxt = () => {
+    if (!createdAccount) return
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const content = [
+      '==================================================',
+      '🎉 KREDENSIAL RESMI AKUN ISMS PORTAL PT. JAI',
+      '==================================================',
+      `Tanggal Pembuatan: ${new Date(createdAccount.created_at).toLocaleString('id-ID')}`,
+      `Username         : ${createdAccount.username}`,
+      `Password         : ${createdAccount.password}`,
+      `Hak Akses / Role : ${ROLE_LABEL[createdAccount.role]}`,
+      createdAccount.email ? `Email            : ${createdAccount.email}` : null,
+      `URL Login        : ${origin}/login`,
+      '',
+      'PENTING:',
+      'Simpan dokumen ini dengan aman sesuai standar kepatuhan ISO/IEC 27001.',
+      '==================================================',
+    ].filter(Boolean).join('\n')
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `kredensial-isms-${createdAccount.username}.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   const submitCreate = async () => {
     setCreateError('')
     setCreating(true)
@@ -116,7 +211,19 @@ export default function KelolaAdminPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message ?? 'Gagal membuat akun admin.')
+      
+      const newAccountInfo: CreatedAccountInfo = {
+        username: createUsername.trim(),
+        password: createPassword,
+        role: createRole,
+        email: createEmail.trim() || null,
+        created_at: new Date().toISOString(),
+      }
+
       setShowCreate(false)
+      setCreatedAccount(newAccountInfo)
+      setShowPassword(true)
+      setCopiedField(null)
       setCreateUsername(''); setCreateEmail(''); setCreatePassword(''); setCreateRole('lobby')
       loadAdmins(); loadLog()
     } catch (e) {
@@ -446,6 +553,144 @@ export default function KelolaAdminPage() {
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={log.length} pageSize={pageSize} />
             </>
           )}
+        </div>
+      )}
+
+      {/* CELEBRATORY WELCOME & CREDENTIALS MODAL */}
+      {createdAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8 animate-in zoom-in-95 duration-200">
+            {/* Festive ambient background glow */}
+            <div className="pointer-events-none absolute -right-20 -top-20 size-56 rounded-full bg-emerald-500/15 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-20 size-56 rounded-full bg-primary/20 blur-3xl" />
+
+            {/* Header with celebration badge */}
+            <div className="relative text-center">
+              <div className="mx-auto inline-flex size-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500/20 via-primary/20 to-accent/30 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/10">
+                <PartyPopper className="size-8" />
+              </div>
+
+              <div className="mt-4 flex items-center justify-center gap-1.5 font-mono text-[11px] font-bold text-accent uppercase tracking-widest">
+                <Sparkles className="size-3.5" />
+                <span>Akun Baru Berhasil Didaftarkan</span>
+                <Sparkles className="size-3.5" />
+              </div>
+
+              <h3 className="mt-1.5 font-display text-2xl font-black text-foreground sm:text-3xl tracking-tight">
+                Selamat! Akun Anda Berhasil Dibuat
+              </h3>
+              <p className="mt-2 text-xs text-muted-foreground sm:text-sm leading-relaxed">
+                Akun telah aktif di sistem <strong>ISMS Portal PT. JAI</strong> dan siap digunakan untuk otorisasi &amp; layanan keamanan informasi.
+              </p>
+            </div>
+
+            {/* Credentials Card */}
+            <div className="relative mt-6 rounded-2xl border border-border/80 bg-secondary/40 p-4.5 sm:p-5 space-y-3.5 shadow-inner">
+              <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+                <span className="font-mono text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Kredensial Akses Pengguna
+                </span>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${ROLE_TONE[createdAccount.role]}`}>
+                  {ROLE_LABEL[createdAccount.role]}
+                </span>
+              </div>
+
+              {/* Username Field */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">Username Login</label>
+                <div className="flex items-center justify-between rounded-xl border border-input bg-card px-3.5 py-2.5 shadow-xs">
+                  <span className="font-mono text-sm font-bold text-foreground tracking-wide">
+                    {createdAccount.username}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyText(createdAccount.username, 'username')}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer"
+                  >
+                    {copiedField === 'username' ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+                    <span>{copiedField === 'username' ? 'Tersalin' : 'Salin'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Password Field */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-muted-foreground">Password Akses</label>
+                <div className="flex items-center justify-between rounded-xl border border-input bg-card px-3.5 py-2.5 shadow-xs">
+                  <span className="font-mono text-sm font-bold text-foreground tracking-wide">
+                    {showPassword ? createdAccount.password : '••••••••••••'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+                      title={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                    >
+                      {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyText(createdAccount.password, 'password')}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer"
+                    >
+                      {copiedField === 'password' ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+                      <span>{copiedField === 'password' ? 'Tersalin' : 'Salin'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional Email & Portal info */}
+              {createdAccount.email && (
+                <div className="space-y-1 pt-1 border-t border-border/40">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Email Terkait:</span>
+                    <span className="font-mono font-medium text-foreground">{createdAccount.email}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Security Caution Notice */}
+            <div className="relative mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <p className="text-[11.5px] leading-relaxed">
+                  <strong>Pemberitahuan Keamanan:</strong> Demi mematuhi ISO/IEC 27001, password asli hanya ditampilkan satu kali ini. Harap segera catat kredensial ini dan minta pemilik akun melakukan penggantian password saat login pertama kali.
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="relative mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+              <button
+                type="button"
+                onClick={downloadCredentialsTxt}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-bold text-foreground shadow-xs transition hover:bg-secondary cursor-pointer"
+              >
+                <Download className="size-4" />
+                <span>Unduh Slip (.TXT)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={copyFullWelcomeMessage}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-accent-foreground shadow-md transition hover:brightness-110 cursor-pointer"
+              >
+                {copiedField === 'all' ? <Check className="size-4" /> : <Copy className="size-4" />}
+                <span>{copiedField === 'all' ? 'Semua Kredensial Tersalin!' : 'Salin Format Pesan'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCreatedAccount(null)}
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-md transition hover:bg-primary/90 cursor-pointer"
+              >
+                Selesai &amp; Tutup
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

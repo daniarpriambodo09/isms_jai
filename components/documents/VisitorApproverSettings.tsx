@@ -18,7 +18,13 @@ const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
 // submissions never let the requester pick a PIC themselves (see
 // /api/photo-video-requests POST) — they're always routed to whichever PIC
 // this sets as is_visitor_default.
-export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: VisitorApprover) => void }) {
+export function VisitorApproverSettings({
+  onSaved,
+  triggerButton,
+}: {
+  onSaved?: (approver: VisitorApprover) => void
+  triggerButton?: React.ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [fullName, setFullName] = useState('')
@@ -68,13 +74,19 @@ export function VisitorApproverSettings({ onSaved }: { onSaved?: (approver: Visi
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold text-muted-foreground shadow-sm transition hover:bg-secondary hover:text-foreground"
-      >
-        <Settings2 className="size-3.5" /> Setting Approver
-      </button>
+      {triggerButton ? (
+        <span onClick={() => setOpen(true)} className="inline-block cursor-pointer">
+          {triggerButton}
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-semibold text-muted-foreground shadow-sm transition hover:bg-secondary hover:text-foreground"
+        >
+          <Settings2 className="size-3.5" /> Setting Approver
+        </button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">

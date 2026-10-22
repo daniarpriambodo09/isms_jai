@@ -483,7 +483,7 @@ export function FolderHero({ department, section, count, action }: WithAction & 
 }
 
 // ─── Ijin Foto/Video — camera viewfinder ───
-export function ViewfinderHero({ action }: WithAction) {
+export function ViewfinderHero({ action, adminSlot }: WithAction & { adminSlot?: React.ReactNode }) {
   const corner = 'absolute size-9 border-white/70'
   return (
     <section className="relative overflow-hidden rounded-2xl bg-[color:var(--p-950)] px-8 py-8 text-primary-foreground sm:px-14 sm:py-10">
@@ -506,6 +506,13 @@ export function ViewfinderHero({ action }: WithAction) {
         <p className="mt-3 text-sm leading-6 text-primary-foreground/70">Setiap pengambilan foto/video di area perusahaan wajib mendapat izin terlebih dahulu — untuk karyawan internal maupun tamu.</p>
         {action && <div className="mt-6">{action}</div>}
       </div>
+
+      {adminSlot && (
+        <div className="relative z-10 mt-6 md:absolute md:bottom-8 md:right-8 md:mt-0">
+          {adminSlot}
+        </div>
+      )}
+
       <div aria-hidden className="relative mt-8 flex items-end justify-center gap-1.5 font-mono text-[9px] text-primary-foreground/45">
         <span className="mr-2">−2</span>
         {Array.from({ length: 17 }).map((_, i) => (

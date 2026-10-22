@@ -38,12 +38,14 @@ import {
   type ItEquipmentRequest,
 } from '@/lib/it-equipment-shared'
 import { API_BASE_PATH } from '@/lib/config'
+import { useAuth } from '@/context/AuthContext'
 
 const inputClass =
   'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15'
 const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
 
 function FormContent() {
+  const { adminUser } = useAuth()
   const searchParams = useSearchParams()
   const tokenQuery = searchParams.get('token')
 
@@ -522,20 +524,31 @@ function FormContent() {
   return (
     <div className="mx-auto w-full max-w-3xl flex flex-col gap-6">
       {/* Top Banner & Quick Status Lookup */}
-      <div className="flex items-center justify-between text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <Link
           href="/form-aplikasi"
           className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition font-medium"
         >
           ← Kembali ke Form Aplikasi
         </Link>
-        <button
-          type="button"
-          onClick={() => setSearchOpen((v) => !v)}
-          className="inline-flex items-center gap-1.5 text-primary hover:underline font-semibold transition"
-        >
-          <Search className="size-3.5" /> Sudah pernah mengajukan? Cek Status di Sini
-        </button>
+        <div className="flex items-center gap-3">
+          {adminUser && (
+            <Link
+              href="/kelola-izin-alat-it"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground shadow-2xs"
+            >
+              <Laptop className="size-3.5" />
+              <span>Kelola Izin Alat IT (Admin)</span>
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => setSearchOpen((v) => !v)}
+            className="inline-flex items-center gap-1.5 text-primary hover:underline font-semibold transition"
+          >
+            <Search className="size-3.5" /> Sudah pernah mengajukan? Cek Status di Sini
+          </button>
+        </div>
       </div>
 
       {searchOpen && (

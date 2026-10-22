@@ -23,7 +23,7 @@ type Department = { id: number; name: string; slug: string; sections: Section[] 
 // to ISM Admin accounts only.
 const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; label: string; hint: string; icon: typeof Settings }[] }[] = [
   {
-    title: 'Monitoring',
+    title: 'Monitoring & Kiosks',
     ismOnly: true,
     items: [
       { href: '/dashboard-admin', label: 'Dashboard', hint: 'Yang perlu ditindaklanjuti', icon: Gauge },
@@ -35,36 +35,36 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
     ],
   },
   {
-    title: 'Content',
+    title: 'Pengaturan Form & E-Sign',
+    items: [
+      { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin & pengembalian USB', icon: Camera },
+      { href: '/kelola-kamera', label: 'Master Kamera & USB', hint: 'Unit kamera & USB terdaftar', icon: Aperture },
+      { href: '/kelola-pic-approve', label: 'PIC Approver Foto/Video', hint: 'Penyetuju internal & default visitor', icon: UserCheck },
+      { href: '/kelola-izin-alat-it', label: 'Izin Masuk Alat IT', hint: 'Tinjau izin bawa PC/alat IT', icon: Laptop },
+      { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk, master area & escort', icon: ShieldAlert },
+      { href: '/kelola-approver-it', label: 'Approver Form Layanan IT', hint: 'Alur 5 formulir e-sign IT', icon: FileSignature },
+      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Matriks approval prosedur ISMS', icon: FileSignature },
+    ],
+  },
+  {
+    title: 'Organization & Accounts',
     ismOnly: true,
     items: [
-      { href: '/pengaturan', label: 'Manage Menu Content', hint: 'Isi & label menu portal', icon: LayoutList },
+      { href: '/kelola-departemen', label: 'Manage Departments', hint: 'Departemen & section', icon: Building2 },
+      { href: '/kelola-admin', label: 'Manage Admin Accounts', hint: 'Akun, role & log aktivitas', icon: Users },
+    ],
+  },
+  {
+    title: 'Content & Master',
+    ismOnly: true,
+    items: [
+      { href: '/pengaturan', label: 'Manage Menu & Forms CS', hint: 'Isi menu & register form CS', icon: LayoutList },
       { href: '/kelola-hero-slides', label: 'Manage Hero Slides', hint: 'Video & gambar di Home', icon: Images },
       { href: '/kelola-jadwal', label: 'Manage Schedules', hint: 'Jadwal audit & training', icon: CalendarDays },
     ],
   },
   {
-    title: 'Organization & Requests',
-    items: [
-      { href: '/kelola-departemen', label: 'Manage Departments', hint: 'Departemen & section', icon: Building2 },
-      { href: '/kelola-permintaan-foto-video', label: 'Photo/Video Requests', hint: 'Tinjau izin foto/video', icon: Camera },
-      { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk area special', icon: ShieldAlert },
-      { href: '/kelola-izin-alat-it', label: 'IT Equipment Requests', hint: 'Izin bawa PC/alat IT', icon: Laptop },
-      { href: '/kelola-approver-it', label: 'Pengaturan Approver Form & IT', hint: 'Kelola pejabat e-sign IT & Special Area', icon: FileSignature },
-      { href: '/kelola-kamera', label: 'Camera Equipment', hint: 'Kamera & ID photography', icon: Aperture },
-      { href: '/kelola-pic-approve', label: 'PIC Approvers', hint: 'Penyetuju izin foto', icon: UserCheck },
-    ],
-  },
-  {
-    title: 'Accounts',
-    ismOnly: true,
-    items: [
-      { href: '/kelola-admin', label: 'Manage Admin Accounts', hint: 'Akun, role & log aktivitas', icon: Users },
-      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Jabatan penyetuju dokumen', icon: FileSignature },
-    ],
-  },
-  {
-    title: 'System',
+    title: 'System & Communications',
     ismOnly: true,
     items: [
       { href: '/kelola-smtp', label: 'SMTP Settings', hint: 'Email notifikasi & App URL', icon: Mail },

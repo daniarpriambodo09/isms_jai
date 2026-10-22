@@ -159,181 +159,223 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/50 p-4 backdrop-blur-[2px]" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Pengajuan Ijin Masuk Area Special Security" onClick={(e) => e.stopPropagation()} className="my-6 w-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="h-2" style={{ background: 'repeating-linear-gradient(-45deg, #c7161e 0 10px, #8f0f15 10px 20px)' }} />
-        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pengajuan Ijin Masuk Area Special Security"
+        onClick={(e) => e.stopPropagation()}
+        className="relative flex flex-col w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
+        <div className="h-2 shrink-0" style={{ background: 'repeating-linear-gradient(-45deg, #c7161e 0 10px, #8f0f15 10px 20px)' }} />
+        <div className="flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-4 shrink-0">
           <div>
-            <p className="flex items-center gap-1.5 font-mono-label text-[10px] font-semibold text-red-700"><ShieldAlert className="size-3.5" /> ISMS-F-006-001</p>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded-full border border-red-500/25">
+                <ShieldAlert className="size-3.5" /> ISMS-F-006-001
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
+                Zona Khusus
+              </span>
+            </div>
             <h2 className="mt-1 text-lg font-bold text-foreground">Pengajuan Ijin Masuk Area Special Security</h2>
-            <p className="text-xs text-muted-foreground">特別セキュリティ区画入退許可申請書 · Persetujuan via email (e-sign)</p>
+            <p className="text-xs text-muted-foreground">特別セキュリティ区画入退許可申請書 &bull; Persetujuan via email (e-sign)</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-8 flex-none place-items-center rounded-full text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup"
+            className="grid size-8 flex-none place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition cursor-pointer"
+          >
+            <X className="size-4" />
+          </button>
         </div>
 
         {done ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+          <div className="flex flex-col items-center gap-3 p-8 text-center overflow-y-auto flex-1">
             <CheckCircle2 className="size-12 text-emerald-600" />
             <p className="text-base font-semibold text-foreground">Pengajuan terkirim</p>
             {done.emailError
               ? <p className="max-w-md rounded-xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">Tersimpan, tetapi email persetujuan belum terkirim: {done.emailError}</p>
               : <p className="max-w-md text-sm text-muted-foreground">Email persetujuan sudah dikirim ke approver. Status bisa dipantau di daftar pengajuan.</p>}
-            <button type="button" onClick={onClose} className="mt-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground">Selesai</button>
+            <button type="button" onClick={onClose} className="mt-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition cursor-pointer">Selesai</button>
           </div>
         ) : (
-          <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
-            <label className="sm:col-span-2"><span className={label}>Nama</span><input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required autoFocus className={input} /></label>
-            <label><span className={label}>Nama Organisasi / Perusahaan</span><input value={orgCompany} onChange={(e) => setOrgCompany(e.target.value)} required className={input} /></label>
-            <div>
-              <span className={label}>Departemen</span>
-              {customDept ? (
-                <div className="flex gap-2">
-                  <input
+          <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
+            {/* Scrollable Form Body */}
+            <div className="overflow-y-auto flex-1 p-6 grid gap-4 sm:grid-cols-2">
+              <label className="sm:col-span-2">
+                <span className={label}>Nama</span>
+                <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required autoFocus className={input} />
+              </label>
+              <label>
+                <span className={label}>Nama Organisasi / Perusahaan</span>
+                <input value={orgCompany} onChange={(e) => setOrgCompany(e.target.value)} required className={input} />
+              </label>
+              <div>
+                <span className={label}>Departemen</span>
+                {customDept ? (
+                  <div className="flex gap-2">
+                    <input
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      placeholder="Nama departemen / bagian"
+                      className={input}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomDept(false)
+                        setDepartment('')
+                      }}
+                      className="flex-none rounded-xl border border-input px-3 text-xs font-semibold text-muted-foreground hover:bg-secondary cursor-pointer"
+                    >
+                      Pilih List
+                    </button>
+                  </div>
+                ) : (
+                  <select
                     value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    placeholder="Nama departemen / bagian"
-                    className={input}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomDept(false)
-                      setDepartment('')
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setCustomDept(true)
+                        setDepartment('')
+                      } else {
+                        setDepartment(e.target.value)
+                      }
                     }}
-                    className="flex-none rounded-xl border border-input px-3 text-xs font-semibold text-muted-foreground hover:bg-secondary"
+                    className={input}
                   >
-                    Pilih List
+                    <option value="">-- Pilih Departemen (Opsional) --</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.name}>
+                        {d.name}
+                      </option>
+                    ))}
+                    <option value="__custom__">-- Ketik Departemen Lain / Manual --</option>
+                  </select>
+                )}
+              </div>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">Masuk (dari){fromManual ? ' — manual' : ' — otomatis saat ini'}</span>
+                  <button type="button" onClick={() => (fromManual ? setFromManual(false) : startManual())} className="text-[11px] font-semibold text-[color:var(--p-600)] hover:underline cursor-pointer">
+                    {fromManual ? 'Pakai waktu sekarang' : 'Isi manual'}
                   </button>
                 </div>
-              ) : (
-                <select
-                  value={department}
-                  onChange={(e) => {
-                    if (e.target.value === '__custom__') {
-                      setCustomDept(true)
-                      setDepartment('')
-                    } else {
-                      setDepartment(e.target.value)
-                    }
-                  }}
-                  className={input}
-                >
-                  <option value="">-- Pilih Departemen (Opsional) --</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
-                    </option>
-                  ))}
-                  <option value="__custom__">-- Ketik Departemen Lain / Manual --</option>
-                </select>
-              )}
-            </div>
-            <div>
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">Masuk (dari){fromManual ? ' — manual' : ' — otomatis saat ini'}</span>
-                <button type="button" onClick={() => (fromManual ? setFromManual(false) : startManual())} className="text-[11px] font-semibold text-[color:var(--p-600)] hover:underline">
-                  {fromManual ? 'Pakai waktu sekarang' : 'Isi manual'}
-                </button>
+                {fromManual ? (
+                  <div className="grid grid-cols-[1fr_96px] gap-2">
+                    <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} required aria-label="Tanggal masuk" className={input} />
+                    <input value={fromTime} onChange={(e) => setFromTime(e.target.value)} onBlur={() => { const t = normalizeTime(fromTime); if (t) setFromTime(t) }} required inputMode="numeric" placeholder="09:30" maxLength={5} aria-label="Jam masuk" className={`${input} text-center font-mono`} />
+                  </div>
+                ) : (
+                  <div className="flex h-10 items-center gap-2 rounded-xl border border-dashed border-input bg-secondary/40 px-3 text-sm font-medium text-foreground" aria-live="off">
+                    <Clock className="size-4 text-emerald-600" />
+                    <span className="tabular-nums">{now.toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                    <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />Live</span>
+                  </div>
+                )}
               </div>
-              {fromManual ? (
+              <div>
+                <span className={label}>Keluar (sampai)</span>
                 <div className="grid grid-cols-[1fr_96px] gap-2">
-                  <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} required aria-label="Tanggal masuk" className={input} />
-                  <input value={fromTime} onChange={(e) => setFromTime(e.target.value)} onBlur={() => { const t = normalizeTime(fromTime); if (t) setFromTime(t) }} required inputMode="numeric" placeholder="09:30" maxLength={5} aria-label="Jam masuk" className={`${input} text-center font-mono`} />
+                  <input type="date" value={toDate_} onChange={(e) => setToDate(e.target.value)} required aria-label="Tanggal keluar" className={input} />
+                  <input value={toTime} onChange={(e) => setToTime(e.target.value)} onBlur={() => { const t = normalizeTime(toTime); if (t) setToTime(t) }} required inputMode="numeric" placeholder="13:30" maxLength={5} aria-label="Jam keluar" className={`${input} text-center font-mono`} />
                 </div>
-              ) : (
-                <div className="flex h-10 items-center gap-2 rounded-xl border border-dashed border-input bg-secondary/40 px-3 text-sm font-medium text-foreground" aria-live="off">
-                  <Clock className="size-4 text-emerald-600" />
-                  <span className="tabular-nums">{now.toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                  <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />Live</span>
-                </div>
-              )}
-            </div>
-            <div>
-              <span className={label}>Keluar (sampai)</span>
-              <div className="grid grid-cols-[1fr_96px] gap-2">
-                <input type="date" value={toDate_} onChange={(e) => setToDate(e.target.value)} required aria-label="Tanggal keluar" className={input} />
-                <input value={toTime} onChange={(e) => setToTime(e.target.value)} onBlur={() => { const t = normalizeTime(toTime); if (t) setToTime(t) }} required inputMode="numeric" placeholder="13:30" maxLength={5} aria-label="Jam keluar" className={`${input} text-center font-mono`} />
-              </div>
-              <span className="mt-1 flex flex-wrap gap-1">
-                {[1, 2, 4, 8].map((h) => (
-                  <button key={h} type="button" onClick={() => setToOffset(h)} className="rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">+{h} jam</button>
-                ))}
-              </span>
-            </div>
-            <label className={areaChoice === OTHER ? '' : 'sm:col-span-2'}>
-              <span className={label}>Area Special Security</span>
-              <select value={areaChoice} onChange={(e) => setAreaChoice(e.target.value)} className={input}>
-                {areas.map((a) => <option key={a} value={a}>{a}</option>)}
-                <option value={OTHER}>Lainnya…</option>
-              </select>
-            </label>
-            {areaChoice === OTHER && (
-              <label><span className={label}>Nama area</span><input value={areaOther} onChange={(e) => setAreaOther(e.target.value)} required className={input} /></label>
-            )}
-            <label className="sm:col-span-2"><span className={label}>Tujuan Keluar/Masuk</span><textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} required rows={2} maxLength={2000} className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15" /></label>
-            <label className="sm:col-span-2">
-              <span className={label}>PIC Pendamping JAI (opsional)</span>
-              <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={input}>
-                <option value="">Belum ditentukan — bisa dipilih nanti di daftar</option>
-                <EscortOptions escorts={escorts} />
-                <option value={ESCORT_OTHER}>Lainnya (ketik nama)…</option>
-              </select>
-              {escortChoice === ESCORT_OTHER && (
-                <span className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping JAI" maxLength={150} aria-label="Nama PIC pendamping JAI" className={input} />
-                  <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} aria-label="Dept. PIC pendamping JAI" className={input} />
+                <span className="mt-1 flex flex-wrap gap-1">
+                  {[1, 2, 4, 8].map((h) => (
+                    <button key={h} type="button" onClick={() => setToOffset(h)} className="rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer">+{h} jam</button>
+                  ))}
                 </span>
-              )}
-              <span className="mt-1 block text-[11px] text-muted-foreground">Karyawan JAI yang mendampingi tamu di area. Tercantum di email ke approver sebagai “PIC JAI”.</span>
-            </label>
-            <div className="sm:col-span-2">
-              <label htmlFor="sa-id-card" className={label}>ID Card No. (opsional — bisa di-scan / diisi nanti saat kartu diberikan)</label>
-              <div className="flex gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <ScanLine className={`pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 ${scanning ? 'text-emerald-600' : 'text-muted-foreground'}`} />
-                  <input
-                    id="sa-id-card"
-                    ref={idCardRef}
-                    value={idCardNo}
-                    onChange={(e) => { setIdCardNo(e.target.value); setScanned(false) }}
-                    // A barcode scanner types the number and then "Enter": take it as
-                    // "done scanning" instead of submitting the form half filled.
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') { e.preventDefault(); if (idCardNo.trim()) setScanned(true); setScanning(false) }
-                      if (e.key === 'Escape' && scanning) { e.stopPropagation(); setScanning(false) }
-                    }}
-                    onBlur={() => setScanning(false)}
-                    placeholder={scanning ? 'Arahkan pemindai ke barcode kartu…' : 'Scan atau ketik nomor kartu'}
-                    maxLength={100}
-                    autoComplete="off"
-                    className={`${input} pl-10 font-mono ${scanning ? 'border-emerald-500 ring-4 ring-emerald-500/20' : ''}`}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={startScan}
-                  aria-pressed={scanning}
-                  className={`inline-flex h-10 flex-none items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition ${scanning ? 'bg-emerald-600 text-white' : 'border border-border bg-card text-foreground hover:bg-secondary'}`}
-                >
-                  <ScanLine className={`size-4 ${scanning ? 'animate-pulse' : ''}`} /> {scanning ? 'Menunggu scan…' : idCardNo ? 'Scan ulang' : 'Scan'}
-                </button>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground" aria-live="polite">
-                {scanning
-                  ? 'Scan kartu sekarang — nomornya langsung terisi. Esc untuk batal.'
-                  : scanned && idCardNo
-                    ? <span className="font-semibold text-emerald-700">✓ Kartu terbaca: {idCardNo}</span>
-                    : 'Tekan Scan lalu pindai barcode kartu dengan alat scanner, atau ketik nomornya.'}
-              </p>
+              <label className={areaChoice === OTHER ? '' : 'sm:col-span-2'}>
+                <span className={label}>Area Special Security</span>
+                <select value={areaChoice} onChange={(e) => setAreaChoice(e.target.value)} className={input}>
+                  {areas.map((a) => <option key={a} value={a}>{a}</option>)}
+                  <option value={OTHER}>Lainnya…</option>
+                </select>
+              </label>
+              {areaChoice === OTHER && (
+                <label><span className={label}>Nama area</span><input value={areaOther} onChange={(e) => setAreaOther(e.target.value)} required className={input} /></label>
+              )}
+              <label className="sm:col-span-2">
+                <span className={label}>Tujuan Keluar/Masuk</span>
+                <textarea value={purpose} onChange={(e) => setPurpose(e.target.value)} required rows={2} maxLength={2000} className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15" />
+              </label>
+              <label className="sm:col-span-2">
+                <span className={label}>PIC Pendamping JAI (opsional)</span>
+                <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={input}>
+                  <option value="">Belum ditentukan — bisa dipilih nanti di daftar</option>
+                  <EscortOptions escorts={escorts} />
+                  <option value={ESCORT_OTHER}>Lainnya (ketik nama)…</option>
+                </select>
+                {escortChoice === ESCORT_OTHER && (
+                  <span className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping JAI" maxLength={150} aria-label="Nama PIC pendamping JAI" className={input} />
+                    <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} aria-label="Dept. PIC pendamping JAI" className={input} />
+                  </span>
+                )}
+                <span className="mt-1 block text-[11px] text-muted-foreground">Karyawan JAI yang mendampingi tamu di area. Tercantum di email ke approver sebagai “PIC JAI”.</span>
+              </label>
+              <div className="sm:col-span-2">
+                <label htmlFor="sa-id-card" className={label}>ID Card No. (opsional — bisa di-scan / diisi nanti saat kartu diberikan)</label>
+                <div className="flex gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <ScanLine className={`pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 ${scanning ? 'text-emerald-600' : 'text-muted-foreground'}`} />
+                    <input
+                      id="sa-id-card"
+                      ref={idCardRef}
+                      value={idCardNo}
+                      onChange={(e) => { setIdCardNo(e.target.value); setScanned(false) }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); if (idCardNo.trim()) setScanned(true); setScanning(false) }
+                        if (e.key === 'Escape' && scanning) { e.stopPropagation(); setScanning(false) }
+                      }}
+                      onBlur={() => setScanning(false)}
+                      placeholder={scanning ? 'Arahkan pemindai ke barcode kartu…' : 'Scan atau ketik nomor kartu'}
+                      maxLength={100}
+                      autoComplete="off"
+                      className={`${input} pl-10 font-mono ${scanning ? 'border-emerald-500 ring-4 ring-emerald-500/20' : ''}`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startScan}
+                    aria-pressed={scanning}
+                    className={`inline-flex h-10 flex-none items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition cursor-pointer ${scanning ? 'bg-emerald-600 text-white' : 'border border-border bg-card text-foreground hover:bg-secondary'}`}
+                  >
+                    <ScanLine className={`size-4 ${scanning ? 'animate-pulse' : ''}`} /> {scanning ? 'Menunggu scan…' : idCardNo ? 'Scan ulang' : 'Scan'}
+                  </button>
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground" aria-live="polite">
+                  {scanning
+                    ? 'Scan kartu sekarang — nomornya langsung terisi. Esc untuk batal.'
+                    : scanned && idCardNo
+                      ? <span className="font-semibold text-emerald-700">✓ Kartu terbaca: {idCardNo}</span>
+                      : 'Tekan Scan lalu pindai barcode kartu dengan alat scanner, atau ketik nomornya.'}
+                </p>
+              </div>
+
+              {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive sm:col-span-2">{error}</p>}
             </div>
 
-            {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive sm:col-span-2">{error}</p>}
-
-            <div className="flex gap-3 sm:col-span-2">
-              <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary">Batal</button>
-              <button type="submit" disabled={submitting} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#c7161e] py-2.5 text-sm font-semibold text-white hover:bg-[#a51219] disabled:opacity-60">
-                {submitting && <Loader2 className="size-4 animate-spin" />} Kirim Pengajuan
+            {/* Sticky Action Footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-border bg-secondary/30 px-6 py-3.5 shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-border bg-card px-5 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 active:from-rose-700 active:to-red-700 active:scale-95 text-white px-5 py-2 text-xs font-bold shadow-md shadow-rose-600/30 transition disabled:opacity-60 cursor-pointer"
+              >
+                {submitting && <Loader2 className="size-3.5 animate-spin" />}
+                <span>Kirim Pengajuan</span>
               </button>
             </div>
           </form>

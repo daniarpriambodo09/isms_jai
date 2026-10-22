@@ -116,16 +116,21 @@ const FORM_METADATA: Record<
     buttonGradient: string
     buttonShadow: string
     submitLabel: string
+    glowOrb: string
+    hoverBorder: string
+    hoverIcon: string
+    activeIconBg: string
+    activeBar: string
   }
 > = {
   'ISMS-F-010-001': {
     icon: Laptop,
     shortTitle: 'PC & Laptop',
-    colorClass: 'text-slate-900 dark:text-white',
-    activeBorder: 'border-slate-900 ring-2 ring-slate-900/15 dark:border-white',
-    activeBg: 'from-slate-50 via-white to-white dark:from-slate-800 dark:via-slate-900 dark:to-slate-900',
-    glowShadow: 'shadow-xs',
-    badgeClass: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+    colorClass: 'text-sky-600 dark:text-sky-400',
+    activeBorder: 'border-sky-500 ring-2 ring-sky-500/20 dark:border-sky-400',
+    activeBg: 'from-sky-500/10 via-sky-50/50 to-white dark:from-sky-950/40 dark:via-slate-900 dark:to-slate-900',
+    glowShadow: 'shadow-lg shadow-sky-500/20',
+    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800',
     tag: 'Hardware IT',
     opCategory: 'HARDWARE & ASSET',
     category: 'Perangkat Kerja',
@@ -133,27 +138,32 @@ const FORM_METADATA: Record<
     features: ['PC Baru / Ganti', 'OS & Lisensi Wajib', '4 Tahap E-Sign'],
     shortDesc: 'Form permohonan pengadaan atau pembaharuan unit PC/Laptop kerja beserta lisensi software wajib.',
     themeColor: 'blue',
-    gradientBar: 'from-slate-800 to-slate-900',
-    heroIconBg: 'bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-white dark:border-slate-700',
-    activeCardBorder: 'border-slate-900 dark:border-white',
+    gradientBar: 'from-sky-500 via-cyan-500 to-blue-600',
+    heroIconBg: 'bg-gradient-to-br from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/30',
+    activeCardBorder: 'border-sky-500 dark:border-sky-400',
     activeCardBg: 'bg-white dark:bg-slate-900',
-    activeRing: 'ring-2 ring-slate-900/15',
-    stepBadge: 'bg-slate-900 text-white',
-    stepSubBadge: 'text-slate-900 dark:text-slate-100 bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
-    stepBorder: 'border-slate-300 dark:border-slate-700',
-    focusRing: 'focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10',
-    buttonGradient: 'bg-slate-900 hover:bg-slate-800 text-white',
-    buttonShadow: 'shadow-sm',
+    activeRing: 'ring-4 ring-sky-500/20',
+    stepBadge: 'bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/30',
+    stepSubBadge: 'text-sky-700 dark:text-sky-300 bg-sky-50/80 border-sky-200 dark:bg-sky-950/50 dark:border-sky-800',
+    stepBorder: 'border-sky-300 dark:border-sky-700',
+    focusRing: 'focus:border-sky-500 focus:ring-4 focus:ring-sky-500/15',
+    buttonGradient: 'bg-gradient-to-r from-sky-600 via-sky-500 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white',
+    buttonShadow: 'shadow-lg shadow-sky-500/30',
     submitLabel: 'Kirim Permohonan PC & Laptop (F-010-001)',
+    glowOrb: 'bg-sky-500/20',
+    hoverBorder: 'hover:border-sky-400/60 dark:hover:border-sky-500/60',
+    hoverIcon: 'group-hover:text-sky-600 group-hover:bg-sky-50 dark:group-hover:bg-sky-950/50 dark:group-hover:text-sky-300',
+    activeIconBg: 'bg-gradient-to-br from-sky-500 via-sky-600 to-blue-600 text-white shadow-md shadow-sky-500/30',
+    activeBar: 'bg-gradient-to-r from-sky-500 via-cyan-400 to-blue-600',
   },
   'ISMS-F-010-003': {
     icon: Cpu,
     shortTitle: 'Lisensi Software',
-    colorClass: 'text-slate-900 dark:text-white',
-    activeBorder: 'border-slate-900 ring-2 ring-slate-900/15 dark:border-white',
-    activeBg: 'from-slate-50 via-white to-white dark:from-slate-800 dark:via-slate-900 dark:to-slate-900',
-    glowShadow: 'shadow-xs',
-    badgeClass: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+    colorClass: 'text-purple-600 dark:text-purple-400',
+    activeBorder: 'border-purple-500 ring-2 ring-purple-500/20 dark:border-purple-400',
+    activeBg: 'from-purple-500/10 via-purple-50/50 to-white dark:from-purple-950/40 dark:via-slate-900 dark:to-slate-900',
+    glowShadow: 'shadow-lg shadow-purple-500/20',
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800',
     tag: 'Software Resmi',
     opCategory: 'SOFTWARE & LICENSE',
     category: 'Software Resmi',
@@ -161,27 +171,32 @@ const FORM_METADATA: Record<
     features: ['Lisensi Baru / Upgrade', 'Verifikasi Asset No.', '4 Tahap E-Sign'],
     shortDesc: 'Form permohonan pembelian lisensi software baru atau pembaharuan versi software pada komputer.',
     themeColor: 'purple',
-    gradientBar: 'from-slate-800 to-slate-900',
-    heroIconBg: 'bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-white dark:border-slate-700',
-    activeCardBorder: 'border-slate-900 dark:border-white',
+    gradientBar: 'from-purple-500 via-violet-500 to-indigo-600',
+    heroIconBg: 'bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-600 text-white shadow-md shadow-purple-500/30',
+    activeCardBorder: 'border-purple-500 dark:border-purple-400',
     activeCardBg: 'bg-white dark:bg-slate-900',
-    activeRing: 'ring-2 ring-slate-900/15',
-    stepBadge: 'bg-slate-900 text-white',
-    stepSubBadge: 'text-slate-900 dark:text-slate-100 bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
-    stepBorder: 'border-slate-300 dark:border-slate-700',
-    focusRing: 'focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10',
-    buttonGradient: 'bg-slate-900 hover:bg-slate-800 text-white',
-    buttonShadow: 'shadow-sm',
+    activeRing: 'ring-4 ring-purple-500/20',
+    stepBadge: 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md shadow-purple-500/30',
+    stepSubBadge: 'text-purple-700 dark:text-purple-300 bg-purple-50/80 border-purple-200 dark:bg-purple-950/50 dark:border-purple-800',
+    stepBorder: 'border-purple-300 dark:border-purple-700',
+    focusRing: 'focus:border-purple-500 focus:ring-4 focus:ring-purple-500/15',
+    buttonGradient: 'bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white',
+    buttonShadow: 'shadow-lg shadow-purple-500/30',
     submitLabel: 'Kirim Permohonan Lisensi Software (F-010-003)',
+    glowOrb: 'bg-purple-500/20',
+    hoverBorder: 'hover:border-purple-400/60 dark:hover:border-purple-500/60',
+    hoverIcon: 'group-hover:text-purple-600 group-hover:bg-purple-50 dark:group-hover:bg-purple-950/50 dark:group-hover:text-purple-300',
+    activeIconBg: 'bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-600 text-white shadow-md shadow-purple-500/30',
+    activeBar: 'bg-gradient-to-r from-purple-500 via-violet-400 to-indigo-600',
   },
   'ISMS-F-010-006': {
     icon: Mail,
     shortTitle: 'Email & User ID',
-    colorClass: 'text-slate-900 dark:text-white',
-    activeBorder: 'border-slate-900 ring-2 ring-slate-900/15 dark:border-white',
-    activeBg: 'from-slate-50 via-white to-white dark:from-slate-800 dark:via-slate-900 dark:to-slate-900',
-    glowShadow: 'shadow-xs',
-    badgeClass: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+    colorClass: 'text-emerald-600 dark:text-emerald-400',
+    activeBorder: 'border-emerald-500 ring-2 ring-emerald-500/20 dark:border-emerald-400',
+    activeBg: 'from-emerald-500/10 via-emerald-50/50 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900',
+    glowShadow: 'shadow-lg shadow-emerald-500/20',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800',
     tag: 'Akun & Akses',
     opCategory: 'DOMAIN & IAM',
     category: 'Akses Pengguna',
@@ -189,27 +204,32 @@ const FORM_METADATA: Record<
     features: ['Domain @jai.co.id', 'Akun Active Directory', '3 Tahap E-Sign'],
     shortDesc: 'Form permohonan pembuatan baru atau perubahan email dan user ID login karyawan.',
     themeColor: 'emerald',
-    gradientBar: 'from-slate-800 to-slate-900',
-    heroIconBg: 'bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-white dark:border-slate-700',
-    activeCardBorder: 'border-slate-900 dark:border-white',
+    gradientBar: 'from-emerald-500 via-teal-500 to-cyan-600',
+    heroIconBg: 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-md shadow-emerald-500/30',
+    activeCardBorder: 'border-emerald-500 dark:border-emerald-400',
     activeCardBg: 'bg-white dark:bg-slate-900',
-    activeRing: 'ring-2 ring-slate-900/15',
-    stepBadge: 'bg-slate-900 text-white',
-    stepSubBadge: 'text-slate-900 dark:text-slate-100 bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
-    stepBorder: 'border-slate-300 dark:border-slate-700',
-    focusRing: 'focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10',
-    buttonGradient: 'bg-slate-900 hover:bg-slate-800 text-white',
-    buttonShadow: 'shadow-sm',
+    activeRing: 'ring-4 ring-emerald-500/20',
+    stepBadge: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/30',
+    stepSubBadge: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/50 dark:border-emerald-800',
+    stepBorder: 'border-emerald-300 dark:border-emerald-700',
+    focusRing: 'focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/15',
+    buttonGradient: 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white',
+    buttonShadow: 'shadow-lg shadow-emerald-500/30',
     submitLabel: 'Kirim Permohonan Email & User ID (F-010-006)',
+    glowOrb: 'bg-emerald-500/20',
+    hoverBorder: 'hover:border-emerald-400/60 dark:hover:border-emerald-500/60',
+    hoverIcon: 'group-hover:text-emerald-600 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/50 dark:group-hover:text-emerald-300',
+    activeIconBg: 'bg-gradient-to-br from-emerald-500 via-teal-600 to-cyan-600 text-white shadow-md shadow-emerald-500/30',
+    activeBar: 'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-600',
   },
   'ISMS-F-010-007': {
     icon: ShieldAlert,
     shortTitle: 'Penghapusan Akun',
-    colorClass: 'text-slate-900 dark:text-white',
-    activeBorder: 'border-slate-900 ring-2 ring-slate-900/15 dark:border-white',
-    activeBg: 'from-slate-50 via-white to-white dark:from-slate-800 dark:via-slate-900 dark:to-slate-900',
-    glowShadow: 'shadow-xs',
-    badgeClass: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+    colorClass: 'text-rose-600 dark:text-rose-400',
+    activeBorder: 'border-rose-500 ring-2 ring-rose-500/20 dark:border-rose-400',
+    activeBg: 'from-rose-500/10 via-rose-50/50 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900',
+    glowShadow: 'shadow-lg shadow-rose-500/20',
+    badgeClass: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800',
     tag: 'Deaktivasi User',
     opCategory: 'OFFBOARDING & DECOM',
     category: 'Pemberhentian Akses',
@@ -217,27 +237,32 @@ const FORM_METADATA: Record<
     features: ['Deaktivasi Mailbox', 'Penonaktifan Domain', 'Audit Trail'],
     shortDesc: 'Form permohonan penonaktifan atau penghapusan email dan user ID login karyawan.',
     themeColor: 'rose',
-    gradientBar: 'from-slate-800 to-slate-900',
-    heroIconBg: 'bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-white dark:border-slate-700',
-    activeCardBorder: 'border-slate-900 dark:border-white',
+    gradientBar: 'from-rose-500 via-pink-500 to-amber-600',
+    heroIconBg: 'bg-gradient-to-br from-rose-500 via-pink-600 to-amber-600 text-white shadow-md shadow-rose-500/30',
+    activeCardBorder: 'border-rose-500 dark:border-rose-400',
     activeCardBg: 'bg-white dark:bg-slate-900',
-    activeRing: 'ring-2 ring-slate-900/15',
-    stepBadge: 'bg-slate-900 text-white',
-    stepSubBadge: 'text-slate-900 dark:text-slate-100 bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
-    stepBorder: 'border-slate-300 dark:border-slate-700',
-    focusRing: 'focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10',
-    buttonGradient: 'bg-slate-900 hover:bg-slate-800 text-white',
-    buttonShadow: 'shadow-sm',
+    activeRing: 'ring-4 ring-rose-500/20',
+    stepBadge: 'bg-gradient-to-br from-rose-500 to-amber-600 text-white shadow-md shadow-rose-500/30',
+    stepSubBadge: 'text-rose-700 dark:text-rose-300 bg-rose-50/80 border-rose-200 dark:bg-rose-950/50 dark:border-rose-800',
+    stepBorder: 'border-rose-300 dark:border-rose-700',
+    focusRing: 'focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15',
+    buttonGradient: 'bg-gradient-to-r from-rose-600 via-pink-600 to-amber-600 hover:from-rose-500 hover:to-pink-500 text-white',
+    buttonShadow: 'shadow-lg shadow-rose-500/30',
     submitLabel: 'Kirim Permohonan Penghapusan Akun (F-010-007)',
+    glowOrb: 'bg-rose-500/20',
+    hoverBorder: 'hover:border-rose-400/60 dark:hover:border-rose-500/60',
+    hoverIcon: 'group-hover:text-rose-600 group-hover:bg-rose-50 dark:group-hover:bg-rose-950/50 dark:group-hover:text-rose-300',
+    activeIconBg: 'bg-gradient-to-br from-rose-500 via-pink-600 to-amber-600 text-white shadow-md shadow-rose-500/30',
+    activeBar: 'bg-gradient-to-r from-rose-500 via-pink-400 to-amber-600',
   },
   'ISMS-F-03-00-003': {
     icon: Wifi,
     shortTitle: 'Koneksi Jaringan',
-    colorClass: 'text-slate-900 dark:text-white',
-    activeBorder: 'border-slate-900 ring-2 ring-slate-900/15 dark:border-white',
-    activeBg: 'from-slate-50 via-white to-white dark:from-slate-800 dark:via-slate-900 dark:to-slate-900',
-    glowShadow: 'shadow-xs',
-    badgeClass: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
+    colorClass: 'text-cyan-600 dark:text-cyan-400',
+    activeBorder: 'border-cyan-500 ring-2 ring-cyan-500/20 dark:border-cyan-400',
+    activeBg: 'from-cyan-500/10 via-cyan-50/50 to-white dark:from-cyan-950/40 dark:via-slate-900 dark:to-slate-900',
+    glowShadow: 'shadow-lg shadow-cyan-500/20',
+    badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/50 dark:text-cyan-300 dark:border-cyan-800',
     tag: 'Security Network',
     opCategory: 'NETWORK & INFRA',
     category: 'Security JAI Network',
@@ -245,18 +270,23 @@ const FORM_METADATA: Record<
     features: ['DHCP / IP Statis', 'Verifikasi Anti-Virus', 'Izin Akses LAN/Wi-Fi'],
     shortDesc: 'Form izin penyambungan perangkat ke jaringan internal perusahaan (DHCP/Static IP).',
     themeColor: 'teal',
-    gradientBar: 'from-slate-800 to-slate-900',
-    heroIconBg: 'bg-slate-100 text-slate-900 border-slate-300 dark:bg-slate-800 dark:text-white dark:border-slate-700',
-    activeCardBorder: 'border-slate-900 dark:border-white',
+    gradientBar: 'from-cyan-500 via-teal-500 to-indigo-600',
+    heroIconBg: 'bg-gradient-to-br from-cyan-500 via-teal-600 to-indigo-600 text-white shadow-md shadow-cyan-500/30',
+    activeCardBorder: 'border-cyan-500 dark:border-cyan-400',
     activeCardBg: 'bg-white dark:bg-slate-900',
-    activeRing: 'ring-2 ring-slate-900/15',
-    stepBadge: 'bg-slate-900 text-white',
-    stepSubBadge: 'text-slate-900 dark:text-slate-100 bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
-    stepBorder: 'border-slate-300 dark:border-slate-700',
-    focusRing: 'focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10',
-    buttonGradient: 'bg-slate-900 hover:bg-slate-800 text-white',
-    buttonShadow: 'shadow-sm',
+    activeRing: 'ring-4 ring-cyan-500/20',
+    stepBadge: 'bg-gradient-to-br from-cyan-500 to-indigo-600 text-white shadow-md shadow-cyan-500/30',
+    stepSubBadge: 'text-cyan-700 dark:text-cyan-300 bg-cyan-50/80 border-cyan-200 dark:bg-cyan-950/50 dark:border-cyan-800',
+    stepBorder: 'border-cyan-300 dark:border-cyan-700',
+    focusRing: 'focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/15',
+    buttonGradient: 'bg-gradient-to-r from-cyan-600 via-teal-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white',
+    buttonShadow: 'shadow-lg shadow-cyan-500/30',
     submitLabel: 'Kirim Izin Koneksi Jaringan (F-03-00-003)',
+    glowOrb: 'bg-cyan-500/20',
+    hoverBorder: 'hover:border-cyan-400/60 dark:hover:border-cyan-500/60',
+    hoverIcon: 'group-hover:text-cyan-600 group-hover:bg-cyan-50 dark:group-hover:bg-cyan-950/50 dark:group-hover:text-cyan-300',
+    activeIconBg: 'bg-gradient-to-br from-cyan-500 via-teal-600 to-indigo-600 text-white shadow-md shadow-cyan-500/30',
+    activeBar: 'bg-gradient-to-r from-cyan-500 via-teal-400 to-indigo-600',
   },
 }
 
@@ -616,38 +646,41 @@ function FormItContent() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-24 pt-4 px-3 sm:px-6">
-      {/* Top Banner / Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-9 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] transition-all dark:border-slate-800 dark:bg-slate-900">
-        <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-slate-900 dark:bg-slate-700" />
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-slate-500/5 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -left-20 -bottom-20 size-72 rounded-full bg-slate-500/5 blur-3xl" />
+      {/* Top Banner / Hero with Scrolltide Ambient Enterprise Styling */}
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-slate-50/40 to-white p-6 sm:p-9 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all dark:border-slate-800 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-900">
+        <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500" />
+        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-sky-500/10 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -left-24 -bottom-24 size-80 rounded-full bg-indigo-500/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
-            <div className="relative grid size-16 shrink-0 place-items-center rounded-2xl bg-slate-900 text-white shadow-md dark:bg-white dark:text-slate-900">
-              <FileSignature className="size-8" />
+            <div className="relative grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg shadow-indigo-950/20 dark:from-white dark:to-slate-200 dark:text-slate-900">
+              <FileSignature className="size-8 text-sky-400 dark:text-indigo-600" />
               <span className="absolute -top-1 -right-1 flex size-3">
-                <span className="relative inline-flex size-3 rounded-full bg-emerald-500" />
+                <span className="relative inline-flex size-3 rounded-full bg-emerald-500 animate-pulse" />
               </span>
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-2 font-mono text-[10.5px]">
-                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-bold tracking-wider text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
+                <span className="rounded-md bg-gradient-to-r from-slate-900 to-indigo-950 px-2.5 py-0.5 font-bold tracking-wider text-white shadow-2xs dark:from-slate-100 dark:to-white dark:text-slate-900">
                   PT. JATIM AUTOCOMP INDONESIA
                 </span>
                 <span className="text-slate-300 dark:text-slate-600">/</span>
-                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                <span className="font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded border border-sky-200 dark:border-sky-800">
                   ISO/IEC 27001 ISMS CONTROLLED
                 </span>
                 <span className="text-slate-300 dark:text-slate-600 hidden sm:inline">/</span>
-                <span className="hidden sm:inline text-slate-500 dark:text-slate-400">
-                  DIGITAL E-SIGN
+                <span className="hidden sm:inline font-bold text-indigo-600 dark:text-indigo-400">
+                  DIGITAL E-SIGN WORKFLOW
                 </span>
               </div>
-              <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-                Formulir Layanan Digital &amp; Pengesahan E-Sign IT
+              <h1 className="font-display text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Formulir Layanan Digital &amp;{' '}
+                <span className="bg-gradient-to-r from-sky-600 via-indigo-600 to-purple-600 dark:from-sky-400 dark:via-indigo-300 dark:to-purple-400 bg-clip-text text-transparent">
+                  Pengesahan E-Sign IT
+                </span>
               </h1>
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 sm:text-sm max-w-2xl leading-relaxed">
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 sm:text-sm max-w-2xl leading-relaxed font-medium">
                 Portal resmi pengajuan permohonan aset hardware, lisensi software, akun domain, dan infrastruktur jaringan dengan persetujuan bertingkat terverifikasi QR Code.
               </p>
             </div>
@@ -656,17 +689,17 @@ function FormItContent() {
           <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
             <Link
               href="/ijin-masuk-alat-it"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-800 shadow-xs transition hover:bg-slate-50 hover:border-slate-300 hover:-translate-y-0.5 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-slate-800 shadow-xs transition hover:bg-slate-50 hover:border-slate-300 hover:text-sky-600 hover:-translate-y-0.5 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-sky-400"
             >
-              <Laptop className="size-4 text-slate-700 dark:text-slate-300" />
+              <Laptop className="size-4 text-sky-500" />
               <span>Izin Bawa Alat IT</span>
             </Link>
             {adminUser && (
               <Link
                 href="/kelola-approver-it"
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 hover:-translate-y-0.5 dark:bg-slate-100 dark:text-slate-900"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-slate-900 to-indigo-950 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-950/20 transition hover:brightness-110 hover:-translate-y-0.5 dark:bg-slate-100 dark:text-slate-900"
               >
-                <Users className="size-4" />
+                <Users className="size-4 text-sky-400" />
                 <span>Pengaturan Approver</span>
               </Link>
             )}
@@ -674,8 +707,8 @@ function FormItContent() {
         </div>
 
         {/* Search tracking bar with executive enterprise styling */}
-        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border border-slate-300 bg-slate-50/70 p-2 shadow-xs focus-within:border-slate-800 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-900/10 transition dark:border-slate-700 dark:bg-slate-800/80">
-          <div className="flex items-center justify-center size-8 rounded-xl bg-white text-slate-500 ml-1 shrink-0 shadow-2xs border border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600">
+        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border border-slate-300/80 bg-white/80 p-2 shadow-sm backdrop-blur-md focus-within:border-sky-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-sky-500/15 transition-all dark:border-slate-700 dark:bg-slate-800/80">
+          <div className="flex items-center justify-center size-8 rounded-xl bg-sky-50 text-sky-600 ml-1 shrink-0 border border-sky-100 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-900/50">
             <Search className="size-4" />
           </div>
           <input
@@ -690,7 +723,7 @@ function FormItContent() {
             type="button"
             onClick={() => searchInput.trim() && fetchSubmissionByToken(searchInput.trim())}
             disabled={searchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-slate-800 disabled:opacity-50 active:scale-95 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-sky-500/20 transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {searchLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Search className="size-3.5" />}
             <span>{searchLoading ? 'Mencari...' : 'Lacak Status'}</span>
@@ -964,32 +997,34 @@ function FormItContent() {
                     key={def.code}
                     type="button"
                     onClick={() => handleSelectForm(def.code)}
-                    className={`group relative flex flex-col items-center justify-between rounded-2xl p-3.5 sm:p-4 text-center transition-all duration-200 cursor-pointer min-h-[168px] ${
+                    className={`group relative flex flex-col items-center justify-between rounded-2xl p-3.5 sm:p-4 text-center transition-all duration-200 cursor-pointer min-h-[174px] ${
                       active
-                        ? `border-2 ${meta.activeCardBorder} bg-white dark:bg-slate-900 shadow-xl ${meta.activeRing} -translate-y-1`
-                        : 'border border-slate-200/90 bg-white dark:bg-slate-900 dark:border-slate-800 shadow-[0_2px_12px_rgba(15,23,42,0.05)] hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md hover:-translate-y-0.5'
+                        ? `border-2 ${meta.activeCardBorder} bg-white dark:bg-slate-900 shadow-xl ${meta.glowShadow} ${meta.activeRing} -translate-y-1.5`
+                        : `border border-slate-200/90 bg-white/90 dark:bg-slate-900/90 dark:border-slate-800 shadow-xs ${meta.hoverBorder} hover:shadow-lg hover:-translate-y-1`
                     }`}
                   >
-                    {active && (
-                      <span className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-slate-900 dark:bg-white" />
+                    {active ? (
+                      <span className={`absolute inset-x-0 top-0 h-1.5 rounded-t-2xl ${meta.activeBar}`} />
+                    ) : (
+                      <span className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl bg-transparent group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition" />
                     )}
 
-                    <span className={`absolute top-2.5 right-2.5 font-mono text-[9px] font-bold ${active ? 'text-slate-900 dark:text-white' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                    <span className={`absolute top-2.5 right-2.5 font-mono text-[9px] font-bold ${active ? meta.colorClass : 'text-slate-400 group-hover:text-slate-600'}`}>
                       #{idx + 1}
                     </span>
 
                     <div
                       className={`grid size-12 place-items-center rounded-xl transition-all duration-200 ${
                         active
-                          ? 'bg-slate-900 text-white border border-slate-900 dark:bg-white dark:text-slate-900 shadow-xs'
-                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 group-hover:bg-slate-200 group-hover:text-slate-900'
+                          ? `${meta.activeIconBg}`
+                          : `bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 ${meta.hoverIcon}`
                       }`}
                     >
                       <IconComponent className="size-6" />
                     </div>
 
                     <div className="w-full my-1.5 space-y-0.5">
-                      <span className="font-mono text-[8.5px] font-bold tracking-wider block truncate text-slate-500 dark:text-slate-400 uppercase">
+                      <span className={`font-mono text-[8.5px] font-bold tracking-wider block truncate uppercase ${active ? meta.colorClass : 'text-slate-500 dark:text-slate-400'}`}>
                         {meta.opCategory}
                       </span>
                       <h3 className="font-display text-xs font-black text-slate-900 dark:text-white leading-snug line-clamp-2">
@@ -1004,7 +1039,7 @@ function FormItContent() {
                       <span
                         className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[9.5px] font-bold transition ${
                           active
-                            ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                            ? `${meta.activeIconBg}`
                             : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 group-hover:bg-slate-200 group-hover:text-slate-900'
                         }`}
                       >
@@ -1018,15 +1053,15 @@ function FormItContent() {
           </div>
 
           {/* Active Form Separation Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white px-5 py-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white/90 backdrop-blur-md px-5 py-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
             <div className="flex items-center gap-3">
-              <span className={`grid size-8 place-items-center rounded-xl font-mono text-xs font-black shrink-0 ${currentMeta.stepBadge}`}>
+              <span className={`grid size-9 place-items-center rounded-xl font-mono text-xs font-black shrink-0 ${currentMeta.stepBadge}`}>
                 {currentFormDef.code.slice(-3)}
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-extrabold text-slate-900 dark:text-white">{currentFormDef.name}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${currentMeta.badgeClass}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${currentMeta.badgeClass}`}>
                     {currentMeta.tag}
                   </span>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-mono font-bold text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
@@ -1047,33 +1082,33 @@ function FormItContent() {
           {/* MAIN FORM CANVAS - Dedicated per-form container */}
           <form
             onSubmit={handleSubmit}
-            className={`relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-9 shadow-[0_6px_30px_-6px_rgba(15,23,42,0.08)] space-y-8 dark:border-slate-800 dark:bg-slate-900`}
+            className={`relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-9 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-8 dark:border-slate-800 dark:bg-slate-900`}
           >
             {/* Top theme accent bar */}
-            <span className="absolute inset-x-0 top-0 h-1.5 bg-slate-900 dark:bg-white" />
+            <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${currentMeta.gradientBar}`} />
             {/* Form Title Banner with Theme Accent & Stepper */}
-            <div className={`relative overflow-hidden rounded-2xl border border-slate-200/90 bg-slate-50/70 p-6 sm:p-7 shadow-xs dark:border-slate-800 dark:bg-slate-800/50`}>
-              <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-slate-500/5 blur-2xl" />
+            <div className={`relative overflow-hidden rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/80 via-white to-slate-50/50 p-6 sm:p-7 shadow-xs dark:border-slate-800 dark:from-slate-800/60 dark:via-slate-900/40 dark:to-slate-800/40`}>
+              <div aria-hidden className={`pointer-events-none absolute -right-16 -top-16 size-56 rounded-full blur-3xl opacity-30 ${currentMeta.glowOrb || 'bg-sky-500/20'}`} />
               <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div className="flex items-start gap-4">
-                  <div className="relative grid size-16 shrink-0 place-items-center rounded-2xl bg-white border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-700">
+                  <div className={`relative grid size-16 shrink-0 place-items-center rounded-2xl ${currentMeta.heroIconBg}`}>
                     {React.createElement(currentMeta.icon, {
-                      className: `size-8 ${currentMeta.colorClass}`,
+                      className: 'size-8 text-white',
                     })}
                     <span className="absolute -bottom-1 -right-1 flex size-3">
-                      <span className="relative inline-flex size-3 rounded-full bg-slate-900 dark:bg-white" />
+                      <span className="relative inline-flex size-3 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-900" />
                     </span>
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-slate-900 bg-white px-2.5 py-0.5 rounded-md border border-slate-200 shadow-2xs dark:bg-slate-800 dark:text-white dark:border-slate-700">
+                      <span className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded-md border ${currentMeta.badgeClass}`}>
                         {currentFormDef.code}
                       </span>
-                      <span className="rounded-full bg-slate-100 border border-slate-300 px-2.5 py-0.5 text-[10px] font-extrabold text-slate-800 uppercase tracking-wider dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
+                      <span className="rounded-full bg-slate-900 border border-slate-800 px-2.5 py-0.5 text-[10px] font-extrabold text-white uppercase tracking-wider dark:bg-white dark:text-slate-900">
                         {currentFormDef.badge}
                       </span>
                       <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-bold text-slate-700 border border-slate-200 flex items-center gap-1 shadow-2xs dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-                        <Users className="size-3 text-slate-700 dark:text-slate-300" />
+                        <Users className={`size-3 ${currentMeta.colorClass}`} />
                         <span>{currentMeta.approvalCount} Tingkat Approver E-Sign</span>
                       </span>
                       <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${currentMeta.badgeClass}`}>
@@ -1101,7 +1136,7 @@ function FormItContent() {
                           key={i}
                           className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-slate-700 border border-slate-200 shadow-2xs dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700"
                         >
-                          <CheckCircle2 className="size-3 text-slate-700 dark:text-slate-300" />
+                          <CheckCircle2 className={`size-3 ${currentMeta.colorClass}`} />
                           <span>{feat}</span>
                         </span>
                       ))}
@@ -1110,10 +1145,10 @@ function FormItContent() {
                 </div>
 
                 {/* 4-Step Progress Indicator */}
-                <div className="rounded-2xl bg-white p-3.5 sm:p-4 border border-slate-200 shadow-xs shrink-0 self-stretch lg:self-center dark:bg-slate-900 dark:border-slate-700">
+                <div className="rounded-2xl bg-white/90 backdrop-blur-sm p-3.5 sm:p-4 border border-slate-200 shadow-xs shrink-0 self-stretch lg:self-center dark:bg-slate-900/90 dark:border-slate-700">
                   <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-2 flex items-center justify-between dark:text-slate-400">
                     <span>Tahapan Pengisian</span>
-                    <span className="text-slate-900 dark:text-white font-mono font-bold">4 Langkah</span>
+                    <span className={`font-mono font-bold ${currentMeta.colorClass}`}>4 Langkah</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2 text-[11px]">
                     <div className={`flex items-center gap-2 rounded-xl p-2 font-extrabold ${currentMeta.stepSubBadge}`}>
@@ -1374,7 +1409,7 @@ function FormItContent() {
               <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 space-y-6 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-black shadow-xs dark:bg-slate-700">
+                    <span className={`flex size-8 items-center justify-center rounded-xl font-mono text-xs font-black shadow-md ${currentMeta.stepBadge}`}>
                       02
                     </span>
                     <div>
@@ -1382,7 +1417,7 @@ function FormItContent() {
                         <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
                           Informasi Pengadaan PC/Laptop &amp; Lisensi Wajib
                         </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">
+                        <span className={`hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${currentMeta.badgeClass}`}>
                           HARDWARE ASSET
                         </span>
                       </div>
@@ -1406,18 +1441,18 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('baru')}
                       className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'baru'
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 shadow-xs ring-2 ring-slate-900/10'
+                          ? 'border-2 border-sky-500 bg-sky-50/60 dark:border-sky-400 dark:bg-sky-950/40 shadow-sm ring-2 ring-sky-500/15'
                           : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                       }`}
                     >
                       <div className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border ${
-                        jenisPengadaan === 'baru' ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                        jenisPengadaan === 'baru' ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white border-sky-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                       }`}>
                         <Plus className="size-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900 dark:text-white">PENGADAAN BARU</span>
+                          <span className={`text-xs font-black ${jenisPengadaan === 'baru' ? 'text-sky-950 dark:text-sky-200' : 'text-slate-900 dark:text-white'}`}>PENGADAAN BARU</span>
                           <span className="text-[10px] text-slate-500 font-mono">(新規パソコン追加購入)</span>
                         </div>
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 font-normal">
@@ -1430,18 +1465,18 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('pembaharuan')}
                       className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'pembaharuan'
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 shadow-xs ring-2 ring-slate-900/10'
+                          ? 'border-2 border-sky-500 bg-sky-50/60 dark:border-sky-400 dark:bg-sky-950/40 shadow-sm ring-2 ring-sky-500/15'
                           : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                       }`}
                     >
                       <div className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border ${
-                        jenisPengadaan === 'pembaharuan' ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                        jenisPengadaan === 'pembaharuan' ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white border-sky-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                       }`}>
                         <RotateCcw className="size-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900 dark:text-white">PEMBAHARUAN</span>
+                          <span className={`text-xs font-black ${jenisPengadaan === 'pembaharuan' ? 'text-sky-950 dark:text-sky-200' : 'text-slate-900 dark:text-white'}`}>PEMBAHARUAN</span>
                           <span className="text-[10px] text-slate-500 font-mono">(新規パソコンとの変更購入)</span>
                         </div>
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 font-normal">
@@ -1466,7 +1501,7 @@ function FormItContent() {
                           onClick={() => setMaker(m)}
                           className={`rounded px-2 py-0.5 text-[10px] font-bold border transition ${
                             maker === m
-                              ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900'
+                              ? 'bg-sky-600 text-white border-sky-600 shadow-2xs'
                               : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
                           }`}
                         >
@@ -1479,7 +1514,7 @@ function FormItContent() {
                       value={maker}
                       onChange={(e) => setMaker(e.target.value)}
                       placeholder="e.g. Dell, Lenovo, HP"
-                      className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-xs sm:text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                      className={`h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-xs sm:text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 ${currentMeta.focusRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                     />
                   </div>
 
@@ -1608,7 +1643,7 @@ function FormItContent() {
               <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 space-y-6 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-black shadow-xs dark:bg-slate-700">
+                    <span className={`flex size-8 items-center justify-center rounded-xl font-mono text-xs font-black shadow-md ${currentMeta.stepBadge}`}>
                       02
                     </span>
                     <div>
@@ -1616,7 +1651,7 @@ function FormItContent() {
                         <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
                           Informasi Software &amp; Komputer yang Akan Diinstall
                         </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">
+                        <span className={`hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${currentMeta.badgeClass}`}>
                           LICENSE &amp; COMPLIANCE
                         </span>
                       </div>
@@ -1639,18 +1674,18 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('baru')}
                       className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'baru'
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 shadow-xs ring-2 ring-slate-900/10'
+                          ? 'border-2 border-purple-500 bg-purple-50/60 dark:border-purple-400 dark:bg-purple-950/40 shadow-sm ring-2 ring-purple-500/15'
                           : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                       }`}
                     >
                       <div className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border ${
-                        jenisPengadaan === 'baru' ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                        jenisPengadaan === 'baru' ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-purple-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                       }`}>
                         <Sparkles className="size-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900 dark:text-white">PENGADAAN LISENSI BARU</span>
+                          <span className={`text-xs font-black ${jenisPengadaan === 'baru' ? 'text-purple-950 dark:text-purple-200' : 'text-slate-900 dark:text-white'}`}>PENGADAAN LISENSI BARU</span>
                           <span className="text-[10px] text-slate-500 font-mono">(新規購入)</span>
                         </div>
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 font-normal">
@@ -1663,18 +1698,18 @@ function FormItContent() {
                       onClick={() => setJenisPengadaan('pembaharuan')}
                       className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                         jenisPengadaan === 'pembaharuan'
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 shadow-xs ring-2 ring-slate-900/10'
+                          ? 'border-2 border-purple-500 bg-purple-50/60 dark:border-purple-400 dark:bg-purple-950/40 shadow-sm ring-2 ring-purple-500/15'
                           : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                       }`}
                     >
                       <div className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border ${
-                        jenisPengadaan === 'pembaharuan' ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                        jenisPengadaan === 'pembaharuan' ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white border-purple-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                       }`}>
                         <RotateCcw className="size-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-black text-slate-900 dark:text-white">PEMBAHARUAN VERSI</span>
+                          <span className={`text-xs font-black ${jenisPengadaan === 'pembaharuan' ? 'text-purple-950 dark:text-purple-200' : 'text-slate-900 dark:text-white'}`}>PEMBAHARUAN VERSI</span>
                           <span className="text-[10px] text-slate-500 font-mono">(バージョンアップ)</span>
                         </div>
                         <p className="mt-1 text-xs text-slate-600 dark:text-slate-300 font-normal">
@@ -1818,7 +1853,7 @@ function FormItContent() {
               <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 space-y-6 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-black shadow-xs dark:bg-slate-700">
+                    <span className={`flex size-8 items-center justify-center rounded-xl font-mono text-xs font-black shadow-md ${currentMeta.stepBadge}`}>
                       02
                     </span>
                     <div>
@@ -1826,7 +1861,7 @@ function FormItContent() {
                         <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
                           Perihal Pengajuan / Perubahan Akun (件名)
                         </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">
+                        <span className={`hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${currentMeta.badgeClass}`}>
                           IDENTITY &amp; DOMAIN ACCESS
                         </span>
                       </div>
@@ -1846,17 +1881,17 @@ function FormItContent() {
                     onClick={() => setReqEmail(!reqEmail)}
                     className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                       reqEmail
-                        ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 ring-2 ring-slate-900/10 shadow-xs'
+                        ? 'border-2 border-emerald-500 bg-emerald-50/60 dark:border-emerald-400 dark:bg-emerald-950/40 ring-2 ring-emerald-500/15 shadow-sm'
                         : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                     }`}
                   >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg border ${
-                      reqEmail ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                      reqEmail ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-emerald-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                     }`}>
                       {reqEmail ? <CheckSquare className="size-5" /> : <Square className="size-5" />}
                     </div>
                     <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white">Pengajuan Email Baru</div>
+                      <div className={`text-xs font-black ${reqEmail ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-900 dark:text-white'}`}>Pengajuan Email Baru</div>
                       <div className="text-[10px] text-slate-500 font-medium">Pembuatan alamat mailbox baru @jai.co.id (Eメール申請)</div>
                     </div>
                   </div>
@@ -1865,17 +1900,17 @@ function FormItContent() {
                     onClick={() => setChangeEmail(!changeEmail)}
                     className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                       changeEmail
-                        ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 ring-2 ring-slate-900/10 shadow-xs'
+                        ? 'border-2 border-emerald-500 bg-emerald-50/60 dark:border-emerald-400 dark:bg-emerald-950/40 ring-2 ring-emerald-500/15 shadow-sm'
                         : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                     }`}
                   >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg border ${
-                      changeEmail ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                      changeEmail ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-emerald-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                     }`}>
                       {changeEmail ? <CheckSquare className="size-5" /> : <Square className="size-5" />}
                     </div>
                     <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white">Perubahan Email Address</div>
+                      <div className={`text-xs font-black ${changeEmail ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-900 dark:text-white'}`}>Perubahan Email Address</div>
                       <div className="text-[10px] text-slate-500 font-medium">Ganti alias atau nama display email (Eメール変更)</div>
                     </div>
                   </div>
@@ -1884,17 +1919,17 @@ function FormItContent() {
                     onClick={() => setReqUserId(!reqUserId)}
                     className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                       reqUserId
-                        ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 ring-2 ring-slate-900/10 shadow-xs'
+                        ? 'border-2 border-emerald-500 bg-emerald-50/60 dark:border-emerald-400 dark:bg-emerald-950/40 ring-2 ring-emerald-500/15 shadow-sm'
                         : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                     }`}
                   >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg border ${
-                      reqUserId ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                      reqUserId ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-emerald-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                     }`}>
                       {reqUserId ? <CheckSquare className="size-5" /> : <Square className="size-5" />}
                     </div>
                     <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white">Pengajuan User ID Login</div>
+                      <div className={`text-xs font-black ${reqUserId ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-900 dark:text-white'}`}>Pengajuan User ID Login</div>
                       <div className="text-[10px] text-slate-500 font-medium">Pembuatan kredensial login Windows / Domain (ユーザID申請)</div>
                     </div>
                   </div>
@@ -1903,17 +1938,17 @@ function FormItContent() {
                     onClick={() => setChangeUserId(!changeUserId)}
                     className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                       changeUserId
-                        ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 ring-2 ring-slate-900/10 shadow-xs'
+                        ? 'border-2 border-emerald-500 bg-emerald-50/60 dark:border-emerald-400 dark:bg-emerald-950/40 ring-2 ring-emerald-500/15 shadow-sm'
                         : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                     }`}
                   >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg border ${
-                      changeUserId ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                      changeUserId ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-emerald-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                     }`}>
                       {changeUserId ? <CheckSquare className="size-5" /> : <Square className="size-5" />}
                     </div>
                     <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white">Perubahan User ID Login</div>
+                      <div className={`text-xs font-black ${changeUserId ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-900 dark:text-white'}`}>Perubahan User ID Login</div>
                       <div className="text-[10px] text-slate-500 font-medium">Update hak akses atau nama user login (ユーザID変更)</div>
                     </div>
                   </div>
@@ -1932,7 +1967,7 @@ function FormItContent() {
                             setTargetEmail(`${targetEmail}@jai.co.id`)
                           }
                         }}
-                        className="text-[10px] font-bold text-slate-800 hover:underline bg-slate-100 border border-slate-300 px-2 py-0.5 rounded dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
+                        className="text-[10px] font-bold text-emerald-700 hover:underline bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800"
                       >
                         + @jai.co.id
                       </button>
@@ -1972,7 +2007,7 @@ function FormItContent() {
               <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 space-y-6 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-black shadow-xs dark:bg-slate-700">
+                    <span className={`flex size-8 items-center justify-center rounded-xl font-mono text-xs font-black shadow-md ${currentMeta.stepBadge}`}>
                       02
                     </span>
                     <div>
@@ -1980,7 +2015,7 @@ function FormItContent() {
                         <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
                           Perihal Penghapusan / Penonaktifan Akun (件名)
                         </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">
+                        <span className={`hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${currentMeta.badgeClass}`}>
                           DECOMMISSION &amp; REVOKE
                         </span>
                       </div>
@@ -1994,10 +2029,10 @@ function FormItContent() {
                   </span>
                 </div>
 
-                <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4.5 text-xs text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200 flex items-start gap-3 shadow-xs">
-                  <ShieldAlert className="size-5 shrink-0 text-amber-600 mt-0.5" />
+                <div className="rounded-xl border border-rose-300 bg-rose-50/80 p-4.5 text-xs text-rose-900 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200 flex items-start gap-3 shadow-xs">
+                  <ShieldAlert className="size-5 shrink-0 text-rose-600 mt-0.5" />
                   <div>
-                    <span className="font-black block text-xs uppercase tracking-wide mb-1 text-amber-950 dark:text-amber-100">Peringatan Keamanan ISMS ISO/IEC 27001:</span>
+                    <span className="font-black block text-xs uppercase tracking-wide mb-1 text-rose-950 dark:text-rose-100">Peringatan Keamanan ISMS ISO/IEC 27001:</span>
                     Penghapusan akun akan mencabut akses ke seluruh email server, active directory, dan sistem internal perusahaan secara permanen guna mencegah akses tidak sah pasca purna tugas karyawan.
                   </div>
                 </div>
@@ -2007,17 +2042,17 @@ function FormItContent() {
                     onClick={() => setDelEmail(!delEmail)}
                     className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                       delEmail
-                        ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 ring-2 ring-slate-900/10 shadow-xs'
+                        ? 'border-2 border-rose-500 bg-rose-50/60 dark:border-rose-400 dark:bg-rose-950/40 ring-2 ring-rose-500/15 shadow-sm'
                         : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                     }`}
                   >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg border ${
-                      delEmail ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                      delEmail ? 'bg-gradient-to-br from-rose-500 to-amber-600 text-white border-rose-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                     }`}>
                       {delEmail ? <CheckSquare className="size-5" /> : <Square className="size-5" />}
                     </div>
                     <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white">Penghapusan Email Address</div>
+                      <div className={`text-xs font-black ${delEmail ? 'text-rose-950 dark:text-rose-200' : 'text-slate-900 dark:text-white'}`}>Penghapusan Email Address</div>
                       <div className="text-[10px] text-slate-500 font-medium">Deaktivasi &amp; backup mailbox (Eメールアドレスの削除)</div>
                     </div>
                   </div>
@@ -2026,17 +2061,17 @@ function FormItContent() {
                     onClick={() => setDelUserId(!delUserId)}
                     className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
                       delUserId
-                        ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 ring-2 ring-slate-900/10 shadow-xs'
+                        ? 'border-2 border-rose-500 bg-rose-50/60 dark:border-rose-400 dark:bg-rose-950/40 ring-2 ring-rose-500/15 shadow-sm'
                         : 'border border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800'
                     }`}
                   >
                     <div className={`grid size-9 shrink-0 place-items-center rounded-lg border ${
-                      delUserId ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
+                      delUserId ? 'bg-gradient-to-br from-rose-500 to-amber-600 text-white border-rose-500 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600'
                     }`}>
                       {delUserId ? <CheckSquare className="size-5" /> : <Square className="size-5" />}
                     </div>
                     <div>
-                      <div className="text-xs font-black text-slate-900 dark:text-white">Penghapusan Login User ID</div>
+                      <div className={`text-xs font-black ${delUserId ? 'text-rose-950 dark:text-rose-200' : 'text-slate-900 dark:text-white'}`}>Penghapusan Login User ID</div>
                       <div className="text-[10px] text-slate-500 font-medium">Pencabutan akun domain Windows (ユーザIDの削除)</div>
                     </div>
                   </div>
@@ -2082,7 +2117,7 @@ function FormItContent() {
               <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 space-y-6 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800">
                   <div className="flex items-center gap-3">
-                    <span className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-black shadow-xs dark:bg-slate-700">
+                    <span className={`flex size-8 items-center justify-center rounded-xl font-mono text-xs font-black shadow-md ${currentMeta.stepBadge}`}>
                       02
                     </span>
                     <div>
@@ -2090,7 +2125,7 @@ function FormItContent() {
                         <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
                           Informasi Koneksi &amp; Perangkat Jaringan (Network Details)
                         </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">
+                        <span className={`hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${currentMeta.badgeClass}`}>
                           INFRASTRUCTURE &amp; SECURITY
                         </span>
                       </div>
@@ -2115,7 +2150,7 @@ function FormItContent() {
                         type="date"
                         value={periodFrom}
                         onChange={(e) => setPeriodFrom(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3.5 text-xs sm:text-sm font-mono font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        className={`h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3.5 text-xs sm:text-sm font-mono font-medium text-slate-900 outline-none transition placeholder:text-slate-400 ${currentMeta.focusRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                         required
                       />
                     </div>
@@ -2130,7 +2165,7 @@ function FormItContent() {
                         type="date"
                         value={periodTo}
                         onChange={(e) => setPeriodTo(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3.5 text-xs sm:text-sm font-mono font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        className={`h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3.5 text-xs sm:text-sm font-mono font-medium text-slate-900 outline-none transition placeholder:text-slate-400 ${currentMeta.focusRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                         required
                       />
                     </div>
@@ -2146,7 +2181,7 @@ function FormItContent() {
                         value={networkLocation}
                         onChange={(e) => setNetworkLocation(e.target.value)}
                         placeholder="e.g. Ruang Meeting, Server Room, MFG"
-                        className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3.5 text-xs sm:text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        className={`h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3.5 text-xs sm:text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 ${currentMeta.focusRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                         required
                       />
                     </div>
@@ -2163,11 +2198,11 @@ function FormItContent() {
                       onClick={() => setPurposeInternet(!purposeInternet)}
                       className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeInternet
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 text-slate-900 dark:text-white font-bold ring-2 ring-slate-900/10 shadow-xs'
+                          ? 'border-2 border-cyan-500 bg-cyan-50/60 dark:border-cyan-400 dark:bg-cyan-950/40 text-cyan-900 dark:text-cyan-200 font-bold ring-2 ring-cyan-500/15 shadow-sm'
                           : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                       }`}
                     >
-                      <Globe className={`size-4 ${purposeInternet ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`} />
+                      <Globe className={`size-4 ${purposeInternet ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400'}`} />
                       <span className="text-xs">Internet Browsing</span>
                     </div>
 
@@ -2175,11 +2210,11 @@ function FormItContent() {
                       onClick={() => setPurposeEmail(!purposeEmail)}
                       className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeEmail
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 text-slate-900 dark:text-white font-bold ring-2 ring-slate-900/10 shadow-xs'
+                          ? 'border-2 border-cyan-500 bg-cyan-50/60 dark:border-cyan-400 dark:bg-cyan-950/40 text-cyan-900 dark:text-cyan-200 font-bold ring-2 ring-cyan-500/15 shadow-sm'
                           : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                       }`}
                     >
-                      <Mail className={`size-4 ${purposeEmail ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`} />
+                      <Mail className={`size-4 ${purposeEmail ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400'}`} />
                       <span className="text-xs">Mail Client</span>
                     </div>
 
@@ -2187,11 +2222,11 @@ function FormItContent() {
                       onClick={() => setPurposeWeb(!purposeWeb)}
                       className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeWeb
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 text-slate-900 dark:text-white font-bold ring-2 ring-slate-900/10 shadow-xs'
+                          ? 'border-2 border-cyan-500 bg-cyan-50/60 dark:border-cyan-400 dark:bg-cyan-950/40 text-cyan-900 dark:text-cyan-200 font-bold ring-2 ring-cyan-500/15 shadow-sm'
                           : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                       }`}
                     >
-                      <Layers className={`size-4 ${purposeWeb ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`} />
+                      <Layers className={`size-4 ${purposeWeb ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400'}`} />
                       <span className="text-xs">Internal Web Apps</span>
                     </div>
 
@@ -2199,11 +2234,11 @@ function FormItContent() {
                       onClick={() => setPurposeFtp(!purposeFtp)}
                       className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
                         purposeFtp
-                          ? 'border-2 border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800/80 text-slate-900 dark:text-white font-bold ring-2 ring-slate-900/10 shadow-xs'
+                          ? 'border-2 border-cyan-500 bg-cyan-50/60 dark:border-cyan-400 dark:bg-cyan-950/40 text-cyan-900 dark:text-cyan-200 font-bold ring-2 ring-cyan-500/15 shadow-sm'
                           : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                       }`}
                     >
-                      <HardDrive className={`size-4 ${purposeFtp ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`} />
+                      <HardDrive className={`size-4 ${purposeFtp ? 'text-cyan-600 dark:text-cyan-400' : 'text-slate-400'}`} />
                       <span className="text-xs">FTP &amp; File Server</span>
                     </div>
                   </div>
@@ -2212,7 +2247,7 @@ function FormItContent() {
                 {/* IT Security & Antivirus Verification Box */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5 space-y-4 dark:border-slate-800 dark:bg-slate-800/40">
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wide flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-slate-700 dark:text-slate-300" />
+                    <ShieldCheck className="size-4 text-cyan-600 dark:text-cyan-400" />
                     <span>Verifikasi Anti-Virus &amp; Konfigurasi IP (IT Security Check)</span>
                   </h4>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -2221,7 +2256,7 @@ function FormItContent() {
                       <select
                         value={antivirusInstalled ? 'yes' : 'no'}
                         onChange={(e) => setAntivirusInstalled(e.target.value === 'yes')}
-                        className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-medium text-slate-900 outline-none focus:border-slate-900 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        className={`h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-medium text-slate-900 outline-none ${currentMeta.focusRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                       >
                         <option value="yes">YES (Wajib Terinstall)</option>
                         <option value="no">NO</option>
@@ -2233,7 +2268,7 @@ function FormItContent() {
                         type="text"
                         value={antivirusName}
                         onChange={(e) => setAntivirusName(e.target.value)}
-                        className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-medium text-slate-900 outline-none focus:border-slate-900 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        className={`h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-medium text-slate-900 outline-none ${currentMeta.focusRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                       />
                     </div>
                     <div>
@@ -2243,7 +2278,7 @@ function FormItContent() {
                         value={osInfo}
                         onChange={(e) => setOsInfo(e.target.value)}
                         placeholder="Windows 11 / MacOS / Linux"
-                        className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-medium text-slate-900 outline-none focus:border-slate-900 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        className={`h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm font-medium text-slate-900 outline-none ${currentMeta.focusRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                       />
                     </div>
                   </div>
@@ -2256,11 +2291,11 @@ function FormItContent() {
                         onClick={() => setIpMode('dhcp')}
                         className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-4 text-xs font-bold transition active:scale-95 ${
                           ipMode === 'dhcp'
-                            ? 'border-slate-900 bg-slate-900 text-white dark:bg-white dark:text-slate-900 dark:border-white shadow-xs'
+                            ? 'border-cyan-500 bg-gradient-to-r from-cyan-600 via-teal-600 to-indigo-600 text-white shadow-md shadow-cyan-500/20'
                             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                         }`}
                       >
-                        {ipMode === 'dhcp' && <Check className="size-3.5 text-white dark:text-slate-900" />}
+                        {ipMode === 'dhcp' && <Check className="size-3.5 text-white" />}
                         <span>DHCP (Automatic IP)</span>
                       </button>
 
@@ -2269,11 +2304,11 @@ function FormItContent() {
                         onClick={() => setIpMode('static')}
                         className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-4 text-xs font-bold transition active:scale-95 ${
                           ipMode === 'static'
-                            ? 'border-slate-900 bg-slate-900 text-white dark:bg-white dark:text-slate-900 dark:border-white shadow-xs'
+                            ? 'border-cyan-500 bg-gradient-to-r from-cyan-600 via-teal-600 to-indigo-600 text-white shadow-md shadow-cyan-500/20'
                             : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
                         }`}
                       >
-                        {ipMode === 'static' && <Check className="size-3.5 text-white dark:text-slate-900" />}
+                        {ipMode === 'static' && <Check className="size-3.5 text-white" />}
                         <span>STATIC IP (Manual)</span>
                       </button>
                     </div>
@@ -2320,7 +2355,7 @@ function FormItContent() {
             <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 space-y-4 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-black shadow-xs dark:bg-slate-700">
+                  <span className={`flex size-8 items-center justify-center rounded-xl font-mono text-xs font-black shadow-md ${currentMeta.stepBadge}`}>
                     03
                   </span>
                   <div>
@@ -2363,7 +2398,7 @@ function FormItContent() {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Tuliskan keterangan detail, alasan pengajuan, atau urgensi permohonan layanan IT ini..."
                   rows={3}
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3.5 text-xs sm:text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-900 focus:ring-4 focus:ring-slate-900/10 shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                  className={`w-full rounded-xl border border-slate-300 bg-white p-3.5 text-xs sm:text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 ${currentMeta.activeRing} shadow-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white`}
                 />
               </div>
             </div>
@@ -2372,7 +2407,7 @@ function FormItContent() {
             <div className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-7 space-y-5 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-slate-900 text-white font-mono text-xs font-black shadow-xs dark:bg-slate-700">
+                  <span className={`flex size-8 items-center justify-center rounded-xl font-mono text-xs font-black shadow-md ${currentMeta.stepBadge}`}>
                     04
                   </span>
                   <div>
@@ -2405,9 +2440,9 @@ function FormItContent() {
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   {approvers.map((a, idx) => (
                     <React.Fragment key={a.id}>
-                      <div className="flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-xs hover:border-slate-300 transition dark:border-slate-700 dark:bg-slate-800">
+                      <div className="flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-xs hover:border-slate-300 hover:shadow-md transition-all dark:border-slate-700 dark:bg-slate-800">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                          <span className={`font-mono text-[10px] font-black px-2 py-0.5 rounded border ${currentMeta.stepSubBadge}`}>
                             STEP {idx + 1}
                           </span>
                           <span className="text-[10px] text-slate-500 font-bold truncate max-w-[120px]">
@@ -2448,7 +2483,7 @@ function FormItContent() {
             {/* GRAND SUBMIT ACTION BAR */}
             <div className="rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-[0_4px_24px_-4px_rgba(15,23,42,0.08)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-center gap-3.5 text-xs text-slate-600 dark:text-slate-300">
-                <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-slate-900 text-white shadow-xs dark:bg-slate-800">
+                <div className={`grid size-12 shrink-0 place-items-center rounded-xl ${currentMeta.stepBadge} text-white shadow-md`}>
                   <ShieldCheck className="size-6" />
                 </div>
                 <div>
@@ -2460,7 +2495,7 @@ function FormItContent() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 text-sm font-bold shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 active:scale-95 cursor-pointer shrink-0 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                className={`inline-flex items-center justify-center gap-2.5 rounded-xl ${currentMeta.buttonGradient} ${currentMeta.buttonShadow} text-white px-8 py-3.5 text-sm font-bold shadow-md transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 active:scale-95 cursor-pointer shrink-0`}
               >
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />

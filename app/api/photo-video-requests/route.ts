@@ -11,6 +11,7 @@ import { isDeliverableEmail } from '@/lib/email-address'
 import { notifyNewPhotoRequest } from '@/lib/photo-notify'
 import { parseEscort } from '@/lib/special-area-shared'
 import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
+import { API_BASE_PATH } from '@/lib/config'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -286,8 +287,11 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
     if (!requestRow.approval_token) return
 
     const base = resolveAppBaseUrl(settings.appUrl)
-    const approveUrl = `${base}/isms-jai/konfirmasi-approval?token=${requestRow.approval_token}&action=approve`
-    const rejectUrl = `${base}/isms-jai/konfirmasi-approval?token=${requestRow.approval_token}&action=reject`
+    const approvePath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(requestRow.approval_token)}&action=approve`
+    const rejectPath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(requestRow.approval_token)}&action=reject`
+    const approveUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(requestRow.approval_token)}&next=${encodeURIComponent(approvePath)}`
+    const rejectUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(requestRow.approval_token)}&next=${encodeURIComponent(rejectPath)}`
+    const dashboardUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(requestRow.approval_token)}&next=${encodeURIComponent(`${API_BASE_PATH}/persetujuan-saya`)}`
 
     const { subject, html } = buildVisitorApprovalEmail({
       approverName: pic.full_name ?? pic.name,
@@ -306,6 +310,7 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
         : requestRow.pic_jai ?? 'Belum ditentukan',
       approveUrl,
       rejectUrl,
+      dashboardUrl,
     })
 
     // Attached (not linked) — see the comment on LOGO_CID for why an

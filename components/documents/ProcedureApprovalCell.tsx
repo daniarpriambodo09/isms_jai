@@ -174,7 +174,20 @@ export function ProcedureApprovalCell({
                     )}
                   </div>
                 )}
-                {isAdmin && step.status === 'pending' && step.email_error && <p className="mt-0.5 text-[11px] text-red-700">{step.email_error}</p>}
+                {isAdmin && step.status === 'pending' && step.email_error && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <p className="text-[11px] font-medium text-red-700">{step.email_error}</p>
+                    <button
+                      type="button"
+                      onClick={onResend}
+                      disabled={busy}
+                      title="Kirim ulang email ke approver ini"
+                      className="inline-flex items-center gap-1 rounded bg-red-100 px-1.5 py-0.5 text-[10.5px] font-bold text-red-800 transition hover:bg-red-200 disabled:opacity-50"
+                    >
+                      {busy ? <Loader2 className="size-2.5 animate-spin" /> : <Send className="size-2.5" />} Coba Kirim Ulang
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
   
@@ -227,6 +240,22 @@ export function ProcedureApprovalCell({
             className="inline-flex w-fit items-center gap-1.5 rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-white transition hover:bg-amber-600 disabled:opacity-50"
           >
             {busy ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />} Kirim ke approver
+          </button>
+        )}
+        {isAdmin && !held && (status === 'pending' || steps.some((s) => s.email_error)) && (
+          <button
+            type="button"
+            onClick={onResend}
+            disabled={busy}
+            title={steps.some((s) => s.email_error) ? 'Kirim ulang email pengesahan yang gagal ke approver' : 'Kirim ulang email pengesahan ke approver'}
+            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition disabled:opacity-50 ${
+              steps.some((s) => s.email_error)
+                ? 'bg-red-600 text-white hover:bg-red-700 shadow-xs'
+                : 'border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-white'
+            }`}
+          >
+            {busy ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
+            {steps.some((s) => s.email_error) ? 'Kirim Ulang Email (Gagal)' : 'Kirim Ulang Email'}
           </button>
         )}
         {isAdmin && !placeBeforeSending && approvedCount > 0 && slotsCount < roles.length && (

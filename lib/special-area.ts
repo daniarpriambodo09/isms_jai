@@ -251,6 +251,12 @@ export async function sendApprovalRequest(id: number): Promise<string | null> {
       if (!settings?.host || !settings.port || !settings.senderEmail) error = 'SMTP belum dikonfigurasi (Admin Settings → SMTP Settings).'
       else {
         const base = resolveAppBaseUrl(settings.appUrl)
+        const approvePath = `${API_BASE_PATH}/persetujuan-area-special?token=${encodeURIComponent(token)}&action=approve`
+        const rejectPath = `${API_BASE_PATH}/persetujuan-area-special?token=${encodeURIComponent(token)}&action=reject`
+        const approveUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(approvePath)}`
+        const rejectUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(rejectPath)}`
+        const dashboardUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(`${API_BASE_PATH}/persetujuan-saya`)}`
+
         const { subject, html } = buildSpecialAreaApprovalEmail({
           approverName: approver.name,
           approverSalutation: approver.salutation,
@@ -263,8 +269,9 @@ export async function sendApprovalRequest(id: number): Promise<string | null> {
           purpose: req.purpose,
           idCardNo: req.id_card_no,
           picJai: req.escort_name ? `${req.escort_name}${req.escort_dept ? ` (${req.escort_dept})` : ''}` : null,
-          approveUrl: `${base}${API_BASE_PATH}/persetujuan-area-special?token=${token}&action=approve`,
-          rejectUrl: `${base}${API_BASE_PATH}/persetujuan-area-special?token=${token}&action=reject`,
+          approveUrl,
+          rejectUrl,
+          dashboardUrl,
         })
         await sendMail(settings, {
           to: approver.email,

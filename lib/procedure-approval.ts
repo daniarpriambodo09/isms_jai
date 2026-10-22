@@ -718,7 +718,9 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
       : null
 
     const base = resolveAppBaseUrl(settings.appUrl)
-    const dashboardUrl = `${base}${API_BASE_PATH}/persetujuan-saya?token=${encodeURIComponent(token)}`
+    const directReviewPath = `${API_BASE_PATH}/pengesahan?token=${encodeURIComponent(token)}`
+    const reviewUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(directReviewPath)}`
+    const dashboardUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(`${API_BASE_PATH}/persetujuan-saya`)}`
     const pendingCountRes = await query<{ count: string }>(
       `SELECT count(*)::text AS count
        FROM procedure_approvals a
@@ -760,7 +762,7 @@ async function emailStep(stepId: number, token: string, reminder: { count: numbe
         state: row.id === step.id ? 'current' as const : row.status === 'approved' ? 'done' as const : 'waiting' as const,
         decidedAt: row.decided_at,
       })),
-      reviewUrl: `${base}${API_BASE_PATH}/pengesahan?token=${token}`,
+      reviewUrl,
       dashboardUrl,
       pendingTotal,
       approvalCode: null,

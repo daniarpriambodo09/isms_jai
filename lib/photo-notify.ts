@@ -17,9 +17,11 @@ import path from 'path'
 import { query } from '@/lib/db'
 import { getSmtpSettings, sendMail } from '@/lib/smtp'
 import { isDeliverableEmail } from '@/lib/email-address'
-import { buildPhotoPendingDigestEmail, buildPhotoRequestAdminEmail, buildPhotoResultEmail, LOGO_CID } from '@/lib/email-templates'
+import { buildPhotoPendingDigestEmail, buildPhotoRequestAdminEmail, buildPhotoResultEmail, buildVisitorApprovalEmail, LOGO_CID } from '@/lib/email-templates'
 import { portalBaseUrl, sendToAdmins } from '@/lib/admin-mail'
 import { recordNotification } from '@/lib/admin-notifications'
+import { resolveAppBaseUrl } from '@/lib/request-origin'
+import { API_BASE_PATH } from '@/lib/config'
 
 type RequestRow = {
   id: number
@@ -165,4 +167,87 @@ export async function sendPhotoPendingDigest(now = Date.now()): Promise<'sent' |
     [DIGEST_KEY, JSON.stringify({ date: today, count: rows.length })]
   )
   return 'sent'
+}
+
+export async function resendPhotoVisitorApprovalEmail(id: number): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await query<{
+      id: number
+      request_type: string
+      status: string
+      requester_name: string
+      dept_or_company: string
+      dept: string | null
+      location: string
+      objective: string
+      from_at: string
+      to_at: string
+      escort_name: string | null
+      escort_dept: string | null
+      pic_jai: string | null
+      approval_token: string | null
+      pic_email: string | null
+      pic_fullname: string | null
+      pic_salutation: string | null
+    }>(
+      `SELECT r.id, r.request_type, r.status, r.requester_name, r.dept_or_company, r.dept, r.location, r.objective,
+              r.from_at, r.to_at, r.escort_name, r.escort_dept, r.pic_jai, r.approval_token,
+              pic.email as pic_email, COALESCE(pic.full_name, pic.name) as pic_fullname, pic.salutation as pic_salutation
+       FROM photo_video_requests r
+       LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
+       WHERE r.id = $1`,
+      [id]
+    )
+    const row = res.rows[0]
+    if (!row) return { success: false, message: 'Pengajuan tidak ditemukan.' }
+    if (row.request_type !== 'visitor') return { success: false, message: 'Hanya pengajuan visitor yang memerlukan persetujuan via email.' }
+    if (row.status !== 'pending') return { success: false, message: `Pengajuan sudah ${row.status}.` }
+    if (!row.pic_email) return { success: false, message: 'PIC Approver belum memiliki email terdaftar.' }
+
+    const settings = await getSmtpSettings()
+    if (!settings?.host || !settings.port || !settings.senderEmail) {
+      return { success: false, message: 'Pengaturan SMTP belum dikonfigurasi.' }
+    }
+
+    const base = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
+    const token = row.approval_token
+    if (!token) return { success: false, message: 'Token persetujuan tidak ditemukan.' }
+
+    const approvePath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(token)}&action=approve`
+    const rejectPath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(token)}&action=reject`
+    const approveUrl = `${base}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(approvePath)}`
+    const rejectUrl = `${base}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(rejectPath)}`
+    const dashboardUrl = `${base}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(`${API_BASE_PATH}/persetujuan-saya`)}`
+
+    const { subject, html } = buildVisitorApprovalEmail({
+      approverName: row.pic_fullname ?? 'Bapak/Ibu Approver',
+      approverSalutation: row.pic_salutation,
+      requesterName: row.requester_name,
+      deptOrCompany: row.dept_or_company,
+      dept: row.dept,
+      fromAt: row.from_at,
+      toAt: row.to_at,
+      location: row.location,
+      objective: row.objective,
+      picJai: row.escort_name ? `${row.escort_name}${row.escort_dept ? ` (${row.escort_dept})` : ''}` : row.pic_jai ?? 'Belum ditentukan',
+      approveUrl,
+      rejectUrl,
+      dashboardUrl,
+    })
+
+    const logoPath = path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg')
+    const attachments = [{ filename: 'yazaki-logo.jpg', path: logoPath, cid: LOGO_CID }]
+
+    await sendMail(settings, {
+      to: row.pic_email,
+      subject,
+      html,
+      attachments,
+    })
+
+    return { success: true, message: `Email pengesahan berhasil dikirim ulang ke ${row.pic_email}.` }
+  } catch (err) {
+    console.error('[photo-notify/resendPhotoVisitorApprovalEmail]', err)
+    return { success: false, message: err instanceof Error ? err.message : 'Gagal mengirim ulang email pengesahan.' }
+  }
 }

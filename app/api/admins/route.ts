@@ -1,10 +1,15 @@
 // app/api/admins/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import path from 'path'
 import { getIsmsAdminFromRequest, type AdminRole } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
+import { getSmtpSettings, sendMail } from '@/lib/smtp'
+import { buildAccountCreatedEmail, LOGO_CID } from '@/lib/email-templates'
+import { resolveAppBaseUrl } from '@/lib/request-origin'
+import { API_BASE_PATH } from '@/lib/config'
 
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
 const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security', 'approver', 'it']
@@ -54,7 +59,43 @@ export async function POST(request: NextRequest) {
 
     await logActivity(session, 'create', 'admin', created.id, `Membuat akun admin "${created.username}" (role: ${created.role})`)
 
-    return NextResponse.json({ admin: created }, { status: 201 })
+    let emailSent = false
+    let emailError: string | null = null
+    if (created.email) {
+      try {
+        const settings = await getSmtpSettings()
+        if (settings?.host && settings.port && settings.senderEmail) {
+          const base = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
+          const loginUrl = `${base}/login`
+          const dashboardUrl = `${base}/persetujuan-saya`
+          const { subject, html } = buildAccountCreatedEmail({
+            recipientName: created.username,
+            username: created.username,
+            password,
+            role: created.role,
+            email: created.email,
+            loginUrl,
+            dashboardUrl,
+          })
+          const logoPath = path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg')
+          const attachments = [{ filename: 'yazaki-logo.jpg', path: logoPath, cid: LOGO_CID }]
+          await sendMail(settings, {
+            to: created.email,
+            subject,
+            html,
+            attachments,
+          })
+          emailSent = true
+        } else {
+          emailError = 'Pengaturan SMTP belum dikonfigurasi'
+        }
+      } catch (mailErr) {
+        console.error('[admins/create-welcome-email]', mailErr)
+        emailError = mailErr instanceof Error ? mailErr.message : 'Gagal mengirim email ucapan selamat'
+      }
+    }
+
+    return NextResponse.json({ admin: created, emailSent, emailError }, { status: 201 })
   } catch (error) {
     console.error('[admins/POST]', error)
     return NextResponse.json({ message: 'Gagal membuat akun admin.' }, { status: 500 })

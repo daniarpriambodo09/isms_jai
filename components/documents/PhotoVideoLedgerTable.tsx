@@ -7,7 +7,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowDownUp, Camera, Download, Eye, Search, Sparkles, Trash2, Users } from 'lucide-react'
+import { ArrowDownUp, Camera, Download, Eye, Loader2, Search, Send, Sparkles, Trash2, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -107,7 +107,27 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   )
   const [deleteTarget, setDeleteTarget] = useState<LedgerRequest | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [resendingId, setResendingId] = useState<number | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+
+  const handleResendEmail = async (r: LedgerRequest) => {
+    setResendingId(r.id)
+    setNotice(null)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${r.id}/resend`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Gagal mengirim ulang email.')
+      setNotice(`Email persetujuan untuk ${r.requester_name} berhasil dikirim ulang ke approver.`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal mengirim ulang email.')
+    } finally {
+      setResendingId(null)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -233,7 +253,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     }
   }
 
-  const visitorActions = canViewPdf || canDelete
+  const visitorActions = canViewPdf || canDelete || !!adminUser
   const internalColCount = canDelete ? 18 : 17
   const visitorColCount = visitorActions ? 16 : 15
 
@@ -371,6 +391,23 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     {visitorActions && (
                       <td className="whitespace-nowrap px-4 py-3">
                         <div className="flex items-center gap-1">
+                          {adminUser && r.status === 'pending' && (
+                            <button
+                              type="button"
+                              onClick={() => handleResendEmail(r)}
+                              disabled={resendingId === r.id}
+                              aria-label={`Kirim ulang email persetujuan ${r.requester_name}`}
+                              title="Kirim ulang email persetujuan ke approver"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 transition disabled:opacity-50"
+                            >
+                              {resendingId === r.id ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <Send className="size-3" />
+                              )}
+                              <span>Kirim Ulang</span>
+                            </button>
+                          )}
                           {canViewPdf && (r.status !== 'pending' ? (
                             <a
                               href={`${API_BASE_PATH}/api/photo-video-requests/${r.id}/pdf`}

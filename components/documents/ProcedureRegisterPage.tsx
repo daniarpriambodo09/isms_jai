@@ -622,7 +622,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
         />
       )}
       {isIsmsAdmin && <FormReviewOverview open={overviewOpen} startWith={overviewStart} onClose={() => setOverviewOpen(false)} onChanged={() => loadDocuments()} />}
-      <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={() => loadDocuments()} document={editableDocument} />
+      <ProcedureFormModal kind={kind} open={formOpen} onClose={() => setFormOpen(false)} onSaved={async () => { await loadDocuments(); toast('Dokumen berhasil disimpan & email pengesahan dikirim ke approver.') }} document={editableDocument} />
       <ReviewFormModal
         open={!!reviewForm}
         editId={reviewForm?.editId}

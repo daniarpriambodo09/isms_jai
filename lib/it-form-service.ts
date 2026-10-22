@@ -875,8 +875,9 @@ export async function sendItFormApprovalEmail(submissionId: number, stepNumber: 
     const baseUrl = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
     const isFingerprint = sub.form_code === 'ISMS-F-02-00-002'
     const targetPath = isFingerprint ? '/registrasi-fingerprint' : '/form-it-esign'
-    const actionUrl = `${baseUrl}${targetPath}?token=${sub.token}`
-    const dashboardUrl = `${baseUrl}/api/auth/approver-token-login?token=${encodeURIComponent(sub.token)}`
+    const directActionPath = `${API_BASE_PATH}${targetPath}?token=${encodeURIComponent(sub.token)}`
+    const actionUrl = `${baseUrl}/api/auth/approver-token-login?token=${encodeURIComponent(sub.token)}&next=${encodeURIComponent(directActionPath)}`
+    const dashboardUrl = `${baseUrl}/api/auth/approver-token-login?token=${encodeURIComponent(sub.token)}&next=${encodeURIComponent(`${API_BASE_PATH}/persetujuan-saya`)}`
 
     const chain = sigs.map((s) => ({
       roleTitle: s.role_title,
@@ -1041,7 +1042,8 @@ export async function sendItFormRejectedEmail(
     const baseUrl = `${resolveAppBaseUrl(settings.appUrl)}${API_BASE_PATH}`
     const isFingerprint = sub.form_code === 'ISMS-F-02-00-002'
     const targetPath = isFingerprint ? '/registrasi-fingerprint' : '/form-it-esign'
-    const actionUrl = `${baseUrl}${targetPath}?token=${sub.token}`
+    const directActionPath = `${API_BASE_PATH}${targetPath}?token=${encodeURIComponent(sub.token)}`
+    const actionUrl = `${baseUrl}/api/auth/approver-token-login?token=${encodeURIComponent(sub.token)}&next=${encodeURIComponent(directActionPath)}`
 
     const { subject, html } = buildItFormRejectedEmail({
       requestNo: sub.request_no,

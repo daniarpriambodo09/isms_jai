@@ -23,6 +23,7 @@ export type VisitorApprovalEmailData = {
   picJai: string
   approveUrl: string
   rejectUrl: string
+  dashboardUrl?: string
 }
 
 // Content-ID the logo is attached under — see LOGO_CID usage in
@@ -147,20 +148,33 @@ export function buildVisitorApprovalEmail(data: VisitorApprovalEmailData): { sub
             <td style="padding:26px 32px 8px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
                 <tr>
-                  <td style="padding:20px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};">Klik salah satu tombol di bawah untuk memproses langsung &mdash; tanpa perlu login:</td>
+                  <td style="padding:20px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
                 </tr>
+                ${data.dashboardUrl ? `
                 <tr>
-                  <td align="center" style="padding:14px 20px 20px;">
+                  <td align="center" style="padding:8px 20px 6px;">
+                    <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 28px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
+                      &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+                    </a>
+                  </td>
+                </tr>` : ''}
+                <tr>
+                  <td align="center" style="padding:10px 20px 14px;">
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="padding-right:10px;">
-                          <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:14px 28px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;box-shadow:0 6px 14px rgba(26,110,58,0.3);">&#10003;&nbsp; Menyetujui</a>
+                          <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:13px 28px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.25);">&#10003;&nbsp; Menyetujui (Auto-Login)</a>
                         </td>
                         <td>
-                          <a href="${data.rejectUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:14px 28px;background:linear-gradient(135deg, #d8342b 0%, ${RED} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;box-shadow:0 6px 14px rgba(199,22,30,0.3);">&#10007;&nbsp; Tolak</a>
+                          <a href="${data.rejectUrl}" style="display:inline-block;min-width:140px;text-align:center;padding:13px 26px;background:linear-gradient(135deg, #d8342b 0%, ${RED} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(199,22,30,0.25);">&#10007;&nbsp; Tolak</a>
                         </td>
                       </tr>
                     </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 20px 14px;text-align:center;font-size:11px;color:${MUTED};">
+                    <em>Catatan: Tombol di atas akan otomatis mengautentikasi (Auto-Login) akun Anda ke Portal ISMS tanpa perlu login manual.</em>
                   </td>
                 </tr>
               </table>
@@ -203,8 +217,9 @@ function fmtDate(value: string | null) {
   return new Date(value).toLocaleDateString('id-ID', { timeZone: APP_TIME_ZONE, day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-function escapeHtml(value: string) {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+function escapeHtml(value: unknown) {
+  if (value === null || value === undefined) return ''
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 // Procedure emails have their own look — an official "document memo" on
@@ -904,14 +919,14 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
             <td style="padding:18px 20px;border-bottom:1px solid #e2e8f0;background:#ffffff;">
               <p style="margin:0 0 4px;font-size:14px;font-weight:bold;color:#0f172a;">
                 <span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px;">PILIHAN 1</span>
-                Setujui Dokumen Ini Langsung (Direct Link)
+                Setujui Dokumen Ini Langsung (Auto-Login)
               </p>
               <p style="margin:0 0 12px;font-size:12.5px;color:#64748b;line-height:1.5;">
-                Mengarahkan langsung ke dokumen ini untuk Anda periksa dan setujui / minta revisi tanpa perlu login akun.
+                Mengarahkan langsung ke dokumen ini untuk Anda periksa dan setujui / minta revisi — otomatis login ke akun Anda.
               </p>
               <div style="text-align:left;">
                 <a href="${data.reviewUrl}" style="display:inline-block;padding:12px 24px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:13.5px;letter-spacing:0.02em;${buttonStyle}">
-                  &#9998;&nbsp; ${data.reviewForm || fro ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI SEKARANG' : 'PERIKSA &amp; TANDA TANGANI LANGSUNG') : re ? 'REVIEW ULANG &amp; APPROVAL SEKARANG' : 'REVIEW &amp; SETUJUI DOKUMEN INI'}
+                  &#9998;&nbsp; ${data.reviewForm || fro ? (re ? 'PERIKSA ULANG &amp; TANDA TANGANI (AUTO-LOGIN)' : 'PERIKSA &amp; TANDA TANGANI LANGSUNG (AUTO-LOGIN)') : re ? 'REVIEW ULANG &amp; APPROVAL (AUTO-LOGIN)' : 'REVIEW &amp; SETUJUI DOKUMEN (AUTO-LOGIN)'}
                 </a>
               </div>
             </td>
@@ -922,14 +937,14 @@ export function buildProcedureApprovalEmail(data: ProcedureApprovalEmailData): {
             <td style="padding:18px 20px;background:#f8fafc;">
               <p style="margin:0 0 4px;font-size:14px;font-weight:bold;color:#0f172a;">
                 <span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;margin-right:6px;">PILIHAN 2</span>
-                Buka via Dashboard Approver (Lihat Semua Antrean)
+                Buka via Dashboard Approver (Auto-Login)
               </p>
               <p style="margin:0 0 12px;font-size:12.5px;color:#64748b;line-height:1.5;">
-                Membuka Dashboard Persetujuan Digital untuk melihat seluruh <strong>${pendingCount} antrean dokumen</strong> Anda secara terpusat dan memprosesnya secara fleksibel.
+                Membuka Dashboard Persetujuan Digital untuk melihat seluruh <strong>${pendingCount} antrean dokumen</strong> Anda secara terpusat — otomatis login ke akun Anda tanpa perlu memasukkan password.
               </p>
               <div style="text-align:left;">
                 <a href="${dashUrl}" style="display:inline-block;padding:12px 24px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:13.5px;background:#1a5f7a;color:#ffffff;border-radius:6px;border-bottom:3px solid #103b4c;letter-spacing:0.02em;">
-                  &#128203;&nbsp; Buka via Dashboard (${pendingCount} Antrean Menunggu)
+                  &#128203;&nbsp; Buka via Dashboard (${pendingCount} Antrean Menunggu) (Auto-Login)
                 </a>
               </div>
             </td>
@@ -1189,6 +1204,7 @@ export type SpecialAreaApprovalEmailData = {
   picJai?: string | null
   approveUrl: string
   rejectUrl: string
+  dashboardUrl?: string
 }
 
 export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData): { subject: string; html: string } {
@@ -1299,20 +1315,33 @@ export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData
             <td style="padding:26px 32px 8px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${SA_TINT};border:1px dashed ${SA_RED};border-radius:10px;">
                 <tr>
-                  <td style="padding:20px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};">Klik salah satu tombol di bawah untuk memproses &mdash; tanpa perlu login:</td>
+                  <td style="padding:20px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
                 </tr>
+                ${data.dashboardUrl ? `
                 <tr>
-                  <td align="center" style="padding:14px 20px 20px;">
+                  <td align="center" style="padding:8px 20px 6px;">
+                    <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 28px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
+                      &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+                    </a>
+                  </td>
+                </tr>` : ''}
+                <tr>
+                  <td align="center" style="padding:10px 20px 14px;">
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="padding-right:10px;">
-                          <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:14px 28px;background:${GREEN};color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px;">&#10003;&nbsp; Menyetujui</a>
+                          <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:13px 28px;background:${GREEN};color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;">&#10003;&nbsp; Menyetujui (Auto-Login)</a>
                         </td>
                         <td>
-                          <a href="${data.rejectUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:12px 26px;background:#ffffff;color:${SA_RED};border:2px solid ${SA_RED};border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px;">&#10007;&nbsp; Tolak</a>
+                          <a href="${data.rejectUrl}" style="display:inline-block;min-width:140px;text-align:center;padding:11px 24px;background:#ffffff;color:${SA_RED};border:2px solid ${SA_RED};border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;">&#10007;&nbsp; Tolak</a>
                         </td>
                       </tr>
                     </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 20px 14px;text-align:center;font-size:11px;color:${MUTED};">
+                    <em>Catatan: Tombol di atas akan otomatis mengautentikasi (Auto-Login) Anda ke akun Portal ISMS tanpa perlu login manual.</em>
                   </td>
                 </tr>
               </table>
@@ -1764,26 +1793,26 @@ export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subje
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
                 <tr>
                   <td style="padding:20px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">
-                    Pilih salah satu metode di bawah untuk memeriksa dan memberikan persetujuan (E-Sign):
+                    Pilih salah satu metode di bawah untuk memeriksa dan memberikan persetujuan (E-Sign) — Keduanya otomatis login:
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding:6px 20px 8px;">
-                    <a href="${dashUrl}" style="display:inline-block;min-width:260px;text-align:center;padding:13px 32px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
+                    <a href="${dashUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:13px 32px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
                       &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
                     </a>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding:6px 20px 14px;">
-                    <a href="${data.actionUrl}" style="display:inline-block;min-width:260px;text-align:center;padding:12px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.22);">
-                      &#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir
+                    <a href="${data.actionUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.22);">
+                      &#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)
                     </a>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding:0 24px 18px;text-align:center;font-size:11.5px;color:${MUTED};line-height:1.5;">
-                    <em>Catatan: Tombol <strong>Dashboard Persetujuan Saya</strong> akan langsung mengarahkan Anda ke antrean dokumen tanpa perlu login jika alamat email approver sama dengan email akun ISMS Anda.</em>
+                    <em>Catatan: Kedua pilihan tombol di atas akan otomatis mengautentikasi (Auto-Login) akun Anda ke Portal ISMS tanpa perlu memasukkan password manual.</em>
                   </td>
                 </tr>
               </table>
@@ -2127,4 +2156,169 @@ export function buildItFormRejectedEmail(data: ItFormRejectedEmailData): { subje
   return { subject, html }
 }
 
+// ─── Welcome / Account Created Email ───
 
+export type AccountCreatedEmailData = {
+  recipientName?: string
+  username: string
+  password?: string
+  role: string
+  email: string
+  loginUrl: string
+  dashboardUrl?: string
+}
+
+const ROLE_NAME_LABELS: Record<string, string> = {
+  ism_admin: 'Administrator ISMS',
+  approver: 'Approver Pengesahan Dokumen & Formulir',
+  it: 'Administrator IT / Layanan IT',
+  security: 'Petugas Security (Pos Keamanan)',
+  lobby: 'Petugas Lobby / Resepsionis',
+}
+
+export function buildAccountCreatedEmail(data: AccountCreatedEmailData): { subject: string; html: string } {
+  const e = escapeHtml
+  const roleLabel = ROLE_NAME_LABELS[data.role] || data.role.toUpperCase()
+  const rows: [string, string][] = [
+    ['Username', `<strong style="font-family:'Courier New',Courier,monospace;color:${NAVY};font-size:14px;">${e(data.username)}</strong>`],
+    ['Password Login', `<span style="font-family:'Courier New',Courier,monospace;color:#b91c1c;font-weight:bold;background:#fef2f2;padding:2px 8px;border-radius:4px;border:1px solid #fecaca;">${e(data.password || '•••••••• (Sesuai yang ditentukan Admin)')}</span>`],
+    ['Hak Akses (Role)', `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${TEAL_TINT};color:${TEAL};font-weight:bold;font-size:12px;">${e(roleLabel)}</span>`],
+    ['Email Dinas Terdaftar', `<span style="color:${TEXT};font-weight:600;">${e(data.email)}</span>`],
+    ['Status Akun', `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:#ecfdf5;color:#047857;font-weight:bold;font-size:11.5px;">&#10003; AKTIF &amp; SIAP DIGUNAKAN</span>`],
+  ]
+
+  const rowsHtml = rows
+    .map(
+      ([label, value], i) => `
+    <tr>
+      <td style="padding:12px 14px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:13px;color:${MUTED};width:160px;vertical-align:top;font-weight:600;">${label}</td>
+      <td style="padding:12px 16px;background:${i % 2 === 1 ? '#f8fafb' : '#ffffff'};border-bottom:1px solid ${BORDER};font-size:13.5px;color:${TEXT};vertical-align:top;">${value}</td>
+    </tr>`
+    )
+    .join('')
+
+  const html = `
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#eef2f4;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef2f4;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(18,40,58,0.16);">
+
+          <!-- Accent ribbon -->
+          <tr>
+            <td style="background:linear-gradient(90deg, ${ACCENT} 0%, ${ACCENT_DARK} 100%);height:6px;line-height:6px;font-size:0;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 45%, ${TEAL} 100%);background-color:${NAVY};padding:28px 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <span style="display:inline-block;background:#ffffff;border-radius:8px;padding:6px 10px;line-height:0;">
+                      <img src="cid:${LOGO_CID}" alt="YAZAKI" width="72" style="display:block;border:0;outline:none;height:auto;" />
+                    </span>
+                  </td>
+                  <td align="right" style="vertical-align:middle;">
+                    <span style="display:inline-block;border:1px solid rgba(255,255,255,0.35);border-radius:999px;padding:5px 12px;color:#ffffff;font-size:10.5px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;">Portal ISMS</span>
+                  </td>
+                </tr>
+              </table>
+              <div style="margin:20px 0 0;">
+                <span style="display:inline-block;background:rgba(255,255,255,0.2);color:#ffffff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">&#127881; Akun Baru Terdaftar</span>
+                <p style="margin:4px 0 0;color:#ffffff;font-size:22px;font-weight:bold;line-height:1.3;">Selamat Datang di Portal ISMS PT. JAI</p>
+                <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:12.5px;">Sistem Informasi Manajemen Keamanan Informasi &middot; PT. Jatim Autocomp Indonesia</p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 32px 12px;">
+              <p style="margin:0 0 12px;font-size:14.5px;color:${TEXT};line-height:1.7;">Dear Rekan Kerja <strong>${e(data.recipientName || data.username)}</strong>,</p>
+              <p style="margin:0 0 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">Semoga selalu dalam keadaan sehat dan sukses dalam menjalankan aktivitas.</p>
+              <p style="margin:0 0 16px;font-size:13.5px;color:${TEXT};line-height:1.75;">
+                Bersama email ini kami memberitahukan bahwa akun Anda telah <strong>berhasil didaftarkan secara resmi</strong> pada <strong>Portal ISMS (Information Security Management System) PT. Jatim Autocomp Indonesia</strong> oleh Administrator.
+              </p>
+              <p style="margin:0 0 14px;font-size:13.5px;color:${TEXT};line-height:1.75;">
+                Berikut adalah rincian informasi dan kredensial login akun Anda:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Detail Table -->
+          <tr>
+            <td style="padding:0 32px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid ${BORDER};border-radius:12px;overflow:hidden;">
+                ${rowsHtml}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Action Button CTA -->
+          <tr>
+            <td style="padding:26px 32px 10px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
+                <tr>
+                  <td style="padding:20px 20px 8px;text-align:center;font-size:13px;color:${NAVY};font-weight:bold;">
+                    Silakan gunakan kredensial di atas untuk masuk ke sistem:
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:8px 20px 8px;">
+                    <a href="${data.loginUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:14px 32px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;box-shadow:0 6px 14px rgba(18,40,58,0.25);">
+                      &#128640;&nbsp; Masuk ke Portal ISMS Sekarang
+                    </a>
+                  </td>
+                </tr>
+                ${data.dashboardUrl ? `
+                <tr>
+                  <td align="center" style="padding:6px 20px 14px;">
+                    <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.22);">
+                      &#128203;&nbsp; Buka Dashboard Persetujuan Saya
+                    </a>
+                  </td>
+                </tr>` : ''}
+              </table>
+            </td>
+          </tr>
+
+          <!-- Security Notice -->
+          <tr>
+            <td style="padding:10px 32px 20px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #cbd5e1;background:#f8fafc;border-radius:12px;">
+                <tr>
+                  <td style="padding:14px 18px;font-size:12px;color:${TEXT};line-height:1.65;">
+                    <strong style="color:${NAVY};display:block;margin-bottom:4px;">&#128274; Panduan Keamanan Informasi (ISO/IEC 27001):</strong>
+                    1. Jaga kerahasiaan username dan password akun Anda.<br />
+                    2. Jangan membagikan informasi login kepada siapapun.<br />
+                    3. Sangat disarankan untuk segera memperbarui password setelah berhasil login pertama kali melalui menu Pengaturan.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px 28px;text-align:center;border-top:1px solid ${BORDER};">
+              <p style="margin:0;font-size:11px;color:${MUTED};line-height:1.6;">
+                Email otomatis dari Sistem Informasi Manajemen Keamanan Informasi (ISMS) &middot; PT. Jatim Autocomp Indonesia.<br />
+                Harap tidak membalas email ini secara langsung. Jika Anda membutuhkan bantuan, hubungi Administrator ISMS.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+
+  const subject = `[Selamat Datang di Portal ISMS] Akun Anda Telah Dibuat — PT. JAI`
+  return { subject, html }
+}

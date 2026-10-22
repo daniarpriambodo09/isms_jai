@@ -5,7 +5,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, Camera, Check, Eye, Loader2, RotateCcw, Search, Settings, Trash2, Users, X } from 'lucide-react'
+import { AlertTriangle, Camera, Check, Eye, Loader2, RotateCcw, Search, Send, Settings, Trash2, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
@@ -58,6 +58,27 @@ function KelolaPermintaanFotoVideoContent() {
   const [returnNotes, setReturnNotes] = useState('')
   const [returning, setReturning] = useState(false)
   const [unmarkingReturnId, setUnmarkingReturnId] = useState<number | null>(null)
+  const [resendingId, setResendingId] = useState<number | null>(null)
+  const [resendNotice, setResendNotice] = useState<string | null>(null)
+
+  const resendApprovalEmail = async (req: PhotoVideoRequest) => {
+    setResendingId(req.id)
+    setResendNotice(null)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${req.id}/resend`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message ?? 'Gagal mengirim ulang email.')
+      setResendNotice(`Email persetujuan untuk ${req.requester_name} berhasil dikirim ulang ke approver.`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal mengirim ulang email.')
+    } finally {
+      setResendingId(null)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -237,6 +258,14 @@ function KelolaPermintaanFotoVideoContent() {
         />
       </div>
 
+      {resendNotice && (
+        <div className="flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900 shadow-sm">
+          <span>{resendNotice}</span>
+          <button type="button" onClick={() => setResendNotice(null)} className="text-emerald-700 hover:text-emerald-900">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
       {error && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -309,7 +338,18 @@ function KelolaPermintaanFotoVideoContent() {
                           Lihat
                         </button>
                       )}
-                      {isApproverAdmin && req.status === 'approved' && !req.taken_at ? (
+                      {/* Resend Approval Email for Visitor pending */}
+                      {req.request_type === 'visitor' && req.status === 'pending' ? (
+                        <button
+                          type="button"
+                          onClick={() => resendApprovalEmail(req)}
+                          disabled={resendingId === req.id}
+                          title="Kirim ulang email persetujuan ke approver"
+                          className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-center text-xs font-semibold text-amber-800 transition hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          {resendingId === req.id ? 'Mengirim...' : 'Kirim Ulang'}
+                        </button>
+                      ) : isApproverAdmin && req.status === 'approved' && !req.taken_at ? (
                         <button type="button" onClick={() => setPendingMarkTaken(req)} className="rounded-md border border-border px-3 py-1.5 text-center text-xs font-semibold text-foreground transition hover:bg-secondary">
                           Sudah Diambil
                         </button>

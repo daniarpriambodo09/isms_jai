@@ -11,8 +11,10 @@ import {
   EyeOff,
   History,
   Loader2,
+  Mail,
   PartyPopper,
   Plus,
+  Send,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -32,11 +34,14 @@ import { Pagination } from '@/components/pagination'
 type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
 type CreatedAccountInfo = {
+  id?: number
   username: string
   password: string
   role: AdminRole
   email: string | null
   created_at: string
+  emailSent?: boolean
+  emailError?: string | null
 }
 type ActivityEntry = {
   id: number
@@ -107,6 +112,52 @@ export default function KelolaAdminPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<AdminRow | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [resendingId, setResendingId] = useState<number | null>(null)
+  const [resendingModal, setResendingModal] = useState(false)
+  const [resendNotice, setResendNotice] = useState<string | null>(null)
+
+  const resendCredentials = async (admin: AdminRow) => {
+    if (!admin.email) return
+    setResendingId(admin.id)
+    setResendNotice(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/admins/${admin.id}/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Gagal mengirim ulang email kredensial.')
+      setResendNotice(data.message ?? `Email ucapan selamat & kredensial berhasil dikirim ke ${admin.email}`)
+      loadLog()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal mengirim email')
+    } finally {
+      setResendingId(null)
+    }
+  }
+
+  const resendWelcomeFromModal = async () => {
+    if (!createdAccount?.email) return
+    setResendingModal(true)
+    try {
+      const targetAdmin = admins.find((a) => a.username === createdAccount.username)
+      if (!targetAdmin) throw new Error('Akun tidak ditemukan.')
+      const res = await fetch(`${API_BASE_PATH}/api/admins/${targetAdmin.id}/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password: createdAccount.password }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message ?? 'Gagal mengirim email')
+      setCreatedAccount({ ...createdAccount, emailSent: true, emailError: null })
+    } catch (err) {
+      setCreatedAccount({ ...createdAccount, emailSent: false, emailError: err instanceof Error ? err.message : 'Gagal' })
+    } finally {
+      setResendingModal(false)
+    }
+  }
 
   const loadAdmins = useCallback(async () => {
     setAdminsLoading(true)
@@ -213,11 +264,14 @@ export default function KelolaAdminPage() {
       if (!res.ok) throw new Error(data.message ?? 'Gagal membuat akun admin.')
       
       const newAccountInfo: CreatedAccountInfo = {
+        id: data.admin?.id,
         username: createUsername.trim(),
         password: createPassword,
         role: createRole,
         email: createEmail.trim() || null,
         created_at: new Date().toISOString(),
+        emailSent: Boolean(data.emailSent),
+        emailError: data.emailError ?? null,
       }
 
       setShowCreate(false)
@@ -407,6 +461,18 @@ export default function KelolaAdminPage() {
             </div>
           )}
 
+          {resendNotice && (
+            <div className="mx-5 my-4 flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs font-medium text-emerald-800">
+              <div className="flex items-center gap-2">
+                <Check className="size-4 shrink-0 text-emerald-600" />
+                <span>{resendNotice}</span>
+              </div>
+              <button type="button" onClick={() => setResendNotice(null)} className="cursor-pointer text-emerald-700 hover:text-emerald-900">
+                <X className="size-4" />
+              </button>
+            </div>
+          )}
+
           {adminsLoading ? (
             <div className="flex items-center justify-center py-16"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
           ) : admins.length === 0 ? (
@@ -441,6 +507,18 @@ export default function KelolaAdminPage() {
                         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${ROLE_TONE[admin.role]}`}>{ROLE_LABEL[admin.role]}</span>
                         {!isSelf && !isEditing && (
                           <>
+                            {admin.email && isDeliverableEmail(admin.email) && (
+                              <button
+                                type="button"
+                                onClick={() => resendCredentials(admin)}
+                                disabled={resendingId === admin.id}
+                                title="Kirim ulang email ucapan selamat & kredensial akun ke email pemilik"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground disabled:opacity-50 cursor-pointer"
+                              >
+                                {resendingId === admin.id ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
+                                <span>Kirim Kredensial</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => startEdit(admin)}
@@ -643,11 +721,43 @@ export default function KelolaAdminPage() {
 
               {/* Optional Email & Portal info */}
               {createdAccount.email && (
-                <div className="space-y-1 pt-1 border-t border-border/40">
+                <div className="space-y-2 pt-2 border-t border-border/40">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Email Terkait:</span>
+                    <span className="text-muted-foreground">Email Terdaftar:</span>
                     <span className="font-mono font-medium text-foreground">{createdAccount.email}</span>
                   </div>
+                  {createdAccount.emailSent ? (
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-800 dark:text-emerald-300">
+                      <Check className="size-4 shrink-0 text-emerald-600" />
+                      <span>Email ucapan selamat &amp; kredensial akun telah otomatis dikirim ke <strong>{createdAccount.email}</strong>. Pemilik akun dapat langsung mengetahui jika sudah memiliki akun.</span>
+                    </div>
+                  ) : createdAccount.emailError ? (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+                      <span>Pengiriman email belum berhasil: {createdAccount.emailError}</span>
+                      <button
+                        type="button"
+                        onClick={resendWelcomeFromModal}
+                        disabled={resendingModal}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50 cursor-pointer"
+                      >
+                        {resendingModal ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
+                        <span>Kirim Ulang Email</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-blue-800 dark:text-blue-300">
+                      <span>Kirim email ucapan selamat &amp; kredensial ke pemilik akun:</span>
+                      <button
+                        type="button"
+                        onClick={resendWelcomeFromModal}
+                        disabled={resendingModal}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                      >
+                        {resendingModal ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
+                        <span>Kirim Email Akun</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

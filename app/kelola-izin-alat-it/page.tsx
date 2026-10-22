@@ -27,6 +27,7 @@ import {
   ExternalLink,
   PencilLine,
   Loader2,
+  Send,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
@@ -44,6 +45,25 @@ export default function KelolaIzinAlatItPage() {
   const [itSignLoading, setItSignLoading] = useState(false)
   const [itSignNote, setItSignNote] = useState('')
   const [itSignerName, setItSignerName] = useState('')
+  const [itResendingId, setItResendingId] = useState<number | null>(null)
+  const [itResendNotice, setItResendNotice] = useState<string | null>(null)
+
+  const handleResendItEmail = async (sub: ItFormSubmission) => {
+    setItResendingId(sub.id)
+    setItResendNotice(null)
+    try {
+      const res = await fetch(`/api/it-form-submissions/${sub.id}/resend`, {
+        method: 'POST',
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Gagal mengirim ulang email.')
+      setItResendNotice(`Email persetujuan formulir ${sub.request_no} berhasil dikirim ulang ke approver step ${sub.current_step}.`)
+    } catch (err: any) {
+      alert(err.message || 'Gagal mengirim ulang email.')
+    } finally {
+      setItResendingId(null)
+    }
+  }
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'returned' | 'rejected'>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -785,6 +805,15 @@ export default function KelolaIzinAlatItPage() {
             ))}
           </div>
 
+          {itResendNotice && (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900 shadow-sm">
+              <span>{itResendNotice}</span>
+              <button type="button" onClick={() => setItResendNotice(null)} className="text-emerald-700 hover:text-emerald-900">
+                <X className="size-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* IT Submissions Table */}
           <div className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
@@ -878,6 +907,22 @@ export default function KelolaIzinAlatItPage() {
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {sub.status === 'pending' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResendItEmail(sub)}
+                                  disabled={itResendingId === sub.id}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 text-xs font-semibold transition disabled:opacity-50"
+                                  title="Kirim ulang notifikasi email ke approver"
+                                >
+                                  {itResendingId === sub.id ? (
+                                    <Loader2 className="size-3 animate-spin" />
+                                  ) : (
+                                    <Send className="size-3" />
+                                  )}
+                                  <span>Kirim Ulang</span>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => setSelectedItSub(sub)}

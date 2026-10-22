@@ -231,14 +231,14 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {/* Card 1: Form Layanan IT (E-Sign) */}
-            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card via-card to-emerald-500/[0.03] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-500/60 hover:shadow-xl hover:shadow-emerald-500/10">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-b from-card via-card to-emerald-500/[0.06] p-5 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-500/15">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400" />
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 transition-transform duration-200 group-hover:scale-110">
+                  <div className="grid size-11 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-xs transition-transform duration-300 group-hover:scale-110">
                     <FileSignature className="size-5" />
                   </div>
-                  <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/40 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 shadow-2xs">
                     5 Form IT
                   </span>
                 </div>
@@ -249,16 +249,16 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                   Pengadaan PC/Laptop, Lisensi Software, Email &amp; User ID, dan Koneksi Jaringan.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-1">
-                  <Link href="/form-it-esign?form=ISMS-F-010-001" className="rounded-md border border-border/70 bg-secondary/60 px-1.5 py-0.5 text-[9.5px] font-semibold text-foreground hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors">PC/Laptop</Link>
-                  <Link href="/form-it-esign?form=ISMS-F-010-003" className="rounded-md border border-border/70 bg-secondary/60 px-1.5 py-0.5 text-[9.5px] font-semibold text-foreground hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors">Software</Link>
-                  <Link href="/form-it-esign?form=ISMS-F-010-006" className="rounded-md border border-border/70 bg-secondary/60 px-1.5 py-0.5 text-[9.5px] font-semibold text-foreground hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors">Email &amp; ID</Link>
-                  <Link href="/form-it-esign?form=ISMS-F-03-00-003" className="rounded-md border border-border/70 bg-secondary/60 px-1.5 py-0.5 text-[9.5px] font-semibold text-foreground hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors">Jaringan</Link>
+                  <Link href="/form-it-esign?form=ISMS-F-010-001" className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">PC/Laptop</Link>
+                  <Link href="/form-it-esign?form=ISMS-F-010-003" className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">Software</Link>
+                  <Link href="/form-it-esign?form=ISMS-F-010-006" className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">Email &amp; ID</Link>
+                  <Link href="/form-it-esign?form=ISMS-F-03-00-003" className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">Jaringan</Link>
                 </div>
               </div>
-              <div className="mt-4 border-t border-border/60 pt-3">
+              <div className="mt-4 border-t border-emerald-500/20 pt-3">
                 <Link
                   href="/form-it-esign"
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 text-xs font-bold shadow-xs transition-all duration-150 group-hover:shadow-md"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:from-emerald-700 active:to-teal-700 active:scale-95 text-white px-3.5 py-2.5 text-xs font-bold shadow-md shadow-emerald-600/25 transition-all duration-200 group-hover:shadow-lg group-hover:shadow-emerald-600/35"
                 >
                   <span>Buka Form IT</span>
                   <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
@@ -267,14 +267,14 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
             </div>
 
             {/* Card 2: Registrasi Fingerprint Special Security Area */}
-            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card via-card to-indigo-500/[0.03] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-indigo-500/60 hover:shadow-xl hover:shadow-indigo-500/10">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-400" />
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-indigo-500/30 bg-gradient-to-b from-card via-card to-indigo-500/[0.06] p-5 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-indigo-500 hover:shadow-xl hover:shadow-indigo-500/15">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-400 to-indigo-400" />
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 transition-transform duration-200 group-hover:scale-110">
+                  <div className="grid size-11 place-items-center rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 shadow-xs transition-transform duration-300 group-hover:scale-110">
                     <Fingerprint className="size-5" />
                   </div>
-                  <span className="rounded-full bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                  <span className="rounded-full bg-indigo-500/15 border border-indigo-500/40 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 shadow-2xs">
                     F-02-00-002
                   </span>
                 </div>
@@ -284,11 +284,16 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                 <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
                   Pendaftaran sidik jari akses Special Security Area (Server Room, Arsip) E-Sign resmi IAA.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <span className="rounded-md border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-indigo-700 dark:text-indigo-300">Server Room</span>
+                  <span className="rounded-md border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-indigo-700 dark:text-indigo-300">Arsip</span>
+                  <span className="rounded-md border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-indigo-700 dark:text-indigo-300">Akses 24/7</span>
+                </div>
               </div>
-              <div className="mt-4 border-t border-border/60 pt-3">
+              <div className="mt-4 border-t border-indigo-500/20 pt-3">
                 <Link
                   href="/registrasi-fingerprint"
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 text-xs font-bold shadow-xs transition-all duration-150 group-hover:shadow-md"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:from-indigo-700 active:to-purple-700 active:scale-95 text-white px-3.5 py-2.5 text-xs font-bold shadow-md shadow-indigo-600/25 transition-all duration-200 group-hover:shadow-lg group-hover:shadow-indigo-600/35"
                 >
                   <span>Buka Form Fingerprint</span>
                   <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
@@ -297,44 +302,49 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
             </div>
 
             {/* Card 3: Izin Bawa Alat IT */}
-            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card via-card to-blue-500/[0.03] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-blue-500/60 hover:shadow-xl hover:shadow-blue-500/10">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-400" />
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-sky-500/30 bg-gradient-to-b from-card via-card to-sky-500/[0.06] p-5 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-sky-500 hover:shadow-xl hover:shadow-sky-500/15">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-sky-500 via-blue-400 to-cyan-400" />
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 transition-transform duration-200 group-hover:scale-110">
+                  <div className="grid size-11 place-items-center rounded-xl bg-sky-500/15 text-sky-600 dark:text-sky-400 border border-sky-500/30 shadow-xs transition-transform duration-300 group-hover:scale-110">
                     <Laptop className="size-5" />
                   </div>
-                  <span className="rounded-full bg-blue-500/10 border border-blue-500/30 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                  <span className="rounded-full bg-sky-500/15 border border-sky-500/40 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300 shadow-2xs">
                     F-03-00-001/002
                   </span>
                 </div>
-                <h4 className="mt-3.5 font-display text-sm font-extrabold text-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                <h4 className="mt-3.5 font-display text-sm font-extrabold text-foreground group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                   Izin Bawa Alat IT
                 </h4>
                 <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
                   Izin membawa masuk / keluar laptop, USB, kamera &amp; perangkat IT ke area PT. JAI.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <span className="rounded-md border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-sky-700 dark:text-sky-300">Laptop &amp; PC</span>
+                  <span className="rounded-md border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-sky-700 dark:text-sky-300">USB Flashdisk</span>
+                  <span className="rounded-md border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-sky-700 dark:text-sky-300">Kamera</span>
+                </div>
               </div>
-              <div className="mt-4 border-t border-border/60 pt-3">
+              <div className="mt-4 border-t border-sky-500/20 pt-3">
                 <Link
                   href="/ijin-masuk-alat-it"
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 text-xs font-bold shadow-xs transition-all duration-150 group-hover:shadow-md"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 active:from-sky-700 active:to-blue-700 active:scale-95 text-white px-3.5 py-2.5 text-xs font-bold shadow-md shadow-sky-600/25 transition-all duration-200 group-hover:shadow-lg group-hover:shadow-sky-600/35"
                 >
-                  <span>Buka Formulir</span>
+                  <span>Buka Form Alat IT</span>
                   <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
             </div>
 
             {/* Card 4: Izin Foto & Video */}
-            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card via-card to-amber-500/[0.03] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-amber-500/60 hover:shadow-xl hover:shadow-amber-500/10">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-400" />
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-amber-500/30 bg-gradient-to-b from-card via-card to-amber-500/[0.06] p-5 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/15">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-400 to-amber-400" />
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 transition-transform duration-200 group-hover:scale-110">
+                  <div className="grid size-11 place-items-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-xs transition-transform duration-300 group-hover:scale-110">
                     <Camera className="size-5" />
                   </div>
-                  <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                  <span className="rounded-full bg-amber-500/15 border border-amber-500/40 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 shadow-2xs">
                     F-04-00-001
                   </span>
                 </div>
@@ -344,27 +354,32 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                 <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
                   Permohonan izin pengambilan dokumentasi foto / video di lingkungan PT. JAI.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-700 dark:text-amber-300">Dokumentasi</span>
+                  <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-700 dark:text-amber-300">Audit Visual</span>
+                  <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-amber-700 dark:text-amber-300">Pemberian Pita</span>
+                </div>
               </div>
-              <div className="mt-4 border-t border-border/60 pt-3">
+              <div className="mt-4 border-t border-amber-500/20 pt-3">
                 <Link
                   href="/ijin-foto-video"
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 text-xs font-bold shadow-xs transition-all duration-150 group-hover:shadow-md"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 active:from-amber-700 active:to-orange-700 active:scale-95 text-white px-3.5 py-2.5 text-xs font-bold shadow-md shadow-amber-600/25 transition-all duration-200 group-hover:shadow-lg group-hover:shadow-amber-600/35"
                 >
-                  <span>Buka Formulir</span>
+                  <span>Buka Form Foto/Video</span>
                   <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
             </div>
 
             {/* Card 5: Special Security Area */}
-            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-b from-card via-card to-rose-500/[0.03] p-5 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-rose-500/60 hover:shadow-xl hover:shadow-rose-500/10">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-red-400" />
+            <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border-2 border-rose-500/30 bg-gradient-to-b from-card via-card to-rose-500/[0.06] p-5 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:border-rose-500 hover:shadow-xl hover:shadow-rose-500/15">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 via-red-400 to-rose-400" />
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-transform duration-200 group-hover:scale-110">
+                  <div className="grid size-11 place-items-center rounded-xl bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-xs transition-transform duration-300 group-hover:scale-110">
                     <ShieldAlert className="size-5" />
                   </div>
-                  <span className="rounded-full bg-rose-500/10 border border-rose-500/30 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">
+                  <span className="rounded-full bg-rose-500/15 border border-rose-500/40 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300 shadow-2xs">
                     Zona Khusus
                   </span>
                 </div>
@@ -374,14 +389,19 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                 <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
                   Izin akses ke Server Room, Ruang Arsip, dan Area Berpengawasan Khusus.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  <span className="rounded-md border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-rose-700 dark:text-rose-300">Server Room</span>
+                  <span className="rounded-md border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-rose-700 dark:text-rose-300">Ruang Arsip</span>
+                  <span className="rounded-md border border-rose-500/30 bg-rose-500/10 px-1.5 py-0.5 text-[9.5px] font-bold text-rose-700 dark:text-rose-300">Area Terbatas</span>
+                </div>
               </div>
-              <div className="mt-4 border-t border-border/60 pt-3">
+              <div className="mt-4 border-t border-rose-500/20 pt-3">
                 <button
                   type="button"
                   onClick={() => setSpecialAreaModalOpen(true)}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-2 text-xs font-bold shadow-xs transition-all duration-150 group-hover:shadow-md cursor-pointer"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 active:from-rose-700 active:to-red-700 active:scale-95 text-white px-3.5 py-2.5 text-xs font-bold shadow-md shadow-rose-600/25 transition-all duration-200 group-hover:shadow-lg group-hover:shadow-rose-600/35 cursor-pointer"
                 >
-                  <span>Buka Pengajuan</span>
+                  <span>Buka Form Zona Khusus</span>
                   <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
                 </button>
               </div>

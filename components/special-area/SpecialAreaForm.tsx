@@ -318,11 +318,19 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
                 )}
                 <span className="mt-1 block text-[11px] text-muted-foreground">Karyawan JAI yang mendampingi tamu di area. Tercantum di email ke approver sebagai “PIC JAI”.</span>
               </label>
-              <div className="sm:col-span-2">
-                <label htmlFor="sa-id-card" className={label}>ID Card No. (opsional — bisa di-scan / diisi nanti saat kartu diberikan)</label>
+              <div className="sm:col-span-2 rounded-xl border border-border/70 bg-secondary/15 p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="sa-id-card" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <ScanLine className="size-3.5 text-red-600 dark:text-red-400" />
+                    <span>ID Card No. / Barcode Kartu</span>
+                  </label>
+                  <span className="text-[10.5px] font-medium text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-md">
+                    Opsional — bisa diisi nanti
+                  </span>
+                </div>
                 <div className="flex gap-2">
                   <div className="relative min-w-0 flex-1">
-                    <ScanLine className={`pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 ${scanning ? 'text-emerald-600' : 'text-muted-foreground'}`} />
+                    <ScanLine className={`pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 ${scanning ? 'text-emerald-600 animate-pulse' : 'text-muted-foreground'}`} />
                     <input
                       id="sa-id-card"
                       ref={idCardRef}
@@ -333,28 +341,44 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
                         if (e.key === 'Escape' && scanning) { e.stopPropagation(); setScanning(false) }
                       }}
                       onBlur={() => setScanning(false)}
-                      placeholder={scanning ? 'Arahkan pemindai ke barcode kartu…' : 'Scan atau ketik nomor kartu'}
+                      placeholder={scanning ? 'Arahkan scanner ke barcode kartu…' : 'Scan barcode atau ketik nomor kartu'}
                       maxLength={100}
                       autoComplete="off"
-                      className={`${input} pl-10 font-mono ${scanning ? 'border-emerald-500 ring-4 ring-emerald-500/20' : ''}`}
+                      className={`${input} pl-10 font-mono ${scanning ? 'border-emerald-500 ring-4 ring-emerald-500/20 bg-emerald-500/5' : ''}`}
                     />
                   </div>
                   <button
                     type="button"
                     onClick={startScan}
                     aria-pressed={scanning}
-                    className={`inline-flex h-10 flex-none items-center gap-1.5 rounded-xl px-4 text-sm font-semibold transition cursor-pointer ${scanning ? 'bg-emerald-600 text-white' : 'border border-border bg-card text-foreground hover:bg-secondary'}`}
+                    className={`inline-flex h-10 flex-none items-center gap-1.5 rounded-xl px-4 text-xs font-bold transition cursor-pointer shadow-xs ${scanning ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-border bg-card text-foreground hover:bg-secondary'}`}
                   >
-                    <ScanLine className={`size-4 ${scanning ? 'animate-pulse' : ''}`} /> {scanning ? 'Menunggu scan…' : idCardNo ? 'Scan ulang' : 'Scan'}
+                    <ScanLine className={`size-3.5 ${scanning ? 'animate-pulse' : ''}`} />
+                    <span>{scanning ? 'Menunggu Scan…' : idCardNo ? 'Scan Ulang' : 'Scan Barcode'}</span>
                   </button>
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground" aria-live="polite">
-                  {scanning
-                    ? 'Scan kartu sekarang — nomornya langsung terisi. Esc untuk batal.'
-                    : scanned && idCardNo
-                      ? <span className="font-semibold text-emerald-700">✓ Kartu terbaca: {idCardNo}</span>
-                      : 'Tekan Scan lalu pindai barcode kartu dengan alat scanner, atau ketik nomornya.'}
-                </p>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <p aria-live="polite">
+                    {scanning ? (
+                      <span className="font-semibold text-emerald-600 animate-pulse">Menunggu pemindai barcode kartu... (Tekan Esc untuk batal)</span>
+                    ) : scanned && idCardNo ? (
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="size-3.5" /> Kartu terbaca: {idCardNo}
+                      </span>
+                    ) : (
+                      'Tekan "Scan Barcode" lalu arahkan alat scanner ke kartu, atau ketik langsung nomornya.'
+                    )}
+                  </p>
+                  {idCardNo && (
+                    <button
+                      type="button"
+                      onClick={() => { setIdCardNo(''); setScanned(false) }}
+                      className="text-[10px] text-muted-foreground hover:text-destructive underline cursor-pointer"
+                    >
+                      Hapus
+                    </button>
+                  )}
+                </div>
               </div>
 
               {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive sm:col-span-2">{error}</p>}

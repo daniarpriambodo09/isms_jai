@@ -647,26 +647,26 @@ function FormItContent() {
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-24 pt-4 px-3 sm:px-6">
       {/* Top Banner / Dedicated Paperless Digital E-Sign Terminal (Distinct from Kontrol CS) */}
-      <section className="hero-esign relative overflow-hidden rounded-3xl border-2 border-emerald-500/30 text-white p-6 sm:p-9 shadow-2xl shadow-emerald-950/20 transition-all">
+      <section className="hero-esign relative overflow-hidden rounded-3xl border border-primary/30 text-white p-6 sm:p-9 shadow-2xl shadow-slate-950/30 transition-all">
         {/* Soft glowing ambient lighting */}
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-emerald-500/20 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -left-20 -bottom-20 size-72 rounded-full bg-teal-400/15 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-primary/25 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -left-20 -bottom-20 size-72 rounded-full bg-blue-500/15 blur-3xl" />
 
         {/* Top Compliance & Operational Status Bar */}
-        <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-emerald-500/20 pb-4 font-mono text-[11px] tracking-wide text-emerald-200/80">
+        <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 font-mono text-[11px] tracking-wide text-slate-300">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/20 px-3 py-1 text-[10.5px] font-bold text-emerald-300 shadow-xs">
-              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/20 px-3 py-1 text-[10.5px] font-bold text-blue-200 shadow-xs">
+              <span className="size-2 rounded-full bg-blue-400 animate-pulse" />
               PORTAL RESMI E-SIGN IT
             </span>
-            <span className="text-emerald-400/40 hidden sm:inline">&bull;</span>
-            <span className="font-semibold text-emerald-100 hidden sm:inline">PT. JATIM AUTOCOMP INDONESIA</span>
+            <span className="text-white/20 hidden sm:inline">&bull;</span>
+            <span className="font-semibold text-slate-200 hidden sm:inline">PT. JATIM AUTOCOMP INDONESIA</span>
           </div>
           <div className="flex items-center gap-2.5 text-xs">
-            <span className="rounded-md border border-emerald-500/30 bg-emerald-950/60 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-300 font-mono">
+            <span className="rounded-md border border-white/10 bg-slate-900/60 px-2.5 py-0.5 text-[10.5px] font-bold text-blue-200 font-mono">
               ISO/IEC 27001 PAPERLESS WORKFLOW
             </span>
-            <span className="rounded-full bg-emerald-400/10 px-2.5 py-0.5 text-[10px] font-mono text-emerald-200">
+            <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-mono text-slate-300">
               5 FORM DIGITAL
             </span>
           </div>
@@ -675,39 +675,39 @@ function FormItContent() {
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4 sm:gap-5">
             {/* Illuminated Digital Signing Glyph */}
-            <div className="relative grid size-16 sm:size-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500/20 via-teal-500/25 to-emerald-600/30 border-2 border-emerald-400/40 text-emerald-300 shadow-xl shadow-emerald-500/20 backdrop-blur-md">
-              <FileSignature className="size-8 sm:size-10 text-emerald-300 drop-shadow" />
-              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-slate-950 shadow-md">
+            <div className="relative grid size-16 sm:size-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/30 via-blue-600/25 to-slate-800/40 border-2 border-primary/40 text-blue-200 shadow-xl shadow-primary/20 backdrop-blur-md">
+              <FileSignature className="size-8 sm:size-10 text-blue-200 drop-shadow" />
+              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-black text-white shadow-md">
                 ✓
               </span>
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-2 font-mono text-[10.5px]">
-                <span className="rounded-md bg-gradient-to-r from-emerald-500 to-teal-500 px-2.5 py-0.5 font-black tracking-wider text-slate-950 shadow-xs">
+                <span className="rounded-md bg-gradient-to-r from-primary to-blue-600 px-2.5 py-0.5 font-black tracking-wider text-white shadow-xs">
                   LAYANAN PERMOHONAN RESMI
                 </span>
-                <span className="text-emerald-400/40">/</span>
-                <span className="font-semibold text-emerald-200/90">
+                <span className="text-white/20">/</span>
+                <span className="font-semibold text-slate-300">
                   OTORISASI DIGITAL BERJENJANG (E-SIGN)
                 </span>
               </div>
               <h1 className="font-display text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
                 Formulir Layanan Digital &amp;{' '}
-                <span className="bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-200 bg-clip-text text-transparent font-extrabold italic">
+                <span className="bg-gradient-to-r from-blue-200 via-sky-100 to-white bg-clip-text text-transparent font-extrabold italic">
                   E-Sign Otorisasi IT
                 </span>
               </h1>
-              <p className="mt-2 text-xs sm:text-sm text-emerald-100/80 max-w-2xl leading-relaxed font-normal">
+              <p className="mt-2 text-xs sm:text-sm text-slate-300/90 max-w-2xl leading-relaxed font-normal">
                 Portal mandiri pengajuan aset PC/Laptop, lisensi software, akun domain &amp; akses jaringan dengan alur tanda tangan elektronik (E-Sign) berjenjang dan verifikasi QR Code terenkripsi.
               </p>
 
               {/* Service tags chips */}
               <div className="mt-3.5 flex flex-wrap gap-1.5">
-                <span className="rounded-md border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-200">💻 PC/Laptop</span>
-                <span className="rounded-md border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-200">📦 Lisensi Software</span>
-                <span className="rounded-md border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-200">🔄 Pinjam Laptop</span>
-                <span className="rounded-md border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-200">👤 Email &amp; User ID</span>
-                <span className="rounded-md border border-emerald-400/30 bg-emerald-500/15 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-200">🌐 Jaringan</span>
+                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">💻 PC/Laptop</span>
+                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">📦 Lisensi Software</span>
+                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">🔄 Pinjam Laptop</span>
+                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">👤 Email &amp; User ID</span>
+                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">🌐 Jaringan</span>
               </div>
             </div>
           </div>
@@ -715,15 +715,15 @@ function FormItContent() {
           <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
             <Link
               href="/ijin-masuk-alat-it"
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-950/50 hover:bg-emerald-900/60 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-emerald-200 shadow-xs transition hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-slate-200 shadow-xs transition hover:-translate-y-0.5"
             >
-              <Laptop className="size-4 text-emerald-400" />
+              <Laptop className="size-4 text-blue-300" />
               <span>Izin Bawa Alat IT</span>
             </Link>
             {adminUser && (
               <Link
                 href="/kelola-approver-it"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-4 py-2.5 text-xs font-black text-slate-950 shadow-md transition hover:-translate-y-0.5"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-500 px-4 py-2.5 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5"
               >
                 <Users className="size-4" />
                 <span>Pengaturan Approver</span>
@@ -732,9 +732,9 @@ function FormItContent() {
           </div>
         </div>
 
-        {/* Search tracking bar with modern Emerald E-Sign signature styling */}
-        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border-2 border-emerald-500/30 bg-emerald-950/40 p-2 shadow-inner backdrop-blur-md focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-400/20 transition-all">
-          <div className="flex items-center justify-center size-9 rounded-xl bg-emerald-500/20 text-emerald-300 ml-1 shrink-0 border border-emerald-400/30">
+        {/* Search tracking bar with modern Corporate E-Sign signature styling */}
+        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border-2 border-primary/30 bg-slate-950/60 p-2 shadow-inner backdrop-blur-md focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20 transition-all">
+          <div className="flex items-center justify-center size-9 rounded-xl bg-primary/20 text-blue-300 ml-1 shrink-0 border border-primary/30">
             <Search className="size-4" />
           </div>
           <input
@@ -743,13 +743,13 @@ function FormItContent() {
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && searchInput.trim() && fetchSubmissionByToken(searchInput.trim())}
             placeholder="Masukkan nomor permohonan atau kode token verifikasi e-sign (contoh: req-2026-..., a7b8c9d0...)"
-            className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-emerald-200/50 sm:text-sm px-2 font-mono font-medium"
+            className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-slate-400 sm:text-sm px-2 font-mono font-medium"
           />
           <button
             type="button"
             onClick={() => searchInput.trim() && fetchSubmissionByToken(searchInput.trim())}
             disabled={searchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 px-5 py-2.5 text-xs font-black text-slate-950 shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-500 px-5 py-2.5 text-xs font-black text-white shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {searchLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Search className="size-3.5" />}
             <span>{searchLoading ? 'Memeriksa...' : 'Lacak Status E-Sign'}</span>
@@ -951,7 +951,7 @@ function FormItContent() {
             {/* Application Data Summary */}
             <div className="mt-8 rounded-2xl border border-border/80 bg-secondary/30 p-5 sm:p-6">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-                <FileCheck className="size-4 text-emerald-600" />
+                <FileCheck className="size-4 text-primary" />
                 <span>Ringkasan Isian Formulir</span>
               </h4>
               <div className="grid grid-cols-2 gap-4 text-xs sm:grid-cols-4">
@@ -1025,32 +1025,32 @@ function FormItContent() {
                     onClick={() => handleSelectForm(def.code)}
                     className={`group relative flex flex-col items-center justify-between rounded-2xl p-3.5 sm:p-4 text-center transition-all duration-200 cursor-pointer min-h-[174px] ${
                       active
-                        ? 'border-2 border-emerald-500 bg-emerald-500/[0.08] ring-4 ring-emerald-500/20 shadow-xl shadow-emerald-500/10 -translate-y-1'
-                        : 'border border-border bg-card hover:border-emerald-500/40 hover:bg-emerald-500/[0.02] shadow-xs hover:-translate-y-0.5'
+                        ? 'border-2 border-primary bg-primary/[0.08] ring-4 ring-primary/20 shadow-xl shadow-primary/10 -translate-y-1'
+                        : 'border border-border bg-card hover:border-primary/40 hover:bg-primary/[0.02] shadow-xs hover:-translate-y-0.5'
                     }`}
                   >
                     {active ? (
-                      <span className="absolute inset-x-0 top-0 h-1.5 rounded-t-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400" />
+                      <span className="absolute inset-x-0 top-0 h-1.5 rounded-t-2xl bg-gradient-to-r from-primary via-blue-500 to-indigo-500" />
                     ) : (
-                      <span className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl bg-transparent group-hover:bg-emerald-500/30 transition" />
+                      <span className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl bg-transparent group-hover:bg-primary/30 transition" />
                     )}
 
-                    <span className={`absolute top-2.5 right-2.5 font-mono text-[9px] font-bold ${active ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                    <span className={`absolute top-2.5 right-2.5 font-mono text-[9px] font-bold ${active ? 'text-primary' : 'text-muted-foreground'}`}>
                       #{idx + 1}
                     </span>
 
                     <div
                       className={`grid size-12 place-items-center rounded-xl transition-all duration-200 ${
                         active
-                          ? 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/30'
-                          : 'bg-secondary text-secondary-foreground group-hover:bg-emerald-500/10 group-hover:text-emerald-600'
+                          ? 'bg-gradient-to-br from-primary to-blue-700 text-primary-foreground shadow-md shadow-primary/30'
+                          : 'bg-secondary text-secondary-foreground group-hover:bg-primary/10 group-hover:text-primary'
                       }`}
                     >
                       <IconComponent className="size-6" />
                     </div>
 
                     <div className="w-full my-1.5 space-y-0.5">
-                      <span className={`font-mono-label text-[8.5px] font-bold tracking-wider block truncate ${active ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                      <span className={`font-mono-label text-[8.5px] font-bold tracking-wider block truncate ${active ? 'text-primary' : 'text-muted-foreground'}`}>
                         {meta.opCategory}
                       </span>
                       <h3 className="font-display text-xs font-bold text-foreground leading-snug line-clamp-2">
@@ -1065,8 +1065,8 @@ function FormItContent() {
                       <span
                         className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[9.5px] font-bold transition ${
                           active
-                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-2xs'
-                            : 'bg-secondary text-secondary-foreground group-hover:bg-emerald-500/15 group-hover:text-emerald-700 dark:group-hover:text-emerald-300'
+                            ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-2xs'
+                            : 'bg-secondary text-secondary-foreground group-hover:bg-primary/15 group-hover:text-primary'
                         }`}
                       >
                         {active ? '✓ AKTIF' : 'Buka Form →'}
@@ -1079,15 +1079,15 @@ function FormItContent() {
           </div>
 
           {/* Active Form Separation Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border-2 border-emerald-500/25 bg-gradient-to-r from-emerald-500/[0.04] via-card to-card backdrop-blur-md px-5 py-3.5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border-2 border-primary/25 bg-gradient-to-r from-primary/[0.05] via-card to-card backdrop-blur-md px-5 py-3.5 shadow-sm">
             <div className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-xl font-mono text-xs font-black shrink-0 bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-xs">
+              <span className="grid size-9 place-items-center rounded-xl font-mono text-xs font-black shrink-0 bg-gradient-to-br from-primary to-blue-700 text-white shadow-xs">
                 {currentFormDef.code.slice(-3)}
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-foreground">{currentFormDef.name}</span>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30">
                     {currentMeta.tag}
                   </span>
                   <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-mono font-bold text-secondary-foreground border border-border">
@@ -1099,8 +1099,8 @@ function FormItContent() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-              <span className="inline-flex size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-semibold text-primary">
+              <span className="inline-flex size-2 rounded-full bg-primary animate-pulse" />
               <span>Formulir Terbuka Siap Diisi</span>
             </div>
           </div>
@@ -1122,7 +1122,7 @@ function FormItContent() {
                       className: 'size-8 text-primary-foreground',
                     })}
                     <span className="absolute -bottom-1 -right-1 flex size-3">
-                      <span className="relative inline-flex size-3 rounded-full bg-emerald-400 ring-2 ring-card" />
+                      <span className="relative inline-flex size-3 rounded-full bg-primary ring-2 ring-card" />
                     </span>
                   </div>
                   <div className="space-y-1.5">

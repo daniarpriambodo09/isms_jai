@@ -3,6 +3,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, Loader2, Settings2, UserCog, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
@@ -12,12 +13,6 @@ type VisitorApprover = { id: number; fullName: string | null; title: string | nu
 const inputClass = 'h-10 w-full rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const labelClass = 'mb-1.5 block text-xs font-semibold text-muted-foreground'
 
-// ISM Admin-only control on the Visitor tab of /ijin-foto-video — lets an
-// admin repoint who visitor requests get routed/emailed to (e.g. when Pak
-// Tsu is replaced) without touching code or the database directly. Visitor
-// submissions never let the requester pick a PIC themselves (see
-// /api/photo-video-requests POST) — they're always routed to whichever PIC
-// this sets as is_visitor_default.
 export function VisitorApproverSettings({
   onSaved,
   triggerButton,
@@ -25,6 +20,7 @@ export function VisitorApproverSettings({
   onSaved?: (approver: VisitorApprover) => void
   triggerButton?: React.ReactNode
 }) {
+  const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [fullName, setFullName] = useState('')
@@ -33,6 +29,10 @@ export function VisitorApproverSettings({
   const [salutation, setSalutation] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEscapeClose(open, () => setOpen(false))
 
@@ -72,6 +72,80 @@ export function VisitorApproverSettings({
     }
   }
 
+  const modalContent = open && mounted && typeof document !== 'undefined' ? (
+    createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Setting Approver Ijin Foto/Video"
+          className="flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
+        >
+          <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0 bg-card">
+            <div className="flex items-center gap-2.5">
+              <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><UserCog className="size-4" /></span>
+              <div>
+                <p className="text-sm font-bold text-foreground">Setting Approver Ijin Foto/Video</p>
+                <p className="text-xs text-muted-foreground">Nama ini akan dicetak tepat di bawah barcode persetujuan dokumen.</p>
+              </div>
+            </div>
+            <button type="button" onClick={() => setOpen(false)} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+              <X className="size-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5">
+            {loading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Memuat...</p>
+            ) : (
+              <div className="flex flex-col gap-3.5">
+                <label>
+                  <span className={labelClass}>Sapaan di Email</span>
+                  <select value={salutation} onChange={(e) => setSalutation(e.target.value)} aria-label="Sapaan di email" className={inputClass}>
+                    <option value="">Tanpa sapaan</option>
+                    <option value="Bapak">Bapak</option>
+                    <option value="Ibu">Ibu</option>
+                  </select>
+                  <span className="mt-1 block text-[11px] text-muted-foreground">Email pengajuan dibuka dengan &quot;Dear {salutation ? `${salutation} ` : ''}{fullName.trim() || 'Nama'},&quot;</span>
+                </label>
+                <label>
+                  <span className={labelClass}>Nama Lengkap (Dicetak di Bawah Barcode)</span>
+                  <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Contoh: Teguh Sunjoyo" className={inputClass} />
+                  <span className="mt-1 block text-[11px] text-muted-foreground">Nama ini akan tercetak jelas di bawah barcode QR tanda tangan persetujuan dokumen.</span>
+                </label>
+                <label>
+                  <span className={labelClass}>Jabatan (Tercetak di Dokumen PDF)</span>
+                  <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Information Assets Administrator" className={inputClass} />
+                  <span className="mt-1 block text-[11px] text-muted-foreground">Tercetak di bawah nama approver dalam tanda kurung, misal (Information Assets Administrator).</span>
+                </label>
+                <label>
+                  <span className={labelClass}>Email Approver</span>
+                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="nama@jatimautocomp.com" className={inputClass} />
+                </label>
+                <p className="text-[11px] text-muted-foreground">Notifikasi email persetujuan pengajuan baru (Internal maupun Visitor) akan dikirimkan langsung ke alamat email Approver ini.</p>
+                {error && <p className="text-xs text-destructive">{error}</p>}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-border px-5 py-4 shrink-0 bg-card">
+            <button type="button" onClick={() => setOpen(false)} className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-secondary">Batal</button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving || loading || !fullName.trim() || !email.trim()}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+              Simpan
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )
+  ) : null
+
   return (
     <>
       {triggerButton ? (
@@ -88,71 +162,7 @@ export function VisitorApproverSettings({
         </button>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-          <div role="dialog" aria-modal="true" aria-label="Setting Approver Visitor" className="w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border px-5 py-4">
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><UserCog className="size-4" /></span>
-                <div>
-                  <p className="text-sm font-bold text-foreground">Setting Approver Ijin Foto/Video</p>
-                  <p className="text-xs text-muted-foreground">Nama ini akan dicetak tepat di bawah barcode persetujuan dokumen.</p>
-                </div>
-              </div>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground">
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <div className="p-5">
-              {loading ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">Memuat...</p>
-              ) : (
-                <div className="flex flex-col gap-3.5">
-                  <label>
-                    <span className={labelClass}>Sapaan di Email</span>
-                    <select value={salutation} onChange={(e) => setSalutation(e.target.value)} aria-label="Sapaan di email" className={inputClass}>
-                      <option value="">Tanpa sapaan</option>
-                      <option value="Bapak">Bapak</option>
-                      <option value="Ibu">Ibu</option>
-                    </select>
-                    <span className="mt-1 block text-[11px] text-muted-foreground">Email pengajuan dibuka dengan &quot;Dear {salutation ? `${salutation} ` : ''}{fullName.trim() || 'Nama'},&quot;</span>
-                  </label>
-                  <label>
-                    <span className={labelClass}>Nama Lengkap (Dicetak di Bawah Barcode)</span>
-                    <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Contoh: Teguh Sunjoyo" className={inputClass} />
-                    <span className="mt-1 block text-[11px] text-muted-foreground">Nama ini akan tercetak jelas di bawah barcode QR tanda tangan persetujuan dokumen.</span>
-                  </label>
-                  <label>
-                    <span className={labelClass}>Jabatan (Tercetak di Dokumen PDF)</span>
-                    <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Information Assets Administrator" className={inputClass} />
-                    <span className="mt-1 block text-[11px] text-muted-foreground">Tercetak di bawah nama approver dalam tanda kurung, misal (Information Assets Administrator).</span>
-                  </label>
-                  <label>
-                    <span className={labelClass}>Email Approver</span>
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="nama@jatimautocomp.com" className={inputClass} />
-                  </label>
-                  <p className="text-[11px] text-muted-foreground">Notifikasi email pengajuan baru dari Visitor akan dikirim ke alamat ini (butuh SMTP sudah dikonfigurasi di Admin Settings → SMTP Settings).</p>
-                  {error && <p className="text-xs text-destructive">{error}</p>}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
-              <button type="button" onClick={() => setOpen(false)} className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition hover:bg-secondary">Batal</button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving || loading || !fullName.trim() || !email.trim()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-                Simpan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {modalContent}
     </>
   )
 }

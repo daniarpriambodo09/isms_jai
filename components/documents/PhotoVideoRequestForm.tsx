@@ -13,7 +13,7 @@ type Pic = { id: number; name: string; department_id: number | null }
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type PhotoIdItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type UsbItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
-type VisitorApprover = { id: number; fullName: string | null }
+type VisitorApprover = { id: number; fullName: string | null; title: string | null; email?: string | null; salutation?: string | null }
 
 type LookupRequest = {
   id: number
@@ -298,12 +298,16 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   }, [isInternal])
 
   useEffect(() => {
-    if (isInternal) return
     fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { approver: null }))
-      .then((data: { approver: VisitorApprover | null }) => setVisitorApprover(data.approver))
+      .then((data: { approver: VisitorApprover | null }) => {
+        setVisitorApprover(data.approver)
+        if (data.approver?.id) {
+          setPicApproveId(String(data.approver.id))
+        }
+      })
       .catch(() => setVisitorApprover(null))
-  }, [isInternal])
+  }, [])
 
   const selectedDept = departments.find((d) => String(d.id) === deptId)
   const selectedCameraDept = departments.find((d) => String(d.id) === deptPicKameraId)
@@ -590,28 +594,19 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               </Field>
             </>
           )}
-          {isInternal ? (
-            <Field label="PIC Approve" span={2}>
-              <select value={picApproveId} onChange={(e) => setPicApproveId(e.target.value)} required className={inputClass} disabled={!deptId}>
-                <option value="">{!deptId ? 'Pilih Dept. terlebih dahulu...' : 'Pilih PIC terkait...'}</option>
-                {availablePics.map((pic) => (
-                  <option key={pic.id} value={pic.id}>{pic.name}</option>
-                ))}
-              </select>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Pengajuan akan berstatus Menunggu sampai disetujui atau ditolak oleh Admin ISMS (Admin ISMS langsung menerima email). Setelah mengirim, Anda mendapat link status pengajuan.
-              </p>
-            </Field>
-          ) : (
-            <Field label="Approver" span={2}>
-              <div className={`${inputClass} flex items-center text-muted-foreground`}>
-                {visitorApprover?.fullName ?? 'Admin ISMS'}
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                This registration will be routed automatically to the approver above — no need to select one.
-              </p>
-            </Field>
-          )}
+          <Field label="Approver Izin Foto/Video" span={2}>
+            <div className={`${inputClass} flex items-center justify-between bg-muted/40 font-semibold text-foreground`}>
+              <span>{visitorApprover?.fullName || 'Teguh Sunjoyo'}</span>
+              <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                {visitorApprover?.title || 'Information Assets Administrator'}
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {isInternal
+                ? `Pengajuan izin pengambilan foto/video ini otomatis diteruskan ke Approver di atas (${visitorApprover?.fullName || 'Bpk. Teguh Sunjoyo'}) untuk persetujuan e-sign.`
+                : 'Pengajuan izin pengambilan foto/video ini otomatis diteruskan ke Approver di atas — tidak perlu memilih.'}
+            </p>
+          </Field>
           {isStaff && (
             <Field label="PIC Pendamping JAI (opsional)" span={2}>
               <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={inputClass}>

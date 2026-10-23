@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     let cameraControlNo: string | null = null
     let picJai: string | null = null
     let photoIdNo: string | null = null
-    let picApproveId: number
+    let picApproveId = 0
 
     if (requestType === 'internal') {
       nik = typeof body.nik === 'string' && body.nik.trim() ? body.nik.trim() : null
@@ -189,12 +189,20 @@ export async function POST(request: NextRequest) {
         if (usbCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol USB tidak valid untuk departemen/section ini.' }, { status: 400 })
       }
 
-      picApproveId = Number(body.picApproveId)
-      if (!Number.isInteger(picApproveId) || picApproveId <= 0) {
-        return NextResponse.json({ message: 'PIC Approve wajib dipilih.' }, { status: 400 })
+      const rawPicId = Number(body.picApproveId)
+      if (Number.isInteger(rawPicId) && rawPicId > 0) {
+        const picCheck = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE id = $1`, [rawPicId])
+        if (picCheck.rows.length > 0) {
+          picApproveId = rawPicId
+        }
       }
-      const picCheck = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE id = $1`, [picApproveId])
-      if (picCheck.rows.length === 0) return NextResponse.json({ message: 'PIC Approve tidak valid.' }, { status: 400 })
+      if (!picApproveId) {
+        const defaultPic = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`)
+        if (defaultPic.rows.length === 0) {
+          return NextResponse.json({ message: 'Approver izin foto/video belum diatur. Hubungi Admin ISMS.' }, { status: 400 })
+        }
+        picApproveId = defaultPic.rows[0].id
+      }
     } else {
       dept = typeof body.dept === 'string' ? body.dept.trim() : ''
       if (!dept) return NextResponse.json({ message: 'Department wajib diisi.' }, { status: 400 })

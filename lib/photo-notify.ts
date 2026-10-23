@@ -45,14 +45,24 @@ type RequestRow = {
   result_mailed_at: string | null
   pic_name: string | null
   approval_token: string | null
+  approver_email: string | null
+  approver_salutation: string | null
+  approver_title: string | null
 }
 
 async function getRow(id: number) {
   return (await query<RequestRow>(
     `SELECT r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.location, r.objective, r.from_at, r.to_at, r.status,
             r.decided_by, r.decision_note, r.camera_control_no, r.photo_id_no, r.ref_token, r.verification_code,
-            r.requester_email, r.result_mailed_at, r.approval_token, COALESCE(pic.full_name, pic.name) AS pic_name
-     FROM photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id WHERE r.id = $1`,
+            r.requester_email, r.result_mailed_at, r.approval_token,
+            COALESCE(pic.full_name, pic.name, def.full_name, def.name) AS pic_name,
+            COALESCE(pic.email, def.email) AS approver_email,
+            COALESCE(pic.salutation, def.salutation) AS approver_salutation,
+            COALESCE(pic.title, def.title) AS approver_title
+     FROM photo_video_requests r
+     LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
+     LEFT JOIN pic_approvers def ON def.is_visitor_default = true
+     WHERE r.id = $1`,
     [id]
   )).rows[0] ?? null
 }
@@ -69,7 +79,7 @@ export async function notifyNewPhotoRequest(id: number) {
       kind: 'photo_new',
       category: 'photo',
       title: `Pengajuan foto/video ${typeLabel(row)} baru — ${row.requester_name}`,
-      body: `${row.dept_or_company} · ${row.location}${internal ? ' · menunggu keputusan Admin ISMS' : ` · dikirim ke PIC ${row.pic_name ?? '-'}`}`,
+      body: `${row.dept_or_company} · ${row.location} · menunggu persetujuan ${row.pic_name ?? 'Approver'}`,
       href: `/kelola-permintaan-foto-video?status=pending&type=${row.request_type}`,
       // Internal: shown live under "Perlu tindakan" until decided.
       historyOnly: internal,
@@ -96,12 +106,26 @@ export async function notifyNewPhotoRequest(id: number) {
     const { subject, html } = buildPhotoRequestAdminEmail({
       requesterName: row.requester_name, nik: row.nik, deptOrCompany: row.dept_or_company, location: row.location, objective: row.objective,
       fromAt: row.from_at, toAt: row.to_at, picApprove: row.pic_name, cameraControlNo: row.camera_control_no, photoIdNo: row.photo_id_no,
+      approverName: row.pic_name,
+      approverSalutation: row.approver_salutation,
+      approverTitle: row.approver_title,
       reviewUrl: `${base}/kelola-permintaan-foto-video?status=pending&type=internal`,
       pendingCount,
       approveUrl,
       rejectUrl,
       dashboardUrl,
     })
+
+    const settings = await getSmtpSettings()
+    if (settings && row.approver_email) {
+      await sendMail(settings, {
+        to: row.approver_email,
+        subject,
+        html,
+        attachments: [{ filename: 'yazaki-logo.jpg', path: path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'), cid: LOGO_CID }],
+      })
+    }
+    // Also notify generic admins
     await sendToAdmins(subject, html)
   } catch (error) {
     console.error('[photo-notify/new]', error)

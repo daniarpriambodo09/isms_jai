@@ -60,7 +60,7 @@ function IjinFotoVideoContent() {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-200 transition hover:bg-emerald-600 hover:text-white cursor-pointer active:scale-95"
               >
                 <Settings className="size-3 text-emerald-300" />
-                <span>Approver Tamu</span>
+                <span>Setting Approver Foto/Video</span>
               </button>
             }
           />

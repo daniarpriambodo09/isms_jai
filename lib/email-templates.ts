@@ -1490,9 +1490,12 @@ export type PhotoRequestSummary = {
   picApprove: string | null
   cameraControlNo: string | null
   photoIdNo: string | null
+  approverName?: string | null
+  approverSalutation?: string | null
+  approverTitle?: string | null
 }
 
-/** To the ISM Admins when an Internal request comes in — they are the ones who decide it. */
+/** To the designated Approver / ISM Admins when an Internal request comes in. */
 export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
   reviewUrl: string
   pendingCount: number
@@ -1503,10 +1506,17 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
   const e = escapeHtml
   const hasAutoLogin = Boolean(data.approveUrl && data.rejectUrl)
 
+  const greeting = data.approverName
+    ? `Dear ${data.approverSalutation ? `${e(data.approverSalutation)} ` : ''}<strong>${e(data.approverName)}</strong>,`
+    : 'Dear Admin ISMS,'
+  const subtitle = data.approverName
+    ? `Internal &middot; menunggu persetujuan ${e(data.approverName)}`
+    : 'Internal &middot; menunggu keputusan Admin ISMS'
+
   const body = `
     <tr><td style="padding:28px 32px 6px;">
-      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear Admin ISMS,</p>
-      <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">Ada <strong>pengajuan ijin pengambilan foto/video Internal</strong> baru yang menunggu keputusan Anda:</p>
+      <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">${greeting}</p>
+      <p style="margin:0 0 18px;font-size:13.5px;color:${TEXT};line-height:1.75;">Ada <strong>pengajuan ijin pengambilan foto/video Internal</strong> baru yang menunggu persetujuan Anda:</p>
     </td></tr>
     <tr><td style="padding:0 32px;">${photoDetailRows([
       ['Nama', `${e(data.requesterName)}${data.nik ? `<br><span style="font-weight:normal;color:${MUTED};font-size:12px;">NIK ${e(data.nik)}</span>` : ''}`],
@@ -1515,7 +1525,7 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
       ['Lokasi', e(data.location)],
       ['Tujuan', e(data.objective)],
       ['Kamera / ID', `${e(data.cameraControlNo ?? '-')} &middot; ${e(data.photoIdNo ?? '-')}`],
-      ['PIC Approve', e(data.picApprove ?? '-')],
+      ['Approver', `${e(data.approverName ?? data.picApprove ?? '-')}${data.approverTitle ? `<br><span style="font-weight:normal;color:${MUTED};font-size:12px;">${e(data.approverTitle)}</span>` : ''}`],
     ])}</td></tr>
     ${hasAutoLogin ? `
     <tr>
@@ -1556,10 +1566,10 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
     </tr>` : `
     <tr><td align="center" style="padding:24px 32px 6px;">${photoButton(data.reviewUrl, '&#9654;&nbsp; Tinjau Pengajuan')}</td></tr>
     `}
-    <tr><td style="padding:10px 32px 26px;"><p style="margin:0;font-size:11.5px;color:${MUTED};text-align:center;line-height:1.6;">${data.pendingCount > 1 ? `Saat ini ada <strong>${data.pendingCount} pengajuan Internal</strong> yang menunggu keputusan. ` : ''}Pemohon menerima kabar setelah Anda memutuskan (bila ia mengisi email).</p></td></tr>`
+    <tr><td style="padding:10px 32px 26px;"><p style="margin:0;font-size:11.5px;color:${MUTED};text-align:center;line-height:1.6;">${data.pendingCount > 1 ? `Saat ini ada <strong>${data.pendingCount} pengajuan Internal</strong> yang menunggu keputusan. ` : ''}Pemohon menerima kabar setelah diputuskan (bila ia mengisi email).</p></td></tr>`
   return {
-    subject: `[Perlu keputusan] Ijin Foto/Video Internal — ${data.requesterName} (${data.deptOrCompany})`,
-    html: photoEmailFrame({ title: 'Pengajuan Foto/Video Baru', subtitle: 'Internal &middot; menunggu keputusan Admin ISMS', preheader: `${data.requesterName} mengajukan ijin foto/video di ${data.location}.` }, body),
+    subject: `[Perlu persetujuan] Ijin Foto/Video Internal — ${data.requesterName} (${data.deptOrCompany})`,
+    html: photoEmailFrame({ title: 'Pengajuan Foto/Video Baru', subtitle, preheader: `${data.requesterName} mengajukan ijin foto/video di ${data.location}.` }, body),
   }
 }
 

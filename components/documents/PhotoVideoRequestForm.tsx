@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent, Fragment } from 'react'
-import { CalendarDays, Camera, CheckCircle2, Clock, History, MapPin, ScanLine, Search, Send, Sparkles, Users } from 'lucide-react'
+import { CalendarDays, Camera, Check, CheckCircle2, Clock, Copy, History, MapPin, ScanLine, Search, Send, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { cardsChanged } from '@/components/kiosk/kiosk-shared'
@@ -715,8 +715,18 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                   <p className="mt-1.5">{isInternal ? 'Link status pengajuan Anda — simpan atau bagikan:' : 'Your status link — keep or share it:'}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <a href={statusLink} className="min-w-0 break-all font-mono text-[11px] underline">{statusLink}</a>
-                    <button type="button" onClick={copyLink} className="rounded-md border border-accent/40 bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary">
-                      {linkCopied ? (isInternal ? 'Tersalin ✓' : 'Copied ✓') : (isInternal ? 'Salin link' : 'Copy link')}
+                    <button type="button" onClick={copyLink} className="inline-flex items-center gap-1 rounded-md border border-accent/40 bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary">
+                      {linkCopied ? (
+                        <>
+                          <Check className="size-3 text-emerald-600" />
+                          <span>{isInternal ? 'Tersalin' : 'Copied'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3 text-muted-foreground" />
+                          <span>{isInternal ? 'Salin link' : 'Copy link'}</span>
+                        </>
+                      )}
                     </button>
                   </div>
                   <p className="mt-1.5 text-muted-foreground">

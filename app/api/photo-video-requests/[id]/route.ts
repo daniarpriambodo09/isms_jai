@@ -64,17 +64,52 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     // otherwise a Visitor request an admin decided directly (rather than
     // via the emailed link) would have no code and its e-sign certificate
     // could never be generated.
+    // Resolve real approver's full name & title (e.g. Pak Tsu / Teguh Sunjoyo) instead of raw admin username
+    const reqInfo = await query<{ pic_approve_id: number | null; request_type: string }>(
+      `SELECT pic_approve_id, request_type FROM photo_video_requests WHERE id = $1`,
+      [id]
+    )
+    let approverName: string | null = null
+    let approverTitle: string | null = null
+    const picId = reqInfo.rows[0]?.pic_approve_id
+
+    if (picId) {
+      const picRes = await query<{ full_name: string | null; name: string; title: string | null }>(
+        `SELECT full_name, name, title FROM pic_approvers WHERE id = $1`,
+        [picId]
+      )
+      if (picRes.rows[0]) {
+        approverName = picRes.rows[0].full_name || picRes.rows[0].name
+        approverTitle = picRes.rows[0].title
+      }
+    }
+
+    if (!approverName) {
+      const defPic = await query<{ full_name: string | null; name: string; title: string | null }>(
+        `SELECT full_name, name, title FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`
+      )
+      if (defPic.rows[0]) {
+        approverName = defPic.rows[0].full_name || defPic.rows[0].name
+        approverTitle = defPic.rows[0].title
+      }
+    }
+
+    if (!approverName) {
+      approverName = 'Teguh Sunjoyo'
+      approverTitle = 'Information Assets Administrator'
+    }
+
     const verificationCode = `JAI-${id}-${randomBytes(4).toString('hex').toUpperCase()}`
     const updated = await query<{ id: number }>(
       `UPDATE photo_video_requests
-       SET status = $1, decided_at = now(), decided_by = $2, decision_note = $3,
-           camera_control_no = COALESCE($5, camera_control_no),
-           photo_id_no = COALESCE($6, photo_id_no),
-           usb_control_no = COALESCE($8, usb_control_no),
-           verification_code = CASE WHEN request_type = 'visitor' THEN $7 ELSE verification_code END
-       WHERE id = $4 AND status = 'pending'
+       SET status = $1, decided_at = now(), decided_by = $2, decided_by_title = $3, decision_note = $4,
+           camera_control_no = COALESCE($6, camera_control_no),
+           photo_id_no = COALESCE($7, photo_id_no),
+           usb_control_no = COALESCE($9, usb_control_no),
+           verification_code = CASE WHEN request_type = 'visitor' THEN $8 ELSE verification_code END
+       WHERE id = $5 AND status = 'pending'
        RETURNING id`,
-      [body.status, admin.username, decisionNote, id, cameraControlNo, photoIdNo, verificationCode, usbControlNo]
+      [body.status, approverName, approverTitle, decisionNote, id, cameraControlNo, photoIdNo, verificationCode, usbControlNo]
     )
     if (updated.rows.length === 0) {
       const existing = await query<{ status: string }>('SELECT status FROM photo_video_requests WHERE id = $1', [id])

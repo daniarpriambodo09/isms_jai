@@ -20,7 +20,7 @@ import {
   Copy,
   Check,
   Search,
-  Sparkles,
+  PackagePlus,
   Phone,
   Mail,
   MapPin,
@@ -677,8 +677,8 @@ function FormItContent() {
             {/* Illuminated Digital Signing Glyph */}
             <div className="relative grid size-16 sm:size-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/30 via-blue-600/25 to-slate-800/40 border-2 border-primary/40 text-blue-200 shadow-xl shadow-primary/20 backdrop-blur-md">
               <FileSignature className="size-8 sm:size-10 text-blue-200 drop-shadow" />
-              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-black text-white shadow-md">
-                ✓
+              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-white shadow-md">
+                <Check className="size-3 stroke-[3]" />
               </span>
             </div>
             <div>
@@ -703,11 +703,26 @@ function FormItContent() {
 
               {/* Service tags chips */}
               <div className="mt-3.5 flex flex-wrap gap-1.5">
-                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">💻 PC/Laptop</span>
-                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">📦 Lisensi Software</span>
-                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">🔄 Pinjam Laptop</span>
-                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">👤 Email &amp; User ID</span>
-                <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 text-[10.5px] font-semibold text-slate-200">🌐 Jaringan</span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
+                  <Laptop className="size-3 text-slate-300" />
+                  <span>PC/Laptop</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
+                  <Layers className="size-3 text-slate-300" />
+                  <span>Lisensi Software</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
+                  <RotateCcw className="size-3 text-slate-300" />
+                  <span>Pinjam Laptop</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
+                  <User className="size-3 text-slate-300" />
+                  <span>Email &amp; User ID</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
+                  <Network className="size-3 text-slate-300" />
+                  <span>Jaringan</span>
+                </span>
               </div>
             </div>
           </div>
@@ -779,11 +794,22 @@ function FormItContent() {
                         : 'bg-accent/15 text-accent-foreground border border-accent/40'
                     }`}
                   >
-                    {submissionResult.status === 'approved'
-                      ? '✓ SELESAI DISETUJUI'
-                      : submissionResult.status === 'rejected'
-                      ? '✕ DITOLAK / PERLU REVISI'
-                      : `⏱ PROSES APPROVAL (${submissionResult.current_step}/${submissionResult.total_steps})`}
+                    {submissionResult.status === 'approved' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircle2 className="size-3.5" />
+                        <span>SELESAI DISETUJUI</span>
+                      </span>
+                    ) : submissionResult.status === 'rejected' ? (
+                      <span className="inline-flex items-center gap-1">
+                        <XCircle className="size-3.5" />
+                        <span>DITOLAK / PERLU REVISI</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="size-3.5" />
+                        <span>PROSES APPROVAL ({submissionResult.current_step}/{submissionResult.total_steps})</span>
+                      </span>
+                    )}
                   </span>
                 </div>
                 <h2 className="text-xl font-black text-foreground sm:text-2xl tracking-tight">
@@ -1069,7 +1095,14 @@ function FormItContent() {
                             : 'bg-secondary text-secondary-foreground group-hover:bg-primary/15 group-hover:text-primary'
                         }`}
                       >
-                        {active ? '✓ AKTIF' : 'Buka Form →'}
+                        {active ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Check className="size-2.5" />
+                            <span>AKTIF</span>
+                          </span>
+                        ) : (
+                          'Buka Form →'
+                        )}
                       </span>
                     </div>
                   </button>
@@ -1707,7 +1740,7 @@ function FormItContent() {
                       <div className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border ${
                         jenisPengadaan === 'baru' ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'bg-secondary text-secondary-foreground border-border'
                       }`}>
-                        <Sparkles className="size-5" />
+                        <PackagePlus className="size-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">

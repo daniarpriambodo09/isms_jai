@@ -813,7 +813,7 @@ export default function PersetujuanSayaPage() {
                         </span>
                         {days >= 1 && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10.5px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
-                            ⏳ Menunggu {days} hari
+                            <Clock className="size-3" /> Menunggu {days} hari
                           </span>
                         )}
                       </div>

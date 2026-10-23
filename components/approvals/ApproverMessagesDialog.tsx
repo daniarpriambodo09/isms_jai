@@ -123,8 +123,15 @@ export function ApproverMessagesDialog({ open, onClose }: { open: boolean; onClo
                           title="Klik untuk menyalin kode"
                         >
                           <span className="font-mono text-xl font-bold tracking-[0.22em] text-foreground select-all">{message.code}</span>
-                          <span className="text-[11px] text-muted-foreground group-hover:text-primary transition-colors">
-                            {copied === message.stepId ? '✓ Tersalin' : 'Salin'}
+                          <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground group-hover:text-primary transition-colors">
+                            {copied === message.stepId ? (
+                              <>
+                                <Check className="size-3 text-emerald-600" />
+                                <span>Tersalin</span>
+                              </>
+                            ) : (
+                              'Salin'
+                            )}
                           </span>
                         </button>
                         <div className="flex items-center gap-1.5">

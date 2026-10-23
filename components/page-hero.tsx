@@ -255,7 +255,7 @@ export function PaperHero({
       <div className="pointer-events-none absolute right-12 top-12 -rotate-12 select-none opacity-90 max-[900px]:hidden">
         <div className="rounded-full border-2 border-dashed border-red-600/70 p-2 text-red-600 dark:border-red-500/70 dark:text-red-400">
           <div className="flex size-28 flex-col items-center justify-center rounded-full border-2 border-red-600/90 text-center font-mono leading-none">
-            <span className="text-[8px] font-black uppercase tracking-widest text-red-700 dark:text-red-300">★ PT. JAI ★</span>
+            <span className="text-[8px] font-black uppercase tracking-widest text-red-700 dark:text-red-300">PT. JAI</span>
             <span className="my-1 text-[11px] font-black tracking-tight">ISO 27001</span>
             <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white dark:bg-red-500">TERKENDALI</span>
             <span className="mt-1 text-[7.5px] font-bold tracking-wider">OFFICIAL FORM</span>

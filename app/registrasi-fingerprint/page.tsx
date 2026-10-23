@@ -20,7 +20,7 @@ import {
   Copy,
   Check,
   Search,
-  Sparkles,
+  X,
   Info,
   RotateCcw,
   ShieldAlert,
@@ -531,15 +531,15 @@ function FingerprintPageInner() {
                     <p className="font-bold text-foreground text-sm">{sig.slot_label}</p>
                     <p className="text-muted-foreground font-medium">{sig.role_title}: <span className="text-foreground font-semibold">{sig.approver_name}</span></p>
                     {sig.status === 'approved' && (
-                      <div className="mt-2 space-y-0.5 text-[11px] text-emerald-800 dark:text-emerald-300 font-mono">
-                        <p>✓ E-Sign Terverifikasi: {sig.verification_code}</p>
-                        <p>✓ Tanggal: {sig.signed_at ? new Date(sig.signed_at).toLocaleString('id-ID') : '-'}</p>
+                      <div className="mt-2 space-y-1 text-[11px] text-emerald-800 dark:text-emerald-300 font-mono">
+                        <p className="flex items-center gap-1.5"><Check className="size-3 text-emerald-600" />E-Sign Terverifikasi: {sig.verification_code}</p>
+                        <p className="flex items-center gap-1.5"><Calendar className="size-3 text-emerald-600" />Tanggal: {sig.signed_at ? new Date(sig.signed_at).toLocaleString('id-ID') : '-'}</p>
                         {sig.signature_note && <p className="italic font-sans text-muted-foreground">Catatan: &ldquo;{sig.signature_note}&rdquo;</p>}
                       </div>
                     )}
                     {sig.status === 'rejected' && (
                       <div className="mt-2 text-[11px] text-red-800 dark:text-red-300 font-mono">
-                        <p>✗ Ditolak: {sig.signature_note || 'Tidak disetujui'}</p>
+                        <p className="flex items-center gap-1.5"><X className="size-3 text-red-600" />Ditolak: {sig.signature_note || 'Tidak disetujui'}</p>
                       </div>
                     )}
                   </div>

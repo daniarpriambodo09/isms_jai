@@ -7,18 +7,18 @@ import {
   Check,
   Copy,
   Download,
+  AlertTriangle,
   Eye,
   EyeOff,
   History,
   Loader2,
   Mail,
-  PartyPopper,
   Plus,
   Send,
   Shield,
   ShieldCheck,
-  Sparkles,
   Trash2,
+  UserCheck,
   Users,
   X,
 } from 'lucide-react'
@@ -30,6 +30,7 @@ import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
@@ -102,6 +103,7 @@ export default function KelolaAdminPage() {
   const [createdAccount, setCreatedAccount] = useState<CreatedAccountInfo | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(true)
+  useEscapeClose(createdAccount !== null, () => setCreatedAccount(null))
 
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editRole, setEditRole] = useState<AdminRole>('lobby')
@@ -196,7 +198,7 @@ export default function KelolaAdminPage() {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const msg = [
       '==================================================',
-      '🎉 SELAMAT! AKUN ISMS PORTAL ANDA TELAH DIBUAT',
+      'PEMBERITAHUAN KREDENSIAL AKUN RESMI ISMS PORTAL',
       'PT. JATIM AUTOCOMP INDONESIA',
       '==================================================',
       '',
@@ -225,7 +227,7 @@ export default function KelolaAdminPage() {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     const content = [
       '==================================================',
-      '🎉 KREDENSIAL RESMI AKUN ISMS PORTAL PT. JAI',
+      'KREDENSIAL RESMI AKUN ISMS PORTAL PT. JAI',
       '==================================================',
       `Tanggal Pembuatan: ${new Date(createdAccount.created_at).toLocaleString('id-ID')}`,
       `Username         : ${createdAccount.username}`,
@@ -498,7 +500,7 @@ export default function KelolaAdminPage() {
                             {admin.email ? (
                               isDeliverableEmail(admin.email)
                                 ? admin.email
-                                : <span className="font-semibold text-amber-700" title={EMAIL_HINT}>⚠ {admin.email} (tidak bisa menerima email)</span>
+                                : <span className="inline-flex items-center gap-1 font-semibold text-amber-700" title={EMAIL_HINT}><AlertTriangle className="size-3.5 shrink-0" />{admin.email} (tidak bisa menerima email)</span>
                             ) : '—'} · Dibuat {formatDate(admin.created_at)}
                           </div>
                         </div>
@@ -636,166 +638,197 @@ export default function KelolaAdminPage() {
 
       {/* CELEBRATORY WELCOME & CREDENTIALS MODAL */}
       {createdAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-2xl sm:p-8 animate-in zoom-in-95 duration-200">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 md:p-6 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={(e) => { if (e.target === e.currentTarget) setCreatedAccount(null) }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Selamat! Akun Anda Berhasil Dibuat"
+            className="relative flex w-full max-w-4xl max-h-[92vh] flex-col overflow-hidden rounded-3xl border border-border/80 bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+          >
             {/* Festive ambient background glow */}
-            <div className="pointer-events-none absolute -right-20 -top-20 size-56 rounded-full bg-emerald-500/15 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 -left-20 size-56 rounded-full bg-primary/20 blur-3xl" />
+            <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-emerald-500/15 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-28 -left-24 size-72 rounded-full bg-primary/20 blur-3xl" />
 
-            {/* Header with celebration badge */}
-            <div className="relative text-center">
-              <div className="mx-auto inline-flex size-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-500/20 via-primary/20 to-accent/30 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/10">
-                <PartyPopper className="size-8" />
-              </div>
+            {/* Top Close Button (X) */}
+            <button
+              type="button"
+              onClick={() => setCreatedAccount(null)}
+              aria-label="Tutup"
+              className="absolute right-4 top-4 z-20 grid size-9 place-items-center rounded-full border border-border/60 bg-card/80 text-muted-foreground backdrop-blur-sm transition hover:bg-secondary hover:text-foreground cursor-pointer shadow-xs"
+            >
+              <X className="size-4" />
+            </button>
 
-              <div className="mt-4 flex items-center justify-center gap-1.5 font-mono text-[11px] font-bold text-accent uppercase tracking-widest">
-                <Sparkles className="size-3.5" />
-                <span>Akun Baru Berhasil Didaftarkan</span>
-                <Sparkles className="size-3.5" />
-              </div>
-
-              <h3 className="mt-1.5 font-display text-2xl font-black text-foreground sm:text-3xl tracking-tight">
-                Selamat! Akun Anda Berhasil Dibuat
-              </h3>
-              <p className="mt-2 text-xs text-muted-foreground sm:text-sm leading-relaxed">
-                Akun telah aktif di sistem <strong>ISMS Portal PT. JAI</strong> dan siap digunakan untuk otorisasi &amp; layanan keamanan informasi.
-              </p>
-            </div>
-
-            {/* Credentials Card */}
-            <div className="relative mt-6 rounded-2xl border border-border/80 bg-secondary/40 p-4.5 sm:p-5 space-y-3.5 shadow-inner">
-              <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
-                <span className="font-mono text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Kredensial Akses Pengguna
-                </span>
-                <span className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${ROLE_TONE[createdAccount.role]}`}>
-                  {ROLE_LABEL[createdAccount.role]}
-                </span>
-              </div>
-
-              {/* Username Field */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">Username Login</label>
-                <div className="flex items-center justify-between rounded-xl border border-input bg-card px-3.5 py-2.5 shadow-xs">
-                  <span className="font-mono text-sm font-bold text-foreground tracking-wide">
-                    {createdAccount.username}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyText(createdAccount.username, 'username')}
-                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer"
-                  >
-                    {copiedField === 'username' ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
-                    <span>{copiedField === 'username' ? 'Tersalin' : 'Salin'}</span>
-                  </button>
+            {/* Scrollable Content Container */}
+            <div className="overflow-y-auto px-5 py-5 sm:px-8 sm:py-6">
+              {/* Header with celebration badge */}
+              <div className="relative flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pr-10 border-b border-border/60 pb-4">
+                <div className="inline-flex size-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-sm">
+                  <UserCheck className="size-7" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 font-mono text-[10.5px] font-bold text-accent uppercase tracking-widest">
+                    <ShieldCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
+                    <span>Akun Baru Berhasil Didaftarkan</span>
+                  </div>
+                  <h3 className="mt-0.5 font-display text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                    Selamat! Akun Anda Berhasil Dibuat
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                    Akun telah aktif di sistem <strong>ISMS Portal PT. JAI</strong> dan siap digunakan untuk otorisasi &amp; layanan keamanan informasi.
+                  </p>
                 </div>
               </div>
 
-              {/* Password Field */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-muted-foreground">Password Akses</label>
-                <div className="flex items-center justify-between rounded-xl border border-input bg-card px-3.5 py-2.5 shadow-xs">
-                  <span className="font-mono text-sm font-bold text-foreground tracking-wide">
-                    {showPassword ? createdAccount.password : '••••••••••••'}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
-                      title={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-                    >
-                      {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => copyText(createdAccount.password, 'password')}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer"
-                    >
-                      {copiedField === 'password' ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
-                      <span>{copiedField === 'password' ? 'Tersalin' : 'Salin'}</span>
-                    </button>
+              {/* Landscape 2-Column Grid */}
+              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Column 1: Kredensial Akses Pengguna */}
+                <div className="rounded-2xl border border-border/80 bg-secondary/40 p-4 space-y-3 shadow-inner">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                    <span className="font-mono text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">
+                      Kredensial Akses Pengguna
+                    </span>
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${ROLE_TONE[createdAccount.role]}`}>
+                      {ROLE_LABEL[createdAccount.role]}
+                    </span>
                   </div>
-                </div>
-              </div>
 
-              {/* Optional Email & Portal info */}
-              {createdAccount.email && (
-                <div className="space-y-2 pt-2 border-t border-border/40">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Email Terdaftar:</span>
-                    <span className="font-mono font-medium text-foreground">{createdAccount.email}</span>
+                  {/* Username Field */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Username Login</label>
+                    <div className="flex items-center justify-between rounded-xl border border-input bg-card px-3.5 py-2 shadow-xs">
+                      <span className="font-mono text-sm font-bold text-foreground tracking-wide">
+                        {createdAccount.username}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyText(createdAccount.username, 'username')}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer"
+                      >
+                        {copiedField === 'username' ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+                        <span>{copiedField === 'username' ? 'Tersalin' : 'Salin'}</span>
+                      </button>
+                    </div>
                   </div>
-                  {createdAccount.emailSent ? (
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs text-emerald-800 dark:text-emerald-300">
-                      <Check className="size-4 shrink-0 text-emerald-600" />
-                      <span>Email ucapan selamat &amp; kredensial akun telah otomatis dikirim ke <strong>{createdAccount.email}</strong>. Pemilik akun dapat langsung mengetahui jika sudah memiliki akun.</span>
+
+                  {/* Password Field */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-muted-foreground">Password Akses</label>
+                    <div className="flex items-center justify-between rounded-xl border border-input bg-card px-3.5 py-2 shadow-xs">
+                      <span className="font-mono text-sm font-bold text-foreground tracking-wide">
+                        {showPassword ? createdAccount.password : '••••••••••••'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+                          title={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                        >
+                          {showPassword ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyText(createdAccount.password, 'password')}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer"
+                        >
+                          {copiedField === 'password' ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+                          <span>{copiedField === 'password' ? 'Tersalin' : 'Salin'}</span>
+                        </button>
+                      </div>
                     </div>
-                  ) : createdAccount.emailError ? (
-                    <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs text-amber-800 dark:text-amber-300">
-                      <span>Pengiriman email belum berhasil: {createdAccount.emailError}</span>
-                      <button
-                        type="button"
-                        onClick={resendWelcomeFromModal}
-                        disabled={resendingModal}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50 cursor-pointer"
-                      >
-                        {resendingModal ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
-                        <span>Kirim Ulang Email</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between gap-2 rounded-xl border border-blue-500/30 bg-blue-500/10 p-2.5 text-xs text-blue-800 dark:text-blue-300">
-                      <span>Kirim email ucapan selamat &amp; kredensial ke pemilik akun:</span>
-                      <button
-                        type="button"
-                        onClick={resendWelcomeFromModal}
-                        disabled={resendingModal}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                      >
-                        {resendingModal ? <Loader2 className="size-3 animate-spin" /> : <Send className="size-3" />}
-                        <span>Kirim Email Akun</span>
-                      </button>
+                  </div>
+
+                  {createdAccount.email && (
+                    <div className="pt-1.5 text-xs flex items-center justify-between">
+                      <span className="text-muted-foreground">Email Terdaftar:</span>
+                      <span className="font-mono font-medium text-foreground">{createdAccount.email}</span>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            {/* Security Caution Notice */}
-            <div className="relative mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
-              <div className="flex items-start gap-2">
-                <ShieldCheck className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-                <p className="text-[11.5px] leading-relaxed">
-                  <strong>Pemberitahuan Keamanan:</strong> Demi mematuhi ISO/IEC 27001, password asli hanya ditampilkan satu kali ini. Harap segera catat kredensial ini dan minta pemilik akun melakukan penggantian password saat login pertama kali.
-                </p>
+                {/* Column 2: Status Pengiriman Email & Pemberitahuan Keamanan */}
+                <div className="flex flex-col gap-3">
+                  {/* Email Delivery Status */}
+                  {createdAccount.email && (
+                    <div>
+                      {createdAccount.emailSent ? (
+                        <div className="flex items-start gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-800 dark:text-emerald-300">
+                          <Check className="size-4 shrink-0 text-emerald-600 mt-0.5" />
+                          <span className="leading-relaxed">Email ucapan selamat &amp; kredensial akun telah otomatis dikirim ke <strong>{createdAccount.email}</strong>. Pemilik akun dapat langsung mengetahui jika sudah memiliki akun.</span>
+                        </div>
+                      ) : createdAccount.emailError ? (
+                        <div className="flex flex-col gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300">
+                          <span className="leading-relaxed">Pengiriman email belum berhasil: {createdAccount.emailError}</span>
+                          <button
+                            type="button"
+                            onClick={resendWelcomeFromModal}
+                            disabled={resendingModal}
+                            className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50 cursor-pointer"
+                          >
+                            {resendingModal ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                            <span>Kirim Ulang Email</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-3.5 text-xs text-blue-800 dark:text-blue-300">
+                          <span className="leading-relaxed">Kirim email ucapan selamat &amp; kredensial ke pemilik akun:</span>
+                          <button
+                            type="button"
+                            onClick={resendWelcomeFromModal}
+                            disabled={resendingModal}
+                            className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                          >
+                            {resendingModal ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                            <span>Kirim Email Akun</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Security Caution Notice */}
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-800 dark:text-amber-300">
+                    <div className="flex items-start gap-2.5">
+                      <ShieldCheck className="size-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                      <p className="text-[11.5px] leading-relaxed">
+                        <strong>Pemberitahuan Keamanan:</strong> Demi mematuhi ISO/IEC 27001, password asli hanya ditampilkan satu kali ini. Harap segera catat kredensial ini dan minta pemilik akun melakukan penggantian password saat login pertama kali.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="relative mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-              <button
-                type="button"
-                onClick={downloadCredentialsTxt}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-bold text-foreground shadow-xs transition hover:bg-secondary cursor-pointer"
-              >
-                <Download className="size-4" />
-                <span>Unduh Slip (.TXT)</span>
-              </button>
+            {/* Action Buttons Footer (sticky bottom bar) */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-t border-border/80 bg-secondary/30 px-5 py-3.5 sm:px-8">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={downloadCredentialsTxt}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground shadow-xs transition hover:bg-secondary cursor-pointer"
+                >
+                  <Download className="size-3.5" />
+                  <span>Unduh Slip (.TXT)</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={copyFullWelcomeMessage}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-xs font-bold text-accent-foreground shadow-md transition hover:brightness-110 cursor-pointer"
-              >
-                {copiedField === 'all' ? <Check className="size-4" /> : <Copy className="size-4" />}
-                <span>{copiedField === 'all' ? 'Semua Kredensial Tersalin!' : 'Salin Format Pesan'}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={copyFullWelcomeMessage}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-accent px-3.5 py-2 text-xs font-bold text-accent-foreground shadow-sm transition hover:brightness-110 cursor-pointer"
+                >
+                  {copiedField === 'all' ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  <span>{copiedField === 'all' ? 'Tersalin!' : 'Salin Format Pesan'}</span>
+                </button>
+              </div>
 
               <button
                 type="button"
                 onClick={() => setCreatedAccount(null)}
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-md transition hover:bg-primary/90 cursor-pointer"
+                className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 cursor-pointer"
               >
                 Selesai &amp; Tutup
               </button>

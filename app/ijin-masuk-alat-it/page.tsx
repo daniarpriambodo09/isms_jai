@@ -23,7 +23,7 @@ import {
   Copy,
   Check,
   Search,
-  Sparkles,
+  X,
   Phone,
   Mail,
   MapPin,
@@ -325,7 +325,7 @@ function FormContent() {
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="space-y-1">
                 <div className="size-6 mx-auto rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[10px]">
-                  ✓
+                  <Check className="size-3.5" />
                 </div>
                 <div className="font-semibold text-foreground text-[11px]">Diajukan</div>
                 <div className="text-[10px] text-muted-foreground">{submittedReq.request_date}</div>
@@ -341,7 +341,13 @@ function FormContent() {
                       : 'bg-secondary text-foreground'
                   }`}
                 >
-                  {isApproved || isReturned ? '✓' : isRejected ? '✕' : '2'}
+                  {isApproved || isReturned ? (
+                    <Check className="size-3.5" />
+                  ) : isRejected ? (
+                    <X className="size-3.5" />
+                  ) : (
+                    '2'
+                  )}
                 </div>
                 <div className="font-semibold text-foreground text-[11px]">Persetujuan (ACC IT)</div>
                 <div className="text-[10px] text-muted-foreground">
@@ -355,7 +361,7 @@ function FormContent() {
                     isReturned ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
                   }`}
                 >
-                  {isReturned ? '✓' : '3'}
+                  {isReturned ? <Check className="size-3.5" /> : '3'}
                 </div>
                 <div className="font-semibold text-foreground text-[11px]">Pemeriksaan Kembali</div>
                 <div className="text-[10px] text-muted-foreground">{isReturned ? 'Selesai' : 'Saat Pulang'}</div>

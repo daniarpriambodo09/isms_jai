@@ -68,6 +68,7 @@ const nextConfig: NextConfig = {
   // pdfjs-dist: read on the server to find the signature boxes of a Working
   // Standard (lib/auto-slots.ts) — loaded as-is by Node, not bundled.
   serverExternalPackages: ['pg', 'pg-connection-string', 'pgpass', 'pdfjs-dist'],
+  allowedDevOrigins: ['192.168.1.8', 'localhost', '127.0.0.1'],
   turbopack: {},
 };
 

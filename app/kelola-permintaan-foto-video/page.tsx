@@ -5,10 +5,11 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { AlertTriangle, Camera, Check, Eye, Loader2, RotateCcw, Search, Send, Settings, Trash2, Users, X } from 'lucide-react'
+import { AlertTriangle, Camera, Check, Eye, Loader2, RotateCcw, Search, Send, Settings, Trash2, UserCog, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { PhotoVideoDecisionModal, type PhotoVideoRequest } from '@/components/documents/PhotoVideoDecisionModal'
+import { VisitorApproverSettings } from '@/components/documents/VisitorApproverSettings'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Pagination } from '@/components/pagination'
@@ -60,6 +61,16 @@ function KelolaPermintaanFotoVideoContent() {
   const [unmarkingReturnId, setUnmarkingReturnId] = useState<number | null>(null)
   const [resendingId, setResendingId] = useState<number | null>(null)
   const [resendNotice, setResendNotice] = useState<string | null>(null)
+  const [activeApprover, setActiveApprover] = useState<{ id: number; fullName: string | null; title: string | null; email: string | null } | null>(null)
+
+  const loadApprover = useCallback(() => {
+    fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { approver: null }))
+      .then((data: { approver: { id: number; fullName: string | null; title: string | null; email: string | null } | null }) => {
+        if (data?.approver) setActiveApprover(data.approver)
+      })
+      .catch(() => {})
+  }, [])
 
   const resendApprovalEmail = async (req: PhotoVideoRequest) => {
     setResendingId(req.id)
@@ -99,7 +110,12 @@ function KelolaPermintaanFotoVideoContent() {
     }
   }, [statusFilter, typeFilter])
 
-  useEffect(() => { if (isLoggedIn) load() }, [isLoggedIn, load])
+  useEffect(() => {
+    if (isLoggedIn) {
+      load()
+      loadApprover()
+    }
+  }, [isLoggedIn, load, loadApprover])
 
   const confirmDelete = async () => {
     if (!pendingDelete) return
@@ -215,6 +231,17 @@ function KelolaPermintaanFotoVideoContent() {
             <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">Tinjau dan putuskan pengajuan izin pengambilan foto/video dari karyawan dan visitor.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <VisitorApproverSettings
+              onSaved={(appr) => setActiveApprover(appr)}
+              triggerButton={
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/15 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/25 shadow-xs"
+                >
+                  <UserCog className="size-4" /> Setting Approver
+                </button>
+              }
+            />
             <Link
               href="/kelola-pic-approve"
               className="inline-flex items-center gap-2 rounded-lg border border-primary-foreground/25 bg-primary-foreground/10 px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-foreground/20"
@@ -230,6 +257,41 @@ function KelolaPermintaanFotoVideoContent() {
           </div>
         </div>
       </header>
+
+      {/* Active Approver Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card p-4 sm:px-6 shadow-xs">
+        <div className="flex items-center gap-3.5">
+          <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary shrink-0">
+            <UserCog className="size-5" />
+          </span>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Approver Resmi Foto/Video:</span>
+              <span className="font-bold text-foreground text-sm">
+                {activeApprover?.fullName || 'Teguh Sunjoyo'}
+              </span>
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                {activeApprover?.title || 'Information Assets Administrator'}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Nama dan jabatan ini otomatis dicetak di bawah barcode QR persetujuan pada dokumen resmi.
+              {activeApprover?.email && ` · Email otorisasi: ${activeApprover.email}`}
+            </p>
+          </div>
+        </div>
+        <VisitorApproverSettings
+          onSaved={(appr) => setActiveApprover(appr)}
+          triggerButton={
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground shadow-xs transition hover:bg-secondary"
+            >
+              <Settings className="size-3.5" /> Ubah Setting Approver
+            </button>
+          }
+        />
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5">
@@ -319,7 +381,8 @@ function KelolaPermintaanFotoVideoContent() {
                     )}
                     {req.returned_at ? (
                       <span className="mt-1 inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-                        ✓ Kembali: {formatDateTime(req.returned_at)}
+                        <Check className="size-3 text-emerald-600" />
+                        <span>Kembali: {formatDateTime(req.returned_at)}</span>
                       </span>
                     ) : req.taken_at ? (
                       <span className="mt-1 inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">

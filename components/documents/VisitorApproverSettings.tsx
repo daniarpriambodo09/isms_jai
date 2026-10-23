@@ -95,8 +95,8 @@ export function VisitorApproverSettings({
               <div className="flex items-center gap-2.5">
                 <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><UserCog className="size-4" /></span>
                 <div>
-                  <p className="text-sm font-bold text-foreground">Setting Approver Visitor</p>
-                  <p className="text-xs text-muted-foreground">Semua pengajuan Visitor otomatis diteruskan ke orang ini.</p>
+                  <p className="text-sm font-bold text-foreground">Setting Approver Ijin Foto/Video</p>
+                  <p className="text-xs text-muted-foreground">Nama ini akan dicetak tepat di bawah barcode persetujuan dokumen.</p>
                 </div>
               </div>
               <button type="button" onClick={() => setOpen(false)} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground">
@@ -110,7 +110,7 @@ export function VisitorApproverSettings({
               ) : (
                 <div className="flex flex-col gap-3.5">
                   <label>
-                    <span className={labelClass}>Sapaan di email</span>
+                    <span className={labelClass}>Sapaan di Email</span>
                     <select value={salutation} onChange={(e) => setSalutation(e.target.value)} aria-label="Sapaan di email" className={inputClass}>
                       <option value="">Tanpa sapaan</option>
                       <option value="Bapak">Bapak</option>
@@ -119,16 +119,17 @@ export function VisitorApproverSettings({
                     <span className="mt-1 block text-[11px] text-muted-foreground">Email pengajuan dibuka dengan &quot;Dear {salutation ? `${salutation} ` : ''}{fullName.trim() || 'Nama'},&quot;</span>
                   </label>
                   <label>
-                    <span className={labelClass}>Nama Lengkap</span>
+                    <span className={labelClass}>Nama Lengkap (Dicetak di Bawah Barcode)</span>
                     <input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Contoh: Teguh Sunjoyo" className={inputClass} />
+                    <span className="mt-1 block text-[11px] text-muted-foreground">Nama ini akan tercetak jelas di bawah barcode QR tanda tangan persetujuan dokumen.</span>
                   </label>
                   <label>
-                    <span className={labelClass}>Jabatan</span>
+                    <span className={labelClass}>Jabatan (Tercetak di Dokumen PDF)</span>
                     <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Contoh: Information Assets Administrator" className={inputClass} />
-                    <span className="mt-1 block text-[11px] text-muted-foreground">Opsional — dicetak di bawah nama approver pada surat pengajuan PDF.</span>
+                    <span className="mt-1 block text-[11px] text-muted-foreground">Tercetak di bawah nama approver dalam tanda kurung, misal (Information Assets Administrator).</span>
                   </label>
                   <label>
-                    <span className={labelClass}>Email</span>
+                    <span className={labelClass}>Email Approver</span>
                     <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="nama@jatimautocomp.com" className={inputClass} />
                   </label>
                   <p className="text-[11px] text-muted-foreground">Notifikasi email pengajuan baru dari Visitor akan dikirim ke alamat ini (butuh SMTP sudah dikonfigurasi di Admin Settings → SMTP Settings).</p>

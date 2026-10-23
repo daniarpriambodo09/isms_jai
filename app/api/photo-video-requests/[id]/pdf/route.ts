@@ -56,6 +56,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const base = resolveAppBaseUrl(settings?.appUrl, request.nextUrl.origin)
     const verifyUrl = `${base}/isms-jai/verifikasi/${row.id}?code=${row.verification_code}`
 
+    // Resolve the approver's full name and title from pic_approvers (e.g. Pak Tsu / Teguh Sunjoyo)
+    const picResult = await query<{ full_name: string | null; name: string; title: string | null }>(
+      `SELECT pic.full_name, pic.name, pic.title
+       FROM photo_video_requests r
+       LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
+       WHERE r.id = $1`,
+      [id]
+    )
+    const defApprover = await query<{ full_name: string | null; name: string; title: string | null }>(
+      `SELECT full_name, name, title FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`
+    )
+
+    const rawDecidedBy = (row.decided_by || '').trim()
+    const isAdminGeneric = !rawDecidedBy || rawDecidedBy.toLowerCase() === 'admin' || rawDecidedBy.toLowerCase() === 'admin isms'
+
+    const approverFullName = (!isAdminGeneric && rawDecidedBy)
+      ? rawDecidedBy
+      : picResult.rows[0]?.full_name || picResult.rows[0]?.name || defApprover.rows[0]?.full_name || defApprover.rows[0]?.name || 'Teguh Sunjoyo'
+
+    const approverTitle = row.decided_by_title
+      || picResult.rows[0]?.title
+      || defApprover.rows[0]?.title
+      || 'Information Assets Administrator'
+
     const pdfBytes = await buildEsignPdf(
       {
         id: row.id,
@@ -68,8 +92,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         objective: row.objective,
         status: row.status as 'approved' | 'rejected',
         decidedAt: row.decided_at,
-        approverFullName: row.decided_by,
-        approverTitle: row.decided_by_title,
+        approverFullName,
+        approverTitle,
         verificationCode: row.verification_code,
         submittedAt: row.submitted_at,
         cameraSerialNo: row.camera_serial_no,

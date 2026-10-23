@@ -14,6 +14,7 @@
 
 import 'server-only'
 import path from 'path'
+import { randomBytes } from 'crypto'
 import { query } from '@/lib/db'
 import { getSmtpSettings, sendMail } from '@/lib/smtp'
 import { isDeliverableEmail } from '@/lib/email-address'
@@ -43,13 +44,14 @@ type RequestRow = {
   requester_email: string | null
   result_mailed_at: string | null
   pic_name: string | null
+  approval_token: string | null
 }
 
 async function getRow(id: number) {
   return (await query<RequestRow>(
     `SELECT r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.location, r.objective, r.from_at, r.to_at, r.status,
             r.decided_by, r.decision_note, r.camera_control_no, r.photo_id_no, r.ref_token, r.verification_code,
-            r.requester_email, r.result_mailed_at, COALESCE(pic.full_name, pic.name) AS pic_name
+            r.requester_email, r.result_mailed_at, r.approval_token, COALESCE(pic.full_name, pic.name) AS pic_name
      FROM photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id WHERE r.id = $1`,
     [id]
   )).rows[0] ?? null
@@ -76,11 +78,29 @@ export async function notifyNewPhotoRequest(id: number) {
 
     const base = await portalBaseUrl()
     if (!base) return
+
+    // Ensure token exists so auto-login buttons work reliably
+    let token = row.approval_token
+    if (!token) {
+      token = randomBytes(24).toString('hex')
+      await query('UPDATE photo_video_requests SET approval_token = $1 WHERE id = $2', [token, row.id])
+    }
+
+    const approvePath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(token)}&action=approve`
+    const rejectPath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(token)}&action=reject`
+    const approveUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(approvePath)}`
+    const rejectUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(rejectPath)}`
+    const dashboardUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(token)}&next=${encodeURIComponent(`${API_BASE_PATH}/persetujuan-saya`)}`
+
     const pendingCount = Number((await query<{ n: number }>("SELECT count(*)::int AS n FROM photo_video_requests WHERE status = 'pending' AND request_type = 'internal'")).rows[0]?.n ?? 1)
     const { subject, html } = buildPhotoRequestAdminEmail({
       requesterName: row.requester_name, nik: row.nik, deptOrCompany: row.dept_or_company, location: row.location, objective: row.objective,
       fromAt: row.from_at, toAt: row.to_at, picApprove: row.pic_name, cameraControlNo: row.camera_control_no, photoIdNo: row.photo_id_no,
-      reviewUrl: `${base}/kelola-permintaan-foto-video?status=pending&type=internal`, pendingCount,
+      reviewUrl: `${base}/kelola-permintaan-foto-video?status=pending&type=internal`,
+      pendingCount,
+      approveUrl,
+      rejectUrl,
+      dashboardUrl,
     })
     await sendToAdmins(subject, html)
   } catch (error) {
@@ -200,8 +220,13 @@ export async function resendPhotoVisitorApprovalEmail(id: number): Promise<{ suc
     )
     const row = res.rows[0]
     if (!row) return { success: false, message: 'Pengajuan tidak ditemukan.' }
-    if (row.request_type !== 'visitor') return { success: false, message: 'Hanya pengajuan visitor yang memerlukan persetujuan via email.' }
     if (row.status !== 'pending') return { success: false, message: `Pengajuan sudah ${row.status}.` }
+
+    if (row.request_type === 'internal') {
+      await notifyNewPhotoRequest(row.id)
+      return { success: true, message: 'Email pengesahan Internal berhasil dikirim ulang ke Admin ISMS.' }
+    }
+
     if (!row.pic_email) return { success: false, message: 'PIC Approver belum memiliki email terdaftar.' }
 
     const settings = await getSmtpSettings()

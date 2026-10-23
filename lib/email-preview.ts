@@ -111,10 +111,15 @@ export function renderEmailPreview(id: string, origin: string): { subject: strin
 
   let mail: { subject: string; html: string }
   if (group === 'photo' && variant === 'admin') {
+    const previewToken = 'previewTokenPhoto'
     mail = buildPhotoRequestAdminEmail({
       requesterName: 'Naufal Aqil', nik: '12345', deptOrCompany: 'PGA - GAGS', location: 'Genba A', objective: 'Dokumentasi kegiatan 5S',
       fromAt: at(2), toAt: at(4), picApprove: 'Teguh Sunjoyo', cameraControlNo: 'CAM-PGA-01', photoIdNo: 'PH-07',
-      reviewUrl: `${base}/kelola-permintaan-foto-video?status=pending&type=internal`, pendingCount: 2,
+      reviewUrl: `${base}/kelola-permintaan-foto-video?status=pending&type=internal`,
+      pendingCount: 2,
+      approveUrl: `${base}/api/auth/approver-token-login?token=${previewToken}&next=%2Fkonfirmasi-approval%3Ftoken%3D${previewToken}%26action%3Dapprove`,
+      rejectUrl: `${base}/api/auth/approver-token-login?token=${previewToken}&next=%2Fkonfirmasi-approval%3Ftoken%3D${previewToken}%26action%3Dreject`,
+      dashboardUrl: `${base}/api/auth/approver-token-login?token=${previewToken}&next=%2Fpersetujuan-saya`,
     })
   } else if (group === 'photo' && variant === 'digest') {
     mail = buildPhotoPendingDigestEmail({

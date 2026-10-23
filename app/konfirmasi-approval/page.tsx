@@ -24,6 +24,10 @@ type Preview = {
   objective: string
   pic_jai: string | null
   verification_code: string | null
+  nik?: string | null
+  camera_control_no?: string | null
+  photo_id_no?: string | null
+  request_type?: string
 }
 
 function fmt(value: string) {
@@ -101,13 +105,32 @@ function KonfirmasiContent() {
 
         <div className="mt-6 rounded-2xl bg-secondary/40 p-4 text-left text-sm">
           <dl className="grid grid-cols-[110px_1fr] gap-y-2">
-            <dt className="text-muted-foreground">Nama</dt><dd className="text-foreground">{data.requester_name}</dd>
-            <dt className="text-muted-foreground">Company</dt><dd className="text-foreground">{data.dept_or_company}</dd>
-            <dt className="text-muted-foreground">Departemen</dt><dd className="text-foreground">{data.dept ?? '-'}</dd>
+            <dt className="text-muted-foreground">Nama</dt>
+            <dd className="text-foreground">
+              {data.requester_name}
+              {data.nik && <span className="ml-1.5 text-xs text-muted-foreground">(NIK {data.nik})</span>}
+            </dd>
+            <dt className="text-muted-foreground">{data.request_type === 'internal' ? 'Dept./Seksi' : 'Company'}</dt>
+            <dd className="text-foreground">{data.dept_or_company}</dd>
+            {data.dept && (
+              <>
+                <dt className="text-muted-foreground">Departemen</dt><dd className="text-foreground">{data.dept}</dd>
+              </>
+            )}
             <dt className="text-muted-foreground">Waktu</dt><dd className="text-foreground">{fmt(data.from_at)} – {fmt(data.to_at)}</dd>
             <dt className="text-muted-foreground">Lokasi</dt><dd className="text-foreground">{data.location}</dd>
             <dt className="text-muted-foreground">Tujuan</dt><dd className="text-foreground">{data.objective}</dd>
-            <dt className="text-muted-foreground">PIC JAI</dt><dd className="text-foreground">{data.pic_jai ?? '-'}</dd>
+            {data.camera_control_no && (
+              <>
+                <dt className="text-muted-foreground">Kamera / ID</dt>
+                <dd className="text-foreground">{data.camera_control_no}{data.photo_id_no ? ` · ${data.photo_id_no}` : ''}</dd>
+              </>
+            )}
+            {data.pic_jai && (
+              <>
+                <dt className="text-muted-foreground">PIC JAI</dt><dd className="text-foreground">{data.pic_jai}</dd>
+              </>
+            )}
           </dl>
         </div>
 

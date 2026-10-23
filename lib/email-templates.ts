@@ -1493,8 +1493,16 @@ export type PhotoRequestSummary = {
 }
 
 /** To the ISM Admins when an Internal request comes in — they are the ones who decide it. */
-export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & { reviewUrl: string; pendingCount: number }): { subject: string; html: string } {
+export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
+  reviewUrl: string
+  pendingCount: number
+  approveUrl?: string
+  rejectUrl?: string
+  dashboardUrl?: string
+}): { subject: string; html: string } {
   const e = escapeHtml
+  const hasAutoLogin = Boolean(data.approveUrl && data.rejectUrl)
+
   const body = `
     <tr><td style="padding:28px 32px 6px;">
       <p style="margin:0 0 12px;font-size:14px;color:${TEXT};line-height:1.7;">Dear Admin ISMS,</p>
@@ -1509,7 +1517,45 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & { review
       ['Kamera / ID', `${e(data.cameraControlNo ?? '-')} &middot; ${e(data.photoIdNo ?? '-')}`],
       ['PIC Approve', e(data.picApprove ?? '-')],
     ])}</td></tr>
+    ${hasAutoLogin ? `
+    <tr>
+      <td style="padding:24px 32px 8px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
+          <tr>
+            <td style="padding:18px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
+          </tr>
+          ${data.dashboardUrl ? `
+          <tr>
+            <td align="center" style="padding:8px 20px 6px;">
+              <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 28px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
+                &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+              </a>
+            </td>
+          </tr>` : ''}
+          <tr>
+            <td align="center" style="padding:10px 20px 14px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding-right:10px;">
+                    <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:13px 28px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.25);">&#10003;&nbsp; Menyetujui (Auto-Login)</a>
+                  </td>
+                  <td>
+                    <a href="${data.rejectUrl}" style="display:inline-block;min-width:140px;text-align:center;padding:13px 26px;background:linear-gradient(135deg, #d8342b 0%, ${RED} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(199,22,30,0.25);">&#10007;&nbsp; Tolak</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 20px 14px;text-align:center;font-size:11px;color:${MUTED};">
+              <em>Catatan: Tombol di atas akan otomatis mengautentikasi (Auto-Login) akun Anda ke Portal ISMS tanpa perlu login manual.</em>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>` : `
     <tr><td align="center" style="padding:24px 32px 6px;">${photoButton(data.reviewUrl, '&#9654;&nbsp; Tinjau Pengajuan')}</td></tr>
+    `}
     <tr><td style="padding:10px 32px 26px;"><p style="margin:0;font-size:11.5px;color:${MUTED};text-align:center;line-height:1.6;">${data.pendingCount > 1 ? `Saat ini ada <strong>${data.pendingCount} pengajuan Internal</strong> yang menunggu keputusan. ` : ''}Pemohon menerima kabar setelah Anda memutuskan (bila ia mengisi email).</p></td></tr>`
   return {
     subject: `[Perlu keputusan] Ijin Foto/Video Internal — ${data.requesterName} (${data.deptOrCompany})`,

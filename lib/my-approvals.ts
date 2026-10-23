@@ -317,10 +317,15 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
               to_char(r.decided_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS decided_at,
               to_char(r.from_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS from_at,
               to_char(r.to_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS to_at,
-              pic.name AS pic_name, pic.full_name AS pic_full_name, pic.email AS pic_email, pic.title AS pic_title
+              COALESCE(pic.name, def.name) AS pic_name,
+              COALESCE(pic.full_name, def.full_name) AS pic_full_name,
+              COALESCE(pic.email, def.email) AS pic_email,
+              COALESCE(pic.title, def.title) AS pic_title
        FROM photo_video_requests r
-       JOIN pic_approvers pic ON pic.id = r.pic_approve_id
-       WHERE lower(trim(pic.email)) = $1
+       LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
+       LEFT JOIN pic_approvers def ON def.is_visitor_default = true
+       WHERE lower(trim(COALESCE(pic.email, def.email))) = $1
+          OR (EXISTS (SELECT 1 FROM admins a WHERE lower(trim(a.email)) = $1 AND a.role = 'ism_admin') AND r.request_type = 'internal')
        ORDER BY COALESCE(r.decided_at, r.submitted_at) DESC`,
       [address]
     )).rows

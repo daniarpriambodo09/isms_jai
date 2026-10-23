@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildAccountCreatedEmail,
   buildItFormApprovalEmail,
+  buildPhotoRequestAdminEmail,
   buildProcedureApprovalEmail,
   buildSpecialAreaApprovalEmail,
   buildVisitorApprovalEmail,
@@ -113,5 +114,30 @@ describe('Auto-Login Buttons in Approval Emails', () => {
     expect(email.html).toContain('Buka di Dashboard Persetujuan Saya (Auto-Login)')
     expect(email.html).toContain('Menyetujui (Auto-Login)')
     expect(email.html).toContain('/api/auth/approver-token-login?token=tokenPhoto')
+  })
+
+  it('Internal Photo/Video admin email features direct and dashboard auto-login buttons', () => {
+    const email = buildPhotoRequestAdminEmail({
+      requesterName: 'Ahmad Staff',
+      nik: '123456',
+      deptOrCompany: 'PGA - IR',
+      fromAt: '2026-10-23T08:00:00Z',
+      toAt: '2026-10-23T10:00:00Z',
+      location: 'Area Produksi 1',
+      objective: 'Foto Layout Mesin',
+      cameraControlNo: 'CAM-01',
+      photoIdNo: 'ID-02',
+      picApprove: 'Teguh Sunjoyo',
+      reviewUrl: 'http://localhost:3009/kelola-permintaan-foto-video?status=pending&type=internal',
+      pendingCount: 1,
+      approveUrl: 'http://localhost:3009/api/auth/approver-token-login?token=tokenInternal&next=%2Fkonfirmasi-approval%3Ftoken%3DtokenInternal%26action%3Dapprove',
+      rejectUrl: 'http://localhost:3009/api/auth/approver-token-login?token=tokenInternal&next=%2Fkonfirmasi-approval%3Ftoken%3DtokenInternal%26action%3Dreject',
+      dashboardUrl: 'http://localhost:3009/api/auth/approver-token-login?token=tokenInternal&next=%2Fpersetujuan-saya',
+    })
+
+    expect(email.html).toContain('Buka di Dashboard Persetujuan Saya (Auto-Login)')
+    expect(email.html).toContain('Menyetujui (Auto-Login)')
+    expect(email.html).toContain('Tolak')
+    expect(email.html).toContain('/api/auth/approver-token-login?token=tokenInternal')
   })
 })

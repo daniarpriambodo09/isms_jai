@@ -82,9 +82,11 @@ export async function findApproverEmailByToken(token: string): Promise<string | 
   // 4. Izin Foto / Video (photo_video_requests)
   try {
     const res = await query<{ email: string | null }>(
-      `SELECT pic.email
+      `SELECT COALESCE(pic.email, def.email, adm.email) AS email
        FROM photo_video_requests r
-       JOIN pic_approvers pic ON pic.id = r.pic_approve_id
+       LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
+       LEFT JOIN pic_approvers def ON def.is_visitor_default = true
+       LEFT JOIN (SELECT email FROM admins WHERE role IN ('ism_admin', 'approver') AND email IS NOT NULL LIMIT 1) adm ON true
        WHERE r.approval_token = $1
        LIMIT 1`,
       [clean]

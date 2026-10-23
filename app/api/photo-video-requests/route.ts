@@ -224,10 +224,8 @@ export async function POST(request: NextRequest) {
     const staff = getKioskAdminFromRequest(request)
     const escort = staff ? parseEscort(body) : { name: null, dept: null }
 
-    // Only Visitor requests get a token — it's what lets the approver act
-    // straight from the email link without logging in (see the
-    // approve/reject route).
-    const approvalToken = requestType === 'visitor' ? randomBytes(24).toString('hex') : null
+    // Both internal and visitor requests get a token — allows direct auto-login decision via email
+    const approvalToken = randomBytes(24).toString('hex')
 
     // Every request starts 'pending'. Internal ones are decided by an ISM
     // Admin in /kelola-permintaan-foto-video (they used to be inserted

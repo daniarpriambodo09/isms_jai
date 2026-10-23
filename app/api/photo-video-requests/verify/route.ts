@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await query(
-      `SELECT ${SELECT_COLUMNS} FROM photo_video_requests r WHERE r.id = $1 AND r.request_type = 'visitor'${isAdmin ? '' : ' AND r.verification_code = $2'}`,
+      `SELECT ${SELECT_COLUMNS} FROM photo_video_requests r WHERE r.id = $1${isAdmin ? '' : ' AND r.verification_code = $2'}`,
       isAdmin ? [idParam] : [idParam, code]
     )
     const row = result.rows[0]

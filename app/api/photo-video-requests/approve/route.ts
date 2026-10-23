@@ -40,9 +40,11 @@ export async function GET(request: NextRequest) {
       const result = await query<{
         id: number; status: string; requester_name: string; dept_or_company: string; dept: string | null
         from_at: string; to_at: string; location: string; objective: string; pic_jai: string | null; verification_code: string | null
+        nik: string | null; camera_control_no: string | null; photo_id_no: string | null; request_type: string
       }>(
-        `SELECT id, status, requester_name, dept_or_company, dept, from_at, to_at, location, objective, pic_jai, verification_code
-         FROM photo_video_requests WHERE approval_token = $1 AND request_type = 'visitor'`,
+        `SELECT id, status, requester_name, dept_or_company, dept, from_at, to_at, location, objective, pic_jai, verification_code,
+                nik, camera_control_no, photo_id_no, request_type
+         FROM photo_video_requests WHERE approval_token = $1`,
         [token]
       )
       const row = result.rows[0]
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const requestRow = await query<{ id: number; status: string; pic_approve_id: number | null; verification_code: string | null }>(
-      `SELECT id, status, pic_approve_id, verification_code FROM photo_video_requests WHERE approval_token = $1 AND request_type = 'visitor'`,
+      `SELECT id, status, pic_approve_id, verification_code FROM photo_video_requests WHERE approval_token = $1`,
       [token]
     )
     const row = requestRow.rows[0]
@@ -88,12 +90,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Pengajuan ini sudah diputuskan sebelumnya — link ini tidak berlaku lagi.' }, { status: 409 })
     }
 
-    const picResult = await query<{ full_name: string | null; name: string; title: string | null }>(
+    let picResult = await query<{ full_name: string | null; name: string; title: string | null }>(
       `SELECT full_name, name, title FROM pic_approvers WHERE id = $1`,
       [row.pic_approve_id]
     )
-    const approverName = picResult.rows[0]?.full_name ?? picResult.rows[0]?.name ?? 'Approver'
-    const approverTitle = picResult.rows[0]?.title ?? null
+    if (!picResult.rows[0]) {
+      picResult = await query<{ full_name: string | null; name: string; title: string | null }>(
+        `SELECT full_name, name, title FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`
+      )
+    }
+    const approverName = picResult.rows[0]?.full_name ?? picResult.rows[0]?.name ?? 'Teguh Sunjoyo'
+    const approverTitle = picResult.rows[0]?.title ?? 'Information Assets Administrator'
 
     const status = action === 'approve' ? 'approved' : 'rejected'
     const verificationCode = `JAI-${row.id}-${randomBytes(4).toString('hex').toUpperCase()}`

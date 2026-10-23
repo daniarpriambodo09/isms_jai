@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const result = await query<Row>(
       `SELECT id, requester_name, dept_or_company, dept, from_at, to_at, location, objective, status, decided_at, decided_by, decided_by_title, submitted_at, verification_code, camera_serial_no, escort_name, escort_dept
-       FROM photo_video_requests WHERE id = $1 AND request_type = 'visitor'`,
+       FROM photo_video_requests WHERE id = $1`,
       [id]
     )
     const row = result.rows[0]

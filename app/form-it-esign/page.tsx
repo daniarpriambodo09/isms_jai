@@ -1001,7 +1001,7 @@ function FormItContent() {
               {submissionResult.notes && (
                 <div className="mt-4 pt-3 border-t border-border/60 text-xs">
                   <span className="text-muted-foreground block text-[11px] mb-0.5">Catatan / Alasan:</span>
-                  <span className="text-foreground">{submissionResult.notes}</span>
+                  <span className="text-foreground whitespace-pre-wrap">{submissionResult.notes}</span>
                 </div>
               )}
             </div>
@@ -2443,7 +2443,13 @@ function FormItContent() {
                     <button
                       key={preset}
                       type="button"
-                      onClick={() => setNotes((prev) => (prev ? `${prev}. ${preset}` : preset))}
+                      onClick={() =>
+                        setNotes((prev) => {
+                          const trimmed = prev.trim()
+                          if (!trimmed) return preset
+                          return trimmed.endsWith('.') ? `${trimmed} ${preset}` : `${trimmed}. ${preset}`
+                        })
+                      }
                       className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary px-2.5 py-1 text-[10px] font-bold text-foreground hover:border-primary/40 hover:text-primary transition active:scale-95 shadow-2xs cursor-pointer"
                     >
                       <Plus className="size-2.5 text-primary" />

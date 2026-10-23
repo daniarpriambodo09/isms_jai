@@ -57,6 +57,82 @@ function safeText(val?: string | null): string {
   return val.replace(/[^\x20-\x7E\xA0-\xFF]/g, ' ')
 }
 
+/**
+ * Splits and word-wraps text across available horizontal ruled lines.
+ * Preserves user newlines and breaks long text across multiple lines naturally.
+ */
+function wrapTextToRuledLines(
+  text: string | null | undefined,
+  font: any,
+  fontSize: number,
+  maxWidth: number,
+  maxLines: number
+): string[] {
+  if (!text || !text.trim()) return []
+  // Split on newlines first so user paragraphs/bullet points are preserved
+  const paragraphs = text.trim().split(/\r?\n/)
+  const result: string[] = []
+
+  for (let p = 0; p < paragraphs.length; p++) {
+    const para = safeText(paragraphs[p]).trim()
+    if (!para) continue
+    const words = para.split(/\s+/).filter(Boolean)
+    if (words.length === 0) continue
+
+    let curLine = ''
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]
+      const candidate = curLine ? `${curLine} ${word}` : word
+
+      if (font.widthOfTextAtSize(candidate, fontSize) <= maxWidth) {
+        curLine = candidate
+      } else {
+        if (curLine) {
+          result.push(curLine)
+          curLine = ''
+        }
+        if (result.length >= maxLines) break
+
+        if (font.widthOfTextAtSize(word, fontSize) <= maxWidth) {
+          curLine = word
+        } else {
+          let remWord = word
+          while (remWord && result.length < maxLines) {
+            let chunk = ''
+            for (let c = 0; c < remWord.length; c++) {
+              if (font.widthOfTextAtSize(chunk + remWord[c], fontSize) <= maxWidth) {
+                chunk += remWord[c]
+              } else {
+                break
+              }
+            }
+            if (!chunk) chunk = remWord[0]
+            remWord = remWord.slice(chunk.length)
+            if (remWord && result.length + 1 < maxLines) {
+              result.push(chunk)
+            } else {
+              curLine = chunk
+              break
+            }
+          }
+        }
+        if (result.length >= maxLines) break
+      }
+    }
+
+    if (curLine) {
+      result.push(curLine)
+      curLine = ''
+    }
+    if (result.length >= maxLines) break
+  }
+
+  if (result.length > maxLines) {
+    result.length = maxLines
+  }
+  return result
+}
+
 const TEMPLATE_MAP: Record<string, string> = {
   'ISMS-F-010-001': 'isms-f-010-001-pc.pdf',
   'ISMS-F-010-003': 'isms-f-010-003-software.pdf',
@@ -187,6 +263,29 @@ async function stampOnTemplate(
     write(parts.yy, slashX2 + 4 + 2.5, baselineY, size, font, color)
   }
 
+  const stampRuledNotes = (
+    noteText: string | null | undefined,
+    linesY: number[],
+    startX = 70,
+    maxWidth = 470,
+    fontSize = 8,
+    font = fontRegular,
+    color = COLOR_INK,
+    yOffset = 3.5
+  ) => {
+    if (!noteText) return
+    const lines = wrapTextToRuledLines(noteText, font, fontSize, maxWidth, linesY.length)
+    for (let i = 0; i < lines.length && i < linesY.length; i++) {
+      page.drawText(safeText(lines[i]), {
+        x: startX,
+        y: linesY[i] + yOffset,
+        size: fontSize,
+        font,
+        color,
+      })
+    }
+  }
+
   // -------------------------------------------------------------
   // FORM 1: ISMS-F-010-001 (Pengadaan PC / Laptop)
   // -------------------------------------------------------------
@@ -229,7 +328,7 @@ async function stampOnTemplate(
     write(formData.function_purpose || sub.purpose || '-', 215, 317, 9)
 
     if (sub.notes) {
-      write(sub.notes.slice(0, 95), 70, 280, 8, fontOblique, COLOR_MUTED)
+      stampRuledNotes(sub.notes, [280.4, 265.4, 250.4, 235.4], 70, 470, 8, fontRegular, COLOR_INK, 3.5)
     }
 
     // Signature boxes: IT Section Check (centerX=411.0) & Manager (centerX=510.5)
@@ -299,7 +398,7 @@ async function stampOnTemplate(
     write(formData.function_purpose || sub.purpose || '-', 215, 257, 9)
 
     if (sub.notes) {
-      write(sub.notes.slice(0, 95), 70, 220, 8, fontOblique, COLOR_MUTED)
+      stampRuledNotes(sub.notes, [220.64, 205.64, 190.64], 70, 470, 8, fontRegular, COLOR_INK, 3.5)
     }
 
     // Signature boxes: IT Section Check (centerX=411.0) & Manager (centerX=510.5)
@@ -364,7 +463,7 @@ async function stampOnTemplate(
       write(detailStr.slice(0, 48), 400, 590 + d, 7.5, fontBold)
 
       if (sub.notes) {
-        write(sub.notes.slice(0, 95), 65, 574 + d, 7.5, fontOblique, COLOR_MUTED)
+        stampRuledNotes(sub.notes, [581.96 + d, 566.60 + d, 551.24 + d], 64, 480, 8, fontRegular, COLOR_INK, 3.5)
       }
 
       // Stamped signatures for both copies (Top & Bottom):
@@ -433,7 +532,7 @@ async function stampOnTemplate(
       write(detailStr.slice(0, 48), 400, 595 + d, 7.5, fontBold)
 
       if (sub.notes) {
-        write(sub.notes.slice(0, 95), 65, 574 + d, 7.5, fontOblique, COLOR_MUTED)
+        stampRuledNotes(sub.notes, [581.96 + d, 566.60 + d, 551.24 + d], 64, 480, 8, fontRegular, COLOR_INK, 3.5)
       }
 
       // Stamped signatures for both copies:
@@ -778,8 +877,17 @@ async function renderDynamicPdf(
   text(`Departemen: ${formatDeptSection(sub.department, formData.section)}`, leftX + 8, y - 62, 8.5)
   text(`Tanggal Pengajuan: ${formatDateId(sub.request_date)}`, leftX + 8, y - 78, 8.5)
 
-  y -= 120
-  text(`Catatan: ${sub.notes || '-'}`, leftX, y, 8, fontOblique, COLOR_MUTED)
+  y -= 118
+  if (sub.notes) {
+    text('Catatan:', leftX, y, 8, fontBold, COLOR_INK)
+    const noteLines = wrapTextToRuledLines(sub.notes, fontRegular, 8, W - 60, 4)
+    for (let i = 0; i < noteLines.length; i++) {
+      text(noteLines[i], leftX + 45, y - i * 11, 8, fontRegular, COLOR_INK)
+    }
+    y -= Math.max(0, (noteLines.length - 1) * 11)
+  } else {
+    text('Catatan: -', leftX, y, 8, fontOblique, COLOR_MUTED)
+  }
 
   // Approver Signatures
   y -= 30

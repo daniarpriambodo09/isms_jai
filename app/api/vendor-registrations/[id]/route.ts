@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stationOffMessage } from '@/lib/kiosk-stations'
 import { getKioskAdminFromRequest } from '@/lib/auth'
-import { query } from '@/lib/db'
+import { query, withTransaction } from '@/lib/db'
+import { parseVisitDate } from '@/lib/visit-date'
+import { COMPANIONS_SQL, parseCompanions, replaceCompanions, type Companion } from '@/lib/registration-companions'
 import { logActivity } from '@/lib/activity-log'
 import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
@@ -12,7 +14,7 @@ type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area'
 type SecurityCardType = 'visitor' | 'vendor' | 'supplier'
 // The Lobby cards a guest can swap into.
 type SwapCardType = 'visitor' | 'vendor'
-type Action = 'approve' | 'swapToWorkArea' | 'returnWorkArea' | 'close' | 'returnDirect' | 'editDetails' | 'forceClose'
+type Action = 'approve' | 'swapToWorkArea' | 'returnWorkArea' | 'close' | 'returnDirect' | 'editDetails' | 'forceClose' | 'verifyId' | 'returnId'
 type CardColumn = 'visitor_card_barcode' | 'vendor_card_barcode' | 'supplier_card_barcode' | 'affiliate_card_barcode' | 'special_area_card_barcode' | 'photography_card_barcode'
 
 type VendorRegistrationRow = {
@@ -39,15 +41,22 @@ type VendorRegistrationRow = {
   security_card_barcode: string | null
   at_work_area: boolean
   closed_note: string | null
+  visit_date: string | null
+  id_verified_at: string | null
+  id_verified_by: string | null
+  id_returned_at: string | null
+  companions: Companion[]
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
-  security_card_type, security_card_barcode, at_work_area, closed_note`
+  security_card_type, security_card_barcode, at_work_area, closed_note,
+  to_char(visit_date, 'YYYY-MM-DD') AS visit_date,
+  id_verified_at, id_verified_by, id_returned_at, ${COMPANIONS_SQL}`
 
-const ACTIONS: Action[] = ['approve', 'swapToWorkArea', 'returnWorkArea', 'close', 'returnDirect', 'editDetails', 'forceClose']
+const ACTIONS: Action[] = ['approve', 'swapToWorkArea', 'returnWorkArea', 'close', 'returnDirect', 'editDetails', 'forceClose', 'verifyId', 'returnId']
 function isAction(value: unknown): value is Action {
   return typeof value === 'string' && (ACTIONS as string[]).includes(value)
 }
@@ -123,11 +132,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const body = await request.json() as {
       action?: string; barcode?: string; cardType?: string; securityCardType?: string
-      fullName?: string; idCard?: string; picJai?: string; purpose?: string; companyRemark?: string; reason?: string
+      fullName?: string; idCard?: string; picJai?: string; purpose?: string; companyRemark?: string; reason?: string; visitDate?: string; companions?: unknown
     }
     if (!isAction(body.action)) return NextResponse.json({ message: 'Aksi tidak valid.' }, { status: 400 })
     const barcode = normalizeCardNo(body.barcode)
-    if (body.action !== 'editDetails' && body.action !== 'forceClose' && !barcode) return NextResponse.json({ message: 'Barcode wajib diisi.' }, { status: 400 })
+    if (body.action !== 'editDetails' && body.action !== 'forceClose' && body.action !== 'verifyId' && body.action !== 'returnId' && !barcode) return NextResponse.json({ message: 'Barcode wajib diisi.' }, { status: 400 })
 
     const existing = await query<VendorRegistrationRow>(`SELECT ${SELECT_COLUMNS} FROM vendor_registrations WHERE id = $1`, [id])
     const row = existing.rows[0]
@@ -147,13 +156,48 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         }
         // The kind of Security card can still be corrected until the card is handed out.
         const securityCardType = row.stage === 'pending_approval' && isSecurityCardType(body.securityCardType) ? body.securityCardType : row.security_card_type
-        const result = await query<VendorRegistrationRow>(
-          `UPDATE vendor_registrations
-           SET full_name = $1, id_card = $2, pic_jai = $3, purpose = $4, company_remark = $5, security_card_type = $7
-           WHERE id = $6 RETURNING ${SELECT_COLUMNS}`,
-          [fullName, idCard || '-', picJai || '-', purpose, companyRemark, id, securityCardType]
-        )
+        // visitDate omitted = leave as is; '' = clear it.
+        const visitDate = body.visitDate === undefined ? row.visit_date : parseVisitDate(body.visitDate)
+        if (visitDate === undefined) return NextResponse.json({ message: 'Tanggal kunjungan tidak valid.' }, { status: 400 })
+        const companions = parseCompanions(body.companions)
+        if (companions === undefined) return NextResponse.json({ message: 'Data orang tambahan tidak valid: nama dan nomor KTP wajib diisi keduanya (maks. 20 orang).' }, { status: 400 })
+        const updated = await withTransaction(async () => {
+          const result = await query<VendorRegistrationRow>(
+            `UPDATE vendor_registrations
+             SET full_name = $1, id_card = $2, pic_jai = $3, purpose = $4, company_remark = $5, security_card_type = $7, visit_date = $8
+             WHERE id = $6 RETURNING ${SELECT_COLUMNS}`,
+            [fullName, idCard || '-', picJai || '-', purpose, companyRemark, id, securityCardType, visitDate]
+          )
+          // companions omitted = leave as is
+          if (companions) await replaceCompanions(id, companions)
+          return companions ? { ...result.rows[0], companions } : result.rows[0]
+        })
         await logActivity(session, 'update', 'vendor_registration', id, `Mengubah data pendaftaran "${row.full_name}"${fullName !== row.full_name ? ` menjadi "${fullName}"` : ''}`)
+        return NextResponse.json({ registration: updated })
+      }
+
+      // KTP check is Pos Security's job (the ISM Admin may too).
+      case 'verifyId':
+      case 'returnId': {
+        if (session.role !== 'security' && session.role !== 'ism_admin') {
+          return NextResponse.json({ message: 'Verifikasi KTP hanya dilakukan oleh Pos Security.' }, { status: 403 })
+        }
+        if (body.action === 'verifyId') {
+          const result = await query<VendorRegistrationRow>(
+            `UPDATE vendor_registrations SET id_verified_at = now(), id_verified_by = $2, id_returned_at = NULL
+             WHERE id = $1 AND stage <> 'closed' RETURNING ${SELECT_COLUMNS}`,
+            [id, session.username]
+          )
+          if (!result.rows[0]) return NextResponse.json({ message: 'Pendaftaran ini sudah selesai.' }, { status: 409 })
+          await logActivity(session, 'update', 'vendor_registration', id, `Memverifikasi KTP tamu "${row.full_name}"`)
+          return NextResponse.json({ registration: result.rows[0] })
+        }
+        if (!row.id_verified_at) return NextResponse.json({ message: 'KTP belum diverifikasi.' }, { status: 409 })
+        const result = await query<VendorRegistrationRow>(
+          `UPDATE vendor_registrations SET id_returned_at = now() WHERE id = $1 RETURNING ${SELECT_COLUMNS}`,
+          [id]
+        )
+        await logActivity(session, 'update', 'vendor_registration', id, `KTP tamu "${row.full_name}" dikembalikan`)
         return NextResponse.json({ registration: result.rows[0] })
       }
       case 'approve': {

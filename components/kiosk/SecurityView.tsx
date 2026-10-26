@@ -19,6 +19,7 @@ import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
 import { KioskThemePicker } from '@/components/kiosk/KioskThemePicker'
 import { ReturnCardDialog } from '@/components/kiosk/ReturnCardDialog'
+import { CompanionsField, IdStatusBadge, ScheduledGuestsBanner, formatVisitDate, idStatusText, toCompanionInputs, type CompanionInput } from '@/components/kiosk/guest-form-fields'
 import { ManualCloseDialog } from '@/components/kiosk/ManualCloseDialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -35,6 +36,8 @@ const SECURITY_CARD_BADGE: Record<SecurityCardType, string> = {
   supplier: 'bg-[#e0f5f3] text-[#0f6b63]',
 }
 
+type GuestHistory = { full_name: string; id_card: string; company_remark: string; pic_jai: string; visits: number }
+
 // Handles both "Daftarkan …" (new) and "Edit Data" (existing) — same fields
 // either way, just POST vs. PUT action=editDetails underneath. cardType: the
 // kind the guest is registered as; it can be corrected until the card is out.
@@ -47,8 +50,35 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
   const [picJai, setPicJai] = useState(editing?.pic_jai ?? '')
   const [purpose, setPurpose] = useState(editing?.purpose ?? '')
   const [companyRemark, setCompanyRemark] = useState(editing?.company_remark ?? '')
+  const [visitDate, setVisitDate] = useState(editing?.visit_date ?? '')
+  const [companions, setCompanions] = useState<CompanionInput[]>(toCompanionInputs(editing))
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [lookup, setLookup] = useState('')
+  const [history, setHistory] = useState<GuestHistory[]>([])
+
+  useEffect(() => {
+    if (editing || lookup.trim().length < 2) return
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      fetch(`${API_BASE_PATH}/api/vendor-registrations/history?q=${encodeURIComponent(lookup.trim())}`, { credentials: 'include', signal: ctrl.signal })
+        .then((res) => (res.ok ? res.json() : { history: [] }))
+        .then((data) => setHistory(data.history ?? []))
+        .catch(() => {})
+    }, 250)
+    return () => { clearTimeout(timer); ctrl.abort() }
+  }, [lookup, editing])
+
+  function onNameChange(value: string) {
+    setFullName(value)
+    setLookup(value)
+    const match = history.find((h) => h.full_name === value)
+    if (match && !editing) {
+      setIdCard((v) => v || match.id_card)
+      setCompanyRemark((v) => v || match.company_remark)
+      setPicJai((v) => v || match.pic_jai)
+    }
+  }
 
   useEscapeClose(true, onClose)
 
@@ -62,13 +92,13 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ action: 'editDetails', fullName, idCard, picJai, purpose, companyRemark, securityCardType: cardType }),
+            body: JSON.stringify({ action: 'editDetails', fullName, idCard, picJai, purpose, companyRemark, visitDate, companions, securityCardType: cardType }),
           })
         : await fetch(`${API_BASE_PATH}/api/vendor-registrations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, securityCardType: cardType }),
+            body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, visitDate, companions, securityCardType: cardType }),
           })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
@@ -111,7 +141,10 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
           </div>
           <label>
             <span className={labelClass}>Nama Lengkap</span>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required autoFocus className={inputClass} />
+            <input value={fullName} onChange={(e) => onNameChange(e.target.value)} list="guest-history-names" autoComplete="off" required autoFocus className={inputClass} />
+            <datalist id="guest-history-names">
+              {history.map((h) => <option key={`${h.full_name}|${h.id_card}`} value={h.full_name}>{`${h.company_remark} · ${h.visits}x berkunjung`}</option>)}
+            </datalist>
           </label>
           <label>
             <span className={labelClass}>Kartu Identitas (KTP/SIM/Paspor)</span>
@@ -127,8 +160,16 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
           </label>
           <label>
             <span className={labelClass}>Keterangan (Perusahaan)</span>
-            <input value={companyRemark} onChange={(e) => setCompanyRemark(e.target.value)} required className={inputClass} />
+            <input value={companyRemark} onChange={(e) => { setCompanyRemark(e.target.value); setLookup(e.target.value) }} list="guest-history-companies" autoComplete="off" required className={inputClass} />
+            <datalist id="guest-history-companies">
+              {[...new Set(history.map((h) => h.company_remark))].map((c) => <option key={c} value={c} />)}
+            </datalist>
           </label>
+          <label>
+            <span className={labelClass}>Tanggal Kunjungan (opsional, isi jika dijadwalkan)</span>
+            <input type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} className={inputClass} />
+          </label>
+          <CompanionsField value={companions} onChange={setCompanions} />
 
           {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}
 
@@ -265,6 +306,27 @@ export function SecurityView() {
   const [manualTarget, setManualTarget] = useState<Registration | null>(null)
   const [scanTarget, setScanTarget] = useState<{ registration: Registration; action: 'approve' | 'close' } | null>(null)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [idBusy, setIdBusy] = useState<number | null>(null)
+
+  const idAction = async (r: Registration, action: 'verifyId' | 'returnId') => {
+    setIdBusy(r.id)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${r.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      setRegistrations((list) => list.map((x) => (x.id === r.id ? { ...x, ...data.registration } : x)))
+      setDeleteError(null)
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : 'Gagal memperbarui status KTP.')
+    } finally {
+      setIdBusy(null)
+    }
+  }
   // "Pengembalian Kartu ID": a window that only takes this post's cards back
   const [returnOpen, setReturnOpen] = useState(false)
   const [filterMonth, setFilterMonth] = useState(searchParams.get('month') ?? '')
@@ -305,12 +367,15 @@ export function SecurityView() {
   const handleExportCsv = () => {
     downloadExcel(
       `rekap-tamu-security-${new Date().toISOString().slice(0, 10)}.xlsx`,
-      ['Tanggal/Jam', 'Jenis', 'Nama Lengkap', 'Kartu Identitas', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status', 'Nomor Kartu Security'],
+      ['Tanggal/Jam', 'Tanggal Kunjungan', 'Jenis', 'Nama Lengkap', 'Orang Tambahan', 'Kartu Identitas', 'Status KTP', 'PIC JAI', 'Tujuan', 'Keterangan', 'Jam Masuk', 'Jam Keluar', 'Status', 'Nomor Kartu Security'],
       filteredRegistrations.map((r) => [
         formatDateTime(r.registered_at),
+        r.visit_date ?? '',
         r.entry_path === 'security' ? SECURITY_CARD_LABEL[r.security_card_type] : '',
         r.full_name,
+        (r.companions ?? []).map((c) => `${c.name} (${c.id_no})`).join('; '),
         r.id_card,
+        idStatusText(r),
         r.pic_jai,
         r.purpose,
         r.company_remark,
@@ -455,6 +520,8 @@ export function SecurityView() {
           </button>
         </div>
 
+        <ScheduledGuestsBanner registrations={registrations} />
+
         {error && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
         {deleteError && <p className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{deleteError}</p>}
 
@@ -485,14 +552,25 @@ export function SecurityView() {
                       <td className="whitespace-nowrap px-3 py-3">
                         <span className="block text-xs font-medium tabular-nums text-foreground">{formatTimeParts(r.registered_at)?.time}</span>
                         <span className="block text-[10px] text-muted-foreground">{formatTimeParts(r.registered_at)?.date}</span>
+                        {r.visit_date && <span className="mt-1 inline-block rounded bg-[#fff3d6] px-1.5 py-0.5 text-[10px] font-semibold text-[#8a6100]">Jadwal {formatVisitDate(r.visit_date)}</span>}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3">
                         {r.entry_path === 'security'
                           ? <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${SECURITY_CARD_BADGE[r.security_card_type]}`}>{SECURITY_CARD_LABEL[r.security_card_type]}</span>
                           : <span className="text-xs text-muted-foreground">—</span>}
                       </td>
-                      <td className="min-w-[160px] px-3 py-3 font-medium text-foreground">{r.full_name}</td>
-                      <td className="px-3 py-3 text-xs text-muted-foreground">{r.id_card}</td>
+                      <td className="min-w-[160px] px-3 py-3 font-medium text-foreground">
+                        {r.full_name}
+                        {(r.companions?.length ?? 0) > 0 && (
+                          <span className="mt-1 block text-[10px] font-normal text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
+                            + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">
+                        {r.id_card}
+                        <IdStatusBadge r={r} />
+                      </td>
                       <td className="px-3 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
                       <td className="px-3 py-3 text-xs text-muted-foreground">{r.purpose}</td>
                       <td className="px-3 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
@@ -523,6 +601,16 @@ export function SecurityView() {
                       </td>
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-1.5">
+                          {r.stage !== 'closed' && !r.id_verified_at && (
+                            <button type="button" disabled={idBusy === r.id} onClick={() => idAction(r, 'verifyId')} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50">
+                              <Check className="size-3.5" />Verifikasi KTP
+                            </button>
+                          )}
+                          {r.id_verified_at && !r.id_returned_at && (
+                            <button type="button" disabled={idBusy === r.id} onClick={() => idAction(r, 'returnId')} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50">
+                              <Undo2 className="size-3.5" />KTP Dikembalikan
+                            </button>
+                          )}
                           {r.stage === 'pending_approval' && (
                             <button type="button" onClick={() => setScanTarget({ registration: r, action: 'approve' })} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary">
                               <ScanLine className="size-3.5" />Approve

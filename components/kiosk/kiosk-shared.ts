@@ -132,6 +132,14 @@ export type Registration = {
   at_work_area: boolean
   /** Set when the visit was closed by "Tutup Manual" (who, and why). */
   closed_note?: string | null
+  /** Planned visit date (YYYY-MM-DD) entered ahead of time; null = walk-in. */
+  visit_date?: string | null
+  /** KTP check by Pos Security; id_returned_at null after verify = card still held. */
+  id_verified_at?: string | null
+  id_verified_by?: string | null
+  id_returned_at?: string | null
+  /** Extra people registered together with this guest. */
+  companions?: { name: string; id_no: string }[]
 }
 
 export type SecurityCardType = 'visitor' | 'vendor' | 'supplier'

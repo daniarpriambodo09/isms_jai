@@ -4,6 +4,8 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
+  const { getJwtSecret } = await import('./lib/auth')
+  getJwtSecret() // fail fast at boot, not on first login
   const { migrateOnStartup } = await import('./lib/migration-check')
   await migrateOnStartup()
   // Weekly document-review reminder (lib/jobs.ts).

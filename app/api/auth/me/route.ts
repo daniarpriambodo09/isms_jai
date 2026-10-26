@@ -2,9 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import jwt from 'jsonwebtoken'
 import { query } from '@/lib/db'
+import { getJwtSecret } from '@/lib/auth'
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
-const JWT_SECRET = process.env.JWT_SECRET as string
 
 type TokenPayload = { sub: number; username: string }
 type AdminRow = { id: number; username: string; email: string | null; role: 'ism_admin' | 'lobby' | 'security' | 'approver' }
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 })
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET)
+    const decoded = jwt.verify(token, getJwtSecret())
 
     if (typeof decoded === 'string' || typeof decoded.sub === 'undefined' || !('username' in decoded)) {
       return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 })

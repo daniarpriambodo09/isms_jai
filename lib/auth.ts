@@ -3,7 +3,12 @@ import { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
-const JWT_SECRET = process.env.JWT_SECRET as string
+
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET
+  if (!secret) throw new Error('JWT_SECRET is not set')
+  return secret
+}
 
 // 'approver': an account that only decides the approval requests sent to its
 // own e-mail address ("Persetujuan Saya"). It is NOT an admin: every guard
@@ -35,7 +40,7 @@ export function getSessionFromRequest(request: NextRequest): SessionPayload | nu
   if (!token) return null
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
+    const decoded = jwt.verify(token, getJwtSecret())
     if (typeof decoded === 'string' || typeof decoded.sub === 'undefined' || !('username' in decoded)) {
       return null
     }

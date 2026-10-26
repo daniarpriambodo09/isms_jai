@@ -9,13 +9,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import jwt, { type SignOptions } from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
-import { isHttpsRequest } from '@/lib/auth'
+import { getJwtSecret, isHttpsRequest } from '@/lib/auth'
 import { findAdminByEmail, findApproverEmailByToken, type MatchedAdminAccount } from '@/lib/approver-auth'
 import { query } from '@/lib/db'
 import { API_BASE_PATH } from '@/lib/config'
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
-const JWT_SECRET = process.env.JWT_SECRET as string
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '8h'
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8 // 8 hours
 
@@ -84,7 +83,7 @@ export async function POST(request: NextRequest) {
     const signOptions: SignOptions = {
       expiresIn: JWT_EXPIRES_IN as SignOptions['expiresIn'],
     }
-    const sessionJwt = jwt.sign({ sub: admin.id, username: admin.username, role: admin.role }, JWT_SECRET, signOptions)
+    const sessionJwt = jwt.sign({ sub: admin.id, username: admin.username, role: admin.role }, getJwtSecret(), signOptions)
 
     const response = NextResponse.json({
       success: true,
@@ -150,7 +149,7 @@ export async function GET(request: NextRequest) {
       const signOptions: SignOptions = {
         expiresIn: JWT_EXPIRES_IN as SignOptions['expiresIn'],
       }
-      const sessionJwt = jwt.sign({ sub: admin.id, username: admin.username, role: admin.role }, JWT_SECRET, signOptions)
+      const sessionJwt = jwt.sign({ sub: admin.id, username: admin.username, role: admin.role }, getJwtSecret(), signOptions)
 
       redirectResponse.cookies.set(COOKIE_NAME, sessionJwt, {
         httpOnly: true,

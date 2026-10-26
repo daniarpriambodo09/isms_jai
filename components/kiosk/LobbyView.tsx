@@ -18,6 +18,7 @@ import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { Pagination } from '@/components/pagination'
+import { CompanionsField, IdStatusBadge, ScheduledGuestsBanner, formatVisitDate, idStatusText, toCompanionInputs, type CompanionInput } from '@/components/kiosk/guest-form-fields'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS } from '@/lib/period-filter'
 import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, formatTimeParts, holdsSecurityCard, isRepeatScan, markScanned, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
@@ -105,15 +106,32 @@ function statusOf(r: Registration): { key: string; label: string } {
   return { key: 'visitor', label: 'Kartu Visitor' }
 }
 
+type GuestHistory = { full_name: string; id_card: string; company_remark: string; pic_jai: string; visits: number }
+
 function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSaved }: { cardType: QuickCardType; station: 'lobby' | 'security'; initialBarcode?: string; onClose: () => void; onSaved: () => void }) {
   const [fullName, setFullName] = useState('')
   const [idCard, setIdCard] = useState('')
   const [picJai, setPicJai] = useState('')
   const [purpose, setPurpose] = useState('')
   const [companyRemark, setCompanyRemark] = useState('')
+  const [visitDate, setVisitDate] = useState('')
+  const [companions, setCompanions] = useState<CompanionInput[]>([])
   const [barcode, setBarcode] = useState(initialBarcode)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [history, setHistory] = useState<GuestHistory[]>([])
+
+  useEffect(() => {
+    if (fullName.trim().length < 2) return
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => {
+      fetch(`${API_BASE_PATH}/api/vendor-registrations/history?q=${encodeURIComponent(fullName.trim())}`, { credentials: 'include', signal: ctrl.signal })
+        .then((res) => (res.ok ? res.json() : { history: [] }))
+        .then((data) => setHistory(data.history ?? []))
+        .catch(() => {})
+    }, 250)
+    return () => { clearTimeout(timer); ctrl.abort() }
+  }, [fullName])
   const label = QUICK_CARD_LABEL[cardType]
   // At the Lobby each kind of card has its own numbers (lib/card-ranges.ts).
   const cardProblem = station === 'lobby' && barcode.trim() ? lobbyCardProblem(barcode, cardType as LobbyCardKind) : null
@@ -131,7 +149,7 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, cardType, barcode, station }),
+        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, visitDate, companions, cardType, barcode, station }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
@@ -156,7 +174,30 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
           <label>
             <span className={labelClass}>Nama Lengkap</span>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required autoFocus className={inputClass} />
+            <input
+              list="lobby-history-suggestions"
+              value={fullName}
+              onChange={(e) => {
+                const val = e.target.value
+                setFullName(val)
+                const match = history.find((h) => h.full_name.toLowerCase() === val.toLowerCase())
+                if (match) {
+                  if (!idCard) setIdCard(match.id_card)
+                  if (!picJai) setPicJai(match.pic_jai)
+                  if (!companyRemark) setCompanyRemark(match.company_remark)
+                }
+              }}
+              required
+              autoFocus
+              className={inputClass}
+            />
+            <datalist id="lobby-history-suggestions">
+              {history.map((h) => (
+                <option key={h.full_name} value={h.full_name}>
+                  {h.company_remark} · PIC {h.pic_jai} ({h.visits}x kunjungan)
+                </option>
+              ))}
+            </datalist>
           </label>
           {!isAffiliate && (
             <>
@@ -178,6 +219,11 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
             <span className={labelClass}>Keterangan (Perusahaan)</span>
             <input value={companyRemark} onChange={(e) => setCompanyRemark(e.target.value)} required className={inputClass} />
           </label>
+          <label>
+            <span className={labelClass}>Tanggal Kunjungan (opsional, isi jika dijadwalkan)</span>
+            <input type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} className={inputClass} />
+          </label>
+          <CompanionsField value={companions} onChange={setCompanions} />
           <label>
             <span className={labelClass}>Barcode Kartu {label}</span>
             <div className="relative">
@@ -223,6 +269,11 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
   const [editPicJai, setEditPicJai] = useState(registration.pic_jai)
   const [editPurpose, setEditPurpose] = useState(registration.purpose)
   const [editCompanyRemark, setEditCompanyRemark] = useState(registration.company_remark)
+  const [editVisitDate, setEditVisitDate] = useState(registration.visit_date ?? '')
+  const [editCompanions, setEditCompanions] = useState<CompanionInput[]>(toCompanionInputs(registration))
+  const { adminUser } = useAuth()
+  const canCheckId = adminUser?.role === 'security' || adminUser?.role === 'ism_admin'
+  const [idBusy, setIdBusy] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [editSaving, setEditSaving] = useState(false)
   // Picking VISITOR / VENDOR must not take the cursor away from the scan field.
@@ -269,6 +320,8 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
     setEditPicJai(registration.pic_jai)
     setEditPurpose(registration.purpose)
     setEditCompanyRemark(registration.company_remark)
+    setEditVisitDate(registration.visit_date ?? '')
+    setEditCompanions(toCompanionInputs(registration))
     setEditError(null)
     setEditing(true)
   }
@@ -292,6 +345,8 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
           picJai: editPicJai.trim(),
           purpose: editPurpose.trim(),
           companyRemark: editCompanyRemark.trim(),
+          visitDate: editVisitDate,
+          companions: editCompanions,
         }),
       })
       const data = await res.json().catch(() => null)
@@ -302,6 +357,26 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
       setEditError('Tidak dapat menghubungi server.')
     } finally {
       setEditSaving(false)
+    }
+  }
+
+  const idAction = async (action: 'verifyId' | 'returnId') => {
+    setIdBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${registration.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) { setError(data?.message ?? 'Gagal memperbarui status KTP.'); return }
+      onChanged()
+    } catch {
+      setError('Tidak dapat menghubungi server.')
+    } finally {
+      setIdBusy(false)
     }
   }
 
@@ -354,6 +429,11 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
             <span className={labelClass}>Keterangan</span>
             <input value={editCompanyRemark} onChange={(e) => setEditCompanyRemark(e.target.value)} className={inputClass} />
           </label>
+          <label>
+            <span className={labelClass}>Tanggal Kunjungan</span>
+            <input type="date" value={editVisitDate} onChange={(e) => setEditVisitDate(e.target.value)} className={inputClass} />
+          </label>
+          <CompanionsField value={editCompanions} onChange={setEditCompanions} />
           {editError && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{editError}</p>}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={() => setEditing(false)} className="flex-1 rounded-xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-secondary">Batal</button>
@@ -364,9 +444,13 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
         </div>
       ) : (
         <>
+          {!isAffiliate && row('Kartu Identitas :', registration.id_card)}
           {!isAffiliate && row('PIC JAI :', registration.pic_jai)}
           {row('Tujuan :', registration.purpose)}
           {row('Keterangan :', registration.company_remark)}
+          {registration.visit_date && row('Tgl Kunjungan :', formatVisitDate(registration.visit_date))}
+          {(registration.companions?.length ?? 0) > 0 && row('Orang Tambahan :', registration.companions!.map((c) => `${c.name} (${c.id_no})`).join(', '))}
+          {row('Status KTP :', idStatusText(registration))}
           {row('Status :', status.label)}
           {row('Jam Masuk :', formatDateTime(registration.entry_at))}
           {row('Jam Keluar :', formatDateTime(registration.exit_at))}
@@ -375,6 +459,30 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
       )}
 
       <div className="p-4">
+        {canCheckId && (
+          <div className="mb-4 flex gap-2">
+            {registration.stage !== 'closed' && !registration.id_verified_at && (
+              <button
+                type="button"
+                disabled={idBusy}
+                onClick={() => idAction('verifyId')}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
+              >
+                <Check className="size-3.5" />Verifikasi KTP
+              </button>
+            )}
+            {registration.id_verified_at && !registration.id_returned_at && (
+              <button
+                type="button"
+                disabled={idBusy}
+                onClick={() => idAction('returnId')}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
+              >
+                <Undo2 className="size-3.5" />KTP Dikembalikan
+              </button>
+            )}
+          </div>
+        )}
         {swapOptions.length > 0 && (
           <div className="rounded-xl bg-accent/10 p-4">
             <p className="mb-2 text-xs font-semibold text-foreground">Tukar ke Kartu Area Kerja</p>
@@ -556,6 +664,29 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const permitCards = usePermitCards()
+  const canCheckId = adminUser?.role === 'security' || adminUser?.role === 'ism_admin'
+  const [idBusy, setIdBusy] = useState<number | null>(null)
+
+  const idAction = async (r: Registration, action: 'verifyId' | 'returnId') => {
+    setIdBusy(r.id)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${r.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message)
+      setRegistrations((list) => list.map((x) => (x.id === r.id ? { ...x, ...data.registration } : x)))
+      setSelected((curr) => (curr?.id === r.id ? { ...curr, ...data.registration } : curr))
+      setListError(null)
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : 'Gagal memperbarui status KTP.')
+    } finally {
+      setIdBusy(null)
+    }
+  }
 
   // silent = background refresh (no spinner, keeps the current list on a
   // transient error) — see useKioskAutoRefresh.
@@ -627,17 +758,20 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
       const rows: Registration[] = data.registrations ?? []
       downloadExcel(
         `rekap-tamu-${station === 'security' ? 'pos-security' : 'lobby'}-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal/Jam', 'Nama Lengkap', 'PIC JAI', 'Keterangan', 'Asal', 'Status', 'Nomor Kartu', 'Jam Masuk', 'Jam Keluar'],
+        ['Tanggal/Jam', 'Tanggal Kunjungan', 'Nama Lengkap', 'Orang Tambahan', 'PIC JAI', 'Keterangan', 'Status KTP', 'Asal', 'Status', 'Nomor Kartu', 'Jam Masuk', 'Jam Keluar'],
         rows.map((r) => [
-        formatDateTime(r.registered_at),
-        r.full_name,
-        r.pic_jai,
-        r.company_remark,
-        stationOf(r) === 'security' ? 'Security' : 'Lobby',
-        statusOf(r).label,
-        r.current_card_type ? (r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '') : '',
-        formatDateTime(r.entry_at),
-        formatDateTime(r.exit_at),
+          formatDateTime(r.registered_at),
+          r.visit_date ? formatVisitDate(r.visit_date) : '-',
+          r.full_name,
+          (r.companions ?? []).map((c) => `${c.name} (${c.id_no})`).join('; '),
+          r.pic_jai,
+          r.company_remark,
+          idStatusText(r),
+          stationOf(r) === 'security' ? 'Security' : 'Lobby',
+          statusOf(r).label,
+          r.current_card_type ? (r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '') : '',
+          formatDateTime(r.entry_at),
+          formatDateTime(r.exit_at),
         ])
       )
     } catch (error) {
@@ -824,6 +958,8 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
           </button>
         </div>
 
+        <ScheduledGuestsBanner registrations={registrations} />
+
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -871,7 +1007,19 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                             <p className="min-w-0 break-words font-semibold text-foreground">{r.full_name}</p>
                             <span className="flex-shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{stationOf(r) === 'security' ? 'Security' : 'Lobby'}</span>
                           </div>
-                          <p className="mt-0.5 text-xs text-muted-foreground">{formatDateTime(r.registered_at)}</p>
+                          {(r.companions?.length ?? 0) > 0 && (
+                            <p className="mt-0.5 text-[11px] text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
+                              + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
+                            </p>
+                          )}
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {formatDateTime(r.registered_at)}
+                            {r.visit_date && (
+                              <span className="ml-2 inline-block rounded border border-[#f0d58a] bg-[#fff8e6] px-1.5 py-0.5 text-[10px] font-semibold text-[#8a6100]">
+                                Jadwal {formatVisitDate(r.visit_date)}
+                              </span>
+                            )}
+                          </p>
                           <p className="mt-1 break-words text-xs text-muted-foreground">
                             {r.pic_jai && <>PIC: <span className="text-foreground">{r.pic_jai}</span> · </>}{r.company_remark}
                           </p>
@@ -881,8 +1029,33 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                           </p>
                           <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                            <IdStatusBadge r={r} />
                             {r.current_card_type && <span className="font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">{r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}</span>}
                           </div>
+                          {canCheckId && (
+                            <div className="mt-2 flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              {r.stage !== 'closed' && !r.id_verified_at && (
+                                <button
+                                  type="button"
+                                  disabled={idBusy === r.id}
+                                  onClick={() => idAction(r, 'verifyId')}
+                                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
+                                >
+                                  <Check className="size-3" />Verifikasi KTP
+                                </button>
+                              )}
+                              {r.id_verified_at && !r.id_returned_at && (
+                                <button
+                                  type="button"
+                                  disabled={idBusy === r.id}
+                                  onClick={() => idAction(r, 'returnId')}
+                                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
+                                >
+                                  <Undo2 className="size-3" />KTP Dikembalikan
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <button
                           type="button"
@@ -933,8 +1106,20 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className="block text-xs font-medium tabular-nums text-foreground">{formatTimeParts(r.registered_at)?.time}</span>
                         <span className="block text-[10px] text-muted-foreground">{formatTimeParts(r.registered_at)?.date}</span>
+                        {r.visit_date && (
+                          <span className="mt-1 block rounded border border-[#f0d58a] bg-[#fff8e6] px-1 py-0.5 text-[10px] font-semibold text-[#8a6100]">
+                            Jadwal {formatVisitDate(r.visit_date)}
+                          </span>
+                        )}
                       </td>
-                      <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">{r.full_name}</td>
+                      <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">
+                        {r.full_name}
+                        {(r.companions?.length ?? 0) > 0 && (
+                          <span className="mt-1 block text-[10px] font-normal text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
+                            + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.company_remark}</td>
                       <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{stationOf(r) === 'security' ? 'Security' : 'Lobby'}</td>
@@ -956,22 +1141,45 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
+                        <IdStatusBadge r={r} />
                         {r.current_card_type && (
                           <span className="mt-1 block font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
                             {r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={(event) => { event.stopPropagation(); setPendingDelete(r) }}
-                          aria-label={`Hapus pendaftaran ${r.full_name}`}
-                          title="Hapus pendaftaran"
-                          className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          {canCheckId && r.stage !== 'closed' && !r.id_verified_at && (
+                            <button
+                              type="button"
+                              disabled={idBusy === r.id}
+                              onClick={() => idAction(r, 'verifyId')}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
+                            >
+                              <Check className="size-3" />Verifikasi KTP
+                            </button>
+                          )}
+                          {canCheckId && r.id_verified_at && !r.id_returned_at && (
+                            <button
+                              type="button"
+                              disabled={idBusy === r.id}
+                              onClick={() => idAction(r, 'returnId')}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary disabled:opacity-50"
+                            >
+                              <Undo2 className="size-3" />KTP Dikembalikan
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setPendingDelete(r)}
+                            aria-label={`Hapus pendaftaran ${r.full_name}`}
+                            title="Hapus pendaftaran"
+                            className="grid size-8 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

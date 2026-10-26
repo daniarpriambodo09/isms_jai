@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stationOffMessage } from '@/lib/kiosk-stations'
 import { getKioskAdminFromRequest } from '@/lib/auth'
-import { query } from '@/lib/db'
+import { query, withTransaction } from '@/lib/db'
+import { parseVisitDate } from '@/lib/visit-date'
+import { COMPANIONS_SQL, parseCompanions, replaceCompanions, type Companion } from '@/lib/registration-companions'
 import { logActivity } from '@/lib/activity-log'
 import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
@@ -54,13 +56,20 @@ type VendorRegistrationRow = {
   security_card_barcode: string | null
   at_work_area: boolean
   closed_note: string | null
+  visit_date: string | null
+  id_verified_at: string | null
+  id_verified_by: string | null
+  id_returned_at: string | null
+  companions: Companion[]
 }
 
 const SELECT_COLUMNS = `id, full_name, id_card, pic_jai, purpose, company_remark,
   registered_at, entry_at, exit_at, created_by, entry_path, registered_station, stage, current_card_type,
   visitor_card_barcode, vendor_card_barcode, affiliate_card_barcode,
   special_area_card_barcode, photography_card_barcode, supplier_card_barcode,
-  security_card_type, security_card_barcode, at_work_area, closed_note`
+  security_card_type, security_card_barcode, at_work_area, closed_note,
+  to_char(visit_date, 'YYYY-MM-DD') AS visit_date,
+  id_verified_at, id_verified_by, id_returned_at, ${COMPANIONS_SQL}`
 
 function maskIdCard(idCard: string | null): string {
   if (!idCard) return ''
@@ -112,7 +121,7 @@ export async function GET(request: NextRequest) {
       : await query<VendorRegistrationRow>(`SELECT ${SELECT_COLUMNS} FROM vendor_registrations ${whereClause} ORDER BY registered_at ${sort}`, values)
     const registrations = session
       ? result.rows
-      : result.rows.map((row) => ({ ...row, id_card: maskIdCard(row.id_card) }))
+      : result.rows.map((row) => ({ ...row, id_card: maskIdCard(row.id_card), companions: row.companions.map((c) => ({ ...c, id_no: maskIdCard(c.id_no) })) }))
     if (!hasPagination) return NextResponse.json({ registrations })
 
     const [totalResult, yearsResult] = await Promise.all([
@@ -138,7 +147,7 @@ export async function POST(request: NextRequest) {
   if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
-    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station' | 'securityCardType', string>>
+    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station' | 'securityCardType' | 'visitDate', string>> & { companions?: unknown }
     // Where the guest is being registered ("Asal"): a kiosk account is its own
     // post; the ISM Admin works from whichever kiosk page they have open.
     const station = session.role === 'security' ? 'security' : session.role === 'lobby' ? 'lobby' : body.station === 'security' ? 'security' : 'lobby'
@@ -184,30 +193,47 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: `Barcode kartu ${CARD_LABEL[cardType]} ini sedang digunakan oleh tamu lain.` }, { status: 409 })
       }
 
-      const result = await query<VendorRegistrationRow>(
-        `INSERT INTO vendor_registrations
-           (full_name, id_card, pic_jai, purpose, company_remark, created_by,
-            entry_path, stage, current_card_type, ${column}, entry_at, registered_station)
-         VALUES ($1, $2, $3, $4, $5, $6, 'lobby_affiliate', 'active', $7, $8, now(), $9)
-         RETURNING ${SELECT_COLUMNS}`,
-        [fullName, idCard || '-', picJai || '-', purpose, companyRemark, session.username, cardType, barcode, station]
-      )
-      await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu ${CARD_LABEL[cardType]} "${result.rows[0].full_name}"`)
-      return NextResponse.json({ registration: result.rows[0] }, { status: 201 })
+      const directVisitDate = parseVisitDate(body.visitDate)
+      if (directVisitDate === undefined) return NextResponse.json({ message: 'Tanggal kunjungan tidak valid.' }, { status: 400 })
+      const directCompanions = parseCompanions(body.companions)
+      if (directCompanions === undefined) return NextResponse.json({ message: 'Data orang tambahan tidak valid: nama dan nomor KTP wajib diisi keduanya (maks. 20 orang).' }, { status: 400 })
+
+      const direct = await withTransaction(async () => {
+        const result = await query<VendorRegistrationRow>(
+          `INSERT INTO vendor_registrations
+             (full_name, id_card, pic_jai, purpose, company_remark, created_by,
+              entry_path, stage, current_card_type, ${column}, entry_at, registered_station, visit_date)
+           VALUES ($1, $2, $3, $4, $5, $6, 'lobby_affiliate', 'active', $7, $8, now(), $9, $10)
+           RETURNING ${SELECT_COLUMNS}`,
+          [fullName, idCard || '-', picJai || '-', purpose, companyRemark, session.username, cardType, barcode, station, directVisitDate]
+        )
+        await replaceCompanions(result.rows[0].id, directCompanions ?? [])
+        return { ...result.rows[0], companions: directCompanions ?? [] }
+      })
+      await logActivity(session, 'create', 'vendor_registration', direct.id, `Mendaftarkan tamu ${CARD_LABEL[cardType]} "${direct.full_name}"${direct.companions.length ? ` + ${direct.companions.length} orang` : ''}`)
+      return NextResponse.json({ registration: direct }, { status: 201 })
     }
 
     // Default path: Security registers, still pending approval (no card yet).
     // The guest is registered as a Visitor, Vendor or Supplier — the kind of
     // Security card handed out at approval.
     const securityCardType = SECURITY_CARD_TYPES.find((type) => type === body.securityCardType) ?? 'visitor'
-    const result = await query<VendorRegistrationRow>(
-      `INSERT INTO vendor_registrations (full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station, security_card_type)
-       VALUES ($1, $2, $3, $4, $5, $6, 'security', $7)
-       RETURNING ${SELECT_COLUMNS}`,
-      [fullName, idCard, picJai, purpose, companyRemark, session.username, securityCardType]
-    )
-    await logActivity(session, 'create', 'vendor_registration', result.rows[0].id, `Mendaftarkan tamu ${CARD_LABEL[securityCardType]} "${result.rows[0].full_name}"`)
-    return NextResponse.json({ registration: result.rows[0] }, { status: 201 })
+    const visitDate = parseVisitDate(body.visitDate)
+    if (visitDate === undefined) return NextResponse.json({ message: 'Tanggal kunjungan tidak valid.' }, { status: 400 })
+    const companions = parseCompanions(body.companions)
+    if (companions === undefined) return NextResponse.json({ message: 'Data orang tambahan tidak valid: nama dan nomor KTP wajib diisi keduanya (maks. 20 orang).' }, { status: 400 })
+    const row = await withTransaction(async () => {
+      const result = await query<VendorRegistrationRow>(
+        `INSERT INTO vendor_registrations (full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station, security_card_type, visit_date)
+         VALUES ($1, $2, $3, $4, $5, $6, 'security', $7, $8)
+         RETURNING ${SELECT_COLUMNS}`,
+        [fullName, idCard, picJai, purpose, companyRemark, session.username, securityCardType, visitDate]
+      )
+      await replaceCompanions(result.rows[0].id, companions ?? [])
+      return { ...result.rows[0], companions: companions ?? [] }
+    })
+    await logActivity(session, 'create', 'vendor_registration', row.id, `Mendaftarkan tamu ${CARD_LABEL[securityCardType]} "${row.full_name}"${row.companions.length ? ` + ${row.companions.length} orang` : ''}`)
+    return NextResponse.json({ registration: row }, { status: 201 })
   } catch (error) {
     console.error('[vendor-registrations/POST]', error)
     return NextResponse.json({ message: 'Gagal menyimpan pendaftaran.' }, { status: 500 })

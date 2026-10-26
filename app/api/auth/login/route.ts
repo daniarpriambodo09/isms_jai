@@ -3,11 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import jwt, { type SignOptions } from 'jsonwebtoken'
 import { query } from '@/lib/db'
-import { isHttpsRequest } from '@/lib/auth'
+import { getJwtSecret, isHttpsRequest } from '@/lib/auth'
 import { isLoginLocked, recordLoginFailure, recordLoginSuccess } from '@/lib/rate-limit'
 
 const COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? 'isms_admin_session'
-const JWT_SECRET = process.env.JWT_SECRET as string
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '8h'
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8 // 8 hours
 
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
     const signOptions: SignOptions = {
       expiresIn: JWT_EXPIRES_IN as SignOptions['expiresIn'],
     }
-    const token = jwt.sign({ sub: admin.id, username: admin.username, role: admin.role }, JWT_SECRET, signOptions)
+    const token = jwt.sign({ sub: admin.id, username: admin.username, role: admin.role }, getJwtSecret(), signOptions)
 
     const response = NextResponse.json({
       admin: { id: admin.id, username: admin.username, email: admin.email, role: admin.role },

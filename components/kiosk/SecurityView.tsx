@@ -19,7 +19,7 @@ import { ActiveCardsWidget } from '@/components/kiosk/ActiveCardsWidget'
 import { ScanCardBox } from '@/components/kiosk/ScanCardBox'
 import { KioskThemePicker } from '@/components/kiosk/KioskThemePicker'
 import { ReturnCardDialog } from '@/components/kiosk/ReturnCardDialog'
-import { CompanionsField, IdStatusBadge, ScheduledGuestsBanner, formatVisitDate, idStatusText, toCompanionInputs, type CompanionInput } from '@/components/kiosk/guest-form-fields'
+import { CompanionsField, IdStatusBadge, MAX_COMPANIONS, ScheduledGuestsBanner, formatVisitDate, idStatusText, toCompanionInputs, type CompanionInput } from '@/components/kiosk/guest-form-fields'
 import { ManualCloseDialog } from '@/components/kiosk/ManualCloseDialog'
 import { ChangePasswordModal } from '@/components/change-password-modal'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -56,6 +56,18 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
   const [submitting, setSubmitting] = useState(false)
   const [lookup, setLookup] = useState('')
   const [history, setHistory] = useState<GuestHistory[]>([])
+  const [savedCompanies, setSavedCompanies] = useState<string[]>([])
+
+  useEffect(() => {
+    fetch(`${API_BASE_PATH}/api/vendor-registrations/history?q=`, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.companies && Array.isArray(data.companies)) {
+          setSavedCompanies(data.companies)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (editing || lookup.trim().length < 2) return
@@ -63,19 +75,37 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
     const timer = setTimeout(() => {
       fetch(`${API_BASE_PATH}/api/vendor-registrations/history?q=${encodeURIComponent(lookup.trim())}`, { credentials: 'include', signal: ctrl.signal })
         .then((res) => (res.ok ? res.json() : { history: [] }))
-        .then((data) => setHistory(data.history ?? []))
+        .then((data) => {
+          setHistory(data.history ?? [])
+          if (data?.companies && Array.isArray(data.companies)) {
+            setSavedCompanies((prev) => Array.from(new Set([...prev, ...data.companies])))
+          }
+        })
         .catch(() => {})
     }, 250)
     return () => { clearTimeout(timer); ctrl.abort() }
   }, [lookup, editing])
 
+  const allCompanies = useMemo(() => {
+    return Array.from(new Set([...savedCompanies, ...history.map((h) => h.company_remark)])).filter(Boolean)
+  }, [savedCompanies, history])
+
   function onNameChange(value: string) {
     setFullName(value)
     setLookup(value)
-    const match = history.find((h) => h.full_name === value)
+    const match = history.find((h) => h.full_name.toLowerCase() === value.toLowerCase())
     if (match && !editing) {
       setIdCard((v) => v || match.id_card)
       setCompanyRemark((v) => v || match.company_remark)
+      setPicJai((v) => v || match.pic_jai)
+    }
+  }
+
+  function onCompanyChange(value: string) {
+    setCompanyRemark(value)
+    setLookup(value)
+    const match = history.find((h) => h.company_remark.toLowerCase() === value.toLowerCase())
+    if (match && !editing) {
       setPicJai((v) => v || match.pic_jai)
     }
   }
@@ -112,72 +142,211 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-        <div className="flex items-center justify-between bg-primary px-6 py-5 text-primary-foreground">
-          <h2 className="text-lg font-bold">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-8 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[2px] overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      >
+        <div className="flex items-center justify-between bg-primary px-6 py-4 text-primary-foreground flex-shrink-0">
+          <h2 className="text-base sm:text-lg font-bold">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup"
+            className="grid size-8 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground"
+          >
             <X className="size-[18px]" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
-          <div role="group" aria-label="Jenis kartu">
-            <span className={labelClass}>Jenis Kartu</span>
-            <div className="flex flex-wrap gap-1.5">
-              {SECURITY_CARD_TYPES.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  aria-pressed={cardType === type}
-                  disabled={cardTypeLocked}
-                  onClick={() => setCardType(type)}
-                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed ${cardType === type ? 'border-transparent bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary disabled:opacity-50'}`}
-                >
-                  {SECURITY_CARD_LABEL[type]}
-                </button>
-              ))}
+
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 overscroll-contain">
+            {/* 1. Jenis Kartu */}
+            <div role="group" aria-label="Jenis kartu">
+              <span className={labelClass}>Jenis Kartu</span>
+              <div className="flex flex-wrap gap-1.5">
+                {SECURITY_CARD_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    aria-pressed={cardType === type}
+                    disabled={cardTypeLocked}
+                    onClick={() => setCardType(type)}
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed ${cardType === type ? 'border-transparent bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-secondary disabled:opacity-50'}`}
+                  >
+                    {SECURITY_CARD_LABEL[type]}
+                  </button>
+                ))}
+              </div>
+              {cardTypeLocked && <p className="mt-1.5 text-[11px] text-muted-foreground">Kartu sudah diberikan — jenisnya tidak bisa diubah lagi.</p>}
             </div>
-            {cardTypeLocked && <p className="mt-1.5 text-[11px] text-muted-foreground">Kartu sudah diberikan — jenisnya tidak bisa diubah lagi.</p>}
+
+            {/* 2. Nama Perusahaan / Instansi (Paling Atas) */}
+            <label className="block">
+              <span className={labelClass}>Nama Perusahaan / Instansi</span>
+              <input
+                value={companyRemark}
+                onChange={(e) => onCompanyChange(e.target.value)}
+                list="guest-history-companies"
+                autoComplete="off"
+                required
+                placeholder="Ketik atau pilih nama perusahaan..."
+                className={inputClass}
+              />
+              <datalist id="guest-history-companies">
+                {allCompanies.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+              <p className="mt-1 text-[11px] text-muted-foreground">Perusahaan otomatis tersimpan dan disarankan untuk kunjungan berikutnya.</p>
+            </label>
+
+            {/* 3. Data Tamu & KTP + Tombol Tambah Orang langsung di bawahnya */}
+            <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground">
+                  Identitas Tamu {companions.length > 0 ? `(Tamu Utama + ${companions.length} Rombongan)` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCompanions([...companions, { name: '', idNo: '' }])}
+                  disabled={companions.length >= MAX_COMPANIONS}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
+                >
+                  <UserPlus className="size-3.5" />
+                  Tambah Orang
+                </button>
+              </div>
+
+              <label className="block">
+                <span className={labelClass}>Nama Lengkap {companions.length > 0 ? '(Tamu Utama / PIC)' : ''}</span>
+                <input
+                  value={fullName}
+                  onChange={(e) => onNameChange(e.target.value)}
+                  list="guest-history-names"
+                  autoComplete="off"
+                  required
+                  autoFocus
+                  placeholder="Nama lengkap tamu..."
+                  className={inputClass}
+                />
+                <datalist id="guest-history-names">
+                  {history.map((h) => (
+                    <option key={`${h.full_name}|${h.id_card}`} value={h.full_name}>
+                      {`${h.company_remark} · ${h.visits}x berkunjung`}
+                    </option>
+                  ))}
+                </datalist>
+              </label>
+
+              <label className="block">
+                <span className={labelClass}>Kartu Identitas (KTP/SIM/Paspor)</span>
+                <input
+                  value={idCard}
+                  onChange={(e) => setIdCard(e.target.value)}
+                  required
+                  placeholder="Nomor identitas (KTP/SIM/Paspor)..."
+                  className={inputClass}
+                />
+              </label>
+
+              {/* Rombongan Tambahan */}
+              {companions.length > 0 && (
+                <div className="pt-2 border-t border-border/60 space-y-2">
+                  <span className="text-[11px] font-semibold text-muted-foreground block">
+                    Orang Tambahan (Rombongan, KTP masing-masing):
+                  </span>
+                  {companions.map((c, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-muted-foreground w-5 text-center flex-shrink-0">#{i + 2}</span>
+                      <input
+                        value={c.name}
+                        onChange={(e) => setCompanions(companions.map((comp, idx) => (idx === i ? { ...comp, name: e.target.value } : comp)))}
+                        placeholder="Nama"
+                        aria-label={`Nama orang tambahan ${i + 1}`}
+                        className={inputClass}
+                        required
+                      />
+                      <input
+                        value={c.idNo}
+                        onChange={(e) => setCompanions(companions.map((comp, idx) => (idx === i ? { ...comp, idNo: e.target.value } : comp)))}
+                        placeholder="Nomor KTP"
+                        aria-label={`Nomor KTP orang tambahan ${i + 1}`}
+                        className={inputClass}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCompanions(companions.filter((_, j) => j !== i))}
+                        aria-label={`Hapus orang tambahan ${i + 1}`}
+                        className="grid size-10 flex-shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <X className="size-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 4. PIC JAI yang Ditemui */}
+            <label className="block">
+              <span className={labelClass}>PIC JAI yang Ditemui</span>
+              <input
+                value={picJai}
+                onChange={(e) => setPicJai(e.target.value)}
+                required
+                placeholder="Nama PIC atau departemen di JAI..."
+                className={inputClass}
+              />
+            </label>
+
+            {/* 5. Tujuan */}
+            <label className="block">
+              <span className={labelClass}>Tujuan</span>
+              <input
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                required
+                placeholder="Keperluan / tujuan kunjungan..."
+                className={inputClass}
+              />
+            </label>
+
+            {/* 6. Tanggal Kunjungan */}
+            <label className="block">
+              <span className={labelClass}>Tanggal Kunjungan (opsional, isi jika dijadwalkan)</span>
+              <input
+                type="date"
+                value={visitDate}
+                onChange={(e) => setVisitDate(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+
+            {error && (
+              <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+                {error}
+              </p>
+            )}
           </div>
-          <label>
-            <span className={labelClass}>Nama Lengkap</span>
-            <input value={fullName} onChange={(e) => onNameChange(e.target.value)} list="guest-history-names" autoComplete="off" required autoFocus className={inputClass} />
-            <datalist id="guest-history-names">
-              {history.map((h) => <option key={`${h.full_name}|${h.id_card}`} value={h.full_name}>{`${h.company_remark} · ${h.visits}x berkunjung`}</option>)}
-            </datalist>
-          </label>
-          <label>
-            <span className={labelClass}>Kartu Identitas (KTP/SIM/Paspor)</span>
-            <input value={idCard} onChange={(e) => setIdCard(e.target.value)} required className={inputClass} />
-          </label>
-          <label>
-            <span className={labelClass}>PIC JAI yang Ditemui</span>
-            <input value={picJai} onChange={(e) => setPicJai(e.target.value)} required className={inputClass} />
-          </label>
-          <label>
-            <span className={labelClass}>Tujuan</span>
-            <input value={purpose} onChange={(e) => setPurpose(e.target.value)} required className={inputClass} />
-          </label>
-          <label>
-            <span className={labelClass}>Keterangan (Perusahaan)</span>
-            <input value={companyRemark} onChange={(e) => { setCompanyRemark(e.target.value); setLookup(e.target.value) }} list="guest-history-companies" autoComplete="off" required className={inputClass} />
-            <datalist id="guest-history-companies">
-              {[...new Set(history.map((h) => h.company_remark))].map((c) => <option key={c} value={c} />)}
-            </datalist>
-          </label>
-          <label>
-            <span className={labelClass}>Tanggal Kunjungan (opsional, isi jika dijadwalkan)</span>
-            <input type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} className={inputClass} />
-          </label>
-          <CompanionsField value={companions} onChange={setCompanions} />
 
-          {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}
-
-          <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-border bg-card py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary">
+          {/* Fixed Footer Buttons - Selalu terlihat dan tidak terpotong */}
+          <div className="flex-shrink-0 flex gap-3 p-4 sm:px-6 sm:py-4 border-t border-border bg-card/95 backdrop-blur-xs">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-border bg-card py-2.5 text-sm font-medium text-foreground transition hover:bg-secondary"
+            >
               Kembali
             </button>
-            <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm"
+            >
               {submitting ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : 'Daftar'}
             </button>
           </div>

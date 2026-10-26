@@ -9,12 +9,58 @@ import { useMemo } from 'react'
 import { UserPlus, X } from 'lucide-react'
 import { inputClass, labelClass, type Registration } from '@/components/kiosk/kiosk-shared'
 
-export type CompanionInput = { name: string; idNo: string }
+export type IdType = 'ktp' | 'sim' | 'paspor'
+
+export function detectIdType(raw: string): IdType {
+  const upper = (raw || '').trim().toUpperCase()
+  if (upper.startsWith('SIM')) return 'sim'
+  if (upper.startsWith('PASPOR') || upper.startsWith('PASSPORT')) return 'paspor'
+  return 'ktp'
+}
+
+export function extractIdNumber(raw: string): string {
+  const clean = (raw || '').trim()
+  return clean.replace(/^(SIM|PASPOR|PASSPORT)[:\s-]*/i, '')
+}
+
+export function formatIdCardValue(idType: IdType, idNumber: string): string {
+  const clean = idNumber.trim()
+  if (idType === 'sim') return `SIM: ${clean}`
+  if (idType === 'paspor') return `Paspor: ${clean}`
+  return clean.replace(/\D/g, '')
+}
+
+export function validateGuestId(idType: IdType, idNumber: string, label = 'Nomor identitas'): string | null {
+  const clean = idNumber.trim()
+  if (!clean) return `${label} wajib diisi.`
+  if (idType === 'ktp') {
+    const digits = clean.replace(/\D/g, '')
+    if (digits.length !== 16) {
+      return `${label} (NIK KTP) harus tepat 16 digit angka (saat ini ${digits.length} digit).`
+    }
+  } else if (idType === 'sim') {
+    const digits = clean.replace(/\D/g, '')
+    if (digits.length < 12 || digits.length > 16) {
+      return `${label} (SIM) harus 12 - 16 digit angka.`
+    }
+  } else if (idType === 'paspor') {
+    if (clean.length < 6 || clean.length > 15) {
+      return `${label} (Paspor) harus 6 - 15 karakter.`
+    }
+  }
+  return null
+}
+
+export type CompanionInput = { name: string; idNo: string; idType?: IdType }
 
 export const MAX_COMPANIONS = 20
 
 export const toCompanionInputs = (r?: Registration | null): CompanionInput[] =>
-  (r?.companions ?? []).map((c) => ({ name: c.name, idNo: c.id_no }))
+  (r?.companions ?? []).map((c) => ({
+    name: c.name,
+    idNo: extractIdNumber(c.id_no),
+    idType: detectIdType(c.id_no),
+  }))
 
 export function CompanionsField({ value, onChange }: { value: CompanionInput[]; onChange: (next: CompanionInput[]) => void }) {
   const patch = (index: number, change: Partial<CompanionInput>) => onChange(value.map((c, i) => (i === index ? { ...c, ...change } : c)))

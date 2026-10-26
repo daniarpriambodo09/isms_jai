@@ -18,7 +18,7 @@ import { ChangePasswordModal } from '@/components/change-password-modal'
 import { PhotoVideoRequestsPanel } from '@/components/kiosk/PhotoVideoRequestsPanel'
 import { SpecialAreaRequestsPanel } from '@/components/kiosk/SpecialAreaRequestsPanel'
 import { Pagination } from '@/components/pagination'
-import { CompanionsField, IdStatusBadge, MAX_COMPANIONS, ScheduledGuestsBanner, formatVisitDate, idStatusText, toCompanionInputs, type CompanionInput } from '@/components/kiosk/guest-form-fields'
+import { CompanionsField, IdStatusBadge, MAX_COMPANIONS, ScheduledGuestsBanner, detectIdType, extractIdNumber, formatIdCardValue, formatVisitDate, idStatusText, toCompanionInputs, validateGuestId, type CompanionInput, type IdType } from '@/components/kiosk/guest-form-fields'
 import { downloadExcel } from '@/lib/excel-export'
 import { MONTH_LABELS } from '@/lib/period-filter'
 import { CARD_BARCODE_FIELD, SECURITY_CARD_LABEL, formatDateTime, formatTimeParts, holdsSecurityCard, isRepeatScan, markScanned, stationOf, inputClass, labelClass, useKioskAutoRefresh, usePermitCards, type Registration } from '@/components/kiosk/kiosk-shared'
@@ -110,12 +110,13 @@ type GuestHistory = { full_name: string; id_card: string; company_remark: string
 
 function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSaved }: { cardType: QuickCardType; station: 'lobby' | 'security'; initialBarcode?: string; onClose: () => void; onSaved: () => void }) {
   const [fullName, setFullName] = useState('')
-  const [idCard, setIdCard] = useState('')
+  const [mainIdType, setMainIdType] = useState<IdType>('ktp')
+  const [mainIdNo, setMainIdNo] = useState('')
   const [picJai, setPicJai] = useState('')
   const [purpose, setPurpose] = useState('')
   const [companyRemark, setCompanyRemark] = useState('')
   const [visitDate, setVisitDate] = useState('')
-  const [companions, setCompanions] = useState<CompanionInput[]>([])
+  const [companions, setCompanions] = useState<Array<{ name: string; idNo: string; idType: IdType }>>([])
   const [barcode, setBarcode] = useState(initialBarcode)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -157,18 +158,151 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
   // Affiliate guests are registered without an identity card or PIC JAI.
   const isAffiliate = cardType === 'affiliate'
 
+  function onNameChange(value: string) {
+    setFullName(value)
+    const match = history.find((h) => h.full_name.toLowerCase() === value.toLowerCase())
+    if (match) {
+      if (!mainIdNo && !isAffiliate) {
+        setMainIdType(detectIdType(match.id_card))
+        setMainIdNo(extractIdNumber(match.id_card))
+      }
+      if (!picJai && !isAffiliate) setPicJai(match.pic_jai)
+      if (!companyRemark) setCompanyRemark(match.company_remark)
+    }
+  }
+
+  function handleMainIdChange(val: string) {
+    if (mainIdType === 'ktp' || mainIdType === 'sim') {
+      const digits = val.replace(/\D/g, '')
+      setMainIdNo(mainIdType === 'ktp' ? digits.slice(0, 16) : digits.slice(0, 16))
+    } else {
+      setMainIdNo(val.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15).toUpperCase())
+    }
+  }
+
+  function handleMainIdTypeChange(type: IdType) {
+    setMainIdType(type)
+    if (type === 'ktp' || type === 'sim') {
+      setMainIdNo((v) => v.replace(/\D/g, '').slice(0, 16))
+    }
+  }
+
+  function handleCompanionIdChange(index: number, val: string) {
+    setCompanions((prev) =>
+      prev.map((c, i) => {
+        if (i !== index) return c
+        let cleaned = val
+        if (c.idType === 'ktp' || c.idType === 'sim') {
+          const digits = val.replace(/\D/g, '')
+          cleaned = c.idType === 'ktp' ? digits.slice(0, 16) : digits.slice(0, 16)
+        } else {
+          cleaned = val.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15).toUpperCase()
+        }
+        return { ...c, idNo: cleaned }
+      })
+    )
+  }
+
+  function handleCompanionIdTypeChange(index: number, type: IdType) {
+    setCompanions((prev) =>
+      prev.map((c, i) => {
+        if (i !== index) return c
+        let cleaned = c.idNo
+        if (type === 'ktp' || type === 'sim') cleaned = cleaned.replace(/\D/g, '').slice(0, 16)
+        return { ...c, idType: type, idNo: cleaned }
+      })
+    )
+  }
+
   useEscapeClose(true, onClose)
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     setError(null)
+
+    // Validasi Tamu Utama
+    if (!fullName.trim()) {
+      setError('Nama lengkap Tamu Utama wajib diisi.')
+      return
+    }
+    if (!isAffiliate) {
+      const mainIdErr = validateGuestId(mainIdType, mainIdNo, 'Tamu Utama')
+      if (mainIdErr) {
+        setError(mainIdErr)
+        return
+      }
+      if (!picJai.trim()) {
+        setError('PIC JAI yang ditemui wajib diisi.')
+        return
+      }
+    }
+
+    // Validasi Rombongan
+    for (let i = 0; i < companions.length; i++) {
+      const c = companions[i]
+      if (!c.name.trim()) {
+        setError(`Nama lengkap Anggota Rombongan #${i + 2} wajib diisi.`)
+        return
+      }
+      const compIdErr = validateGuestId(c.idType, c.idNo, `Anggota Rombongan #${i + 2}`)
+      if (compIdErr) {
+        setError(compIdErr)
+        return
+      }
+    }
+
+    // Deteksi Identitas Duplikat dalam Rombongan
+    if (!isAffiliate || companions.length > 0) {
+      const allFormatted = [
+        ...(!isAffiliate ? [{ who: 'Tamu Utama', val: formatIdCardValue(mainIdType, mainIdNo) }] : []),
+        ...companions.map((c, i) => ({ who: `Anggota Rombongan #${i + 2}`, val: formatIdCardValue(c.idType, c.idNo) })),
+      ]
+      const seenMap = new Map<string, string>()
+      for (const item of allFormatted) {
+        const key = item.val.replace(/[\s-]/g, '').toUpperCase()
+        if (seenMap.has(key)) {
+          setError(`Nomor identitas "${item.val}" terdeteksi ganda antara ${seenMap.get(key)} dan ${item.who}. Setiap tamu wajib memiliki nomor identitas masing-masing.`)
+          return
+        }
+        seenMap.set(key, item.who)
+      }
+    }
+
+    if (!purpose.trim()) {
+      setError('Tujuan kunjungan wajib diisi.')
+      return
+    }
+    if (!companyRemark.trim()) {
+      setError('Nama perusahaan wajib diisi.')
+      return
+    }
+
     setSubmitting(true)
     try {
+      const formattedIdCard = isAffiliate ? '-' : formatIdCardValue(mainIdType, mainIdNo)
+      const formattedCompanions = companions.map((c) => ({
+        name: c.name.trim(),
+        idNo: formatIdCardValue(c.idType, c.idNo),
+      }))
+
+      const payload = {
+        fullName: fullName.trim(),
+        idCard: formattedIdCard,
+        picJai: isAffiliate ? '-' : picJai.trim(),
+        purpose: purpose.trim(),
+        companyRemark: companyRemark.trim(),
+        visitDate,
+        companions: formattedCompanions,
+        cardType,
+        barcode,
+        station,
+      }
+
       const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ fullName, idCard, picJai, purpose, companyRemark, visitDate, companions, cardType, barcode, station }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok) { setError(data?.message ?? 'Gagal menyimpan.'); return }
@@ -213,15 +347,20 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
               <p className="mt-1 text-[11px] text-muted-foreground">Perusahaan otomatis tersimpan dan disarankan untuk kunjungan berikutnya.</p>
             </label>
 
-            {/* 2. Data Tamu & KTP + Tombol Tambah Orang langsung di bawahnya */}
+            {/* 2. Identitas Tamu (Tamu Utama & Rombongan Seragam & Ketat) */}
             <div className="rounded-xl border border-border/80 bg-secondary/15 p-3.5 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">
-                  Identitas Tamu {companions.length > 0 ? `(Tamu Utama + ${companions.length} Rombongan)` : ''}
-                </span>
+                <div>
+                  <span className="text-xs font-bold text-foreground block">
+                    Identitas Tamu {companions.length > 0 ? `(1 Tamu Utama + ${companions.length} Rombongan)` : '(1 Tamu)'}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Format KTP 16 digit, SIM, atau Paspor dengan validasi ketat
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setCompanions([...companions, { name: '', idNo: '' }])}
+                  onClick={() => setCompanions([...companions, { name: '', idNo: '', idType: 'ktp' }])}
                   disabled={companions.length >= MAX_COMPANIONS}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
                 >
@@ -230,81 +369,185 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
                 </button>
               </div>
 
-              <label className="block">
-                <span className={labelClass}>Nama Lengkap {companions.length > 0 ? '(Tamu Utama / PIC)' : ''}</span>
-                <input
-                  list="lobby-history-suggestions"
-                  value={fullName}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    setFullName(val)
-                    const match = history.find((h) => h.full_name.toLowerCase() === val.toLowerCase())
-                    if (match) {
-                      if (!idCard) setIdCard(match.id_card)
-                      if (!picJai) setPicJai(match.pic_jai)
-                      if (!companyRemark) setCompanyRemark(match.company_remark)
-                    }
-                  }}
-                  required
-                  autoFocus
-                  placeholder="Nama lengkap tamu..."
-                  className={inputClass}
-                />
-                <datalist id="lobby-history-suggestions">
-                  {history.map((h) => (
-                    <option key={h.full_name} value={h.full_name}>
-                      {h.company_remark} · PIC {h.pic_jai} ({h.visits}x kunjungan)
-                    </option>
-                  ))}
-                </datalist>
-              </label>
-
-              {!isAffiliate && (
-                <label className="block">
-                  <span className={labelClass}>Kartu Identitas (KTP/SIM/Paspor)</span>
-                  <input
-                    value={idCard}
-                    onChange={(e) => setIdCard(e.target.value)}
-                    required
-                    placeholder="Nomor identitas (KTP/SIM/Paspor)..."
-                    className={inputClass}
-                  />
-                </label>
-              )}
-
-              {/* Rombongan Tambahan */}
-              {companions.length > 0 && (
-                <div className="pt-2 border-t border-border/60 space-y-2">
-                  <span className="text-[11px] font-semibold text-muted-foreground block">
-                    Orang Tambahan (Rombongan, KTP masing-masing):
+              {/* Tamu Utama (#1) */}
+              <div className="rounded-xl border border-border/70 bg-card p-3 shadow-xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+                      #1
+                    </span>
+                    <span className="text-xs font-bold text-foreground">
+                      Tamu Utama / Penanggung Jawab
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                    Penanggung Jawab
                   </span>
+                </div>
+
+                <div className={`grid grid-cols-1 ${!isAffiliate ? 'sm:grid-cols-2' : ''} gap-2.5`}>
+                  <label className="block">
+                    <span className="text-[11px] font-semibold text-muted-foreground block mb-1">Nama Lengkap</span>
+                    <input
+                      list="lobby-history-suggestions"
+                      value={fullName}
+                      onChange={(e) => onNameChange(e.target.value)}
+                      required
+                      autoFocus
+                      placeholder="Nama lengkap tamu..."
+                      className={inputClass}
+                    />
+                    <datalist id="lobby-history-suggestions">
+                      {history.map((h) => (
+                        <option key={h.full_name} value={h.full_name}>
+                          {h.company_remark} · PIC {h.pic_jai} ({h.visits}x kunjungan)
+                        </option>
+                      ))}
+                    </datalist>
+                  </label>
+
+                  {!isAffiliate && (
+                    <label className="block">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-semibold text-muted-foreground">Kartu Identitas</span>
+                        <div className="flex gap-1 text-[10px] font-bold">
+                          {(['ktp', 'sim', 'paspor'] as const).map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => handleMainIdTypeChange(t)}
+                              className={`px-1.5 py-0.5 rounded transition ${
+                                mainIdType === t
+                                  ? 'bg-primary text-primary-foreground font-bold'
+                                  : 'bg-secondary text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              {t.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="relative">
+                        <input
+                          value={mainIdNo}
+                          onChange={(e) => handleMainIdChange(e.target.value)}
+                          required
+                          placeholder={
+                            mainIdType === 'ktp'
+                              ? '16 Digit NIK KTP...'
+                              : mainIdType === 'sim'
+                              ? '12-14 Digit No. SIM...'
+                              : 'Nomor Paspor (WNA)...'
+                          }
+                          className={`${inputClass} ${mainIdType === 'ktp' ? 'pr-14' : ''}`}
+                        />
+                        {mainIdType === 'ktp' && (
+                          <span
+                            className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-semibold ${
+                              mainIdNo.length === 16
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-muted-foreground'
+                            }`}
+                          >
+                            {mainIdNo.length}/16
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Rombongan Tambahan (#2, #3, ...) */}
+              {companions.length > 0 && (
+                <div className="space-y-2.5 pt-1">
                   {companions.map((c, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-muted-foreground w-5 text-center flex-shrink-0">#{i + 2}</span>
-                      <input
-                        value={c.name}
-                        onChange={(e) => setCompanions(companions.map((comp, idx) => (idx === i ? { ...comp, name: e.target.value } : comp)))}
-                        placeholder="Nama"
-                        aria-label={`Nama orang tambahan ${i + 1}`}
-                        className={inputClass}
-                        required
-                      />
-                      <input
-                        value={c.idNo}
-                        onChange={(e) => setCompanions(companions.map((comp, idx) => (idx === i ? { ...comp, idNo: e.target.value } : comp)))}
-                        placeholder="Nomor KTP"
-                        aria-label={`Nomor KTP orang tambahan ${i + 1}`}
-                        className={inputClass}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setCompanions(companions.filter((_, j) => j !== i))}
-                        aria-label={`Hapus orang tambahan ${i + 1}`}
-                        className="grid size-10 flex-shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <X className="size-4" />
-                      </button>
+                    <div key={i} className="rounded-xl border border-border/70 bg-card p-3 shadow-xs space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="flex size-5 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-foreground">
+                            #{i + 2}
+                          </span>
+                          <span className="text-xs font-bold text-foreground">
+                            Anggota Rombongan #{i + 2}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCompanions(companions.filter((_, j) => j !== i))}
+                          aria-label={`Hapus anggota rombongan #${i + 2}`}
+                          className="flex items-center gap-1 text-[11px] font-medium text-destructive transition hover:underline"
+                        >
+                          <X className="size-3.5" /> Hapus
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <label className="block">
+                          <span className="text-[11px] font-semibold text-muted-foreground block mb-1">Nama Lengkap</span>
+                          <input
+                            value={c.name}
+                            onChange={(e) =>
+                              setCompanions(
+                                companions.map((comp, idx) =>
+                                  idx === i ? { ...comp, name: e.target.value } : comp
+                                )
+                              )
+                            }
+                            placeholder={`Nama anggota #${i + 2}...`}
+                            required
+                            className={inputClass}
+                          />
+                        </label>
+
+                        <label className="block">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-semibold text-muted-foreground">Kartu Identitas</span>
+                            <div className="flex gap-1 text-[10px] font-bold">
+                              {(['ktp', 'sim', 'paspor'] as const).map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={() => handleCompanionIdTypeChange(i, t)}
+                                  className={`px-1.5 py-0.5 rounded transition ${
+                                    c.idType === t
+                                      ? 'bg-primary text-primary-foreground font-bold'
+                                      : 'bg-secondary text-muted-foreground hover:text-foreground'
+                                  }`}
+                                >
+                                  {t.toUpperCase()}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <input
+                              value={c.idNo}
+                              onChange={(e) => handleCompanionIdChange(i, e.target.value)}
+                              placeholder={
+                                c.idType === 'ktp'
+                                  ? '16 Digit NIK KTP...'
+                                  : c.idType === 'sim'
+                                  ? '12-14 Digit No. SIM...'
+                                  : 'Nomor Paspor (WNA)...'
+                              }
+                              required
+                              className={`${inputClass} ${c.idType === 'ktp' ? 'pr-14' : ''}`}
+                            />
+                            {c.idType === 'ktp' && (
+                              <span
+                                className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-semibold ${
+                                  c.idNo.length === 16
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-muted-foreground'
+                                }`}
+                              >
+                                {c.idNo.length}/16
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      </div>
                     </div>
                   ))}
                 </div>

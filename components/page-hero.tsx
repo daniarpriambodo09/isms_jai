@@ -116,8 +116,6 @@ export function BlueprintHero({ count, updatedAt, action }: WithAction & { count
   const specs: [string, ReactNode][] = [
     ['Dokumen', count],
     ['Diperbarui', formatDate(updatedAt)],
-    ['Sumber', 'PT. TMMIN'],
-    ['Status', <span key="s" className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-[color:var(--p-400)]" />Berlaku</span>],
   ]
   return (
     <section className="hero-blueprint relative overflow-hidden rounded-2xl p-8 text-primary-foreground sm:p-10">

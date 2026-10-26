@@ -1,7 +1,7 @@
 // app/registrasi-fingerprint/page.tsx
 'use client'
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react'
+import React, { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -41,6 +41,10 @@ import {
   CheckSquare,
   Square,
   Laptop,
+  RefreshCw,
+  History,
+  FileDown,
+  Filter,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import {
@@ -48,6 +52,7 @@ import {
   type ItFormApprover,
   type ItFormSubmission,
 } from '@/lib/it-form-shared'
+import { SPECIAL_AREAS } from '@/lib/special-area-shared'
 import { useAuth } from '@/context/AuthContext'
 
 interface DepartmentItem {
@@ -75,19 +80,15 @@ const DEFAULT_DEPARTMENTS = [
   'ME',
 ]
 
-const AREA_OPTIONS = [
-  'Ruang Server / Server Room',
-  'Ruang Arsip Confidential',
-  'Data Center & Network Hub',
-  'Ruang Kontrol CCTV & Keamanan',
-  'Lainnya',
-]
-
 function FingerprintPageInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const tokenQuery = searchParams.get('token')
+  const tabQuery = searchParams.get('tab')
   const { adminUser } = useAuth()
+
+  // Navigation tab: 'form' or 'history'
+  const [activeTab, setActiveTab] = useState<'form' | 'history'>('form')
 
   // Form Applicant fields
   const [applicantName, setApplicantName] = useState('')
@@ -103,8 +104,10 @@ function FingerprintPageInner() {
   const [sectionChoice, setSectionChoice] = useState('')
   const [customSection, setCustomSection] = useState('')
 
-  // Access details
-  const [areaChoice, setAreaChoice] = useState(AREA_OPTIONS[0])
+  // Special Area Master Data
+  const [specialAreas, setSpecialAreas] = useState<string[]>([...SPECIAL_AREAS])
+  const [loadingAreas, setLoadingAreas] = useState(false)
+  const [areaChoice, setAreaChoice] = useState<string>(SPECIAL_AREAS[0])
   const [customArea, setCustomArea] = useState('')
   const [fingerprintId, setFingerprintId] = useState('')
   const [noExpiration, setNoExpiration] = useState(true)
@@ -112,7 +115,7 @@ function FingerprintPageInner() {
   const [komitmenAgreed, setKomitmenAgreed] = useState(true)
   const [notes, setNotes] = useState('')
 
-  // State
+  // Submission State
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [submissionResult, setSubmissionResult] = useState<ItFormSubmission | null>(null)
@@ -125,6 +128,13 @@ function FingerprintPageInner() {
   // Approvers list
   const [approvers, setApprovers] = useState<ItFormApprover[]>([])
   const [loadingApprovers, setLoadingApprovers] = useState(false)
+
+  // History state
+  const [historyList, setHistoryList] = useState<ItFormSubmission[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyFilterStatus, setHistoryFilterStatus] = useState<string>('all')
+  const [historySearch, setHistorySearch] = useState<string>('')
+  const [copiedRowId, setCopiedRowId] = useState<number | null>(null)
 
   // Fetch departments & cascading sections from database
   useEffect(() => {
@@ -148,6 +158,26 @@ function FingerprintPageInner() {
     }
   }, [])
 
+  // Fetch Special Security Areas master list
+  useEffect(() => {
+    let cancelled = false
+    setLoadingAreas(true)
+    fetch(`${API_BASE_PATH}/api/special-area-requests/areas`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { areas?: string[] } | null) => {
+        if (cancelled || !data?.areas?.length) return
+        setSpecialAreas(data.areas)
+        setAreaChoice((current) => (current === 'Lainnya' || data.areas!.includes(current) ? current : data.areas![0]))
+      })
+      .catch((err) => console.error('Failed to load special areas:', err))
+      .finally(() => {
+        if (!cancelled) setLoadingAreas(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Current department object and its sections
   const currentDeptObj = useMemo(() => {
     return rawDepartments.find(
@@ -162,7 +192,6 @@ function FingerprintPageInner() {
   // Reset section choice when department changes
   useEffect(() => {
     if (availableSections.length > 0) {
-      // If PGA, default to IT section if present, otherwise first section
       const defaultSec = availableSections.find((s) => s.name.toUpperCase() === 'IT') || availableSections[0]
       setSectionChoice(defaultSec ? defaultSec.name : '')
     } else {
@@ -191,6 +220,48 @@ function FingerprintPageInner() {
     }
   }, [])
 
+  // Fetch history submissions for ISMS-F-02-00-002
+  const fetchHistory = useCallback(async (statusFilter = historyFilterStatus, searchVal = historySearch) => {
+    setHistoryLoading(true)
+    try {
+      const q = new URLSearchParams()
+      q.set('form_code', 'ISMS-F-02-00-002')
+      if (statusFilter && statusFilter !== 'all') {
+        q.set('status', statusFilter)
+      }
+      if (searchVal.trim()) {
+        q.set('search', searchVal.trim())
+      }
+      const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions?${q.toString()}`, { cache: 'no-store' })
+      const data = await res.json()
+      if (res.ok && Array.isArray(data.submissions)) {
+        setHistoryList(data.submissions)
+      }
+    } catch (err) {
+      console.error('Failed to load fingerprint history:', err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [historyFilterStatus, historySearch])
+
+  // History counts summary
+  const historyCounts = useMemo(() => {
+    return {
+      all: historyList.length,
+      pending: historyList.filter((s) => s.status === 'pending').length,
+      approved: historyList.filter((s) => s.status === 'approved').length,
+      rejected: historyList.filter((s) => s.status === 'rejected').length,
+    }
+  }, [historyList])
+
+  // Initial tab & history loading
+  useEffect(() => {
+    if (tabQuery === 'history') {
+      setActiveTab('history')
+    }
+    fetchHistory()
+  }, [tabQuery, fetchHistory])
+
   // Load submission by token
   const fetchSubmissionByToken = async (tok: string) => {
     setSearchLoading(true)
@@ -199,6 +270,7 @@ function FingerprintPageInner() {
       const data = await res.json()
       if (res.ok && data.submission) {
         setSubmissionResult(data.submission)
+        setActiveTab('form')
       } else {
         alert(data.error || 'Permohonan tidak ditemukan')
       }
@@ -284,6 +356,7 @@ function FingerprintPageInner() {
       if (!res.ok) throw new Error(data.error || 'Gagal mengirim permohonan registrasi fingerprint.')
 
       setSubmissionResult(data.submission)
+      fetchHistory()
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err: any) {
       console.error(err)
@@ -293,14 +366,25 @@ function FingerprintPageInner() {
     }
   }
 
-
-
   const copyVerifyLink = () => {
     if (!submissionResult) return
     const url = `${window.location.origin}${API_BASE_PATH}/registrasi-fingerprint?token=${submissionResult.token}`
     navigator.clipboard.writeText(url)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2500)
+  }
+
+  const copyRowLink = (sub: ItFormSubmission) => {
+    const url = `${window.location.origin}${API_BASE_PATH}/registrasi-fingerprint?token=${sub.token}`
+    navigator.clipboard.writeText(url)
+    setCopiedRowId(sub.id)
+    setTimeout(() => setCopiedRowId(null), 2500)
+  }
+
+  const viewDetailFromHistory = (sub: ItFormSubmission) => {
+    setSubmissionResult(sub)
+    setActiveTab('form')
+    window.scrollTo({ top: 120, behavior: 'smooth' })
   }
 
   return (
@@ -347,6 +431,17 @@ function FingerprintPageInner() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab(activeTab === 'history' ? 'form' : 'history')
+                if (activeTab === 'form') fetchHistory()
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-950/40 px-4 py-2.5 text-xs font-semibold text-indigo-800 dark:text-indigo-200 shadow-xs transition hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:-translate-y-0.5"
+            >
+              <History className="size-4 text-indigo-600 dark:text-indigo-400" />
+              <span>{activeTab === 'history' ? 'Buka Form Pendaftaran' : `Lihat Riwayat (${historyCounts.all})`}</span>
+            </button>
             <Link
               href="/form-it-esign"
               className="inline-flex items-center gap-2 rounded-xl border border-border/90 bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-xs transition hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 hover:-translate-y-0.5"
@@ -358,43 +453,99 @@ function FingerprintPageInner() {
         </div>
       </section>
 
-      {/* Track & Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card/60 p-3 sm:p-4 backdrop-blur-xs">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Info className="size-4 text-indigo-600 shrink-0" />
-          <span>Sudah pernah mengajukan? Masukkan Token / ID permohonan untuk cek status atau review persetujuan E-Sign:</span>
-        </div>
-        <div className="flex w-full sm:w-auto items-center gap-2">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Cari token..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchInput.trim()) {
-                  fetchSubmissionByToken(searchInput.trim())
-                }
-              }}
-              className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500 focus:outline-hidden"
-            />
-          </div>
+      {/* Main Tab Navigation */}
+      <div className="flex items-center justify-between border-b border-border/80 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('form')}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+              activeTab === 'form'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+            }`}
+          >
+            <FileText className="size-4" />
+            <span>Formulir Pengajuan Baru</span>
+          </button>
           <button
             type="button"
             onClick={() => {
-              if (searchInput.trim()) fetchSubmissionByToken(searchInput.trim())
+              setActiveTab('history')
+              fetchHistory()
             }}
-            disabled={searchLoading || !searchInput.trim()}
-            className="inline-flex h-9 items-center justify-center rounded-xl bg-indigo-600 px-3 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+              activeTab === 'history'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+            }`}
           >
-            {searchLoading ? <Loader2 className="size-3.5 animate-spin" /> : 'Cek Status'}
+            <Clock className="size-4" />
+            <span>Riwayat Pengajuan (History)</span>
+            <span
+              className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === 'history'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-secondary text-foreground'
+              }`}
+            >
+              {historyCounts.all}
+            </span>
           </button>
         </div>
+
+        {activeTab === 'history' && (
+          <button
+            type="button"
+            onClick={() => fetchHistory()}
+            disabled={historyLoading}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition disabled:opacity-50"
+          >
+            <RefreshCw className={`size-3.5 ${historyLoading ? 'animate-spin text-indigo-600' : ''}`} />
+            <span className="hidden sm:inline">Refresh Data</span>
+          </button>
+        )}
       </div>
 
+      {/* Track & Search Bar (Only shown on form tab) */}
+      {activeTab === 'form' && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card/60 p-3 sm:p-4 backdrop-blur-xs">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Info className="size-4 text-indigo-600 shrink-0" />
+            <span>Sudah pernah mengajukan? Masukkan Token / ID permohonan untuk cek status atau review persetujuan E-Sign:</span>
+          </div>
+          <div className="flex w-full sm:w-auto items-center gap-2">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Cari token..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchInput.trim()) {
+                    fetchSubmissionByToken(searchInput.trim())
+                  }
+                }}
+                className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500 focus:outline-hidden"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (searchInput.trim()) fetchSubmissionByToken(searchInput.trim())
+              }}
+              disabled={searchLoading || !searchInput.trim()}
+              className="inline-flex h-9 items-center justify-center rounded-xl bg-indigo-600 px-3 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {searchLoading ? <Loader2 className="size-3.5 animate-spin" /> : 'Cek Status'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Submission Result / Active Review Box */}
-      {submissionResult && (
+      {submissionResult && activeTab === 'form' && (
         <section className="relative overflow-hidden rounded-3xl border-2 border-indigo-500/40 bg-card p-6 shadow-md">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
             <div>
@@ -462,6 +613,18 @@ function FingerprintPageInner() {
                 <RotateCcw className="size-3.5" />
                 <span>Form Baru</span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmissionResult(null)
+                  setActiveTab('history')
+                  fetchHistory()
+                }}
+                className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50/50 px-3 py-2.5 text-xs font-semibold text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300 hover:bg-indigo-100"
+              >
+                <History className="size-3.5" />
+                <span>Ke Riwayat</span>
+              </button>
             </div>
           </div>
 
@@ -478,15 +641,15 @@ function FingerprintPageInner() {
                 {submissionResult.department}
                 {submissionResult.form_data?.section ? ` / ${submissionResult.form_data.section}` : ''}
               </p>
-              <p className="text-muted-foreground mt-0.5">{submissionResult.applicant_position || 'Staff'}</p>
+              <p className="text-muted-foreground mt-0.5">Status: {submissionResult.employee_status}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
               <p className="text-muted-foreground font-semibold">Area Special Security</p>
-              <p className="mt-1 font-bold text-indigo-700 dark:text-indigo-400 text-sm">
-                {submissionResult.form_data?.area_special_security || submissionResult.purpose || 'Ruang Server'}
+              <p className="mt-1 font-bold text-indigo-600 dark:text-indigo-400 text-sm">
+                {submissionResult.form_data?.area_special_security || submissionResult.purpose || 'Special Security Area'}
               </p>
-              <p className="text-muted-foreground mt-0.5 font-mono">
-                Kode ID: {submissionResult.form_data?.fingerprint_id || '-'}
+              <p className="text-muted-foreground font-mono mt-0.5">
+                ID Sidik Jari: {submissionResult.form_data?.fingerprint_id || '-'}
               </p>
             </div>
             <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
@@ -495,137 +658,71 @@ function FingerprintPageInner() {
                 {submissionResult.form_data?.access_deletion_date || 'Sesuai Masa Penugasan'}
               </p>
               <p className="text-muted-foreground mt-0.5">
-                Pengajuan: {new Date(submissionResult.request_date).toLocaleDateString('id-ID')}
+                Diajukan: {new Date(submissionResult.created_at).toLocaleDateString('id-ID', { dateStyle: 'medium' })}
               </p>
             </div>
           </div>
 
-          {/* Approver Signatures Timeline */}
-          <div className="mt-6 rounded-2xl border border-border/80 bg-secondary/20 p-4">
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <ShieldCheck className="size-4 text-indigo-600" />
-              <span>Status Otorisasi Pejabat ISMS &amp; E-Sign</span>
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(submissionResult.signatures || []).map((sig) => (
-                <div
-                  key={sig.id}
-                  className={`flex items-start gap-3 rounded-xl border p-3.5 transition ${
-                    sig.status === 'approved'
-                      ? 'border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20'
-                      : sig.status === 'rejected'
-                      ? 'border-red-500/40 bg-red-50/50 dark:bg-red-950/20'
-                      : 'border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/20'
-                  }`}
-                >
-                  <div className="mt-0.5">
-                    {sig.status === 'approved' ? (
-                      <CheckCircle2 className="size-5 text-emerald-600" />
-                    ) : sig.status === 'rejected' ? (
-                      <XCircle className="size-5 text-red-600" />
-                    ) : (
-                      <Clock className="size-5 text-amber-600 animate-spin" />
-                    )}
-                  </div>
-                  <div className="flex-1 text-xs">
-                    <p className="font-bold text-foreground text-sm">{sig.slot_label}</p>
-                    <p className="text-muted-foreground font-medium">{sig.role_title}: <span className="text-foreground font-semibold">{sig.approver_name}</span></p>
-                    {sig.status === 'approved' && (
-                      <div className="mt-2 space-y-1 text-[11px] text-emerald-800 dark:text-emerald-300 font-mono">
-                        <p className="flex items-center gap-1.5"><Check className="size-3 text-emerald-600" />E-Sign Terverifikasi: {sig.verification_code}</p>
-                        <p className="flex items-center gap-1.5"><Calendar className="size-3 text-emerald-600" />Tanggal: {sig.signed_at ? new Date(sig.signed_at).toLocaleString('id-ID') : '-'}</p>
-                        {sig.signature_note && <p className="italic font-sans text-muted-foreground">Catatan: &ldquo;{sig.signature_note}&rdquo;</p>}
+          {/* Signatures Timeline */}
+          {submissionResult.signatures && submissionResult.signatures.length > 0 && (
+            <div className="mt-6 border-t border-border/70 pt-5">
+              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <FileCheck className="size-4 text-indigo-600" />
+                <span>Otorisasi &amp; Tanda Tangan Digital Resmi (E-Sign Verification)</span>
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {submissionResult.signatures.map((sig) => {
+                  const isApp = sig.status === 'approved'
+                  const isRej = sig.status === 'rejected'
+                  return (
+                    <div
+                      key={sig.id}
+                      className={`relative flex flex-col justify-between rounded-2xl border p-4 transition ${
+                        isApp
+                          ? 'border-emerald-500/40 bg-emerald-50/30 dark:bg-emerald-950/20'
+                          : isRej
+                          ? 'border-red-500/40 bg-red-50/30 dark:bg-red-950/20'
+                          : 'border-border bg-card'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            {sig.slot_label}
+                          </span>
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              isApp
+                                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                                : isRej
+                                ? 'bg-red-500/15 text-red-700 dark:text-red-300'
+                                : 'bg-amber-500/15 text-amber-800 dark:text-amber-300'
+                            }`}
+                          >
+                            {isApp ? 'Disetujui' : isRej ? 'Ditolak' : 'Menunggu Approval'}
+                          </span>
+                        </div>
+                        <p className="font-display text-sm font-bold text-foreground">{sig.approver_name}</p>
+                        <p className="text-xs text-muted-foreground">{sig.role_title}</p>
                       </div>
-                    )}
-                    {sig.status === 'rejected' && (
-                      <div className="mt-2 text-[11px] text-red-800 dark:text-red-300 font-mono">
-                        <p className="flex items-center gap-1.5"><X className="size-3 text-red-600" />Ditolak: {sig.signature_note || 'Tidak disetujui'}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Embedded Live PDF Document Preview */}
-          <div className="mt-6 rounded-2xl border border-indigo-200/80 bg-slate-900/5 p-4 dark:border-indigo-900/50">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="size-4 text-indigo-600" />
-                <span className="text-xs font-bold text-foreground">
-                  Pratinjau Dokumen PDF Resmi (Single Form — Siap Cetak &amp; Arsip)
-                </span>
-              </div>
-              <a
-                href={`${API_BASE_PATH}/api/it-form-submissions/${submissionResult.id}/pdf?token=${submissionResult.token}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-secondary"
-              >
-                <ExternalLink className="size-3" />
-                <span>Buka Layar Penuh</span>
-              </a>
-            </div>
-            <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-inner">
-              <iframe
-                src={`${API_BASE_PATH}/api/it-form-submissions/${submissionResult.id}/pdf?token=${submissionResult.token}#toolbar=0&navpanes=0`}
-                className="h-[480px] w-full rounded-xl bg-white"
-                title={`Formulir Registrasi Fingerprint ${submissionResult.request_no}`}
-              />
-            </div>
-          </div>
-
-          {/* Status Alur Pengesahan Pejabat (Official Workflow Status - Read Only) */}
-          {submissionResult.status === 'pending' && (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5 dark:border-slate-800">
-                <div>
-                  <h3 className="font-display text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <ShieldCheck className="size-4 text-amber-500" />
-                    <span>Status Pengesahan: Menunggu Persetujuan Pejabat Berwenang</span>
-                  </h3>
-                  <p className="mt-0.5 text-xs text-slate-500 font-medium">
-                    Dokumen ini sedang dalam antrean pengesahan digital oleh pejabat resmi yang ditunjuk.
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300">
-                  <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  <span>MENUNGGU PERSETUJUAN</span>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
-                  <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">
-                    Pejabat Penyetuju Resmi (Official Approver)
-                  </span>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white">
-                    <ShieldCheck className="size-4 text-emerald-600 shrink-0" />
-                    <span>
-                      {submissionResult.signatures?.find((s) => s.step_number === submissionResult.current_step)?.approver_name || 'Teguh Sunjoyo'}
-                    </span>
-                    <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] text-slate-700 font-semibold dark:bg-slate-700 dark:text-slate-300">
-                      IAA Administrator
-                    </span>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/40">
-                  <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">
-                    Mekanisme Otorisasi
-                  </span>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-                    Persetujuan sah dilakukan langsung oleh pejabat bersangkutan melalui notifikasi email dinas atau portal Persetujuan Pejabat resmi.
-                  </p>
-                </div>
+                      {isApp && (
+                        <div className="mt-3 pt-2.5 border-t border-emerald-500/20 flex items-center justify-between text-[11px] text-emerald-700 dark:text-emerald-400">
+                          <span className="font-mono">Kode E-Sign: {sig.verification_code || 'VERIFIED'}</span>
+                          <span>{sig.signed_at ? new Date(sig.signed_at).toLocaleDateString('id-ID') : 'Sah'}</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
         </section>
       )}
 
-      {/* Main Registration Form */}
-      {!submissionResult && (
+      {/* Main Registration Form (When in 'form' tab and not viewing result) */}
+      {!submissionResult && activeTab === 'form' && (
         <form onSubmit={handleSubmit} className="space-y-6">
           {errorMsg && (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 flex items-center gap-2.5">
@@ -759,7 +856,7 @@ function FingerprintPageInner() {
                               {sec.name} {department.toUpperCase() === 'PGA' && sec.name === 'IT' ? '(Information Technology)' : ''}
                             </option>
                           ))}
-                          <option value="__custom__">+ Ketik Seksi Manual / Lainnya...</option>
+                          <option value="__custom__">+ Input Seksi Lainnya...</option>
                         </select>
 
                         {sectionChoice === '__custom__' && (
@@ -767,36 +864,27 @@ function FingerprintPageInner() {
                             type="text"
                             value={customSection}
                             onChange={(e) => setCustomSection(e.target.value)}
-                            placeholder="Ketik nama seksi / bagian..."
-                            className="h-10 w-full rounded-xl border border-indigo-300 bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500 animate-in fade-in"
+                            placeholder="Sebutkan nama seksi / bagian..."
+                            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
                           />
                         )}
                       </div>
                     ) : (
-                      <div>
-                        <input
-                          type="text"
-                          value={customSection}
-                          onChange={(e) => setCustomSection(e.target.value)}
-                          placeholder="Masukkan nama seksi / bagian (opsional)..."
-                          className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        value={customSection}
+                        onChange={(e) => setCustomSection(e.target.value)}
+                        placeholder="Contoh: IT Section / Maintenance"
+                        className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none focus:border-indigo-500"
+                      />
                     )}
                   </div>
                 </div>
-
-                <p className="mt-2 text-[11px] text-muted-foreground flex items-center gap-1.5">
-                  <Info className="size-3.5 text-indigo-600 shrink-0" />
-                  <span>
-                    Departemen &amp; Seksi di atas akan dicetak pada kolom <strong>DEPARTEMEN/SEKSI</strong> di form resmi PDF: <code className="font-mono text-indigo-600 font-bold">{department}{effectiveSection ? ` / ${effectiveSection}` : ''}</code>
-                  </span>
-                </p>
               </div>
 
               {/* Status Karyawan */}
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-bold text-foreground">
+                <label className="mb-2 block text-xs font-bold text-foreground">
                   Status Karyawan (ステータス)
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -832,7 +920,7 @@ function FingerprintPageInner() {
             </div>
           </div>
 
-          {/* Section 2: Detail Akses Special Security Area */}
+          {/* Section 2: Detail Akses Special Security Area (LINKED TO SPECIAL SECURITY AREA MASTER) */}
           <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs">
             <div className="flex items-center gap-2.5 border-b border-border/70 pb-4 mb-6">
               <div className="grid size-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
@@ -843,37 +931,57 @@ function FingerprintPageInner() {
                   2. Area Special Security &amp; Masa Berlaku
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Pemilihan zona keamanan khusus yang dimohonkan akses sidik jarinya.
+                  Pemilihan zona keamanan khusus yang dimohonkan akses sidik jarinya (tersinkron dengan Master Special Security Area).
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Area Special Security */}
+              {/* Area Special Security - DYNAMIC MASTER LIST */}
               <div>
-                <label className="mb-1.5 block text-xs font-bold text-foreground">
-                  Area Special Security (入退する特別区画) <span className="text-red-500">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-foreground">
+                    Area Special Security (入退する特別区画) <span className="text-red-500">*</span>
+                  </label>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <ShieldCheck className="size-3" />
+                    Sinkron Master Area Special
+                  </span>
+                </div>
                 <select
                   value={areaChoice}
                   onChange={(e) => setAreaChoice(e.target.value)}
                   className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 font-semibold"
                 >
-                  {AREA_OPTIONS.map((opt) => (
+                  {specialAreas.map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
                     </option>
                   ))}
+                  <option value="Lainnya">Lainnya (Sebutkan Sendiri)</option>
                 </select>
                 {areaChoice === 'Lainnya' && (
                   <input
                     type="text"
                     value={customArea}
                     onChange={(e) => setCustomArea(e.target.value)}
-                    placeholder="Sebutkan area khusus..."
+                    placeholder="Sebutkan area khusus yang dimohonkan..."
                     className="mt-2 h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
                   />
                 )}
+                <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Pilihan zona terdaftar di Diagram Security Area PT. JAI.</span>
+                  {adminUser && (adminUser.role === 'ism_admin' || adminUser.role === 'it') && (
+                    <Link
+                      href="/kelola-izin-area-special"
+                      target="_blank"
+                      className="text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5"
+                    >
+                      <span>Master Area</span>
+                      <ExternalLink className="size-2.5" />
+                    </Link>
+                  )}
+                </div>
               </div>
 
               {/* Kode ID (Opsional) */}
@@ -1052,6 +1160,289 @@ function FingerprintPageInner() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* History View (When in 'history' tab) */}
+      {activeTab === 'history' && (
+        <section className="space-y-6">
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+              <span className="text-[11px] font-semibold text-muted-foreground">Total Pengajuan</span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-foreground">{historyCounts.all}</p>
+              <span className="text-[10px] text-muted-foreground">Form ISMS-F-02-00-002</span>
+            </div>
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/20 p-4 shadow-2xs">
+              <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-300">Menunggu Approval</span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-amber-700 dark:text-amber-400">{historyCounts.pending}</p>
+              <span className="text-[10px] text-amber-700/80 dark:text-amber-400/80">Otorisasi IAA</span>
+            </div>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 shadow-2xs">
+              <span className="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">Disetujui Resmi</span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-400">{historyCounts.approved}</p>
+              <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/80">E-Sign Valid</span>
+            </div>
+            <div className="rounded-2xl border border-red-500/30 bg-red-50/40 dark:bg-red-950/20 p-4 shadow-2xs">
+              <span className="text-[11px] font-semibold text-red-800 dark:text-red-300">Ditolak</span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-red-700 dark:text-red-400">{historyCounts.rejected}</p>
+              <span className="text-[10px] text-red-700/80 dark:text-red-400/80">Tidak diberikan akses</span>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-3 sm:p-4 shadow-2xs">
+            {/* Status Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { key: 'all', label: 'Semua', count: historyCounts.all },
+                { key: 'pending', label: 'Menunggu', count: historyCounts.pending },
+                { key: 'approved', label: 'Disetujui', count: historyCounts.approved },
+                { key: 'rejected', label: 'Ditolak', count: historyCounts.rejected },
+              ].map((tab) => {
+                const isSelected = historyFilterStatus === tab.key
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => {
+                      setHistoryFilterStatus(tab.key)
+                      fetchHistory(tab.key, historySearch)
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-background text-foreground'
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Cari nama, NIK, No. Request, area..."
+                value={historySearch}
+                onChange={(e) => {
+                  setHistorySearch(e.target.value)
+                  fetchHistory(historyFilterStatus, e.target.value)
+                }}
+                className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500 outline-none"
+              />
+              {historySearch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHistorySearch('')
+                    fetchHistory(historyFilterStatus, '')
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* History Content */}
+          {historyLoading ? (
+            <div className="flex min-h-[300px] items-center justify-center rounded-3xl border border-border/80 bg-card p-10">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 className="size-7 animate-spin text-indigo-600" />
+                <p className="text-xs font-semibold text-muted-foreground">Memuat riwayat pengajuan fingerprint...</p>
+              </div>
+            </div>
+          ) : historyList.length === 0 ? (
+            <div className="flex min-h-[300px] flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-card p-10 text-center">
+              <div className="grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                <Fingerprint className="size-6" />
+              </div>
+              <h4 className="mt-3.5 font-display text-base font-bold text-foreground">
+                Belum ada data pengajuan
+              </h4>
+              <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+                {historySearch
+                  ? `Tidak ditemukan pengajuan dengan kata kunci "${historySearch}". Coba kata kunci lain.`
+                  : 'Belum ada formulir pendaftaran registrasi sidik jari Special Security Area yang diajukan.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setActiveTab('form')}
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700"
+              >
+                <FileText className="size-3.5" />
+                <span>Buat Pengajuan Baru</span>
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-3xl border border-border/80 bg-card shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border bg-secondary/35 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3.5">No. Request &amp; Tanggal</th>
+                      <th className="px-4 py-3.5">Pemohon</th>
+                      <th className="px-4 py-3.5">Departemen</th>
+                      <th className="px-4 py-3.5">Area Special Security</th>
+                      <th className="px-4 py-3.5">Masa Berlaku</th>
+                      <th className="px-4 py-3.5">Status E-Sign</th>
+                      <th className="px-4 py-3.5 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/70">
+                    {historyList.map((sub) => {
+                      const isApproved = sub.status === 'approved'
+                      const isRejected = sub.status === 'rejected'
+                      const sig = sub.signatures?.[0]
+                      const areaName = sub.form_data?.area_special_security || sub.purpose || 'Special Security Area'
+
+                      return (
+                        <tr
+                          key={sub.id}
+                          className="transition hover:bg-secondary/25"
+                        >
+                          <td className="px-4 py-3.5 align-top">
+                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                              {sub.request_no}
+                            </span>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              {new Date(sub.created_at).toLocaleDateString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <p className="font-bold text-foreground">{sub.applicant_name}</p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                              {sub.applicant_nik && (
+                                <span className="font-mono bg-secondary px-1 rounded text-[10px]">
+                                  NIK: {sub.applicant_nik}
+                                </span>
+                              )}
+                              <span>&bull; {sub.employee_status}</span>
+                            </div>
+                            {sub.applicant_position && (
+                              <p className="text-[10.5px] text-muted-foreground/80">{sub.applicant_position}</p>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <p className="font-semibold text-foreground">{sub.department}</p>
+                            {sub.form_data?.section && (
+                              <p className="text-[11px] text-muted-foreground">Seksi: {sub.form_data.section}</p>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 font-semibold text-indigo-700 dark:text-indigo-300">
+                              <Shield className="size-3" />
+                              <span>{areaName}</span>
+                            </span>
+                            {sub.form_data?.fingerprint_id && (
+                              <p className="mt-1 font-mono text-[10.5px] text-muted-foreground">
+                                ID: {sub.form_data.fingerprint_id}
+                              </p>
+                            )}
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <span className="text-[11.5px] font-medium text-foreground">
+                              {sub.form_data?.access_deletion_date || 'Sesuai Masa Penugasan'}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${
+                                  isApproved
+                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                                    : isRejected
+                                    ? 'bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/30'
+                                    : 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30'
+                                }`}
+                              >
+                                {isApproved ? (
+                                  <CheckCircle2 className="size-3" />
+                                ) : isRejected ? (
+                                  <XCircle className="size-3" />
+                                ) : (
+                                  <Clock className="size-3" />
+                                )}
+                                <span>{isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Menunggu Approval'}</span>
+                              </span>
+
+                              <p className="text-[10.5px] text-muted-foreground">
+                                Approver: {sig?.approver_name || 'Teguh Sunjoyo (IAA)'}
+                              </p>
+                              {isApproved && sig?.signed_at && (
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                                  Sah: {new Date(sig.signed_at).toLocaleDateString('id-ID')}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                title="Lihat Status & Detail Lengkap"
+                                onClick={() => viewDetailFromHistory(sub)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition"
+                              >
+                                <Eye className="size-3.5 text-indigo-600" />
+                                <span className="hidden md:inline">Detail</span>
+                              </button>
+
+                              <a
+                                href={`${API_BASE_PATH}/api/it-form-submissions/${sub.id}/pdf?token=${sub.token}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Download Formulir Resmi PDF (Single Copy)"
+                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-2xs transition"
+                              >
+                                <FileDown className="size-3.5" />
+                                <span className="hidden md:inline">PDF</span>
+                              </a>
+
+                              <button
+                                type="button"
+                                title="Salin Tautan Token / Verifikasi"
+                                onClick={() => copyRowLink(sub)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition"
+                              >
+                                {copiedRowId === sub.id ? (
+                                  <Check className="size-3.5 text-emerald-600" />
+                                ) : (
+                                  <Copy className="size-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </section>
       )}
     </div>
   )

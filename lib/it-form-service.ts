@@ -686,7 +686,7 @@ export async function getItFormSubmissions(filters?: {
   }
   if (filters?.search?.trim()) {
     const q = `%${filters.search.trim()}%`
-    sql += ` AND (request_no ILIKE $${idx} OR applicant_name ILIKE $${idx} OR department ILIKE $${idx})`
+    sql += ` AND (request_no ILIKE $${idx} OR applicant_name ILIKE $${idx} OR applicant_nik ILIKE $${idx} OR department ILIKE $${idx} OR form_data::text ILIKE $${idx})`
     params.push(q)
     idx++
   }

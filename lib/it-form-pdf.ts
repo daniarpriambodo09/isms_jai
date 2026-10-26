@@ -332,8 +332,16 @@ async function stampOnTemplate(
     }
 
     // Signature boxes: IT Section Check (centerX=411.0) & Manager (centerX=510.5)
-    const sigIt = signatures.find((s) => s.step_number === 1) || signatures[0]
-    const sigMgr = signatures.find((s) => s.step_number === 2) || signatures[1]
+    // Manager approves first (Step 1), then IT Section checks (Step 2)
+    const sigMgr = signatures.find((s) =>
+      s.slot_label.toUpperCase().includes('MGR') ||
+      s.role_title.toUpperCase().includes('MANAGER')
+    ) || signatures.find((s) => s.step_number === 1) || signatures[0]
+
+    const sigIt = signatures.find((s) =>
+      s.slot_label.toUpperCase().includes('IT') ||
+      s.role_title.toUpperCase().includes('IT')
+    ) || signatures.find((s) => s.step_number === 2) || signatures[1]
 
     if (sigIt && sigIt.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=${sigIt.step_number}&code=${sigIt.verification_code || ''}`
@@ -402,8 +410,16 @@ async function stampOnTemplate(
     }
 
     // Signature boxes: IT Section Check (centerX=411.0) & Manager (centerX=510.5)
-    const sigIt = signatures.find((s) => s.step_number === 1) || signatures[0]
-    const sigMgr = signatures.find((s) => s.step_number === 2) || signatures[1]
+    // Manager approves first (Step 1), then IT Section checks (Step 2)
+    const sigMgr = signatures.find((s) =>
+      s.slot_label.toUpperCase().includes('MGR') ||
+      s.role_title.toUpperCase().includes('MANAGER')
+    ) || signatures.find((s) => s.step_number === 1) || signatures[0]
+
+    const sigIt = signatures.find((s) =>
+      s.slot_label.toUpperCase().includes('IT') ||
+      s.role_title.toUpperCase().includes('IT')
+    ) || signatures.find((s) => s.step_number === 2) || signatures[1]
 
     if (sigIt && sigIt.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=${sigIt.step_number}&code=${sigIt.verification_code || ''}`

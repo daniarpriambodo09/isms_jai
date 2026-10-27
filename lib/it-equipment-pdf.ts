@@ -119,9 +119,9 @@ export async function buildItEquipmentPdf(
 
   curY -= 16
 
-  // Section: [Membawa Masuk] & Control Number
+  // Section: [Membawa Masuk] / [Membawa Keluar] & Control Number
   const controlNo = isFormIn ? 'ISMS-F-03-00-001' : 'ISMS-F-03-00-002'
-  const subSection = isFormIn ? '[Membawa masuk]' : '[Pengajuan]'
+  const subSection = isFormIn ? '[Membawa masuk]' : '[Membawa keluar]'
   text(subSection, leftX, curY, 10, fontBold, COLOR_INK)
   const ctrlText = `Kontrol No. : ${controlNo}`
   text(ctrlText, leftX + W - fontBold.widthOfTextAtSize(ctrlText, 9), curY, 9, fontBold, COLOR_INK)
@@ -148,20 +148,26 @@ export async function buildItEquipmentPdf(
 
   const rowsData = [
     { label: 'TANGGAL PENGAJUAN', value: formatDateId(req.request_date) },
-    { label: 'N A M A', value: `${req.applicant_name}${req.applicant_nik ? ` (${req.applicant_nik})` : ''}` },
     {
-      label: isFormIn ? 'NAMA PERUSAHAAN' : 'PERUSAHAAN / NIK',
+      label: isFormIn ? 'N A M A (PEMOHON)' : 'N A M A (KARYAWAN)',
+      value: `${req.applicant_name}${req.applicant_nik ? ` (${req.applicant_nik})` : ''}`,
+    },
+    {
+      label: isFormIn ? 'PERUSAHAAN / AFFILIATE' : 'PERUSAHAAN / NIK',
       value: isFormIn
         ? req.company_name
         : req.applicant_nik
         ? `PT. JAI (NIK: ${req.applicant_nik})`
         : req.company_name || 'PT. Jatim Autocomp Indonesia',
     },
-    { label: 'DEPARTEMEN / SEKSI', value: `${req.department}${req.section ? ` / ${req.section}` : ''}` },
-    { label: isFormIn ? 'LOKASI KANTOR / AREA' : 'LOKASI / TEMPAT TUJUAN', value: req.location },
-    { label: 'TUJUAN', value: req.purpose },
     {
-      label: isFormIn ? 'TGL MASUK - RENCANA KEMBALI' : 'TGL KELUAR - RENCANA KEMBALI',
+      label: isFormIn ? 'DEPARTEMEN / SEKSI DIKUNJUNGI' : 'DEPARTEMEN / SEKSI KARYAWAN',
+      value: `${req.department}${req.section ? ` / ${req.section}` : ''}`,
+    },
+    { label: isFormIn ? 'LOKASI KANTOR / AREA' : 'LOKASI / TEMPAT TUJUAN', value: req.location },
+    { label: isFormIn ? 'TUJUAN MEMBAWA MASUK' : 'TUJUAN MEMBAWA KELUAR', value: req.purpose },
+    {
+      label: isFormIn ? 'TGL MASUK - RENCANA KELUAR' : 'TGL KELUAR - RENCANA KEMBALI',
       value: `${formatDateId(req.date_in)} s/d ${formatDateId(req.date_out_plan)}`,
     },
   ]
@@ -238,8 +244,8 @@ export async function buildItEquipmentPdf(
 
   curY = tableTopY - leftTableH - 18
 
-  // 2. Equipment Section: [Alat yang dibawa masuk]
-  const equipHeading = isFormIn ? 'Alat yang dibawa masuk' : 'Details dari PC, USB memory, camera, dll.'
+  // 2. Equipment Section: [Alat yang dibawa masuk] / [Alat yang dibawa keluar]
+  const equipHeading = isFormIn ? 'Alat yang dibawa masuk' : 'Alat yang dibawa keluar'
   text(equipHeading, leftX, curY, 9.5, fontBold, COLOR_INK)
   curY -= 8
 
@@ -307,13 +313,23 @@ export async function buildItEquipmentPdf(
   curY = tableRowY - 14
 
   // 3. Notice / Rules Box (from official ISMS form)
-  text('[Perhatian kepada Visitor yang membawa PC dan semacamnya]', leftX, curY, 8.5, fontBold, COLOR_RED)
-  curY -= 11
-  text('(1) Mintakan persetujuan dari pihak terkait bila akan memasukkan/mentransfer data ke PC.', leftX, curY, 7.5, fontRegular)
-  curY -= 10
-  text('(2) Bila akan menyambungkan PC ke network, mohon diisi form pengajuan penyambungan network.', leftX, curY, 7.5, fontRegular)
-  curY -= 10
-  text('*Visitor selain dari Yazaki group tidak diijinkan penyambungan PC ke network.', leftX, curY, 7.5, fontBold, COLOR_MUTED)
+  if (isFormIn) {
+    text('[Perhatian kepada Visitor / Affiliate Yazaki yang membawa PC dan semacamnya]', leftX, curY, 8.5, fontBold, COLOR_RED)
+    curY -= 11
+    text('(1) Mintakan persetujuan dari pihak terkait bila akan memasukkan/mentransfer data ke PC.', leftX, curY, 7.5, fontRegular)
+    curY -= 10
+    text('(2) Bila akan menyambungkan PC ke network, mohon diisi form pengajuan penyambungan network.', leftX, curY, 7.5, fontRegular)
+    curY -= 10
+    text('*Visitor selain dari Yazaki group tidak diijinkan penyambungan PC ke network.', leftX, curY, 7.5, fontBold, COLOR_MUTED)
+  } else {
+    text('[Perhatian kepada Karyawan PT. JAI yang membawa keluar alat IT inventaris perusahaan]', leftX, curY, 8.5, fontBold, COLOR_RED)
+    curY -= 11
+    text('(1) Dilarang mentransfer, menyalin, atau memberikan data rahasia perusahaan kepada pihak luar.', leftX, curY, 7.5, fontRegular)
+    curY -= 10
+    text('(2) Gunakan koneksi aman/VPN dan hindari menyambungkan perangkat ke Wi-Fi publik tanpa proteksi.', leftX, curY, 7.5, fontRegular)
+    curY -= 10
+    text('*Karyawan bertanggung jawab penuh atas keamanan fisik perangkat selama berada di luar PT. JAI.', leftX, curY, 7.5, fontBold, COLOR_MUTED)
+  }
 
   curY -= 14
 
@@ -327,7 +343,16 @@ export async function buildItEquipmentPdf(
   // 4. Return Section: [Kembali]
   text('[Kembali]', leftX, curY, 9.5, fontBold, COLOR_INK)
   curY -= 10
-  text('Mohon untuk diisi kolom di bawah ini saat pengembalian / selesai kunjungan.', leftX, curY, 7.5, fontRegular, COLOR_MUTED)
+  text(
+    isFormIn
+      ? 'Mohon untuk diisi kolom di bawah ini saat pengembalian / selesai kunjungan di PT. JAI.'
+      : 'Mohon untuk diisi kolom di bawah ini saat perangkat dikembalikan / masuk kembali ke area PT. JAI.',
+    leftX,
+    curY,
+    7.5,
+    fontRegular,
+    COLOR_MUTED
+  )
 
   curY -= 8
 
@@ -350,7 +375,15 @@ export async function buildItEquipmentPdf(
 
   text('Pengecheckan sebelum kembali:', leftX + 8, returnTableTop - 34, 7.5, fontBold)
   text(`${cb1Checked}  PC, flashdisk, camera, dll. sama dengan yang diajukan.`, leftX + 140, returnTableTop - 34, 7.5, fontRegular)
-  text(`${cb2Checked}  Tidak membawa pulang informasi rahasia tidak terkait.`, leftX + 140, returnTableTop - 49, 7.5, fontRegular)
+  text(
+    isFormIn
+      ? `${cb2Checked}  Tidak membawa pulang informasi rahasia tidak terkait.`
+      : `${cb2Checked}  Kondisi fisik perangkat utuh & tidak ada kebocoran data rahasia.`,
+    leftX + 140,
+    returnTableTop - 49,
+    7.5,
+    fontRegular
+  )
 
   if (req.returned_notes) {
     text(`Catatan: ${req.returned_notes}`, leftX + 140, returnTableTop - 61, 7, fontRegular, COLOR_MUTED)

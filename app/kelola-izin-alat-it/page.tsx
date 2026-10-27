@@ -1216,13 +1216,13 @@ export default function KelolaIzinAlatItPage() {
               <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
                 <div>
                   <span className="text-slate-400 block text-[10px]">
-                    {selectedReq.form_type === 'out' ? 'Nama Pemohon' : 'Nama Tamu'}
+                    {selectedReq.form_type === 'out' ? 'Nama Karyawan PT. JAI' : 'Nama Tamu / Affiliate'}
                   </span>
                   <span className="font-semibold text-slate-800">{selectedReq.applicant_name}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">
-                    {selectedReq.form_type === 'out' ? 'NIK / Perusahaan' : 'Perusahaan Tamu'}
+                    {selectedReq.form_type === 'out' ? 'NIK / Perusahaan' : 'Perusahaan / Affiliate'}
                   </span>
                   <span className="font-semibold text-slate-800">
                     {selectedReq.applicant_nik
@@ -1231,7 +1231,11 @@ export default function KelolaIzinAlatItPage() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Departemen Pembawa Device</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {selectedReq.form_type === 'out'
+                      ? 'Departemen / Seksi Karyawan'
+                      : 'Departemen / Seksi JAI Yang Dikunjungi'}
+                  </span>
                   <span className="font-medium text-slate-700">
                     {selectedReq.department}
                     {selectedReq.section ? ` - Seksi: ${selectedReq.section}` : ''}
@@ -1239,18 +1243,20 @@ export default function KelolaIzinAlatItPage() {
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">
-                    {selectedReq.form_type === 'out' ? 'Lokasi / Tujuan' : 'Lokasi / Ruangan'}
+                    {selectedReq.form_type === 'out' ? 'Lokasi / Tujuan (Di Luar JAI)' : 'Lokasi / Ruangan di PT. JAI'}
                   </span>
                   <span className="font-medium text-slate-700">{selectedReq.location}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">
-                    {selectedReq.form_type === 'out' ? 'Tanggal Keluar' : 'Tanggal Masuk'}
+                    {selectedReq.form_type === 'out' ? 'Tanggal Keluar dari JAI' : 'Tanggal Masuk ke JAI'}
                   </span>
                   <span className="font-medium text-slate-700">{selectedReq.date_in}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Rencana Kembali</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {selectedReq.form_type === 'out' ? 'Rencana Kembali ke JAI' : 'Rencana Keluar dari JAI'}
+                  </span>
                   <span className="font-medium text-slate-700">{selectedReq.date_out_plan}</span>
                 </div>
                 <div className="col-span-2">
@@ -1262,7 +1268,7 @@ export default function KelolaIzinAlatItPage() {
                 {selectedReq.applicant_phone && (
                   <div>
                     <span className="text-slate-400 block text-[10px]">
-                      {selectedReq.form_type === 'out' ? 'No. Telepon / WA Pemohon' : 'No. Telepon / WA Tamu'}
+                      {selectedReq.form_type === 'out' ? 'No. Telepon / WA Karyawan' : 'No. Telepon / WA'}
                     </span>
                     <span className="font-mono text-slate-700">{selectedReq.applicant_phone}</span>
                   </div>

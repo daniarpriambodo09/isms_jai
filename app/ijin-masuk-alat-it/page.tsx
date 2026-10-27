@@ -764,8 +764,8 @@ function FormContent() {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground max-w-xl">
               {formType === 'in'
-                ? 'Wajib diisi tamu/visitor sebelum masuk kantor (H-1) untuk mendapatkan persetujuan (ACC) dari divisi IT PT. JAI.'
-                : 'Wajib diisi pemohon (H-1) sebelum membawa alat keluar untuk mendapatkan persetujuan (ACC) dari divisi IT PT. JAI.'}
+                ? 'Wajib diisi oleh affiliate Yazaki / rekanan / tamu (H-1) sebelum membawa masuk device ke area PT. JAI untuk verifikasi dan persetujuan (ACC) dari divisi IT PT. JAI.'
+                : 'Khusus karyawan PT. JAI yang membawa perangkat IT inventaris kantor keluar dari area PT. JAI (H-1) untuk mendapatkan persetujuan dari Manager Departemen dan divisi IT PT. JAI.'}
             </p>
           </div>
 
@@ -780,7 +780,7 @@ function FormContent() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Membawa Masuk (001)
+              Membawa Masuk (Affiliate Yazaki / 001)
             </button>
             <button
               type="button"
@@ -791,7 +791,7 @@ function FormContent() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              Membawa Keluar (002)
+              Membawa Keluar (Karyawan PT. JAI / 002)
             </button>
           </div>
         </div>
@@ -813,19 +813,22 @@ function FormContent() {
               <User className="size-3.5" />
             </span>
             <p className="portal-eyebrow">
-              {formType === 'out' ? '1. Informasi Pemohon / Karyawan' : '1. Informasi Tamu / Pemohon'}
+              {formType === 'out'
+                ? '1. Informasi Karyawan PT. JAI (Pemohon)'
+                : '1. Informasi Affiliate Yazaki / Tamu Pemohon'}
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>
-                {formType === 'out' ? 'Nama Lengkap Pemohon' : 'Nama Lengkap Tamu'} <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Nama Lengkap Karyawan PT. JAI' : 'Nama Lengkap Tamu / Affiliate'}{' '}
+                <span className="text-destructive">*</span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="Contoh: Budi Santoso"
+                placeholder={formType === 'out' ? 'Contoh: Budi Santoso (Karyawan JAI)' : 'Contoh: Budi Santoso'}
                 value={applicantName}
                 onChange={(e) => setApplicantName(e.target.value)}
                 className={inputClass}
@@ -835,7 +838,7 @@ function FormContent() {
             {formType === 'out' ? (
               <div>
                 <label className={labelClass}>
-                  NIK / Nomor Karyawan <span className="text-destructive">*</span>
+                  NIK / Nomor Karyawan PT. JAI <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
@@ -849,12 +852,12 @@ function FormContent() {
             ) : (
               <div>
                 <label className={labelClass}>
-                  Nama Perusahaan / Instansi <span className="text-destructive">*</span>
+                  Nama Perusahaan / Affiliate Yazaki <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: PT. Mitra Teknologi Mandiri"
+                  placeholder="Contoh: PT. EDS Manufacturing Indonesia / Yazaki Parts"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   className={inputClass}
@@ -864,7 +867,8 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                Departemen Pembawa Device <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Departemen Karyawan' : 'Departemen JAI Yang Dikunjungi'}{' '}
+                <span className="text-destructive">*</span>
               </label>
               {!isCustomDept ? (
                 <div className="space-y-1.5">
@@ -881,7 +885,11 @@ function FormContent() {
                     }}
                     className={inputClass}
                   >
-                    <option value="">-- Pilih Departemen Pembawa Device --</option>
+                    <option value="">
+                      {formType === 'out'
+                        ? '-- Pilih Departemen Karyawan --'
+                        : '-- Pilih Departemen JAI Yang Dikunjungi --'}
+                    </option>
                     {(availableDepartments.length > 0 ? availableDepartments : DEFAULT_DEPARTMENTS).map((dept) => (
                       <option key={dept} value={dept}>
                         {dept}
@@ -895,7 +903,11 @@ function FormContent() {
                   <input
                     type="text"
                     required
-                    placeholder="Ketik nama departemen pembawa device..."
+                    placeholder={
+                      formType === 'out'
+                        ? 'Ketik nama departemen karyawan...'
+                        : 'Ketik nama departemen JAI yang dikunjungi...'
+                    }
                     value={customDeptText}
                     onChange={(e) => {
                       setCustomDeptText(e.target.value)
@@ -921,7 +933,8 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                Seksi / Bagian Pembawa Device <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Seksi / Bagian Karyawan' : 'Seksi / Bagian Yang Dikunjungi'}{' '}
+                <span className="text-destructive">*</span>
               </label>
               <input
                 type="text"
@@ -935,7 +948,9 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                {formType === 'out' ? 'Lokasi / Tempat Tujuan Membawa Alat' : 'Lokasi / Ruangan Tujuan di Kantor'}{' '}
+                {formType === 'out'
+                  ? 'Lokasi / Tempat Tujuan Membawa Alat (Di Luar JAI)'
+                  : 'Lokasi / Ruangan Tujuan di PT. JAI'}{' '}
                 <span className="text-destructive">*</span>
               </label>
               <input
@@ -943,7 +958,7 @@ function FormContent() {
                 required
                 placeholder={
                   formType === 'out'
-                    ? 'Contoh: Plant 2 / Site Vendor / WFH / Perjalanan Dinas'
+                    ? 'Contoh: Work From Home (WFH) / Plant Pasuruan / Site Vendor / Perjalanan Dinas'
                     : 'Contoh: Gedung A Lt. 2 / Server Room / Meeting Room 3'
                 }
                 value={location}
@@ -955,8 +970,8 @@ function FormContent() {
             <div>
               <label className={labelClass}>
                 {formType === 'out'
-                  ? 'No. Telepon / WhatsApp Pemohon (Konfirmasi ACC)'
-                  : 'No. Telepon / WhatsApp Tamu (Konfirmasi ACC)'}
+                  ? 'No. Telepon / WhatsApp Karyawan (Konfirmasi ACC)'
+                  : 'No. Telepon / WhatsApp (Konfirmasi ACC)'}
               </label>
               <input
                 type="tel"
@@ -976,7 +991,9 @@ function FormContent() {
               <Calendar className="size-3.5" />
             </span>
             <p className="portal-eyebrow">
-              {formType === 'out' ? '2. Jadwal & Keperluan' : '2. Jadwal & Tujuan Kunjungan'}
+              {formType === 'out'
+                ? '2. Jadwal & Keperluan Membawa Alat Keluar PT. JAI'
+                : '2. Jadwal & Keperluan Masuk PT. JAI'}
             </p>
           </div>
 
@@ -985,15 +1002,16 @@ function FormContent() {
             <span>
               <strong>Aturan Pengajuan H-1:</strong>{' '}
               {formType === 'out'
-                ? 'Disarankan mengisi formulir minimal 1 hari sebelum membawa alat keluar kantor agar Manager Departemen yang bersangkutan dan tim IT dapat menyetujui serta melakukan pemeriksaan.'
-                : 'Disarankan mengisi formulir minimal 1 hari sebelum kunjungan agar Manager Departemen yang bersangkutan / IAA dan tim IT dapat menyetujui serta memeriksa sebelum Anda tiba di pos Security.'}
+                ? 'Disarankan mengisi formulir minimal 1 hari sebelum membawa alat IT keluar dari area PT. JAI agar Manager Departemen dan tim IT dapat menyetujui serta memeriksa fisik perangkat sebelum melewati pos Security.'
+                : 'Disarankan mengisi formulir minimal 1 hari sebelum membawa masuk perangkat ke area PT. JAI agar Manager Departemen terkait dan tim IT dapat memverifikasi serta menyetujui (ACC) sebelum Anda tiba di pos Security.'}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>
-                {formType === 'out' ? 'Tanggal Keluar' : 'Tanggal Masuk'} <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Tanggal Keluar dari JAI' : 'Tanggal Masuk ke JAI'}{' '}
+                <span className="text-destructive">*</span>
               </label>
               <input
                 type="date"
@@ -1006,7 +1024,10 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                Tanggal Rencana Selesai / Kembali <span className="text-destructive">*</span>
+                {formType === 'out'
+                  ? 'Tanggal Rencana Kembali / Masuk Lagi ke JAI'
+                  : 'Tanggal Rencana Selesai / Keluar dari JAI'}{' '}
+                <span className="text-destructive">*</span>
               </label>
               <input
                 type="date"
@@ -1019,15 +1040,18 @@ function FormContent() {
 
             <div className="sm:col-span-2">
               <label className={labelClass}>
-                {formType === 'out' ? 'Tujuan Membawa Keluar Alat' : 'Tujuan Membawa Masuk Alat'} <span className="text-destructive">*</span>
+                {formType === 'out'
+                  ? 'Tujuan / Keperluan Membawa Alat Keluar PT. JAI'
+                  : 'Tujuan Membawa Masuk Alat ke PT. JAI'}{' '}
+                <span className="text-destructive">*</span>
               </label>
               <textarea
                 required
                 rows={2}
                 placeholder={
                   formType === 'out'
-                    ? 'Jelaskan tujuan membawa alat keluar (misal: Work From Home / WFH, Kunjungan Vendor, Support Plant 2, Dinas Luar)...'
-                    : 'Jelaskan kebutuhan pengoperasian alat (misal: Maintenance server CCTV, Presentasi demo software ke QA, Setting controller PLC)...'
+                    ? 'Jelaskan keperluan membawa alat IT keluar PT. JAI (misal: Work From Home / WFH, Kunjungan Kerja ke Vendor, Support Operasional Plant Pasuruan, Perjalanan Dinas)...'
+                    : 'Jelaskan kebutuhan pengoperasian alat di PT. JAI (misal: Maintenance server CCTV, Presentasi demo software ke QA, Setting controller PLC)...'
                 }
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
@@ -1046,8 +1070,8 @@ function FormContent() {
               </span>
               <p className="portal-eyebrow">
                 {formType === 'out'
-                  ? '3. Alat yang Dibawa Keluar (PC, Flashdisk, Kamera, dll.)'
-                  : '3. Alat yang Dibawa Masuk (PC, Flashdisk, Kamera, dll.)'}
+                  ? '3. Alat IT PT. JAI yang Dibawa Keluar (Laptop, Flashdisk, Kamera, dll.)'
+                  : '3. Alat yang Dibawa Masuk ke PT. JAI (PC, Flashdisk, Kamera, dll.)'}
               </p>
             </div>
 
@@ -1196,42 +1220,73 @@ function FormContent() {
             </span>
             <p className="portal-eyebrow">
               {formType === 'out'
-                ? '4. Ketentuan Keamanan ISMS (Wajib Dipatuhi Karyawan / Pemohon)'
-                : '4. Ketentuan Keamanan ISMS (Wajib Dipatuhi Visitor)'}
+                ? '4. Ketentuan Keamanan ISMS (Khusus Karyawan PT. JAI Pembawa Alat Keluar)'
+                : '4. Ketentuan Keamanan ISMS (Wajib Dipatuhi Visitor / Affiliate Yazaki)'}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-muted-foreground">
-            <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
-              <div className="font-semibold text-foreground">(1) Transfer Data:</div>
-              <p className="text-[11px]">
-                Mintakan persetujuan dari pihak terkait PT. JAI bila akan memasukkan/mentransfer data ke PC.
-              </p>
-            </div>
+          {formType === 'out' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-muted-foreground">
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
+                <div className="font-semibold text-foreground">(1) Kerahasiaan Data Perusahaan:</div>
+                <p className="text-[11px]">
+                  Dilarang memindahkan, menyalin, atau mendistribusikan data rahasia PT. JAI ke pihak ketiga atau perangkat pribadi tanpa persetujuan resmi.
+                </p>
+              </div>
 
-            <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
-              <div className="font-semibold text-foreground">(2) Koneksi Network:</div>
-              <p className="text-[11px]">
-                Bila akan menyambungkan PC ke network, mohon diisi form pengajuan penyambungan network terpisah.
-              </p>
-            </div>
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
+                <div className="font-semibold text-foreground">(2) Keamanan Koneksi Jaringan Luar:</div>
+                <p className="text-[11px]">
+                  Wajib menggunakan VPN resmi PT. JAI saat terkoneksi ke sistem internal dan hindari penggunaan Wi-Fi publik tanpa proteksi keamanan.
+                </p>
+              </div>
 
-            <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1 sm:col-span-2">
-              <div className="font-semibold text-foreground">(3) Larangan Jaringan Internal:</div>
-              <p className="text-[11px]">
-                *Visitor selain dari Yazaki group <strong>tidak diizinkan</strong> melakukan penyambungan PC ke
-                network internal perusahaan.
-              </p>
-            </div>
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1 sm:col-span-2">
+                <div className="font-semibold text-foreground">(3) Tanggung Jawab Fisik Perangkat:</div>
+                <p className="text-[11px]">
+                  Karyawan pemohon bertanggung jawab penuh menjaga keutuhan, keamanan, dan kondisi fisik perangkat dari risiko kehilangan, tertinggal, atau kerusakan selama di luar area PT. JAI.
+                </p>
+              </div>
 
-            <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1 sm:col-span-2">
-              <div className="font-semibold text-foreground">(4) Pemeriksaan Sebelum Pulang:</div>
-              <p className="text-[11px]">
-                Saat keluar kantor, Security & IT berhak memeriksa bahwa seluruh alat yang dibawa keluar sama dengan yang
-                diajukan dan tidak membawa informasi rahasia tidak terkait.
-              </p>
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1 sm:col-span-2">
+                <div className="font-semibold text-foreground">(4) Pemeriksaan Security Saat Keluar & Masuk Kembali:</div>
+                <p className="text-[11px]">
+                  Petugas Security dan tim IT berhak memeriksa fisik perangkat saat dibawa keluar gerbang dan saat dikembalikan/masuk kembali ke area PT. JAI.
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-muted-foreground">
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
+                <div className="font-semibold text-foreground">(1) Transfer Data:</div>
+                <p className="text-[11px]">
+                  Mintakan persetujuan dari pihak terkait PT. JAI bila akan memasukkan/mentransfer data ke PC.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
+                <div className="font-semibold text-foreground">(2) Koneksi Network:</div>
+                <p className="text-[11px]">
+                  Bila akan menyambungkan PC ke network, mohon diisi form pengajuan penyambungan network terpisah.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1 sm:col-span-2">
+                <div className="font-semibold text-foreground">(3) Larangan Jaringan Internal:</div>
+                <p className="text-[11px]">
+                  *Visitor selain dari Yazaki group <strong>tidak diizinkan</strong> melakukan penyambungan PC ke
+                  network internal perusahaan.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1 sm:col-span-2">
+                <div className="font-semibold text-foreground">(4) Pemeriksaan Saat Masuk & Keluar Kantor:</div>
+                <p className="text-[11px]">
+                  Saat memasuki area kantor dan saat keluar kantor, Security & IT berhak memeriksa bahwa seluruh alat yang dibawa sama dengan yang diajukan dan tidak membawa informasi rahasia tidak terkait.
+                </p>
+              </div>
+            </div>
+          )}
 
           <label className="flex items-start gap-3 p-3.5 rounded-xl bg-secondary/40 border border-border cursor-pointer transition hover:bg-secondary/60">
             <input
@@ -1242,8 +1297,9 @@ function FormContent() {
               className="mt-0.5 size-4 rounded text-primary focus:ring-ring border-input"
             />
             <span className="text-xs font-medium text-foreground">
-              Saya telah membaca, memahami, dan menyatakan bersedia mematuhi seluruh ketentuan keamanan informasi (ISMS)
-              PT. Jatim Autocomp Indonesia.
+              {formType === 'out'
+                ? 'Saya sebagai karyawan PT. JAI telah membaca, memahami, dan bertanggung jawab penuh mematuhi seluruh ketentuan keamanan informasi (ISMS) selama membawa alat keluar kantor.'
+                : 'Saya telah membaca, memahami, dan menyatakan bersedia mematuhi seluruh ketentuan keamanan informasi (ISMS) PT. Jatim Autocomp Indonesia.'}
             </span>
           </label>
         </section>
@@ -1258,17 +1314,22 @@ function FormContent() {
             {loading ? (
               <>
                 <div className="animate-spin size-4 border-2 border-white border-t-transparent rounded-full" />
-                Mengirim Pengajuan Izin Alat...
+                {formType === 'out'
+                  ? 'Mengirim Pengajuan Bawa Keluar Alat...'
+                  : 'Mengirim Pengajuan Bawa Masuk Alat...'}
               </>
             ) : (
               <>
-                Kirim Pengajuan Izin Alat <ArrowRight className="size-4" />
+                {formType === 'out'
+                  ? 'Kirim Pengajuan Izin Membawa Keluar Alat'
+                  : 'Kirim Pengajuan Izin Membawa Masuk Alat'}{' '}
+                <ArrowRight className="size-4" />
               </>
             )}
           </button>
           <p className="text-[11px] text-muted-foreground text-center mt-2.5">
             {formType === 'out'
-              ? 'Setelah dikirim, pengajuan bawa keluar disetujui Manager dari Departemen yang bersangkutan dan dilakukan check by IT.'
+              ? 'Setelah dikirim, pengajuan bawa keluar wajib disetujui Manager Departemen yang bersangkutan dan dilakukan pemeriksaan fisik perangkat oleh tim IT & Security PT. JAI.'
               : 'Setelah dikirim, pengajuan bawa masuk disetujui Manager dari Departemen yang bersangkutan / IAA, setelah itu dilakukan check by IT.'}
           </p>
         </div>

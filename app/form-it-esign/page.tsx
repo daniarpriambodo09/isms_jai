@@ -1223,9 +1223,11 @@ function FormItContent() {
                               ) : null}
                               {sub.department} {sub.applicant_position ? `• ${sub.applicant_position}` : ''}
                             </p>
-                            <span className="inline-block mt-1 text-[10px] font-semibold text-muted-foreground/80 bg-secondary px-1.5 py-0.2 rounded">
-                              Status: {sub.employee_status}
-                            </span>
+                            {sub.employee_status && (
+                              <span className="inline-block mt-1 text-[10px] font-semibold text-muted-foreground/80 bg-secondary px-1.5 py-0.2 rounded">
+                                Status: {sub.employee_status}
+                              </span>
+                            )}
                           </td>
 
                           <td className="px-4 py-3.5 align-top">
@@ -1563,10 +1565,12 @@ function FormItContent() {
                   <span className="text-muted-foreground block text-[11px] mb-0.5">Departemen:</span>
                   <span className="font-semibold text-foreground">{submissionResult.department}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground block text-[11px] mb-0.5">Status Karyawan:</span>
-                  <span className="font-semibold text-foreground">{submissionResult.employee_status}</span>
-                </div>
+                {submissionResult.employee_status && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] mb-0.5">Status Karyawan:</span>
+                    <span className="font-semibold text-foreground">{submissionResult.employee_status}</span>
+                  </div>
+                )}
               </div>
               {submissionResult.notes && (
                 <div className="mt-4 pt-3 border-t border-border/60 text-xs">

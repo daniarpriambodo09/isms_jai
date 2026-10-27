@@ -461,31 +461,29 @@ function FingerprintPageInner() {
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-24 pt-4 px-3 sm:px-6">
       {/* Top Banner / Hero */}
-      <section className="relative overflow-hidden rounded-3xl border border-indigo-200/80 bg-gradient-to-br from-card via-card/95 to-indigo-50/40 p-6 sm:p-9 shadow-sm dark:border-indigo-900/50 dark:from-card dark:via-card/95 dark:to-indigo-950/20">
-        <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-rose-500" />
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-indigo-500/10 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -left-20 -bottom-20 size-72 rounded-full bg-purple-500/10 blur-3xl" />
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
+        <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-primary" />
 
         <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
-            <div className="relative grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500/20 via-purple-500/15 to-rose-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 shadow-md">
-              <Fingerprint className="size-8" />
-              <span className="absolute -top-1 -right-1 flex size-3.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-75" />
-                <span className="relative inline-flex size-3.5 rounded-full bg-indigo-500" />
+            <div className="relative grid size-14 shrink-0 place-items-center rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-2xs">
+              <Fingerprint className="size-7" />
+              <span className="absolute -top-1 -right-1 flex size-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
               </span>
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-red-600 dark:text-red-400 uppercase">
+                <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-rose-700 dark:text-rose-400 uppercase">
                   <Lock className="size-3" />
                   CONFIDENTIAL - LEVEL 3
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-400">
-                  <ShieldCheck className="size-3" />
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[10px] font-bold text-foreground">
+                  <ShieldCheck className="size-3 text-primary" />
                   Special Security Area
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-border bg-secondary/70 px-2.5 py-0.5 font-mono text-[10px] font-bold text-foreground">
+                <span className="hidden sm:inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-0.5 font-mono text-[10px] font-bold text-muted-foreground">
                   ISMS-F-02-00-002
                 </span>
               </div>
@@ -508,16 +506,16 @@ function FingerprintPageInner() {
                 setActiveTab(activeTab === 'history' ? 'form' : 'history')
                 if (activeTab === 'form') fetchHistory()
               }}
-              className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-50/70 dark:bg-indigo-950/40 px-4 py-2.5 text-xs font-semibold text-indigo-800 dark:text-indigo-200 shadow-xs transition hover:bg-indigo-100 dark:hover:bg-indigo-900/50 hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs transition hover:bg-secondary active:scale-95 cursor-pointer"
             >
-              <History className="size-4 text-indigo-600 dark:text-indigo-400" />
+              <History className="size-4 text-primary" />
               <span>{activeTab === 'history' ? 'Buka Form Pendaftaran' : `Lihat Riwayat (${historyCounts.all})`}</span>
             </button>
             <Link
               href="/form-it-esign"
-              className="inline-flex items-center gap-2 rounded-xl border border-border/90 bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-xs transition hover:border-emerald-500 hover:bg-emerald-50/50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs transition hover:border-primary/50 hover:bg-secondary active:scale-95"
             >
-              <Laptop className="size-4 text-emerald-600" />
+              <Laptop className="size-4 text-primary" />
               <span>Buka Form Layanan IT &rarr;</span>
             </Link>
           </div>
@@ -530,10 +528,10 @@ function FingerprintPageInner() {
           <button
             type="button"
             onClick={() => setActiveTab('form')}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
               activeTab === 'form'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border'
             }`}
           >
             <FileText className="size-4" />
@@ -545,10 +543,10 @@ function FingerprintPageInner() {
               setActiveTab('history')
               fetchHistory()
             }}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
               activeTab === 'history'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+                ? 'bg-primary text-primary-foreground shadow-2xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border'
             }`}
           >
             <Clock className="size-4" />
@@ -556,7 +554,7 @@ function FingerprintPageInner() {
             <span
               className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                 activeTab === 'history'
-                  ? 'bg-white/20 text-white'
+                  ? 'bg-primary-foreground/20 text-primary-foreground'
                   : 'bg-secondary text-foreground'
               }`}
             >

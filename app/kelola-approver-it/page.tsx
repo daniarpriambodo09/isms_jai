@@ -382,20 +382,20 @@ export default function KelolaApproverItPage() {
                       setSelectedFormCode(def.code)
                       setFilterDept('all')
                     }}
-                    className={`flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition ${
+                    className={`flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition cursor-pointer ${
                       isSelected
-                        ? 'border-indigo-600 bg-gradient-to-r from-indigo-500/15 via-purple-500/10 to-indigo-500/5 shadow-sm ring-2 ring-indigo-500/30'
-                        : 'border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10'
+                        ? 'border-primary bg-primary/10 shadow-2xs ring-1 ring-primary/30'
+                        : 'border-border bg-card hover:bg-secondary/60'
                     }`}
                   >
                     <div className="flex w-full items-center justify-between">
-                      <span className="font-mono text-xs font-extrabold text-indigo-600 dark:text-indigo-400">{def.code}</span>
-                      <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-800 dark:text-indigo-300">
+                      <span className="font-mono text-xs font-extrabold text-primary">{def.code}</span>
+                      <span className="rounded-md bg-secondary border border-border px-2 py-0.5 font-mono text-[10px] font-bold text-muted-foreground">
                         {count} Approver (IAA)
                       </span>
                     </div>
                     <div className="line-clamp-1 text-xs font-bold text-foreground">{def.name}</div>
-                    <div className="line-clamp-1 text-[11px] text-indigo-700 dark:text-indigo-300">
+                    <div className="line-clamp-1 text-[11px] text-muted-foreground">
                       Otorisasi Akses Fisik Special Security Area (Server Room &amp; Arsip)
                     </div>
                   </button>
@@ -406,21 +406,21 @@ export default function KelolaApproverItPage() {
         </div>
 
         {/* Selected Form Details & Approver Management */}
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-5">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
           {/* Fingerprint Special Notice */}
           {selectedFormCode === 'ISMS-F-02-00-002' && (
-            <div className="flex items-start gap-3 rounded-2xl border border-indigo-500/40 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/5 p-4 text-xs text-indigo-950 dark:text-indigo-200 shadow-2xs">
-              <ShieldAlert className="size-5 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-secondary/50 p-4 text-xs text-foreground shadow-2xs">
+              <ShieldAlert className="size-5 shrink-0 text-primary mt-0.5" />
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-extrabold text-xs uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
+                  <span className="font-extrabold text-xs uppercase tracking-wide text-foreground">
                     Ranah Khusus: Global Security Area (Bukan Layanan IT)
                   </span>
-                  <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-800 dark:text-indigo-300 border border-indigo-500/30">
+                  <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary border border-primary/20">
                     Pengesahan Langsung IAA Teguh Sunjoyo
                   </span>
                 </div>
-                <p className="leading-relaxed text-foreground/90">
+                <p className="leading-relaxed text-muted-foreground">
                   Formulir pendaftaran / perubahan akses sidik jari (fingerprint) ini khusus untuk pintu masuk fisik Special Security Area (Server Room &amp; Ruang Arsip), <strong>bukan ranah permohonan perangkat/jaringan IT</strong>. Otorisasi disahkan langsung oleh <strong>Information Assets Administrator (IAA) Bapak Teguh Sunjoyo</strong> sesuai kebijakan ISMS ISO/IEC 27001.
                 </p>
               </div>

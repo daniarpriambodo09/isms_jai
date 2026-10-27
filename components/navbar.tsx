@@ -512,9 +512,13 @@ export function Navbar() {
               onClick={() => setSearchOpen(true)}
               aria-label="Cari dokumen (Ctrl+K)"
               title="Cari dokumen (Ctrl+K)"
-              className="grid size-10 flex-none place-items-center rounded-full bg-primary-foreground/10 text-primary-foreground/80 transition-colors hover:bg-primary-foreground/20 hover:text-primary-foreground"
+              className="flex h-9 items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-3 text-xs text-primary-foreground/90 transition hover:bg-primary-foreground/20 hover:text-primary-foreground active:scale-95 cursor-pointer shadow-2xs"
             >
-              <Search className="size-4" />
+              <Search className="size-3.5" />
+              <span className="hidden xl:inline text-[11px] font-semibold">Cari Dokumen</span>
+              <kbd className="hidden md:inline-flex items-center gap-0.5 rounded border border-primary-foreground/25 bg-primary-foreground/15 px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-primary-foreground/90">
+                ⌘K
+              </kbd>
             </button>
             {!isLoading && isLoggedIn && <NotificationBell />}
             {!isLoading && showMyApprovals && (

@@ -853,27 +853,24 @@ function FormItContent() {
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4 sm:gap-5">
             {/* Illuminated Digital Signing Glyph */}
-            <div className="relative grid size-16 sm:size-20 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary/30 via-blue-600/25 to-slate-800/40 border-2 border-primary/40 text-blue-200 shadow-xl shadow-primary/20 backdrop-blur-md">
-              <FileSignature className="size-8 sm:size-10 text-blue-200 drop-shadow" />
-              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-white shadow-md">
-                <Check className="size-3 stroke-[3]" />
+            <div className="relative grid size-14 sm:size-16 shrink-0 place-items-center rounded-xl bg-white/10 border border-white/20 text-white shadow-xs backdrop-blur-md">
+              <FileSignature className="size-7 sm:size-8 text-white" />
+              <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xs">
+                <Check className="size-2.5 stroke-[3]" />
               </span>
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-2 font-mono text-[10.5px]">
-                <span className="rounded-md bg-gradient-to-r from-primary to-blue-600 px-2.5 py-0.5 font-black tracking-wider text-white shadow-xs">
+              <div className="flex flex-wrap items-center gap-2 mb-2 font-mono text-[10px]">
+                <span className="rounded-md bg-white/15 border border-white/20 px-2.5 py-0.5 font-bold tracking-wider text-white">
                   LAYANAN PERMOHONAN RESMI
                 </span>
-                <span className="text-white/20">/</span>
+                <span className="text-white/30">/</span>
                 <span className="font-semibold text-slate-300">
                   OTORISASI DIGITAL BERJENJANG (E-SIGN)
                 </span>
               </div>
               <h1 className="font-display text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
-                Formulir Layanan Digital &amp;{' '}
-                <span className="bg-gradient-to-r from-blue-200 via-sky-100 to-white bg-clip-text text-transparent font-extrabold italic">
-                  E-Sign Otorisasi IT
-                </span>
+                Formulir Layanan Digital &amp; E-Sign Otorisasi IT
               </h1>
               <p className="mt-2 text-xs sm:text-sm text-slate-300/90 max-w-2xl leading-relaxed font-normal">
                 Portal mandiri pengajuan aset PC/Laptop, lisensi software, akun domain &amp; akses jaringan dengan alur tanda tangan elektronik (E-Sign) berjenjang dan verifikasi QR Code terenkripsi.
@@ -916,7 +913,7 @@ function FormItContent() {
             {adminUser && (
               <Link
                 href="/kelola-approver-it"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-500 px-4 py-2.5 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 px-4 py-2.5 text-xs font-bold text-white shadow-2xs transition active:scale-95"
               >
                 <Users className="size-4" />
                 <span>Pengaturan Approver</span>
@@ -925,7 +922,7 @@ function FormItContent() {
             <button
               type="button"
               onClick={handleExportHistoryExcel}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-md transition hover:-translate-y-0.5 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-2xs transition active:scale-95 cursor-pointer"
               title="Download rekap data formulir IT ke Excel (.xlsx)"
             >
               <Download className="size-4" />
@@ -937,17 +934,17 @@ function FormItContent() {
                 setActiveTab(activeTab === 'history' ? 'form' : 'history')
                 if (activeTab === 'form') fetchHistory()
               }}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:-translate-y-0.5 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-white shadow-2xs transition active:scale-95 cursor-pointer"
             >
-              <History className="size-4 text-blue-200" />
+              <History className="size-4 text-slate-300" />
               <span>{activeTab === 'history' ? 'Buka Formulir' : `Lihat Riwayat (${historyCounts.all})`}</span>
             </button>
           </div>
         </div>
 
         {/* Search tracking bar with modern Corporate E-Sign signature styling */}
-        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border-2 border-primary/30 bg-slate-950/60 p-2 shadow-inner backdrop-blur-md focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20 transition-all">
-          <div className="flex items-center justify-center size-9 rounded-xl bg-primary/20 text-blue-300 ml-1 shrink-0 border border-primary/30">
+        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border border-white/20 bg-slate-950/70 p-2 shadow-inner backdrop-blur-md focus-within:border-white/40 focus-within:ring-2 focus-within:ring-white/10 transition-all">
+          <div className="flex items-center justify-center size-9 rounded-xl bg-white/10 text-slate-300 ml-1 shrink-0 border border-white/15">
             <Search className="size-4" />
           </div>
           <input
@@ -962,7 +959,7 @@ function FormItContent() {
             type="button"
             onClick={() => searchInput.trim() && fetchSubmissionByToken(searchInput.trim())}
             disabled={searchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-500 px-5 py-2.5 text-xs font-black text-white shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-2xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {searchLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Search className="size-3.5" />}
             <span>{searchLoading ? 'Memeriksa...' : 'Lacak Status E-Sign'}</span>
@@ -1659,7 +1656,7 @@ function FormItContent() {
               </Link>
             </div>
 
-            {/* Symmetrical 5-Card Responsive Grid with Theme Tokens */}
+            {/* Symmetrical 5-Card Responsive Grid with Anti-Slop Precision Styling */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {displayedForms.map((def, idx) => {
                 const active = selectedFormCode === def.code
@@ -1671,50 +1668,48 @@ function FormItContent() {
                     key={def.code}
                     type="button"
                     onClick={() => handleSelectForm(def.code)}
-                    className={`group relative flex flex-col items-center justify-between rounded-2xl p-3.5 sm:p-4 text-center transition-all duration-200 cursor-pointer min-h-[174px] ${
+                    className={`group relative flex flex-col items-center justify-between rounded-2xl p-4 text-center transition-all duration-200 cursor-pointer min-h-[168px] ${
                       active
-                        ? 'border-2 border-primary bg-primary/[0.08] ring-4 ring-primary/20 shadow-xl shadow-primary/10 -translate-y-1'
-                        : 'border border-border bg-card hover:border-primary/40 hover:bg-primary/[0.02] shadow-xs hover:-translate-y-0.5'
+                        ? 'border-2 border-primary bg-primary/[0.03] shadow-xs -translate-y-0.5'
+                        : 'border border-border/80 bg-card hover:border-foreground/25 hover:bg-secondary/30 shadow-2xs hover:-translate-y-0.5'
                     }`}
                   >
-                    {active ? (
-                      <span className="absolute inset-x-0 top-0 h-1.5 rounded-t-2xl bg-gradient-to-r from-primary via-blue-500 to-indigo-500" />
-                    ) : (
-                      <span className="absolute inset-x-0 top-0 h-0.5 rounded-t-2xl bg-transparent group-hover:bg-primary/30 transition" />
+                    {active && (
+                      <span className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-primary" />
                     )}
 
                     <span className={`absolute top-2.5 right-2.5 font-mono text-[9px] font-bold ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-                      #{idx + 1}
+                      0{idx + 1}
                     </span>
 
                     <div
-                      className={`grid size-12 place-items-center rounded-xl transition-all duration-200 ${
+                      className={`grid size-11 place-items-center rounded-xl transition-all duration-200 ${
                         active
-                          ? 'bg-gradient-to-br from-primary to-blue-700 text-primary-foreground shadow-md shadow-primary/30'
-                          : 'bg-secondary text-secondary-foreground group-hover:bg-primary/10 group-hover:text-primary'
+                          ? 'bg-primary text-primary-foreground shadow-xs'
+                          : 'bg-secondary border border-border/80 text-foreground group-hover:bg-primary/10 group-hover:text-primary'
                       }`}
                     >
-                      <IconComponent className="size-6" />
+                      <IconComponent className="size-5" />
                     </div>
 
                     <div className="w-full my-1.5 space-y-0.5">
-                      <span className={`font-mono-label text-[8.5px] font-bold tracking-wider block truncate ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                      <span className={`font-mono text-[9px] font-bold tracking-wider uppercase block truncate ${active ? 'text-primary' : 'text-muted-foreground'}`}>
                         {meta.opCategory}
                       </span>
                       <h3 className="font-display text-xs font-bold text-foreground leading-snug line-clamp-2">
                         {meta.shortTitle}
                       </h3>
-                      <span className="font-mono text-[8.5px] font-medium text-muted-foreground block truncate">
+                      <span className="font-mono text-[9px] font-semibold text-muted-foreground block truncate">
                         {def.code}
                       </span>
                     </div>
 
-                    <div className="w-full pt-2 border-t border-border flex items-center justify-center">
+                    <div className="w-full pt-2 border-t border-border/70 flex items-center justify-center">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[9.5px] font-bold transition ${
+                        className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[9.5px] font-bold transition font-mono ${
                           active
-                            ? 'bg-gradient-to-r from-primary to-blue-600 text-white shadow-2xs'
-                            : 'bg-secondary text-secondary-foreground group-hover:bg-primary/15 group-hover:text-primary'
+                            ? 'bg-primary text-primary-foreground shadow-2xs'
+                            : 'bg-secondary text-secondary-foreground border border-border/60 group-hover:bg-primary/10 group-hover:text-primary'
                         }`}
                       >
                         {active ? (
@@ -1723,7 +1718,7 @@ function FormItContent() {
                             <span>AKTIF</span>
                           </span>
                         ) : (
-                          'Buka Form →'
+                          'Pilih Form →'
                         )}
                       </span>
                     </div>
@@ -1734,18 +1729,18 @@ function FormItContent() {
           </div>
 
           {/* Active Form Separation Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border-2 border-primary/25 bg-gradient-to-r from-primary/[0.05] via-card to-card backdrop-blur-md px-5 py-3.5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-3.5 shadow-2xs">
             <div className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-xl font-mono text-xs font-black shrink-0 bg-gradient-to-br from-primary to-blue-700 text-white shadow-xs">
+              <span className="grid size-9 place-items-center rounded-xl font-mono text-xs font-black shrink-0 bg-primary text-primary-foreground shadow-2xs">
                 {currentFormDef.code.slice(-3)}
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-bold text-foreground">{currentFormDef.name}</span>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30">
+                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-secondary text-foreground border border-border font-mono">
                     {currentMeta.tag}
                   </span>
-                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-mono font-bold text-secondary-foreground border border-border">
+                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-mono font-bold text-muted-foreground border border-border">
                     {currentFormDef.code}
                   </span>
                 </div>
@@ -1755,8 +1750,8 @@ function FormItContent() {
               </div>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-semibold text-primary">
-              <span className="inline-flex size-2 rounded-full bg-primary animate-pulse" />
-              <span>Formulir Terbuka Siap Diisi</span>
+              <span className="inline-flex size-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-mono text-[11px] font-bold">Formulir Terbuka Siap Diisi</span>
             </div>
           </div>
 

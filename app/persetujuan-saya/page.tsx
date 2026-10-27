@@ -100,50 +100,28 @@ const when = (value: string | null | undefined) =>
 const waitedDays = (value: string | null | undefined) => (value ? Math.floor((Date.now() - new Date(value).getTime()) / 86_400_000) : 0)
 
 function WhatBadge({ item }: { item: Item }) {
-  let categoryChip = (
-    <span
-      className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold border ${
-        item.signsReview
-          ? 'bg-emerald-500/10 text-emerald-800 border-emerald-500/25 dark:text-emerald-300'
-          : 'bg-primary/10 text-primary border-primary/25'
-      }`}
-    >
-      {item.signsReview ? 'Form Review' : 'Dokumen Prosedur'}
-    </span>
-  )
-
-  if (item.category === 'it_form') {
-    categoryChip = (
-      <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[10.5px] font-bold text-emerald-800 dark:text-emerald-300">
-        Form Layanan IT
-      </span>
-    )
-  } else if (item.category === 'special_area') {
-    categoryChip = (
-      <span className="rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-[10.5px] font-bold text-indigo-800 dark:text-indigo-300">
-        Izin Area Special
-      </span>
-    )
-  } else if (item.category === 'photo_video') {
-    categoryChip = (
-      <span className="rounded-full bg-purple-500/15 border border-purple-500/30 px-2.5 py-0.5 text-[10.5px] font-bold text-purple-800 dark:text-purple-300">
-        Izin Foto / Video
-      </span>
-    )
-  }
+  let categoryLabel = 'Dokumen Prosedur'
+  if (item.signsReview) categoryLabel = 'Form Review'
+  else if (item.category === 'it_form') categoryLabel = 'Form IT'
+  else if (item.category === 'special_area') categoryLabel = 'Special Area'
+  else if (item.category === 'photo_video') categoryLabel = 'Foto / Video'
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {categoryChip}
-      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10.5px] font-semibold text-secondary-foreground">
-        {item.kindLabel}
+      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">
+        {categoryLabel}
       </span>
-      <span className="font-mono text-[11px] font-semibold text-muted-foreground">
-        {item.controlNo} · Rev. {item.revision}
+      {item.kindLabel && (
+        <span className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground">
+          {item.kindLabel}
+        </span>
+      )}
+      <span className="font-mono text-[11px] font-bold text-foreground tracking-tight">
+        {item.controlNo} <span className="font-medium text-muted-foreground">· Rev. {item.revision}</span>
       </span>
       {item.status === 'approved' && (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-          <Check className="size-3 text-emerald-700 dark:text-emerald-400" strokeWidth={3} /> Disetujui
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+          <span className="size-1.5 rounded-full bg-emerald-500" /> Disetujui
         </span>
       )}
     </div>

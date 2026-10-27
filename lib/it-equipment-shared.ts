@@ -16,6 +16,7 @@ export type ItEquipmentRequest = {
   form_type: 'in' | 'out'
   request_date: string
   applicant_name: string
+  applicant_nik?: string | null
   company_name: string
   department: string
   section?: string | null

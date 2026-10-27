@@ -52,6 +52,7 @@ function FormContent() {
 
   const [formType, setFormType] = useState<'in' | 'out'>('in')
   const [applicantName, setApplicantName] = useState('')
+  const [applicantNik, setApplicantNik] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [department, setDepartment] = useState('')
   const [section, setSection] = useState('')
@@ -249,8 +250,21 @@ function FormContent() {
     e.preventDefault()
     setErrorMsg('')
 
-    if (!applicantName || !companyName || !department || !location || !purpose || !dateIn || !dateOutPlan) {
+    const finalCompanyName = formType === 'out' ? 'PT. Jatim Autocomp Indonesia' : companyName.trim()
+    if (formType === 'out' && !applicantNik.trim()) {
+      setErrorMsg('NIK / Nomor Karyawan wajib diisi.')
+      return
+    }
+    if (formType === 'in' && !companyName.trim()) {
+      setErrorMsg('Nama Perusahaan / Instansi wajib diisi.')
+      return
+    }
+    if (!applicantName.trim() || !department.trim() || !location.trim() || !purpose.trim() || !dateIn || !dateOutPlan) {
       setErrorMsg('Mohon lengkapi seluruh field formulir yang bertanda bintang (*).')
+      return
+    }
+    if (!section.trim()) {
+      setErrorMsg('Seksi / Bagian pembawa device wajib diisi.')
       return
     }
 
@@ -274,17 +288,18 @@ function FormContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           form_type: formType,
-          applicant_name: applicantName,
-          company_name: companyName,
-          department,
-          section,
-          location,
-          purpose,
+          applicant_name: applicantName.trim(),
+          applicant_nik: formType === 'out' ? applicantNik.trim() : null,
+          company_name: finalCompanyName,
+          department: department.trim(),
+          section: section.trim(),
+          location: location.trim(),
+          purpose: purpose.trim(),
           date_in: dateIn,
           date_out_plan: dateOutPlan,
           items,
-          applicant_phone: applicantPhone,
-          applicant_email: applicantEmail,
+          applicant_phone: applicantPhone.trim() || null,
+          applicant_email: applicantEmail.trim() || null,
           agree_rules: agreeRules,
         }),
       })
@@ -455,32 +470,51 @@ function FormContent() {
             <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
               <User className="size-3.5" />
             </span>
-            <p className="portal-eyebrow">Informasi Tamu & Jadwal</p>
+            <p className="portal-eyebrow">
+              {submittedReq.form_type === 'out' ? 'Informasi Karyawan & Jadwal' : 'Informasi Tamu & Jadwal'}
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="p-3 rounded-xl bg-secondary/30 border border-border">
-              <span className="text-muted-foreground block text-[11px]">Nama Tamu</span>
-              <span className="font-semibold text-foreground text-sm mt-0.5 block">{submittedReq.applicant_name}</span>
+              <span className="text-muted-foreground block text-[11px]">
+                {submittedReq.form_type === 'out' ? 'Nama Pemohon' : 'Nama Tamu'}
+              </span>
+              <span className="font-semibold text-foreground text-sm mt-0.5 block">
+                {submittedReq.applicant_name}
+                {submittedReq.applicant_nik ? ` (${submittedReq.applicant_nik})` : ''}
+              </span>
             </div>
 
             <div className="p-3 rounded-xl bg-secondary/30 border border-border">
-              <span className="text-muted-foreground block text-[11px]">Perusahaan / Instansi</span>
-              <span className="font-semibold text-foreground text-sm mt-0.5 block">{submittedReq.company_name}</span>
+              <span className="text-muted-foreground block text-[11px]">
+                {submittedReq.form_type === 'out' ? 'Perusahaan / NIK' : 'Perusahaan / Instansi'}
+              </span>
+              <span className="font-semibold text-foreground text-sm mt-0.5 block">
+                {submittedReq.form_type === 'out'
+                  ? (submittedReq.applicant_nik ? `PT. JAI (NIK: ${submittedReq.applicant_nik})` : submittedReq.company_name)
+                  : submittedReq.company_name}
+              </span>
             </div>
 
             <div className="p-3 rounded-xl bg-secondary/30 border border-border">
-              <span className="text-muted-foreground block text-[11px]">Departemen Pembawa Device</span>
-              <span className="font-medium text-foreground mt-0.5 block">{submittedReq.department}</span>
+              <span className="text-muted-foreground block text-[11px]">Departemen / Seksi</span>
+              <span className="font-medium text-foreground mt-0.5 block">
+                {submittedReq.department}{submittedReq.section ? ` / ${submittedReq.section}` : ''}
+              </span>
             </div>
 
             <div className="p-3 rounded-xl bg-secondary/30 border border-border">
-              <span className="text-muted-foreground block text-[11px]">Lokasi / Ruangan</span>
+              <span className="text-muted-foreground block text-[11px]">
+                {submittedReq.form_type === 'out' ? 'Lokasi / Tujuan' : 'Lokasi / Ruangan'}
+              </span>
               <span className="font-medium text-foreground mt-0.5 block">{submittedReq.location}</span>
             </div>
 
             <div className="p-3 rounded-xl bg-secondary/30 border border-border">
-              <span className="text-muted-foreground block text-[11px]">Tanggal Masuk</span>
+              <span className="text-muted-foreground block text-[11px]">
+                {submittedReq.form_type === 'out' ? 'Tanggal Keluar' : 'Tanggal Masuk'}
+              </span>
               <span className="font-semibold text-primary mt-0.5 block">{submittedReq.date_in}</span>
             </div>
 
@@ -490,7 +524,9 @@ function FormContent() {
             </div>
 
             <div className="col-span-2 p-3 rounded-xl bg-secondary/30 border border-border">
-              <span className="text-muted-foreground block text-[11px]">Tujuan Membawa Masuk Alat</span>
+              <span className="text-muted-foreground block text-[11px]">
+                {submittedReq.form_type === 'out' ? 'Tujuan Membawa Keluar Alat' : 'Tujuan Membawa Masuk Alat'}
+              </span>
               <span className="font-medium text-foreground mt-0.5 block">{submittedReq.purpose}</span>
             </div>
           </div>
@@ -728,8 +764,8 @@ function FormContent() {
             </h1>
             <p className="mt-1 text-sm text-muted-foreground max-w-xl">
               {formType === 'in'
-                ? 'Wajib diisi tamu/visitor (H-1). Pengajuan bawa masuk disetujui Manager Departemen yang bersangkutan / IAA, setelah itu dilakukan check by IT.'
-                : 'Wajib diisi sebelum membawa keluar alat IT (H-1) untuk mendapatkan persetujuan dari Manager dan tim IT.'}
+                ? 'Wajib diisi tamu/visitor sebelum masuk kantor (H-1) untuk mendapatkan persetujuan (ACC) dari divisi IT PT. JAI.'
+                : 'Wajib diisi pemohon (H-1) sebelum membawa alat keluar untuk mendapatkan persetujuan (ACC) dari divisi IT PT. JAI.'}
             </p>
           </div>
 
@@ -776,13 +812,15 @@ function FormContent() {
             <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
               <User className="size-3.5" />
             </span>
-            <p className="portal-eyebrow">1. Informasi Tamu / Pemohon</p>
+            <p className="portal-eyebrow">
+              {formType === 'out' ? '1. Informasi Pemohon / Karyawan' : '1. Informasi Tamu / Pemohon'}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>
-                Nama Lengkap Tamu <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Nama Lengkap Pemohon' : 'Nama Lengkap Tamu'} <span className="text-destructive">*</span>
               </label>
               <input
                 type="text"
@@ -794,19 +832,35 @@ function FormContent() {
               />
             </div>
 
-            <div>
-              <label className={labelClass}>
-                Nama Perusahaan / Instansi <span className="text-destructive">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="Contoh: PT. Mitra Teknologi Mandiri"
-                value={companyName}
-                onChange={(e) => setCompanyName(e.target.value)}
-                className={inputClass}
-              />
-            </div>
+            {formType === 'out' ? (
+              <div>
+                <label className={labelClass}>
+                  NIK / Nomor Karyawan <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: 123456 / NIK Karyawan"
+                  value={applicantNik}
+                  onChange={(e) => setApplicantNik(e.target.value)}
+                  className={`${inputClass} font-mono`}
+                />
+              </div>
+            ) : (
+              <div>
+                <label className={labelClass}>
+                  Nama Perusahaan / Instansi <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: PT. Mitra Teknologi Mandiri"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            )}
 
             <div>
               <label className={labelClass}>
@@ -867,10 +921,11 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                Seksi / Bagian Pembawa Device (Opsional)
+                Seksi / Bagian Pembawa Device <span className="text-destructive">*</span>
               </label>
               <input
                 type="text"
+                required
                 placeholder="Contoh: Network & Infra / IT Support / QA Line 1"
                 value={section}
                 onChange={(e) => setSection(e.target.value)}
@@ -880,12 +935,17 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                Lokasi / Ruangan Tujuan di Kantor <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Lokasi / Tempat Tujuan Membawa Alat' : 'Lokasi / Ruangan Tujuan di Kantor'}{' '}
+                <span className="text-destructive">*</span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="Contoh: Gedung A Lt. 2 / Server Room / Meeting Room 3"
+                placeholder={
+                  formType === 'out'
+                    ? 'Contoh: Plant 2 / Site Vendor / WFH / Perjalanan Dinas'
+                    : 'Contoh: Gedung A Lt. 2 / Server Room / Meeting Room 3'
+                }
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 className={inputClass}
@@ -894,7 +954,9 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                No. Telepon / WhatsApp Tamu (Konfirmasi ACC)
+                {formType === 'out'
+                  ? 'No. Telepon / WhatsApp Pemohon (Konfirmasi ACC)'
+                  : 'No. Telepon / WhatsApp Tamu (Konfirmasi ACC)'}
               </label>
               <input
                 type="tel"
@@ -913,20 +975,25 @@ function FormContent() {
             <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
               <Calendar className="size-3.5" />
             </span>
-            <p className="portal-eyebrow">2. Jadwal & Tujuan Kunjungan</p>
+            <p className="portal-eyebrow">
+              {formType === 'out' ? '2. Jadwal & Keperluan' : '2. Jadwal & Tujuan Kunjungan'}
+            </p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-xs text-foreground flex items-center gap-2.5">
             <Info className="size-4 shrink-0 text-primary" />
             <span>
-              <strong>Aturan Pengajuan H-1:</strong> Disarankan mengisi formulir minimal 1 hari sebelum kunjungan agar Manager Departemen yang bersangkutan / IAA dan tim IT dapat menyetujui serta memeriksa sebelum Anda tiba di pos Security.
+              <strong>Aturan Pengajuan H-1:</strong>{' '}
+              {formType === 'out'
+                ? 'Disarankan mengisi formulir minimal 1 hari sebelum membawa alat keluar kantor agar Manager Departemen yang bersangkutan dan tim IT dapat menyetujui serta melakukan pemeriksaan.'
+                : 'Disarankan mengisi formulir minimal 1 hari sebelum kunjungan agar Manager Departemen yang bersangkutan / IAA dan tim IT dapat menyetujui serta memeriksa sebelum Anda tiba di pos Security.'}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>
-                Tanggal Masuk <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Tanggal Keluar' : 'Tanggal Masuk'} <span className="text-destructive">*</span>
               </label>
               <input
                 type="date"
@@ -952,12 +1019,16 @@ function FormContent() {
 
             <div className="sm:col-span-2">
               <label className={labelClass}>
-                Tujuan Membawa Masuk Alat <span className="text-destructive">*</span>
+                {formType === 'out' ? 'Tujuan Membawa Keluar Alat' : 'Tujuan Membawa Masuk Alat'} <span className="text-destructive">*</span>
               </label>
               <textarea
                 required
                 rows={2}
-                placeholder="Jelaskan kebutuhan pengoperasian alat (misal: Maintenance server CCTV, Presentasi demo software ke QA, Setting controller PLC)..."
+                placeholder={
+                  formType === 'out'
+                    ? 'Jelaskan tujuan membawa alat keluar (misal: Work From Home / WFH, Kunjungan Vendor, Support Plant 2, Dinas Luar)...'
+                    : 'Jelaskan kebutuhan pengoperasian alat (misal: Maintenance server CCTV, Presentasi demo software ke QA, Setting controller PLC)...'
+                }
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 className="w-full rounded-xl border border-input bg-card p-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15"
@@ -973,7 +1044,11 @@ function FormContent() {
               <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
                 <Laptop className="size-3.5" />
               </span>
-              <p className="portal-eyebrow">3. Alat yang Dibawa Masuk (PC, Flashdisk, Kamera, dll.)</p>
+              <p className="portal-eyebrow">
+                {formType === 'out'
+                  ? '3. Alat yang Dibawa Keluar (PC, Flashdisk, Kamera, dll.)'
+                  : '3. Alat yang Dibawa Masuk (PC, Flashdisk, Kamera, dll.)'}
+              </p>
             </div>
 
             {/* Quick Presets */}
@@ -1119,7 +1194,11 @@ function FormContent() {
             <span className="grid size-7 place-items-center rounded-full bg-accent/20 text-accent-foreground">
               <ShieldAlert className="size-3.5 text-accent" />
             </span>
-            <p className="portal-eyebrow">4. Ketentuan Keamanan ISMS (Wajib Dipatuhi Visitor)</p>
+            <p className="portal-eyebrow">
+              {formType === 'out'
+                ? '4. Ketentuan Keamanan ISMS (Wajib Dipatuhi Karyawan / Pemohon)'
+                : '4. Ketentuan Keamanan ISMS (Wajib Dipatuhi Visitor)'}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-muted-foreground">
@@ -1188,7 +1267,9 @@ function FormContent() {
             )}
           </button>
           <p className="text-[11px] text-muted-foreground text-center mt-2.5">
-            Setelah dikirim, pengajuan bawa masuk disetujui Manager dari Departemen yang bersangkutan / IAA, setelah itu dilakukan check by IT.
+            {formType === 'out'
+              ? 'Setelah dikirim, pengajuan bawa keluar disetujui Manager dari Departemen yang bersangkutan dan dilakukan check by IT.'
+              : 'Setelah dikirim, pengajuan bawa masuk disetujui Manager dari Departemen yang bersangkutan / IAA, setelah itu dilakukan check by IT.'}
           </p>
         </div>
       </form>

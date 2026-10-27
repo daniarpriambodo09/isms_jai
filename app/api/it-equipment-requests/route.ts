@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
     const {
       form_type = 'in',
       applicant_name,
+      applicant_nik = '',
       company_name,
       department,
       section = '',
@@ -83,9 +84,21 @@ export async function POST(request: NextRequest) {
       agree_rules = true,
     } = body
 
-    if (!applicant_name || !company_name || !department || !location || !purpose || !date_in || !date_out_plan) {
+    const finalCompany =
+      form_type === 'out'
+        ? (company_name?.trim() || 'PT. Jatim Autocomp Indonesia')
+        : company_name?.trim()
+
+    if (!applicant_name || !finalCompany || !department || !location || !purpose || !date_in || !date_out_plan) {
       return NextResponse.json(
         { error: 'Mohon lengkapi seluruh kolom formulir wajib.' },
+        { status: 400 }
+      )
+    }
+
+    if (!section?.trim()) {
+      return NextResponse.json(
+        { error: 'Seksi / Bagian pembawa device wajib diisi.' },
         { status: 400 }
       )
     }
@@ -125,18 +138,19 @@ export async function POST(request: NextRequest) {
 
     const insertRes = await query<ItEquipmentRequest>(
       `INSERT INTO it_equipment_requests (
-        request_no, form_type, applicant_name, company_name, department, section,
+        request_no, form_type, applicant_name, applicant_nik, company_name, department, section,
         location, purpose, date_in, date_out_plan, items, applicant_phone, applicant_email,
         agree_rules, status, token
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'pending', $15)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'pending', $16)
       RETURNING *`,
       [
         request_no,
         form_type,
         applicant_name.trim(),
-        company_name.trim(),
+        applicant_nik?.trim() || null,
+        finalCompany,
         department.trim(),
-        section?.trim() || null,
+        section.trim(),
         location.trim(),
         purpose.trim(),
         date_in,

@@ -148,10 +148,17 @@ export async function buildItEquipmentPdf(
 
   const rowsData = [
     { label: 'TANGGAL PENGAJUAN', value: formatDateId(req.request_date) },
-    { label: 'N A M A', value: req.applicant_name },
-    { label: 'NAMA PERUSAHAAN', value: req.company_name },
+    { label: 'N A M A', value: `${req.applicant_name}${req.applicant_nik ? ` (${req.applicant_nik})` : ''}` },
+    {
+      label: isFormIn ? 'NAMA PERUSAHAAN' : 'PERUSAHAAN / NIK',
+      value: isFormIn
+        ? req.company_name
+        : req.applicant_nik
+        ? `PT. JAI (NIK: ${req.applicant_nik})`
+        : req.company_name || 'PT. Jatim Autocomp Indonesia',
+    },
     { label: 'DEPARTEMEN / SEKSI', value: `${req.department}${req.section ? ` / ${req.section}` : ''}` },
-    { label: 'LOKASI KANTOR / AREA', value: req.location },
+    { label: isFormIn ? 'LOKASI KANTOR / AREA' : 'LOKASI / TEMPAT TUJUAN', value: req.location },
     { label: 'TUJUAN', value: req.purpose },
     {
       label: isFormIn ? 'TGL MASUK - RENCANA KEMBALI' : 'TGL KELUAR - RENCANA KEMBALI',

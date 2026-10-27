@@ -787,7 +787,7 @@ export default function KelolaIzinAlatItPage() {
                           <div className="font-semibold text-foreground">{req.applicant_name}</div>
                           <div className="text-muted-foreground text-[11px] flex items-center gap-1 mt-0.5">
                             <Building className="size-3 text-muted-foreground" />
-                            {req.company_name}
+                            {req.applicant_nik ? `NIK: ${req.applicant_nik}` : req.company_name}
                           </div>
                         </td>
                         <td className="py-3 px-4">
@@ -1212,26 +1212,41 @@ export default function KelolaIzinAlatItPage() {
                 )}
               </div>
 
-              {/* Visitor & Trip Info */}
+              {/* Visitor / Employee & Trip Info */}
               <div className="grid grid-cols-2 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Nama Tamu</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {selectedReq.form_type === 'out' ? 'Nama Pemohon' : 'Nama Tamu'}
+                  </span>
                   <span className="font-semibold text-slate-800">{selectedReq.applicant_name}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Perusahaan Tamu</span>
-                  <span className="font-semibold text-slate-800">{selectedReq.company_name}</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {selectedReq.form_type === 'out' ? 'NIK / Perusahaan' : 'Perusahaan Tamu'}
+                  </span>
+                  <span className="font-semibold text-slate-800">
+                    {selectedReq.applicant_nik
+                      ? `${selectedReq.applicant_nik} (${selectedReq.company_name})`
+                      : selectedReq.company_name}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">Departemen Pembawa Device</span>
-                  <span className="font-medium text-slate-700">{selectedReq.department}</span>
+                  <span className="font-medium text-slate-700">
+                    {selectedReq.department}
+                    {selectedReq.section ? ` - Seksi: ${selectedReq.section}` : ''}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Lokasi / Ruangan</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {selectedReq.form_type === 'out' ? 'Lokasi / Tujuan' : 'Lokasi / Ruangan'}
+                  </span>
                   <span className="font-medium text-slate-700">{selectedReq.location}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Tanggal Masuk</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {selectedReq.form_type === 'out' ? 'Tanggal Keluar' : 'Tanggal Masuk'}
+                  </span>
                   <span className="font-medium text-slate-700">{selectedReq.date_in}</span>
                 </div>
                 <div>
@@ -1239,12 +1254,16 @@ export default function KelolaIzinAlatItPage() {
                   <span className="font-medium text-slate-700">{selectedReq.date_out_plan}</span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-slate-400 block text-[10px]">Tujuan Membawa Masuk Alat</span>
+                  <span className="text-slate-400 block text-[10px]">
+                    {selectedReq.form_type === 'out' ? 'Tujuan Membawa Keluar Alat' : 'Tujuan Membawa Masuk Alat'}
+                  </span>
                   <span className="font-medium text-slate-700">{selectedReq.purpose}</span>
                 </div>
                 {selectedReq.applicant_phone && (
                   <div>
-                    <span className="text-slate-400 block text-[10px]">No. Telepon / WA Tamu</span>
+                    <span className="text-slate-400 block text-[10px]">
+                      {selectedReq.form_type === 'out' ? 'No. Telepon / WA Pemohon' : 'No. Telepon / WA Tamu'}
+                    </span>
                     <span className="font-mono text-slate-700">{selectedReq.applicant_phone}</span>
                   </div>
                 )}

@@ -36,9 +36,9 @@ export default function KelolaKameraPage() {
         <div className="absolute right-8 top-0 hidden h-full w-1/3 border-l border-primary-foreground/10 bg-[linear-gradient(135deg,transparent_25%,rgba(255,255,255,0.08)_25%,transparent_60%)] sm:block" />
         <div className="relative max-w-2xl">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary-foreground"><Settings className="size-3.5" /> Admin workspace</div>
-          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Kelola Kontrol Kamera, ID Photography &amp; USB</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Kelola Kontrol Kamera, ID Photography, USB &amp; Smart Device</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-primary-foreground/75">
-            Daftar kode Kontrol No. Kamera, No. ID Photography, dan Kontrol No. USB yang muncul di dropdown pada form Ijin Foto/Video (Internal), dikelompokkan per departemen dan bisa dipersempit lagi per section. Kode tanpa departemen/section muncul untuk semua pilihan.
+            Daftar kode Kontrol No. Kamera, No. ID Photography, Kontrol No. USB, dan Kontrol No. Smart Device yang muncul di dropdown pada form Ijin Foto/Video (Internal), dikelompokkan per departemen dan bisa dipersempit lagi per section. Kode tanpa departemen/section muncul untuk semua pilihan.
           </p>
         </div>
       </header>
@@ -74,6 +74,18 @@ export default function KelolaKameraPage() {
         placeholder="Contoh: USB-IT-01"
         apiPath="/api/usb-equipment"
         listKey="usbList"
+        departments={departments}
+      />
+
+      <div className="h-px bg-border" />
+
+      <EquipmentRosterCard
+        title="Kontrol No. Smart Device"
+        addLabel="Tambah Smart Device"
+        codeLabel="Smart Device"
+        placeholder="Contoh: SMT-QA-01 atau TAB-IT-01"
+        apiPath="/api/smart-device-equipment"
+        listKey="smartDeviceList"
         departments={departments}
       />
     </div>

@@ -14,7 +14,7 @@ function isDecisionStatus(value: unknown): value is Status { return typeof value
 const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
   r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no,
-  r.usb_control_no, r.returned_at, r.returned_by, r.return_notes,
+  r.usb_control_no, r.smart_device_control_no, r.returned_at, r.returned_by, r.return_notes,
   r.escort_name, r.escort_dept, r.escort_set_by`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
@@ -53,6 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const cameraControlNo = typeof body.cameraControlNo === 'string' && body.cameraControlNo.trim() ? body.cameraControlNo.trim() : null
     const photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? body.photoIdNo.trim() : null
     const usbControlNo = typeof body.usbControlNo === 'string' && body.usbControlNo.trim() ? body.usbControlNo.trim() : null
+    const smartDeviceControlNo = typeof body.smartDeviceControlNo === 'string' && body.smartDeviceControlNo.trim() ? body.smartDeviceControlNo.trim() : null
 
     // Only a pending request can be decided — once approved/rejected, a
     // second PUT (e.g. someone re-opening the modal and misclicking) must
@@ -106,10 +107,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
            camera_control_no = COALESCE($6, camera_control_no),
            photo_id_no = COALESCE($7, photo_id_no),
            usb_control_no = COALESCE($9, usb_control_no),
+           smart_device_control_no = COALESCE($10, smart_device_control_no),
            verification_code = CASE WHEN request_type = 'visitor' THEN $8 ELSE verification_code END
        WHERE id = $5 AND status = 'pending'
        RETURNING id`,
-      [body.status, approverName, approverTitle, decisionNote, id, cameraControlNo, photoIdNo, verificationCode, usbControlNo]
+      [body.status, approverName, approverTitle, decisionNote, id, cameraControlNo, photoIdNo, verificationCode, usbControlNo, smartDeviceControlNo]
     )
     if (updated.rows.length === 0) {
       const existing = await query<{ status: string }>('SELECT status FROM photo_video_requests WHERE id = $1', [id])

@@ -13,6 +13,7 @@ type Pic = { id: number; name: string; department_id: number | null }
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type PhotoIdItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type UsbItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
+type SmartDeviceItem = { id: number; code: string; department_id: number | null; department_name: string | null; section_id: number | null; section_name: string | null }
 type VisitorApprover = { id: number; fullName: string | null; title: string | null; email?: string | null; salutation?: string | null }
 
 type LookupRequest = {
@@ -252,6 +253,8 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const [photoIds, setPhotoIds] = useState<PhotoIdItem[]>([])
   const [usbs, setUsbs] = useState<UsbItem[]>([])
   const [usbControlNo, setUsbControlNo] = useState('')
+  const [smartDevices, setSmartDevices] = useState<SmartDeviceItem[]>([])
+  const [smartDeviceControlNo, setSmartDeviceControlNo] = useState('')
   const [visitorApprover, setVisitorApprover] = useState<VisitorApprover | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successInfo, setSuccessInfo] = useState<{ id: number; referenceCode: string; submittedAt: string; emailed: boolean } | null>(null)
@@ -298,16 +301,24 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   }, [isInternal])
 
   useEffect(() => {
+    if (!isInternal) return
+    fetch(`${API_BASE_PATH}/api/smart-device-equipment`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : { smartDeviceList: [] }))
+      .then((data: { smartDeviceList: SmartDeviceItem[] }) => setSmartDevices(data.smartDeviceList ?? []))
+      .catch(() => setSmartDevices([]))
+  }, [isInternal])
+
+  useEffect(() => {
     fetch(`${API_BASE_PATH}/api/pic-approvers/visitor-default`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { approver: null }))
       .then((data: { approver: VisitorApprover | null }) => {
         setVisitorApprover(data.approver)
-        if (data.approver?.id) {
+        if (!isInternal && data.approver?.id) {
           setPicApproveId(String(data.approver.id))
         }
       })
       .catch(() => setVisitorApprover(null))
-  }, [])
+  }, [isInternal])
 
   const selectedDept = departments.find((d) => String(d.id) === deptId)
   const selectedCameraDept = departments.find((d) => String(d.id) === deptPicKameraId)
@@ -315,12 +326,13 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
 
   // A PIC with no department applies everywhere (e.g. a general/HQ approver).
   const availablePics = pics.filter((pic) => pic.department_id === null || String(pic.department_id) === deptId)
+  const displayedPics = availablePics.length > 0 ? availablePics : pics
 
   // Same convention — a camera/ID with no department is general-purpose and
   // shows up regardless of which Dept./Seksi PIC Kamera was picked; one with
   // a department but no section applies to every section within it; one
   // with both set is restricted to that exact section.
-  const matchesCameraScope = (item: CameraItem | PhotoIdItem) => {
+  const matchesCameraScope = (item: CameraItem | PhotoIdItem | UsbItem | SmartDeviceItem) => {
     if (item.department_id === null) return true
     if (String(item.department_id) !== deptPicKameraId) return false
     if (item.section_id === null) return true
@@ -329,9 +341,10 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const availableCameras = cameras.filter(matchesCameraScope)
   const availablePhotoIds = photoIds.filter(matchesCameraScope)
   const availableUsbs = usbs.filter(matchesCameraScope)
+  const availableSmartDevices = smartDevices.filter(matchesCameraScope)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setUsbControlNo(''); setPicApproveId('')
+    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setUsbControlNo(''); setSmartDeviceControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(hourAfter(nowTimeStr())); setLocation(''); setObjective('')
     setEscortChoice(''); setEscortName(''); setEscortDept('')
   }
@@ -348,6 +361,10 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         : companyName
       const escort = isStaff ? escortFromChoice(escortChoice, escorts, { name: escortName, dept: escortDept }) : null
       if (isStaff && escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping JAI, atau kosongkan pilihannya.'); return }
+      if (isInternal && !picApproveId) {
+        setError('Pilih PIC Approve yang akan menyetujui permohonan foto/video.')
+        return
+      }
       const payload = {
         requestType: locale,
         requesterName,
@@ -361,7 +378,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         // as the Visitor default — the server resolves it and ignores
         // picApproveId entirely for this type (see /api/photo-video-requests).
         ...(isInternal
-          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, usbControlNo: usbControlNo.trim() || null, picApproveId }
+          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, usbControlNo: usbControlNo.trim() || null, smartDeviceControlNo: smartDeviceControlNo.trim() || null, picApproveId }
           : { dept, cameraSerialNo, photoIdNo }),
         ...(isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
       }
@@ -414,7 +431,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               </h1>
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm max-w-xl leading-relaxed">
                 {isInternal
-                  ? 'Formulir resmi izin pengambilan foto/video & peminjaman kamera/USB terkontrol ISMS.'
+                  ? 'Formulir resmi izin pengambilan foto/video & peminjaman kamera / USB / Smart Device terkontrol ISMS.'
                   : 'Official registration form for photo and video recording at PT. Jatim Autocomp Indonesia.'}
               </p>
             </div>
@@ -506,7 +523,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               <Field label="Dept. PIC Kamera">
                 <select
                   value={deptPicKameraId}
-                  onChange={(e) => { setDeptPicKameraId(e.target.value); setSectionPicKameraId(''); setCameraControlNo(''); setPhotoIdNo('') }}
+                  onChange={(e) => { setDeptPicKameraId(e.target.value); setSectionPicKameraId(''); setCameraControlNo(''); setPhotoIdNo(''); setUsbControlNo(''); setSmartDeviceControlNo('') }}
                   required
                   className={inputClass}
                 >
@@ -519,7 +536,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               <Field label="Seksi PIC Kamera">
                 <select
                   value={sectionPicKameraId}
-                  onChange={(e) => { setSectionPicKameraId(e.target.value); setCameraControlNo(''); setPhotoIdNo('') }}
+                  onChange={(e) => { setSectionPicKameraId(e.target.value); setCameraControlNo(''); setPhotoIdNo(''); setUsbControlNo(''); setSmartDeviceControlNo('') }}
                   disabled={!selectedCameraDept || selectedCameraDept.sections.length === 0}
                   className={inputClass}
                 >
@@ -577,13 +594,27 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                 </select>
                 <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol USB hanya jika Anda meminjam media penyimpanan Flashdisk/USB bersama kamera.</p>
               </Field>
+              <Field label="No. Kontrol Smart Device (opsional)" span={2}>
+                <select
+                  value={smartDeviceControlNo}
+                  onChange={(e) => setSmartDeviceControlNo(e.target.value)}
+                  className={inputClass}
+                  disabled={!deptPicKameraId}
+                >
+                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Smart Device (Opsional)'}</option>
+                  {availableSmartDevices.map((s) => (
+                    <option key={s.id} value={s.code}>{s.code}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol Smart Device jika Anda meminjam Tablet / HP khusus bersama kamera.</p>
+              </Field>
             </>
           )}
           {!isInternal && (
             <>
-              <Field label="Serial No. Kamera" span={2}>
+              <Field label="Serial No. Kamera / Smart Device" span={2}>
                 <input value={cameraSerialNo} onChange={(e) => setCameraSerialNo(e.target.value)} placeholder="Contoh: PRIBADI" className={inputClass} />
-                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — isi &quot;PRIBADI&quot; jika menggunakan kamera/HP milik sendiri.</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — isi &quot;PRIBADI&quot; jika menggunakan kamera / HP / Smart Device milik sendiri.</p>
               </Field>
               <Field label="No ID Photography" span={2}>
                 <div className="relative">
@@ -594,19 +625,46 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               </Field>
             </>
           )}
-          <Field label="Approver Izin Foto/Video" span={2}>
-            <div className={`${inputClass} flex items-center justify-between bg-muted/40 font-semibold text-foreground`}>
-              <span>{visitorApprover?.fullName || 'Teguh Sunjoyo'}</span>
-              <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                {visitorApprover?.title || 'Information Assets Administrator'}
-              </span>
-            </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {isInternal
-                ? `Pengajuan izin pengambilan foto/video ini otomatis diteruskan ke Approver di atas (${visitorApprover?.fullName || 'Bpk. Teguh Sunjoyo'}) untuk persetujuan e-sign.`
-                : 'Pengajuan izin pengambilan foto/video ini otomatis diteruskan ke Approver di atas — tidak perlu memilih.'}
-            </p>
-          </Field>
+          {isInternal ? (
+            <Field label="PIC Approve" span={2}>
+              <select
+                value={picApproveId}
+                onChange={(e) => setPicApproveId(e.target.value)}
+                required
+                className={inputClass}
+                disabled={!deptId}
+              >
+                <option value="">
+                  {!deptId ? 'Pilih Dept. terlebih dahulu...' : 'Pilih PIC yang akan menyetujui...'}
+                </option>
+                {displayedPics.map((pic) => (
+                  <option key={pic.id} value={pic.id}>
+                    {pic.name}
+                  </option>
+                ))}
+              </select>
+              {deptId && displayedPics.length === 0 && (
+                <p className="mt-1 text-[11px] text-destructive">
+                  Belum ada PIC Approve terdaftar untuk departemen ini — hubungi Admin ISMS.
+                </p>
+              )}
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Pilih PIC / Approver di departemen Anda yang berwenang menyetujui izin foto/video.
+              </p>
+            </Field>
+          ) : (
+            <Field label="Approver Izin Foto/Video" span={2}>
+              <div className={`${inputClass} flex items-center justify-between bg-muted/40 font-semibold text-foreground`}>
+                <span>{visitorApprover?.fullName || 'Teguh Sunjoyo'}</span>
+                <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  {visitorApprover?.title || 'Information Assets Administrator'}
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Pengajuan izin pengambilan foto/video untuk Visitor otomatis diteruskan ke Approver di atas ({visitorApprover?.fullName || 'Bpk. Teguh Sunjoyo'}) — tidak perlu memilih.
+              </p>
+            </Field>
+          )}
           {isStaff && (
             <Field label="PIC Pendamping JAI (opsional)" span={2}>
               <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={inputClass}>
@@ -659,7 +717,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
             </div>
             <p className="mt-1 text-[11px] text-muted-foreground">
               {isInternal
-                ? 'Catatan: Jam aktual pengembalian kamera/USB akan dicatat saat alat diserahkan kembali.'
+                ? 'Catatan: Jam aktual pengembalian kamera / USB / Smart Device akan dicatat saat alat diserahkan kembali.'
                 : 'Expected return time.'}
             </p>
           </Field>

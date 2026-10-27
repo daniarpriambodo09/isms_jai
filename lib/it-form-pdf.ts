@@ -483,33 +483,50 @@ async function stampOnTemplate(
       }
 
       // Stamped signatures for both copies (Top & Bottom):
-      // Col 1: IT SPV / SSA (centerX=128.0)
-      // Col 2: IR / HR (centerX=298.0)
-      // Col 3: Dept Mgr (centerX=467.0)
-      const sig1 = signatures.find((s) => s.step_number === 1) || signatures[0]
-      const sig2 = signatures.find((s) => s.step_number === 2) || signatures[1]
-      const sig3 = signatures.find((s) => s.step_number === 3) || signatures[2]
+      // Col 1: IT SPV / SSA Check (centerX=128.0)
+      // Col 2: IR / HR Mengetahui (centerX=298.0)
+      // Col 3: Dept Mgr Menyetujui (centerX=467.0)
+      // Note: Approval sequence is Step 1 = Dept Mgr, Step 2 = IR/HR, Step 3 = IT SPV
+      const sigIt = signatures.find((s) =>
+        s.slot_label.toUpperCase().includes('CHECK') ||
+        s.slot_label.toUpperCase().includes('CEK') ||
+        s.role_title.toUpperCase().includes('IT') ||
+        s.role_title.toUpperCase().includes('SECURITY')
+      ) || signatures.find((s) => s.step_number === 3) || signatures[0]
+
+      const sigHr = signatures.find((s) =>
+        s.slot_label.toUpperCase().includes('MENGETAHUI') ||
+        s.role_title.toUpperCase().includes('HR') ||
+        s.role_title.toUpperCase().includes('IR')
+      ) || signatures.find((s) => s.step_number === 2) || signatures[1]
+
+      const sigMgr = signatures.find((s) =>
+        s.slot_label.toUpperCase().includes('MENYETUJUI') ||
+        s.role_title.toUpperCase().includes('MGR') ||
+        s.role_title.toUpperCase().includes('MANAGER')
+      ) || signatures.find((s) => s.step_number === 1) || signatures[2]
+
       const qrSize = 34
 
-      if (sig1 && sig1.status === 'approved') {
-        const qrUrl = `${verifyUrl}&step=1&code=${sig1.verification_code || ''}`
+      if (sigIt && sigIt.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=${sigIt.step_number}&code=${sigIt.verification_code || ''}`
         await stampQr(qrUrl, 128.0 - qrSize / 2, 486 + d, qrSize)
-        writeCenter(sig1.approver_name.slice(0, 16), 128.0, 477 + d, 7, fontBold)
-        writeCenter(formatDateId(sig1.signed_at), 128.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+        writeCenter(sigIt.approver_name.slice(0, 16), 128.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sigIt.signed_at), 128.0, 469 + d, 6, fontRegular, COLOR_MUTED)
       }
 
-      if (sig2 && sig2.status === 'approved') {
-        const qrUrl = `${verifyUrl}&step=2&code=${sig2.verification_code || ''}`
+      if (sigHr && sigHr.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=${sigHr.step_number}&code=${sigHr.verification_code || ''}`
         await stampQr(qrUrl, 298.0 - qrSize / 2, 486 + d, qrSize)
-        writeCenter(sig2.approver_name.slice(0, 16), 298.0, 477 + d, 7, fontBold)
-        writeCenter(formatDateId(sig2.signed_at), 298.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+        writeCenter(sigHr.approver_name.slice(0, 16), 298.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sigHr.signed_at), 298.0, 469 + d, 6, fontRegular, COLOR_MUTED)
       }
 
-      if (sig3 && sig3.status === 'approved') {
-        const qrUrl = `${verifyUrl}&step=3&code=${sig3.verification_code || ''}`
+      if (sigMgr && sigMgr.status === 'approved') {
+        const qrUrl = `${verifyUrl}&step=${sigMgr.step_number}&code=${sigMgr.verification_code || ''}`
         await stampQr(qrUrl, 467.0 - qrSize / 2, 486 + d, qrSize)
-        writeCenter(sig3.approver_name.slice(0, 16), 467.0, 477 + d, 7, fontBold)
-        writeCenter(formatDateId(sig3.signed_at), 467.0, 469 + d, 6, fontRegular, COLOR_MUTED)
+        writeCenter(sigMgr.approver_name.slice(0, 16), 467.0, 477 + d, 7, fontBold)
+        writeCenter(formatDateId(sigMgr.signed_at), 467.0, 469 + d, 6, fontRegular, COLOR_MUTED)
       }
     }
   }
@@ -589,7 +606,7 @@ async function stampOnTemplate(
   else if (sub.form_code === 'ISMS-F-03-00-003') {
     write(`No: ${sub.request_no}`, 430, 740, 7.5, fontBold, COLOR_RED)
     write(formatDateId(sub.request_date), 225, 685, 9, fontBold)
-    write(`${sub.applicant_name} ${sub.applicant_nik ? `(${sub.applicant_nik})` : ''}`, 225, 655, 9, fontBold)
+    write(sub.applicant_name, 225, 655, 9, fontBold)
     write(sub.company_name || 'PT. Jatim Autocomp Indonesia', 225, 625, 9)
     write(formatDeptSection(sub.department, formData.section), 225, 595, 9)
 
@@ -617,7 +634,18 @@ async function stampOnTemplate(
     }
 
     write(formData.antivirus_name || 'Windows Defender', 355, 312, 8.5)
-    write(formData.antivirus_version || 'Latest Definition', 355, 282, 8.5)
+
+    // Software Version & Virus Definition Last Update (pre-printed slash at X: 457)
+    let swVersion = formData.antivirus_version || ''
+    let defUpdate = formData.virus_definition_update || ''
+    if (!defUpdate && swVersion.includes('/')) {
+      const parts = swVersion.split('/')
+      swVersion = parts[0].trim()
+      defUpdate = parts.slice(1).join('/').trim()
+    }
+    if (swVersion) write(swVersion.slice(0, 16), 355, 282, 8.5)
+    if (defUpdate) write(defUpdate.slice(0, 16), 468, 282, 8.5)
+
     write(formData.os_info || 'Windows 11 Pro 64-bit', 355, 252, 8.5)
 
     if (formData.ip_mode === 'static') {
@@ -632,19 +660,31 @@ async function stampOnTemplate(
     }
 
     // Approvals: IT Check (centerX=410.0) & IAA Approval (centerX=510.0)
-    const sig1 = signatures.find((s) => s.step_number === 1) || signatures[0]
-    const sig2 = signatures.find((s) => s.step_number === 2) || signatures[1]
+    const sigIt = signatures.find((s) =>
+      s.slot_label.toUpperCase().includes('CHECK') ||
+      s.slot_label.toUpperCase().includes('CEK') ||
+      s.role_title.toUpperCase().includes('IT') ||
+      s.role_title.toUpperCase().includes('SECURITY')
+    ) || signatures.find((s) => s.step_number === 2) || signatures[1]
+
+    const sigIaa = signatures.find((s) =>
+      s.slot_label.toUpperCase().includes('APPROV') ||
+      s.role_title.toUpperCase().includes('INFORMATION') ||
+      s.role_title.toUpperCase().includes('IAA') ||
+      s.approver_name.toUpperCase().includes('TEGUH')
+    ) || signatures.find((s) => s.step_number === 1) || signatures[0]
+
     const qrSize = 38
 
-    if (sig1 && sig1.status === 'approved') {
-      const qrUrl = `${verifyUrl}&step=1&code=${sig1.verification_code || ''}`
+    if (sigIt && sigIt.status === 'approved') {
+      const qrUrl = `${verifyUrl}&step=${sigIt.step_number}&code=${sigIt.verification_code || ''}`
       await stampQr(qrUrl, 410.0 - qrSize / 2, 118, qrSize)
       writeCenter('E-SIGN VERIFIED', 410.0, 107, 6.5, fontBold, COLOR_RED)
-      writeCenter(sig1.approver_name.slice(0, 18), 410.0, 97, 7.5, fontBold, COLOR_INK)
-      writeCenter(formatDateId(sig1.signed_at), 410.0, 86, 6.5, fontRegular, COLOR_MUTED)
+      writeCenter(sigIt.approver_name.slice(0, 18), 410.0, 97, 7.5, fontBold, COLOR_INK)
+      writeCenter(formatDateId(sigIt.signed_at), 410.0, 86, 6.5, fontRegular, COLOR_MUTED)
     }
 
-    if (sig2 && sig2.status === 'approved') {
+    if (sigIaa && sigIaa.status === 'approved') {
       // Cover pre-printed "TEGUH SUNJOYO" inside the box so actual approver name replaces it cleanly
       page.drawRectangle({
         x: 468,
@@ -653,11 +693,11 @@ async function stampOnTemplate(
         height: 16,
         color: rgb(1, 1, 1),
       })
-      const qrUrl = `${verifyUrl}&step=2&code=${sig2.verification_code || ''}`
+      const qrUrl = `${verifyUrl}&step=${sigIaa.step_number}&code=${sigIaa.verification_code || ''}`
       await stampQr(qrUrl, 510.0 - qrSize / 2, 118, qrSize)
       writeCenter('E-SIGN VERIFIED', 510.0, 107, 6.5, fontBold, COLOR_RED)
-      writeCenter(sig2.approver_name.slice(0, 18), 510.0, 97, 7.5, fontBold, COLOR_INK)
-      writeCenter(formatDateId(sig2.signed_at), 510.0, 77, 6.5, fontRegular, COLOR_MUTED)
+      writeCenter(sigIaa.approver_name.slice(0, 18), 510.0, 97, 7.5, fontBold, COLOR_INK)
+      writeCenter(formatDateId(sigIaa.signed_at), 510.0, 77, 6.5, fontRegular, COLOR_MUTED)
     }
   }
 

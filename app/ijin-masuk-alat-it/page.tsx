@@ -54,6 +54,8 @@ function FormContent() {
   const [companyName, setCompanyName] = useState('')
   const [department, setDepartment] = useState('')
   const [section, setSection] = useState('')
+  const [isCustomDept, setIsCustomDept] = useState(false)
+  const [customDeptText, setCustomDeptText] = useState('')
   const [location, setLocation] = useState('')
   const [purpose, setPurpose] = useState('')
   const [dateIn, setDateIn] = useState('')
@@ -391,7 +393,7 @@ function FormContent() {
             </div>
 
             <div className="p-3 rounded-xl bg-secondary/30 border border-border">
-              <span className="text-muted-foreground block text-[11px]">Departemen Tujuan</span>
+              <span className="text-muted-foreground block text-[11px]">Departemen Pembawa Device</span>
               <span className="font-medium text-foreground mt-0.5 block">{submittedReq.department}</span>
             </div>
 
@@ -515,6 +517,8 @@ function FormContent() {
             type="button"
             onClick={() => {
               setSubmittedReq(null)
+              setIsCustomDept(false)
+              setCustomDeptText('')
               window.history.replaceState({}, '', '/ijin-masuk-alat-it')
             }}
             className="text-xs text-primary hover:underline transition"
@@ -717,30 +721,68 @@ function FormContent() {
 
             <div>
               <label className={labelClass}>
-                Departemen Tujuan di PT. JAI <span className="text-destructive">*</span>
+                Departemen Pembawa Device <span className="text-destructive">*</span>
               </label>
-              <select
-                required
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className={inputClass}
-              >
-                <option value="">-- Pilih Departemen --</option>
-                {(availableDepartments.length > 0 ? availableDepartments : DEFAULT_DEPARTMENTS).map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
+              {!isCustomDept ? (
+                <div className="space-y-1.5">
+                  <select
+                    required
+                    value={department}
+                    onChange={(e) => {
+                      if (e.target.value === '__custom__') {
+                        setIsCustomDept(true)
+                        setDepartment('')
+                      } else {
+                        setDepartment(e.target.value)
+                      }
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">-- Pilih Departemen Pembawa Device --</option>
+                    {(availableDepartments.length > 0 ? availableDepartments : DEFAULT_DEPARTMENTS).map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                    <option value="__custom__">Lainnya (Ketik Manual)...</option>
+                  </select>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ketik nama departemen pembawa device..."
+                    value={customDeptText}
+                    onChange={(e) => {
+                      setCustomDeptText(e.target.value)
+                      setDepartment(e.target.value)
+                    }}
+                    className={inputClass}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomDept(false)
+                      setCustomDeptText('')
+                      setDepartment('')
+                    }}
+                    className="px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground border border-border rounded-xl whitespace-nowrap bg-secondary/50"
+                  >
+                    Pilih Daftar
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>
               <label className={labelClass}>
-                Seksi / PIC JAI yang Ditemui (Opsional)
+                Seksi / Bagian Pembawa Device (Opsional)
               </label>
               <input
                 type="text"
-                placeholder="Contoh: Network & Infra / Pak Andi"
+                placeholder="Contoh: Network & Infra / IT Support / QA Line 1"
                 value={section}
                 onChange={(e) => setSection(e.target.value)}
                 className={inputClass}

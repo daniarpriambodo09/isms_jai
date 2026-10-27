@@ -41,6 +41,7 @@ type LedgerRequest = {
   escort_set_by: string | null
   taken_at: string | null
   usb_control_no: string | null
+  smart_device_control_no: string | null
   returned_at: string | null
   returned_by: string | null
   return_notes: string | null
@@ -207,7 +208,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     if (locale === 'internal') {
       downloadExcel(
         `rekap-foto-video-internal-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'No. Kontrol Smart Device', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.nik ?? '',
@@ -217,6 +218,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
           r.camera_control_no ?? '',
           r.photo_id_no ?? '',
           r.usb_control_no ?? '',
+          r.smart_device_control_no ?? '',
           r.pic_approve_name ?? '',
           r.escort_name ? `${r.escort_name}${r.escort_dept ? ` (${r.escort_dept})` : ''}` : '',
           formatDateTime(r.from_at),
@@ -303,7 +305,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
             <table className="w-full min-w-[1800px] text-sm">
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'No. Kontrol Smart Device', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>
@@ -326,6 +328,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.camera_control_no ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.photo_id_no ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs font-mono font-medium text-primary">{r.usb_control_no ?? '—'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs font-mono font-medium text-indigo-600 dark:text-indigo-400">{r.smart_device_control_no ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_approve_name ?? '—'}</td>
                     {escortCell(r)}
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.from_at)}</td>

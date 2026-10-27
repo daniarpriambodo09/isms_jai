@@ -50,6 +50,7 @@ export const EQUIPMENT_TYPES = [
   'PC / Laptop',
   'USB Memory / Flashdisk',
   'Kamera',
+  'Smart Device (Tablet / HP Khusus)',
   'External Harddisk / SSD',
   'Tablet / iPad',
   'Smartphone Khusus Uji',

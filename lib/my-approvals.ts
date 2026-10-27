@@ -171,13 +171,13 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
     const itRows = (await query<{
       sig_id: number; step_number: number; slot_label: string; role_title: string; approver_name: string; approver_email: string | null
       sig_status: 'pending' | 'waiting' | 'approved' | 'rejected'; verification_code: string | null; signature_note: string | null
-      sub_id: number; request_no: string; form_code: string; form_name: string; applicant_name: string; department: string
+      sub_id: number; request_no: string; form_code: string; form_name: string; applicant_name: string; department: string; company_name: string | null
       submission_status: string; current_step: number; total_steps: number; token: string; notes: string | null
       submitted_at: string; decided_at: string | null
     }>(
       `SELECT s.id AS sig_id, s.step_number, s.slot_label, s.role_title, s.approver_name, s.approver_email,
               s.status AS sig_status, s.verification_code, s.signature_note,
-              sub.id AS sub_id, sub.request_no, sub.form_code, sub.form_name, sub.applicant_name, sub.department,
+              sub.id AS sub_id, sub.request_no, sub.form_code, sub.form_name, sub.applicant_name, sub.department, sub.company_name,
               sub.status AS submission_status, sub.current_step, sub.total_steps, sub.token, sub.notes,
               to_char(sub.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS submitted_at,
               to_char(s.signed_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS decided_at
@@ -232,7 +232,7 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
         category: 'it_form',
         actionUrl: `${API_BASE_PATH}${row.form_code === 'ISMS-F-02-00-002' ? '/registrasi-fingerprint' : '/form-it-esign'}?token=${row.token}`,
         applicantName: row.applicant_name,
-        department: row.department,
+        department: row.company_name && row.company_name !== 'PT. Jatim Autocomp Indonesia' ? `${row.company_name} • ${row.department}` : row.department,
         verificationCode: row.verification_code,
         extraData: {
           stepNumber: row.step_number,

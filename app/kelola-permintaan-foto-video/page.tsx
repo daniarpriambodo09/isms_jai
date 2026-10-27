@@ -366,6 +366,9 @@ function KelolaPermintaanFotoVideoContent() {
                     {req.usb_control_no && (
                       <span className="block text-[11px] font-mono font-bold text-primary">USB: {req.usb_control_no}</span>
                     )}
+                    {req.smart_device_control_no && (
+                      <span className="block text-[11px] font-mono font-bold text-indigo-600 dark:text-indigo-400">Smart: {req.smart_device_control_no}</span>
+                    )}
                   </td>
                   <td data-label="Status" className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[req.status]}`}>{STATUS_LABEL[req.status]}</span>
@@ -498,7 +501,7 @@ function KelolaPermintaanFotoVideoContent() {
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
                 <RotateCcw className="size-4 text-emerald-600" />
-                <span>Konfirmasi Pengembalian Kamera / USB</span>
+                <span>Konfirmasi Pengembalian Kamera / USB / Smart Device</span>
               </h3>
               <button type="button" onClick={() => setPendingReturn(null)} className="text-muted-foreground hover:text-foreground">
                 <X className="size-4" />
@@ -516,7 +519,7 @@ function KelolaPermintaanFotoVideoContent() {
                 type="text"
                 value={returnNotes}
                 onChange={(e) => setReturnNotes(e.target.value)}
-                placeholder="Contoh: Kamera &amp; USB kembali lengkap, kondisi baik"
+                placeholder="Contoh: Kamera, USB &amp; Smart Device kembali lengkap, kondisi baik"
                 className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs outline-none focus:border-ring"
               />
             </div>

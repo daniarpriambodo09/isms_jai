@@ -32,6 +32,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
 import { IT_FORM_DEFINITIONS, type ItFormSubmission } from '@/lib/it-form-shared'
+import { downloadExcel } from '@/lib/excel-export'
 
 export default function KelolaIzinAlatItPage() {
   const { isLoggedIn, adminUser, logout } = useAuth()
@@ -310,6 +311,152 @@ export default function KelolaIzinAlatItPage() {
     setTimeout(() => setCopiedId(null), 2500)
   }
 
+  const handleExportEquipmentExcel = () => {
+    if (!filteredRequests.length) return
+    const filename = `rekap-izin-alat-it-masuk-keluar-${new Date().toISOString().slice(0, 10)}`
+    const headers = [
+      'No',
+      'No. Pengajuan',
+      'Jenis Izin',
+      'Tanggal Pengajuan',
+      'Nama Pemohon / Tamu',
+      'Perusahaan / Instansi',
+      'Departemen Pembawa Device',
+      'Seksi / Bagian',
+      'Lokasi Tujuan',
+      'Tujuan Membawa Alat',
+      'Tanggal Masuk / Keluar',
+      'Rencana Tanggal Kembali',
+      'Jumlah Alat',
+      'Rincian Alat IT',
+      'No. HP / WA Tamu',
+      'Email Pemohon',
+      'Status Permohonan',
+      'Disetujui Oleh',
+      'Jabatan Approver',
+      'Waktu Disetujui',
+      'Catatan Approval',
+      'Waktu Pengembalian',
+      'Pemeriksa Pengembalian',
+      'Catatan Pengembalian',
+      'Alasan Penolakan',
+    ]
+
+    const rows = filteredRequests.map((req, idx) => {
+      const itemsDetail = (req.items || [])
+        .map(
+          (it, i) =>
+            `${i + 1}. [${it.equipment_type || '-'}] ${it.brand || ''} ${it.model || ''} (SN: ${it.serial_no || '-'}, ID: ${it.id_no || '-'})`.trim()
+        )
+        .join('; ')
+
+      const statusLabel =
+        req.status === 'approved'
+          ? 'Disetujui (Aktif)'
+          : req.status === 'returned'
+          ? 'Dikembalikan'
+          : req.status === 'rejected'
+          ? 'Ditolak'
+          : 'Menunggu ACC'
+
+      return [
+        idx + 1,
+        req.request_no,
+        req.form_type === 'out' ? 'Membawa Keluar (ISMS-F-03-00-002)' : 'Membawa Masuk (ISMS-F-03-00-001)',
+        req.request_date,
+        req.applicant_name,
+        req.company_name,
+        req.department,
+        req.section || '-',
+        req.location,
+        req.purpose,
+        req.date_in,
+        req.date_out_plan,
+        req.items?.length || 0,
+        itemsDetail || '-',
+        req.applicant_phone || '-',
+        req.applicant_email || '-',
+        statusLabel,
+        req.approved_by || '-',
+        req.approved_title || '-',
+        req.approved_at ? new Date(req.approved_at).toLocaleString('id-ID') : '-',
+        req.approval_notes || '-',
+        req.returned_at ? new Date(req.returned_at).toLocaleString('id-ID') : '-',
+        req.returned_checked_by || '-',
+        req.returned_notes || '-',
+        req.rejection_reason || '-',
+      ]
+    })
+
+    downloadExcel(filename, headers, rows, 'Izin Alat IT')
+  }
+
+  const handleExportItFormsExcel = () => {
+    if (!filteredItSubmissions.length) return
+    const filename = `rekap-formulir-layanan-it-esign-${new Date().toISOString().slice(0, 10)}`
+    const headers = [
+      'No',
+      'No. Pengajuan',
+      'Kode Formulir',
+      'Nama Formulir',
+      'Tanggal Pengajuan',
+      'Nama Pemohon',
+      'NIK / No. Karyawan',
+      'Perusahaan / Organisasi',
+      'Departemen',
+      'Seksi / Bagian',
+      'Jabatan',
+      'Status Karyawan',
+      'Status Permohonan',
+      'Progress E-Sign',
+      'Tahap Approval Saat Ini',
+      'Catatan Pemohon',
+      'Log Persetujuan (Approver & Status)',
+    ]
+
+    const rows = filteredItSubmissions.map((sub, idx) => {
+      const approvedCount = (sub.signatures || []).filter((s) => s.status === 'approved').length
+      const totalSteps = sub.total_steps || (sub.signatures || []).length
+      const sigDetails = (sub.signatures || [])
+        .map(
+          (s) =>
+            `Step ${s.step_number}: ${s.approver_name || s.role_title} (${s.status}${
+              s.signed_at ? ` - ${new Date(s.signed_at).toLocaleDateString('id-ID')}` : ''
+            })`
+        )
+        .join('; ')
+
+      const statusLabel =
+        sub.status === 'approved'
+          ? 'Disetujui Lengkap'
+          : sub.status === 'rejected'
+          ? 'Ditolak / Revisi'
+          : `Menunggu ACC (Step ${sub.current_step})`
+
+      return [
+        idx + 1,
+        sub.request_no,
+        sub.form_code,
+        sub.form_name,
+        sub.request_date,
+        sub.applicant_name,
+        sub.applicant_nik || '-',
+        sub.company_name || '-',
+        sub.department,
+        (sub.form_data?.section as string) || '-',
+        sub.applicant_position || '-',
+        sub.employee_status || '-',
+        statusLabel,
+        `${approvedCount}/${totalSteps} Step`,
+        sub.status === 'approved' ? 'Selesai' : `Step ${sub.current_step}`,
+        sub.notes || '-',
+        sigDetails || '-',
+      ]
+    })
+
+    downloadExcel(filename, headers, rows, 'Formulir IT E-Sign')
+  }
+
   return (
     <div className="flex flex-col gap-6">
       {/* Top Banner Hero */}
@@ -541,29 +688,42 @@ export default function KelolaIzinAlatItPage() {
             />
           </div>
 
-          <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold text-muted-foreground">
-            {(['all', 'pending', 'approved', 'returned', 'rejected'] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-xl capitalize whitespace-nowrap transition ${
-                  activeTab === tab
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'hover:bg-secondary text-foreground'
-                }`}
-              >
-                {tab === 'all'
-                  ? 'Semua'
-                  : tab === 'pending'
-                  ? 'Menunggu ACC'
-                  : tab === 'approved'
-                  ? 'Disetujui'
-                  : tab === 'returned'
-                  ? 'Dikembalikan'
-                  : 'Ditolak'}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold text-muted-foreground">
+              {(['all', 'pending', 'approved', 'returned', 'rejected'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-3 py-1.5 rounded-xl capitalize whitespace-nowrap transition ${
+                    activeTab === tab
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'hover:bg-secondary text-foreground'
+                  }`}
+                >
+                  {tab === 'all'
+                    ? 'Semua'
+                    : tab === 'pending'
+                    ? 'Menunggu ACC'
+                    : tab === 'approved'
+                    ? 'Disetujui'
+                    : tab === 'returned'
+                    ? 'Dikembalikan'
+                    : 'Ditolak'}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExportEquipmentExcel}
+              disabled={filteredRequests.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap ml-auto"
+              title="Export data izin barang masuk/keluar ke Excel (.xlsx)"
+            >
+              <Download className="size-3.5" />
+              <span>Export Excel ({filteredRequests.length})</span>
+            </button>
           </div>
         </div>
 
@@ -728,50 +888,63 @@ export default function KelolaIzinAlatItPage() {
               />
             </div>
 
-            <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => setItStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                    itStatusFilter === 'all'
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'hover:bg-secondary text-foreground'
+                  }`}
+                >
+                  Semua ({itStats.total})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setItStatusFilter('pending')}
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                    itStatusFilter === 'pending'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'hover:bg-secondary text-foreground'
+                  }`}
+                >
+                  Menunggu ACC ({itStats.pending})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setItStatusFilter('approved')}
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                    itStatusFilter === 'approved'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'hover:bg-secondary text-foreground'
+                  }`}
+                >
+                  Disetujui ({itStats.approved})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setItStatusFilter('rejected')}
+                  className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
+                    itStatusFilter === 'rejected'
+                      ? 'bg-red-600 text-white shadow-xs'
+                      : 'hover:bg-secondary text-foreground'
+                  }`}
+                >
+                  Ditolak ({itStats.rejected})
+                </button>
+              </div>
+
               <button
                 type="button"
-                onClick={() => setItStatusFilter('all')}
-                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
-                  itStatusFilter === 'all'
-                    ? 'bg-primary text-primary-foreground shadow-xs'
-                    : 'hover:bg-secondary text-foreground'
-                }`}
+                onClick={handleExportItFormsExcel}
+                disabled={filteredItSubmissions.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap ml-auto"
+                title="Export data formulir E-Sign IT ke Excel (.xlsx)"
               >
-                Semua ({itStats.total})
-              </button>
-              <button
-                type="button"
-                onClick={() => setItStatusFilter('pending')}
-                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
-                  itStatusFilter === 'pending'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'hover:bg-secondary text-foreground'
-                }`}
-              >
-                Menunggu ACC ({itStats.pending})
-              </button>
-              <button
-                type="button"
-                onClick={() => setItStatusFilter('approved')}
-                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
-                  itStatusFilter === 'approved'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'hover:bg-secondary text-foreground'
-                }`}
-              >
-                Disetujui ({itStats.approved})
-              </button>
-              <button
-                type="button"
-                onClick={() => setItStatusFilter('rejected')}
-                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition ${
-                  itStatusFilter === 'rejected'
-                    ? 'bg-red-600 text-white shadow-xs'
-                    : 'hover:bg-secondary text-foreground'
-                }`}
-              >
-                Ditolak ({itStats.rejected})
+                <Download className="size-3.5" />
+                <span>Export Excel ({filteredItSubmissions.length})</span>
               </button>
             </div>
           </div>
@@ -1040,7 +1213,7 @@ export default function KelolaIzinAlatItPage() {
                   <span className="font-semibold text-slate-800">{selectedReq.company_name}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Departemen Tujuan</span>
+                  <span className="text-slate-400 block text-[10px]">Departemen Pembawa Device</span>
                   <span className="font-medium text-slate-700">{selectedReq.department}</span>
                 </div>
                 <div>

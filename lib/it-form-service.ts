@@ -195,18 +195,18 @@ export async function seedDefaultApprovers() {
       department: 'IT Section',
       sort_order: 2,
     },
-    // ISMS-F-010-006
+    // ISMS-F-010-006 (Disetujui Manager dulu, IT Cek di terakhir)
     {
       form_code: 'ISMS-F-010-006',
       form_name: 'Pengajuan / Perubahan Email & User ID',
       slot_number: 1,
-      slot_label: 'CHECK',
-      role_title: 'IT SPV / System Security Administrator',
-      person_name: 'IT Supervisor',
+      slot_label: 'MENYETUJUI',
+      role_title: 'Departemen MANAGER / J. MANAGER',
+      person_name: 'Departemen Manager',
       salutation: 'Bapak',
-      initials: 'SSA',
-      email: 'it.spv@jai.co.id',
-      department: 'IT Section',
+      initials: 'MGR',
+      email: 'dept.manager@jai.co.id',
+      department: 'Departemen Pemohon',
       sort_order: 1,
     },
     {
@@ -226,13 +226,13 @@ export async function seedDefaultApprovers() {
       form_code: 'ISMS-F-010-006',
       form_name: 'Pengajuan / Perubahan Email & User ID',
       slot_number: 3,
-      slot_label: 'MENYETUJUI',
-      role_title: 'Departemen MANAGER / J. MANAGER',
-      person_name: 'Departemen Manager',
+      slot_label: 'CHECK',
+      role_title: 'IT SPV / System Security Administrator',
+      person_name: 'IT Supervisor',
       salutation: 'Bapak',
-      initials: 'MGR',
-      email: 'dept.manager@jai.co.id',
-      department: 'Departemen Pemohon',
+      initials: 'SSA',
+      email: 'it.spv@jai.co.id',
+      department: 'IT Section',
       sort_order: 3,
     },
     // ISMS-F-010-007
@@ -275,24 +275,11 @@ export async function seedDefaultApprovers() {
       department: 'IT Section',
       sort_order: 3,
     },
-    // ISMS-F-03-00-003
+    // ISMS-F-03-00-003 (Disetujui Pak Teguh Sunjoyo / IAA dulu, baru IT Section Check di terakhir)
     {
       form_code: 'ISMS-F-03-00-003',
       form_name: 'Company Network Connection Application Form',
       slot_number: 1,
-      slot_label: 'IT SECTION CHECK',
-      role_title: 'IT Section / System Security Admin',
-      person_name: 'IT Security Admin',
-      salutation: 'Bapak',
-      initials: 'SSA',
-      email: 'it.security@jai.co.id',
-      department: 'IT Section',
-      sort_order: 1,
-    },
-    {
-      form_code: 'ISMS-F-03-00-003',
-      form_name: 'Company Network Connection Application Form',
-      slot_number: 2,
       slot_label: 'APPROVAL',
       role_title: 'Information Assets Administrator',
       person_name: 'TEGUH SUNJOYO',
@@ -300,6 +287,19 @@ export async function seedDefaultApprovers() {
       initials: 'IAA',
       email: 'teguh.sunjoyo@jai.co.id',
       department: 'Management / IT',
+      sort_order: 1,
+    },
+    {
+      form_code: 'ISMS-F-03-00-003',
+      form_name: 'Company Network Connection Application Form',
+      slot_number: 2,
+      slot_label: 'IT SECTION CHECK',
+      role_title: 'IT Section / System Security Admin',
+      person_name: 'IT Security Admin',
+      salutation: 'Bapak',
+      initials: 'SSA',
+      email: 'it.security@jai.co.id',
+      department: 'IT Section',
       sort_order: 2,
     },
     // ISMS-F-03-00-001
@@ -726,6 +726,28 @@ export async function getItFormSubmissionByToken(token: string): Promise<ItFormS
   )
   sub.signatures = sigs.rows
   return sub
+}
+
+export async function getItFormSubmissionById(id: number): Promise<ItFormSubmission | null> {
+  await ensureItFormTables()
+  const res = await query<ItFormSubmission>(
+    `SELECT * FROM it_form_submissions WHERE id = $1 LIMIT 1`,
+    [id]
+  )
+  if (!res.rowCount || res.rowCount === 0) return null
+  const sub = res.rows[0]
+  const sigs = await query<ItFormSignature>(
+    `SELECT * FROM it_form_signatures WHERE submission_id = $1 ORDER BY step_number ASC`,
+    [sub.id]
+  )
+  sub.signatures = sigs.rows
+  return sub
+}
+
+export async function deleteItFormSubmission(id: number): Promise<boolean> {
+  await ensureItFormTables()
+  const res = await query('DELETE FROM it_form_submissions WHERE id = $1', [id])
+  return (res.rowCount ?? 0) > 0
 }
 
 export async function signItFormStep(

@@ -1,7 +1,7 @@
 // app/form-it-esign/page.tsx
 'use client'
 
-import React, { useState, useEffect, Suspense, useMemo } from 'react'
+import React, { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -54,9 +54,15 @@ import {
   CheckSquare,
   Square,
   Fingerprint,
+  History,
+  RefreshCw,
+  FileDown,
+  Filter,
+  X,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { IT_FORM_DEFINITIONS, type ItFormApprover, type ItFormSubmission } from '@/lib/it-form-shared'
+import { downloadExcel } from '@/lib/excel-export'
 import { useAuth } from '@/context/AuthContext'
 
 interface DepartmentItem {
@@ -329,6 +335,146 @@ function FormItContent() {
   const [employeeStatus, setEmployeeStatus] = useState<'TETAP' | 'KONTRAK' | 'Other'>('TETAP')
   const [otherStatus, setOtherStatus] = useState('')
 
+  // Tab state: 'form' or 'history'
+  const tabQuery = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<'form' | 'history'>(tabQuery === 'history' ? 'history' : 'form')
+
+  // History state
+  const [historyList, setHistoryList] = useState<ItFormSubmission[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyFilterStatus, setHistoryFilterStatus] = useState<string>('all')
+  const [historyFilterForm, setHistoryFilterForm] = useState<string>('all')
+  const [historySearch, setHistorySearch] = useState<string>('')
+  const [historyCopiedId, setHistoryCopiedId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  const fetchHistory = useCallback(async (
+    statusFilter = historyFilterStatus,
+    formFilter = historyFilterForm,
+    searchVal = historySearch
+  ) => {
+    setHistoryLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (formFilter && formFilter !== 'all') params.set('form_code', formFilter)
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+      if (searchVal && searchVal.trim()) params.set('search', searchVal.trim())
+
+      const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions?${params.toString()}`)
+      const data = await res.json()
+      if (data.submissions) {
+        setHistoryList(data.submissions)
+      }
+    } catch (err) {
+      console.error('Failed to load IT forms history:', err)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [historyFilterStatus, historyFilterForm, historySearch])
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory()
+    }
+  }, [activeTab, fetchHistory])
+
+  const historyCounts = useMemo(() => {
+    return {
+      all: historyList.length,
+      pending: historyList.filter((s) => s.status === 'pending').length,
+      approved: historyList.filter((s) => s.status === 'approved').length,
+      rejected: historyList.filter((s) => s.status === 'rejected').length,
+    }
+  }, [historyList])
+
+  const handleDeleteHistory = async (sub: ItFormSubmission) => {
+    const ok = window.confirm(
+      `Apakah Anda yakin ingin menghapus permohonan No. ${sub.request_no} (${sub.form_name}) atas nama "${sub.applicant_name}"?\n\nData yang dihapus tidak dapat dipulihkan.`
+    )
+    if (!ok) return
+
+    setDeletingId(sub.id)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions/${sub.id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus permohonan.')
+      await fetchHistory()
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus permohonan.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const copyRowLink = (sub: ItFormSubmission) => {
+    const directActionPath = `${API_BASE_PATH}/form-it-esign?token=${encodeURIComponent(sub.token)}`
+    const shareUrl = `${window.location.origin}${directActionPath}`
+    navigator.clipboard.writeText(shareUrl)
+    setHistoryCopiedId(sub.id)
+    setTimeout(() => setHistoryCopiedId(null), 2500)
+  }
+
+  const viewDetailFromHistory = (sub: ItFormSubmission) => {
+    setSubmissionResult(sub)
+    setActiveTab('form')
+    window.scrollTo({ top: 120, behavior: 'smooth' })
+  }
+
+  const handleExportHistoryExcel = () => {
+    if (!historyList.length) return
+    const filename = `riwayat-formulir-it-esign-${new Date().toISOString().slice(0, 10)}`
+    const headers = [
+      'No',
+      'No. Pengajuan',
+      'Kode Formulir',
+      'Nama Formulir',
+      'Tanggal Pengajuan',
+      'Nama Pemohon',
+      'NIK',
+      'Perusahaan / Organisasi',
+      'Departemen',
+      'Seksi / Bagian',
+      'Jabatan',
+      'Status Karyawan',
+      'Status Permohonan',
+      'Progress E-Sign',
+      'Catatan',
+    ]
+
+    const rows = historyList.map((sub, idx) => {
+      const approvedCount = (sub.signatures || []).filter((s) => s.status === 'approved').length
+      const totalSteps = sub.total_steps || (sub.signatures || []).length
+      const statusLabel =
+        sub.status === 'approved'
+          ? 'Disetujui Lengkap'
+          : sub.status === 'rejected'
+          ? 'Ditolak / Revisi'
+          : `Menunggu ACC (Step ${sub.current_step})`
+
+      return [
+        idx + 1,
+        sub.request_no,
+        sub.form_code,
+        sub.form_name,
+        sub.request_date,
+        sub.applicant_name,
+        sub.applicant_nik || '-',
+        sub.company_name || '-',
+        sub.department,
+        (sub.form_data?.section as string) || '-',
+        sub.applicant_position || '-',
+        sub.employee_status || '-',
+        statusLabel,
+        `${approvedCount}/${totalSteps} Step`,
+        sub.notes || '-',
+      ]
+    })
+
+    downloadExcel(filename, headers, rows, 'Riwayat Pengajuan IT')
+  }
+
   // Department and Section (Cascading)
   const [rawDepartments, setRawDepartments] = useState<DepartmentItem[]>([])
   const [department, setDepartment] = useState(DEPARTMENTS[0])
@@ -375,7 +521,8 @@ function FormItContent() {
   const [purposeOthers, setPurposeOthers] = useState('')
   const [antivirusInstalled, setAntivirusInstalled] = useState(true)
   const [antivirusName, setAntivirusName] = useState('Windows Defender / Endpoint Protection')
-  const [antivirusVersion, setAntivirusVersion] = useState('Latest Definition Updated')
+  const [antivirusVersion, setAntivirusVersion] = useState('v1.405.210')
+  const [virusDefinitionUpdate, setVirusDefinitionUpdate] = useState('Latest Definition')
   const [osInfo, setOsInfo] = useState('Windows 11 Pro 64-bit')
   const [ipMode, setIpMode] = useState<'dhcp' | 'static'>('dhcp')
   const [staticIp, setStaticIp] = useState('')
@@ -534,6 +681,11 @@ function FormItContent() {
       return
     }
 
+    if (selectedFormCode === 'ISMS-F-03-00-003' && !companyName.trim()) {
+      setErrorMsg('Company / Organization (組織または会社名) wajib diisi untuk formulir ISMS-F-03-00-003.')
+      return
+    }
+
     setSubmitting(true)
     setErrorMsg('')
 
@@ -586,6 +738,7 @@ function FormItContent() {
         formDataPayload.antivirus_installed = antivirusInstalled
         formDataPayload.antivirus_name = antivirusName.trim()
         formDataPayload.antivirus_version = antivirusVersion.trim()
+        formDataPayload.virus_definition_update = virusDefinitionUpdate.trim()
         formDataPayload.os_info = osInfo.trim()
         formDataPayload.ip_mode = ipMode
         if (ipMode === 'static') {
@@ -605,7 +758,7 @@ function FormItContent() {
           applicant_name: applicantName.trim(),
           applicant_nik: applicantNik.trim() || null,
           applicant_position: applicantPosition.trim() || null,
-          employee_status: employeeStatus === 'Other' ? otherStatus.trim() || 'Other' : employeeStatus,
+          employee_status: employeeStatus === 'Other' ? otherStatus.trim() || 'Lainnya' : employeeStatus,
           department,
           company_name: companyName.trim() || null,
           purpose: purpose.trim() || null,
@@ -744,6 +897,17 @@ function FormItContent() {
                 <span>Pengaturan Approver</span>
               </Link>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab(activeTab === 'history' ? 'form' : 'history')
+                if (activeTab === 'form') fetchHistory()
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:-translate-y-0.5 cursor-pointer"
+            >
+              <History className="size-4 text-blue-200" />
+              <span>{activeTab === 'history' ? 'Buka Formulir' : `Lihat Riwayat (${historyCounts.all})`}</span>
+            </button>
           </div>
         </div>
 
@@ -772,8 +936,352 @@ function FormItContent() {
         </div>
       </section>
 
-      {/* IF SUBMISSION RESULT EXISTS (LIVE E-SIGN STATUS VIEW) */}
-      {submissionResult ? (
+      {/* Main Tab Navigation: Form vs History */}
+      <div className="flex items-center justify-between border-b border-border/80 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('form')}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
+              activeTab === 'form'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+            }`}
+          >
+            <FileText className="size-4" />
+            <span>Formulir Pengajuan Layanan IT</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('history')
+              fetchHistory()
+            }}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
+              activeTab === 'history'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+            }`}
+          >
+            <Clock className="size-4" />
+            <span>Riwayat Pengajuan (History)</span>
+            <span
+              className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === 'history'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-secondary text-foreground'
+              }`}
+            >
+              {historyCounts.all}
+            </span>
+          </button>
+        </div>
+
+        {activeTab === 'history' && (
+          <button
+            type="button"
+            onClick={() => fetchHistory()}
+            disabled={historyLoading}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition disabled:opacity-50 cursor-pointer"
+          >
+            <RefreshCw className={`size-3.5 ${historyLoading ? 'animate-spin text-primary' : ''}`} />
+            <span className="hidden sm:inline">Refresh Data</span>
+          </button>
+        )}
+      </div>
+
+      {/* History View (When in 'history' tab) */}
+      {activeTab === 'history' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Total Pengajuan IT
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-foreground">{historyCounts.all}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                Menunggu Approval
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-amber-700 dark:text-amber-400">{historyCounts.pending}</p>
+            </div>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                Disetujui Lengkap
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-400">{historyCounts.approved}</p>
+            </div>
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-red-800 dark:text-red-300">
+                Ditolak / Revisi
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-red-700 dark:text-red-400">{historyCounts.rejected}</p>
+            </div>
+          </div>
+
+          {/* Filters Bar: Status Tabs, Form Code Filter, & Search */}
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+            {/* Status Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { key: 'all', label: 'Semua Status' },
+                { key: 'pending', label: 'Menunggu' },
+                { key: 'approved', label: 'Disetujui' },
+                { key: 'rejected', label: 'Ditolak' },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => {
+                    setHistoryFilterStatus(tab.key)
+                    fetchHistory(tab.key, historyFilterForm, historySearch)
+                  }}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                    historyFilterStatus === tab.key
+                      ? 'bg-primary text-primary-foreground shadow-2xs'
+                      : 'border border-border/70 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Form Code Selector & Search input */}
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              <select
+                value={historyFilterForm}
+                onChange={(e) => {
+                  setHistoryFilterForm(e.target.value)
+                  fetchHistory(historyFilterStatus, e.target.value, historySearch)
+                }}
+                className="h-10 w-full sm:w-56 rounded-xl border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none focus:border-primary"
+              >
+                <option value="all">Semua Formulir IT</option>
+                <option value="ISMS-F-010-001">ISMS-F-010-001 (Pengadaan PC)</option>
+                <option value="ISMS-F-010-003">ISMS-F-010-003 (Software)</option>
+                <option value="ISMS-F-010-006">ISMS-F-010-006 (Email & User ID)</option>
+                <option value="ISMS-F-010-007">ISMS-F-010-007 (Hapus Email/ID)</option>
+                <option value="ISMS-F-03-00-003">ISMS-F-03-00-003 (Koneksi LAN)</option>
+                <option value="ISMS-F-03-00-001">ISMS-F-03-00-001 (Bawa Masuk Alat)</option>
+              </select>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => {
+                    setHistorySearch(e.target.value)
+                    fetchHistory(historyFilterStatus, historyFilterForm, e.target.value)
+                  }}
+                  placeholder="Cari pemohon, NIK, No. Ref..."
+                  className="h-10 w-full rounded-xl border border-input bg-card pl-8 pr-7 text-xs font-medium text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary"
+                />
+                {historySearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHistorySearch('')
+                      fetchHistory(historyFilterStatus, historyFilterForm, '')
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleExportHistoryExcel}
+                disabled={historyList.length === 0}
+                className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
+                title="Export data riwayat pengajuan formulir IT ke Excel (.xlsx)"
+              >
+                <Download className="size-3.5" />
+                <span>Export Excel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Submissions Table */}
+          <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-xs">
+            {historyLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Loader2 className="size-6 animate-spin text-primary" />
+                <p className="mt-2 text-xs font-semibold text-muted-foreground">Memuat riwayat pengajuan formulir IT...</p>
+              </div>
+            ) : historyList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                <FileSignature className="size-10 text-muted-foreground/40 mb-2" />
+                <h4 className="text-sm font-bold text-foreground">Belum Ada Riwayat Pengajuan</h4>
+                <p className="mt-1 text-xs text-muted-foreground max-w-sm">
+                  Tidak ditemukan pengajuan dengan filter yang dipilih. Silakan ubah filter atau ajukan formulir baru.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('form')}
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-xs hover:bg-primary/90 transition cursor-pointer"
+                >
+                  <Plus className="size-3.5" />
+                  Buat Pengajuan Baru
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-border/80 bg-muted/30 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <th className="px-4 py-3">No. / Ref Permohonan</th>
+                      <th className="px-4 py-3">Formulir IT</th>
+                      <th className="px-4 py-3">Pemohon &amp; Departemen</th>
+                      <th className="px-4 py-3">Status &amp; Approval</th>
+                      <th className="px-4 py-3 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {historyList.map((sub) => {
+                      const isApproved = sub.status === 'approved'
+                      const isRejected = sub.status === 'rejected'
+
+                      return (
+                        <tr key={sub.id} className="hover:bg-secondary/30 transition-colors">
+                          <td className="px-4 py-3.5 align-top">
+                            <span className="font-mono font-bold text-foreground text-[11.5px] block">
+                              {sub.request_no}
+                            </span>
+                            <span className="text-[10.5px] text-muted-foreground mt-0.5 block">
+                              {new Date(sub.request_date).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[10.5px] font-bold text-primary">
+                              {sub.form_code}
+                            </span>
+                            <p className="mt-1 font-semibold text-foreground text-[11.5px] line-clamp-1 max-w-[200px]" title={sub.form_name}>
+                              {sub.form_name}
+                            </p>
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <p className="font-bold text-foreground text-[12px]">{sub.applicant_name}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {sub.company_name && sub.company_name !== 'PT. Jatim Autocomp Indonesia' ? (
+                                <span className="font-medium text-primary">{sub.company_name} • </span>
+                              ) : null}
+                              {sub.department} {sub.applicant_position ? `• ${sub.applicant_position}` : ''}
+                            </p>
+                            <span className="inline-block mt-1 text-[10px] font-semibold text-muted-foreground/80 bg-secondary px-1.5 py-0.2 rounded">
+                              Status: {sub.employee_status}
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top">
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${
+                                  isApproved
+                                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                                    : isRejected
+                                    ? 'bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/30'
+                                    : 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30'
+                                }`}
+                              >
+                                {isApproved ? (
+                                  <CheckCircle2 className="size-3" />
+                                ) : isRejected ? (
+                                  <XCircle className="size-3" />
+                                ) : (
+                                  <Clock className="size-3" />
+                                )}
+                                <span>
+                                  {isApproved
+                                    ? 'Disetujui Lengkap'
+                                    : isRejected
+                                    ? 'Ditolak'
+                                    : `Menunggu Step ${sub.current_step}/${sub.total_steps}`}
+                                </span>
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3.5 align-top text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                title="Lihat Status & Detail Lengkap"
+                                onClick={() => viewDetailFromHistory(sub)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition cursor-pointer"
+                              >
+                                <Eye className="size-3.5 text-primary" />
+                                <span className="hidden md:inline">Detail</span>
+                              </button>
+
+                              <a
+                                href={`${API_BASE_PATH}/api/it-form-submissions/${sub.id}/pdf?token=${sub.token}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Download Formulir Resmi PDF"
+                                className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 shadow-2xs transition"
+                              >
+                                <FileDown className="size-3.5" />
+                                <span className="hidden md:inline">PDF</span>
+                              </a>
+
+                              <button
+                                type="button"
+                                title="Salin Tautan Token / Verifikasi"
+                                onClick={() => copyRowLink(sub)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition cursor-pointer"
+                              >
+                                {historyCopiedId === sub.id ? (
+                                  <Check className="size-3.5 text-emerald-600" />
+                                ) : (
+                                  <Copy className="size-3.5" />
+                                )}
+                              </button>
+
+                              {/* TOMBOL HAPUS */}
+                              <button
+                                type="button"
+                                title="Hapus Permohonan"
+                                onClick={() => handleDeleteHistory(sub)}
+                                disabled={deletingId === sub.id}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition disabled:opacity-50 cursor-pointer"
+                              >
+                                {deletingId === sub.id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-3.5" />
+                                )}
+                                <span className="hidden md:inline">Hapus</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Form View (When in 'form' tab) */}
+      {activeTab === 'form' && (
+        <>
+          {/* IF SUBMISSION RESULT EXISTS (LIVE E-SIGN STATUS VIEW) */}
+          {submissionResult ? (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-200">
           <div className="rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-xl">
             <div className="flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-center md:justify-between">
@@ -848,6 +1356,18 @@ function FormItContent() {
                 >
                   <Plus className="size-3.5" />
                   Buat Pengajuan Lain
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubmissionResult(null)
+                    setActiveTab('history')
+                    fetchHistory()
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+                >
+                  <History className="size-3.5" />
+                  Lihat Riwayat
                 </button>
               </div>
             </div>
@@ -989,6 +1509,12 @@ function FormItContent() {
                   <span className="text-muted-foreground block text-[11px] mb-0.5">Nama Pemohon:</span>
                   <span className="font-semibold text-foreground">{submissionResult.applicant_name}</span>
                 </div>
+                {submissionResult.company_name && (
+                  <div>
+                    <span className="text-muted-foreground block text-[11px] mb-0.5">Perusahaan / Organisasi:</span>
+                    <span className="font-semibold text-foreground">{submissionResult.company_name}</span>
+                  </div>
+                )}
                 <div>
                   <span className="text-muted-foreground block text-[11px] mb-0.5">Departemen:</span>
                   <span className="font-semibold text-foreground">{submissionResult.department}</span>
@@ -1287,37 +1813,73 @@ function FormItContent() {
                 </div>
 
                 {/* NIK */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-foreground">
-                    NIK / Nomor Karyawan (従業員番号)
-                  </label>
-                  <div className="relative">
-                    <BadgeCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={applicantNik}
-                      onChange={(e) => setApplicantNik(e.target.value)}
-                      placeholder="Contoh: 123456"
-                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 font-mono shadow-xs"
-                    />
+                {selectedFormCode !== 'ISMS-F-03-00-003' && (
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-foreground">
+                      NIK / Nomor Karyawan (従業員番号)
+                    </label>
+                    <div className="relative">
+                      <BadgeCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={applicantNik}
+                        onChange={(e) => setApplicantNik(e.target.value)}
+                        placeholder="Contoh: 123456"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 font-mono shadow-xs"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Jabatan */}
-                <div>
-                  <label className="mb-1.5 block text-xs font-bold text-foreground">
-                    Jabatan (職務)
-                  </label>
+                {selectedFormCode !== 'ISMS-F-03-00-003' && (
+                  <div>
+                    <label className="mb-1.5 block text-xs font-bold text-foreground">
+                      Jabatan (職務)
+                    </label>
+                    <div className="relative">
+                      <Briefcase className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={applicantPosition}
+                        onChange={(e) => setApplicantPosition(e.target.value)}
+                        placeholder="Contoh: Staff, Leader, Supervisor"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Perusahaan / Organisasi (COMPANY/ORGANIZATION 組織または会社名) */}
+                <div className="sm:col-span-2 lg:col-span-3 animate-in fade-in">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-foreground">
+                      Company / Organization (組織または会社名) {selectedFormCode === 'ISMS-F-03-00-003' && <span className="text-destructive">*</span>}
+                    </label>
+                    <span className="text-[10px] font-bold text-muted-foreground font-mono">
+                      {selectedFormCode === 'ISMS-F-03-00-003' ? (
+                        <span className="text-primary font-semibold">Kolom Wajib Formulir ISMS-F-03-00-003</span>
+                      ) : (
+                        'Perusahaan / Organisasi Pemohon'
+                      )}
+                    </span>
+                  </div>
                   <div className="relative">
-                    <Briefcase className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
-                      value={applicantPosition}
-                      onChange={(e) => setApplicantPosition(e.target.value)}
-                      placeholder="Contoh: Staff, Leader, Supervisor"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Contoh: PT. Jatim Autocomp Indonesia / Nama Perusahaan Pemohon"
                       className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
+                      required={selectedFormCode === 'ISMS-F-03-00-003'}
                     />
                   </div>
+                  {selectedFormCode === 'ISMS-F-03-00-003' && (
+                    <p className="mt-1 text-[11px] text-muted-foreground font-medium">
+                      Dicetak pada baris <code className="font-mono font-bold text-foreground">COMPANY/ORGANIZATION (組織または会社名)</code> formulir resmi koneksi jaringan ISMS-F-03-00-003.
+                    </p>
+                  )}
                 </div>
 
                 {/* Departemen & Seksi / Bagian (CASCADING DROPDOWNS) */}
@@ -1438,7 +2000,7 @@ function FormItContent() {
                           ) : (
                             <User className="size-3.5 text-muted-foreground shrink-0" />
                           )}
-                          <span>{st === 'Other' ? 'Lainnya / Vendor' : st}</span>
+                          <span>{st === 'Other' ? 'Lainnya' : st}</span>
                         </button>
                       )
                     })}
@@ -1448,7 +2010,7 @@ function FormItContent() {
                 {employeeStatus === 'Other' && (
                   <div className="sm:col-span-3 animate-in fade-in">
                     <label className="mb-1.5 block text-xs font-bold text-foreground">
-                      Keterangan Status Lainnya (e.g. Magang, Vendor, Tamu)
+                      Keterangan Status Lainnya (e.g. Magang, PKL, Tamu)
                     </label>
                     <input
                       type="text"
@@ -2309,9 +2871,9 @@ function FormItContent() {
                     <ShieldCheck className="size-4 text-primary" />
                     <span>Verifikasi Anti-Virus &amp; Konfigurasi IP (IT Security Check)</span>
                   </h4>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">Status Anti-Virus Terinstall</label>
+                      <label className="mb-1 block text-xs font-bold text-foreground">1. Status Anti-Virus (YES/NO)</label>
                       <select
                         value={antivirusInstalled ? 'yes' : 'no'}
                         onChange={(e) => setAntivirusInstalled(e.target.value === 'yes')}
@@ -2322,21 +2884,46 @@ function FormItContent() {
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">Nama Software Anti-Virus</label>
+                      <label className="mb-1 block text-xs font-bold text-foreground">2. Nama Software Anti-Virus</label>
                       <input
                         type="text"
                         value={antivirusName}
                         onChange={(e) => setAntivirusName(e.target.value)}
+                        placeholder="Windows Defender, Trend Micro, dsb."
                         className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
                       />
                     </div>
                     <div>
-                      <label className="mb-1 block text-xs font-bold text-foreground">Sistem Operasi (OS)</label>
+                      <label className="mb-1 block text-xs font-bold text-foreground">
+                        3. Software Version (バージョン)
+                      </label>
+                      <input
+                        type="text"
+                        value={antivirusVersion}
+                        onChange={(e) => setAntivirusVersion(e.target.value)}
+                        placeholder="Contoh: v1.405.210 / 10.0"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-bold text-foreground">
+                        3. Virus Definition Last Update (最終更新)
+                      </label>
+                      <input
+                        type="text"
+                        value={virusDefinitionUpdate}
+                        onChange={(e) => setVirusDefinitionUpdate(e.target.value)}
+                        placeholder="Contoh: 2026-10-27 / Update Terbaru"
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <label className="mb-1 block text-xs font-bold text-foreground">4. Sistem Operasi (OS Information)</label>
                       <input
                         type="text"
                         value={osInfo}
                         onChange={(e) => setOsInfo(e.target.value)}
-                        placeholder="Windows 11 / MacOS / Linux"
+                        placeholder="Windows 11 Pro 64-bit / MacOS / Linux"
                         className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-medium text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
                       />
                     </div>
@@ -2572,6 +3159,8 @@ function FormItContent() {
             </div>
           </form>
         </div>
+      )}
+        </>
       )}
     </div>
   )

@@ -36,14 +36,14 @@ function IjinFotoVideoContent() {
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-600 hover:border-emerald-500 active:scale-95"
         >
           <Camera className="size-3 text-emerald-300" />
-          <span>Tinjau Permintaan &amp; USB</span>
+          <span>Tinjau Permintaan &amp; Device</span>
         </Link>
         <Link
           href="/kelola-kamera"
           className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-600 hover:border-emerald-500 active:scale-95"
         >
           <Aperture className="size-3 text-emerald-300" />
-          <span>Master Kamera &amp; USB</span>
+          <span>Master Kamera, USB &amp; Smart Device</span>
         </Link>
         <Link
           href="/kelola-pic-approve"

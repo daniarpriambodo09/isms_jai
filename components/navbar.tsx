@@ -37,8 +37,8 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
   {
     title: 'Pengaturan Form & E-Sign',
     items: [
-      { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin & pengembalian USB', icon: Camera },
-      { href: '/kelola-kamera', label: 'Master Kamera & USB', hint: 'Unit kamera & USB terdaftar', icon: Aperture },
+      { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin & pengembalian device', icon: Camera },
+      { href: '/kelola-kamera', label: 'Master Kamera, USB & Smart Device', hint: 'Unit kamera, USB & smart device', icon: Aperture },
       { href: '/kelola-pic-approve', label: 'PIC Approver Foto/Video', hint: 'Penyetuju internal & default visitor', icon: UserCheck },
       { href: '/kelola-izin-alat-it', label: 'Izin Masuk Alat IT', hint: 'Tinjau izin bawa PC/alat IT', icon: Laptop },
       { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk, master area & escort', icon: ShieldAlert },

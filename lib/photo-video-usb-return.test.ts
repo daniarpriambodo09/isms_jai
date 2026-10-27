@@ -59,4 +59,37 @@ describe('Photo Video USB and Return Time Logic', () => {
     expect(resolvedUsb1).toBe('USB-ISMS-02')
     expect(resolvedUsb2).toBe('USB-ISMS-01')
   })
+
+  it('handles optional smartDeviceControlNo properly', () => {
+    const payloadWithSmartDevice = {
+      requesterName: 'Budi Santoso',
+      cameraControlNo: 'TRN-CAM-01',
+      photoIdNo: 'PHOTO-ID-01',
+      usbControlNo: 'USB-ISMS-01',
+      smartDeviceControlNo: 'SMT-QA-01',
+    }
+
+    const payloadWithoutSmartDevice = {
+      requesterName: 'Siti Rahma',
+      cameraControlNo: 'TRN-CAM-02',
+      photoIdNo: 'PHOTO-ID-02',
+      usbControlNo: null,
+      smartDeviceControlNo: null,
+    }
+
+    expect(payloadWithSmartDevice.smartDeviceControlNo).toBe('SMT-QA-01')
+    expect(payloadWithoutSmartDevice.smartDeviceControlNo).toBeNull()
+  })
+
+  it('preserves or overrides smartDeviceControlNo during approval decision', () => {
+    const existingSmart = 'SMT-QA-01'
+    const adminDecisionWithNewSmart = { status: 'approved', smartDeviceControlNo: 'SMT-QA-02' }
+    const adminDecisionWithoutChange = { status: 'approved', smartDeviceControlNo: undefined }
+
+    const resolvedSmart1 = adminDecisionWithNewSmart.smartDeviceControlNo ?? existingSmart
+    const resolvedSmart2 = adminDecisionWithoutChange.smartDeviceControlNo ?? existingSmart
+
+    expect(resolvedSmart1).toBe('SMT-QA-02')
+    expect(resolvedSmart2).toBe('SMT-QA-01')
+  })
 })

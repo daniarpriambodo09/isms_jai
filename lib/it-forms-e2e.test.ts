@@ -217,4 +217,81 @@ describe('IT Forms and E-Sign System Verification', () => {
       expect(header).toBe('%PDF-')
     })
   }
+
+  it('renders ISMS-F-03-00-003 with IAA Step 1 approval and IT Check Step 2 plus virus definition update', async () => {
+    const mockSub: ItFormSubmission = {
+      id: 200,
+      request_no: 'ISMS-NET-2026-0001',
+      form_code: 'ISMS-F-03-00-003',
+      form_name: 'Company Network Connection Application Form',
+      request_date: '2026-10-27',
+      applicant_name: 'Budi Santoso',
+      applicant_nik: null,
+      applicant_position: null,
+      employee_status: 'Permanent',
+      department: 'Engineering Section',
+      company_name: 'PT. Jatim Autocomp Indonesia',
+      purpose: 'Koneksi laptop perbaikan mesin',
+      form_data: {
+        period_from: '2026-10-27',
+        period_to: '2026-10-28',
+        location: 'Ruang Server & Produksi',
+        purpose_internet: true,
+        purpose_email: false,
+        purpose_web: true,
+        antivirus_installed: true,
+        antivirus_name: 'Trend Micro Apex One',
+        antivirus_version: 'v14.0.1192',
+        virus_definition_update: '2026-10-27',
+        os_info: 'Windows 11 Pro 64-bit',
+        ip_mode: 'dhcp'
+      },
+      status: 'approved',
+      current_step: 2,
+      total_steps: 2,
+      token: 'token-verify-net-003',
+      notes: 'Disetujui untuk koneksi jaringan sementara.',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      signatures: [
+        {
+          id: 201,
+          submission_id: 200,
+          step_number: 1,
+          slot_label: 'APPROVAL',
+          role_title: 'Information Assets Administrator',
+          approver_name: 'TEGUH SUNJOYO',
+          approver_email: 'teguh.sunjoyo@jai.co.id',
+          status: 'approved',
+          verification_code: 'ESIGN-IAA-01',
+          signed_at: '2026-10-27T08:30:00Z',
+          signature_note: 'Approved',
+          created_at: '2026-10-27T08:00:00Z',
+          updated_at: '2026-10-27T08:30:00Z'
+        },
+        {
+          id: 202,
+          submission_id: 200,
+          step_number: 2,
+          slot_label: 'IT SECTION CHECK',
+          role_title: 'IT Section / System Security Admin',
+          approver_name: 'IT Security Admin',
+          approver_email: 'it.security@jai.co.id',
+          status: 'approved',
+          verification_code: 'ESIGN-IT-02',
+          signed_at: '2026-10-27T09:00:00Z',
+          signature_note: 'Security Check Verified OK',
+          created_at: '2026-10-27T08:00:00Z',
+          updated_at: '2026-10-27T09:00:00Z'
+        }
+      ]
+    }
+
+    const verifyUrl = `https://isms.jai.co.id/api/it-form-submissions/200/verify?token=${mockSub.token}`
+    const pdfBytes = await buildItFormPdf(mockSub, verifyUrl)
+    expect(pdfBytes).toBeDefined()
+    expect(pdfBytes.length).toBeGreaterThan(1000)
+    const header = Buffer.from(pdfBytes.slice(0, 5)).toString()
+    expect(header).toBe('%PDF-')
+  })
 })

@@ -4,6 +4,7 @@ import {
   createItFormSubmission,
   getItFormSubmissions,
   getItFormSubmissionByToken,
+  deleteItFormSubmission,
 } from '@/lib/it-form-service'
 
 export async function GET(request: NextRequest) {
@@ -72,5 +73,25 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating IT form submission:', error)
     return NextResponse.json({ error: error.message || 'Gagal mengajukan permohonan' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id || isNaN(Number(id))) {
+      return NextResponse.json({ error: 'ID permohonan tidak valid' }, { status: 400 })
+    }
+
+    const success = await deleteItFormSubmission(Number(id))
+    if (!success) {
+      return NextResponse.json({ error: 'Permohonan tidak ditemukan atau sudah dihapus' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true, message: 'Permohonan berhasil dihapus' })
+  } catch (error: any) {
+    console.error('Error deleting IT form submission:', error)
+    return NextResponse.json({ error: error.message || 'Gagal menghapus permohonan' }, { status: 500 })
   }
 }

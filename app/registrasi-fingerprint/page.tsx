@@ -45,6 +45,7 @@ import {
   History,
   FileDown,
   Filter,
+  Trash2,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import {
@@ -53,6 +54,7 @@ import {
   type ItFormSubmission,
 } from '@/lib/it-form-shared'
 import { SPECIAL_AREAS } from '@/lib/special-area-shared'
+import { downloadExcel } from '@/lib/excel-export'
 import { useAuth } from '@/context/AuthContext'
 
 interface DepartmentItem {
@@ -122,7 +124,6 @@ function FingerprintPageInner() {
   const [copiedLink, setCopiedLink] = useState(false)
 
   // In-page Token / Review state
-  const [searchInput, setSearchInput] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
 
   // Approvers list
@@ -135,6 +136,7 @@ function FingerprintPageInner() {
   const [historyFilterStatus, setHistoryFilterStatus] = useState<string>('all')
   const [historySearch, setHistorySearch] = useState<string>('')
   const [copiedRowId, setCopiedRowId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   // Fetch departments & cascading sections from database
   useEffect(() => {
@@ -387,6 +389,75 @@ function FingerprintPageInner() {
     window.scrollTo({ top: 120, behavior: 'smooth' })
   }
 
+  const handleDeleteHistory = async (sub: ItFormSubmission) => {
+    const ok = window.confirm(
+      `Apakah Anda yakin ingin menghapus permohonan No. ${sub.request_no} atas nama "${sub.applicant_name}"?\n\nData yang dihapus tidak dapat dipulihkan.`
+    )
+    if (!ok) return
+
+    setDeletingId(sub.id)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions/${sub.id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menghapus permohonan.')
+      await fetchHistory()
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus permohonan.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleExportHistoryExcel = () => {
+    if (!historyList.length) return
+    const filename = `riwayat-registrasi-fingerprint-${new Date().toISOString().slice(0, 10)}`
+    const headers = [
+      'No',
+      'No. Permohonan',
+      'Tanggal Permohonan',
+      'Nama Pemohon',
+      'NIK / No. Karyawan',
+      'Departemen',
+      'Seksi / Bagian',
+      'Area Akses (Special / Bisnis)',
+      'ID Fingerprint',
+      'Masa Berlaku Akses',
+      'Status Permohonan',
+      'Approver E-Sign',
+      'Tanggal Sah E-Sign',
+      'Alasan Kebutuhan Akses',
+    ]
+
+    const rows = historyList.map((sub, idx) => {
+      const isApproved = sub.status === 'approved'
+      const isRejected = sub.status === 'rejected'
+      const sig = sub.signatures?.[0]
+      const areaName = sub.form_data?.area_special_security || sub.purpose || 'Special Security Area'
+      const statusLabel = isApproved ? 'Disetujui' : isRejected ? 'Ditolak' : 'Menunggu Approval'
+
+      return [
+        idx + 1,
+        sub.request_no,
+        sub.request_date,
+        sub.applicant_name,
+        sub.applicant_nik || '-',
+        sub.department,
+        (sub.form_data?.section as string) || '-',
+        areaName,
+        sub.form_data?.fingerprint_id || '-',
+        sub.form_data?.access_deletion_date || 'Sesuai Masa Penugasan',
+        statusLabel,
+        sig?.approver_name || 'Teguh Sunjoyo (IAA)',
+        isApproved && sig?.signed_at ? new Date(sig.signed_at).toLocaleDateString('id-ID') : '-',
+        sub.notes || '-',
+      ]
+    })
+
+    downloadExcel(filename, headers, rows, 'Registrasi Fingerprint')
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-8 pb-24 pt-4 px-3 sm:px-6">
       {/* Top Banner / Hero */}
@@ -507,42 +578,6 @@ function FingerprintPageInner() {
         )}
       </div>
 
-      {/* Track & Search Bar (Only shown on form tab) */}
-      {activeTab === 'form' && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card/60 p-3 sm:p-4 backdrop-blur-xs">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Info className="size-4 text-indigo-600 shrink-0" />
-            <span>Sudah pernah mengajukan? Masukkan Token / ID permohonan untuk cek status atau review persetujuan E-Sign:</span>
-          </div>
-          <div className="flex w-full sm:w-auto items-center gap-2">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Cari token..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchInput.trim()) {
-                    fetchSubmissionByToken(searchInput.trim())
-                  }
-                }}
-                className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500 focus:outline-hidden"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (searchInput.trim()) fetchSubmissionByToken(searchInput.trim())
-              }}
-              disabled={searchLoading || !searchInput.trim()}
-              className="inline-flex h-9 items-center justify-center rounded-xl bg-indigo-600 px-3 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-            >
-              {searchLoading ? <Loader2 className="size-3.5 animate-spin" /> : 'Cek Status'}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Submission Result / Active Review Box */}
       {submissionResult && activeTab === 'form' && (
@@ -644,9 +679,9 @@ function FingerprintPageInner() {
               <p className="text-muted-foreground mt-0.5">Status: {submissionResult.employee_status}</p>
             </div>
             <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
-              <p className="text-muted-foreground font-semibold">Area Special Security</p>
+              <p className="text-muted-foreground font-semibold">Area Akses (Special / Bisnis)</p>
               <p className="mt-1 font-bold text-indigo-600 dark:text-indigo-400 text-sm">
-                {submissionResult.form_data?.area_special_security || submissionResult.purpose || 'Special Security Area'}
+                {submissionResult.form_data?.area_special_security || submissionResult.purpose || 'Area Akses Terdaftar'}
               </p>
               <p className="text-muted-foreground font-mono mt-0.5">
                 ID Sidik Jari: {submissionResult.form_data?.fingerprint_id || '-'}
@@ -902,25 +937,34 @@ function FingerprintPageInner() {
                         }`}
                       >
                         {isSelected && <Check className="size-3.5 text-indigo-600 shrink-0" />}
-                        <span>{st === 'Other' ? 'Lainnya / Vendor' : st}</span>
+                        <span>{st === 'Other' ? 'Lainnya' : st}</span>
                       </button>
                     )
                   })}
                 </div>
                 {employeeStatus === 'Other' && (
-                  <input
-                    type="text"
-                    value={otherStatus}
-                    onChange={(e) => setOtherStatus(e.target.value)}
-                    placeholder="Sebutkan status hubungan kerja..."
-                    className="mt-2 h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
-                  />
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 animate-in fade-in">
+                    <input
+                      type="text"
+                      value={otherStatus}
+                      onChange={(e) => setOtherStatus(e.target.value)}
+                      placeholder="Sebutkan status hubungan kerja..."
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
+                    />
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Nama Perusahaan / Organisasi..."
+                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
+                    />
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Section 2: Detail Akses Special Security Area (LINKED TO SPECIAL SECURITY AREA MASTER) */}
+          {/* Section 2: Detail Akses Area (Special Security / Business Area) */}
           <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs">
             <div className="flex items-center gap-2.5 border-b border-border/70 pb-4 mb-6">
               <div className="grid size-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
@@ -928,24 +972,24 @@ function FingerprintPageInner() {
               </div>
               <div>
                 <h3 className="font-display text-base font-bold text-foreground">
-                  2. Area Special Security &amp; Masa Berlaku
+                  2. Area Akses (Special Security / Business Area) &amp; Masa Berlaku
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Pemilihan zona keamanan khusus yang dimohonkan akses sidik jarinya (tersinkron dengan Master Special Security Area).
+                  Pemilihan zona keamanan khusus atau area bisnis yang dimohonkan akses sidik jarinya (tersinkron dengan Master Area PT. JAI).
                 </p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Area Special Security - DYNAMIC MASTER LIST */}
+              {/* Area Akses (Special Security / Area Bisnis) - DYNAMIC MASTER LIST */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-foreground">
-                    Area Special Security (入退する特別区画) <span className="text-red-500">*</span>
+                    Area Akses (Special Security / Area Bisnis) <span className="text-red-500">*</span>
                   </label>
                   <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
                     <ShieldCheck className="size-3" />
-                    Sinkron Master Area Special
+                    Sinkron Master Area
                   </span>
                 </div>
                 <select
@@ -965,12 +1009,12 @@ function FingerprintPageInner() {
                     type="text"
                     value={customArea}
                     onChange={(e) => setCustomArea(e.target.value)}
-                    placeholder="Sebutkan area khusus yang dimohonkan..."
+                    placeholder="Sebutkan area khusus atau area bisnis yang dimohonkan..."
                     className="mt-2 h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
                   />
                 )}
                 <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Pilihan zona terdaftar di Diagram Security Area PT. JAI.</span>
+                  <span>Pilihan zona terdaftar di Diagram Security Area &amp; Area Bisnis PT. JAI.</span>
                   {adminUser && (adminUser.role === 'ism_admin' || adminUser.role === 'it') && (
                     <Link
                       href="/kelola-izin-area-special"
@@ -1227,31 +1271,44 @@ function FingerprintPageInner() {
               })}
             </div>
 
-            {/* Search Input */}
-            <div className="relative w-full sm:w-72">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Cari nama, NIK, No. Request, area..."
-                value={historySearch}
-                onChange={(e) => {
-                  setHistorySearch(e.target.value)
-                  fetchHistory(historyFilterStatus, e.target.value)
-                }}
-                className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500 outline-none"
-              />
-              {historySearch && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setHistorySearch('')
-                    fetchHistory(historyFilterStatus, '')
+            {/* Search Input & Export Button */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-72">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Cari nama, NIK, No. Request, area..."
+                  value={historySearch}
+                  onChange={(e) => {
+                    setHistorySearch(e.target.value)
+                    fetchHistory(historyFilterStatus, e.target.value)
                   }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
+                  className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500 outline-none"
+                />
+                {historySearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHistorySearch('')
+                      fetchHistory(historyFilterStatus, '')
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleExportHistoryExcel}
+                disabled={historyList.length === 0}
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap w-full sm:w-auto"
+                title="Export riwayat pendaftaran fingerprint ke Excel (.xlsx)"
+              >
+                <Download className="size-3.5" />
+                <span>Export Excel</span>
+              </button>
             </div>
           </div>
 
@@ -1294,7 +1351,7 @@ function FingerprintPageInner() {
                       <th className="px-4 py-3.5">No. Request &amp; Tanggal</th>
                       <th className="px-4 py-3.5">Pemohon</th>
                       <th className="px-4 py-3.5">Departemen</th>
-                      <th className="px-4 py-3.5">Area Special Security</th>
+                      <th className="px-4 py-3.5">Area Akses (Special / Bisnis)</th>
                       <th className="px-4 py-3.5">Masa Berlaku</th>
                       <th className="px-4 py-3.5">Status E-Sign</th>
                       <th className="px-4 py-3.5 text-right">Aksi</th>
@@ -1431,6 +1488,21 @@ function FingerprintPageInner() {
                                 ) : (
                                   <Copy className="size-3.5" />
                                 )}
+                              </button>
+
+                              <button
+                                type="button"
+                                title="Hapus Permohonan"
+                                onClick={() => handleDeleteHistory(sub)}
+                                disabled={deletingId === sub.id}
+                                className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white transition disabled:opacity-50 cursor-pointer"
+                              >
+                                {deletingId === sub.id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-3.5" />
+                                )}
+                                <span className="hidden md:inline">Hapus</span>
                               </button>
                             </div>
                           </td>

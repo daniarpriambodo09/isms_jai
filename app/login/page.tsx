@@ -23,12 +23,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#090f17]">
+    <main className="min-h-screen bg-background">
       <AuthSplitLogin
         eyebrow="Portal Otorisasi Resmi"
         title={
           <>
-            Selamat Datang <span className="text-blue-400">Kembali</span>
+            Selamat Datang <span className="text-primary">Kembali</span>
           </>
         }
         subtitle="Masuk untuk mengakses instrumen kendali ISMS ISO/IEC 27001, persetujuan dokumen berjenjang, dan tata kelola aset informasi."
@@ -41,9 +41,9 @@ export default function LoginPage() {
           <Link
             href="/"
             aria-label="Kembali ke Beranda"
-            className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold text-white/90 shadow-md backdrop-blur-md transition hover:bg-white/20 hover:text-white active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-2xs transition hover:bg-secondary active:scale-95 cursor-pointer"
           >
-            <Home className="size-3.5 text-blue-300" />
+            <Home className="size-3.5 text-primary" />
             <span>Beranda Portal</span>
           </Link>
         }

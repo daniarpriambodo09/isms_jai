@@ -68,7 +68,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
               type="button"
               onClick={onClose}
               aria-label="Tutup"
-              className="grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white/80 shadow-md backdrop-blur-md transition hover:bg-white/20 hover:text-white cursor-pointer active:scale-95"
+              className="grid size-10 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-2xs transition hover:bg-secondary hover:text-foreground cursor-pointer active:scale-95"
             >
               <X className="size-[18px]" />
             </button>

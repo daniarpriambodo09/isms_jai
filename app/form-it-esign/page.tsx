@@ -1587,16 +1587,30 @@ function FormItContent() {
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-[11px] mb-0.5">Metode IP:</span>
-                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
-                        <Check className="size-3" /> DHCP (Automatic)
-                      </span>
+                      {submissionResult.form_data?.ip_mode === 'static' ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-blue-700 dark:text-blue-400">
+                          <Check className="size-3" /> STATIC IP (Manual)
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                          <Check className="size-3" /> DHCP (Automatic)
+                        </span>
+                      )}
                     </div>
                     <div className="col-span-2">
                       <span className="text-muted-foreground block text-[11px] mb-0.5">Alokasi IP Address IT:</span>
                       {submissionResult.form_data?.assigned_ip || submissionResult.form_data?.static_ip ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 font-mono font-bold text-emerald-800 dark:text-emerald-300">
-                          <Check className="size-3.5" /> {submissionResult.form_data?.assigned_ip || submissionResult.form_data?.static_ip}
-                        </span>
+                        <div className="space-y-1">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 font-mono font-bold text-emerald-800 dark:text-emerald-300">
+                            <Check className="size-3.5" /> {submissionResult.form_data?.assigned_ip || submissionResult.form_data?.static_ip}
+                          </span>
+                          {submissionResult.form_data?.ip_mode === 'static' && (submissionResult.form_data?.static_subnet || submissionResult.form_data?.static_gateway) && (
+                            <div className="text-[11px] font-mono text-muted-foreground">
+                              {submissionResult.form_data?.static_subnet ? `Netmask: ${submissionResult.form_data.static_subnet}` : ''}
+                              {submissionResult.form_data?.static_gateway ? ` · GW: ${submissionResult.form_data.static_gateway}` : ''}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-[11px] font-medium">
                           <Clock className="size-3" /> Menunggu Alokasi Tim IT (Setelah IT Check)
@@ -3023,7 +3037,7 @@ function FormItContent() {
                           <span>DHCP (Automatic IP - Standar Tamu &amp; Rekanan)</span>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                          *Sesuai ketentuan keamanan ISMS JAI, seluruh perangkat tamu/rekanan menggunakan DHCP.
+                          *Sesuai ketentuan keamanan ISMS JAI, pemohon tamu/rekanan mendaftar via DHCP. Pengaturan Static IP darurat/manual dialokasikan langsung oleh Tim IT saat pengecekan teknis.
                         </p>
                       </div>
 

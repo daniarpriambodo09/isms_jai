@@ -28,6 +28,7 @@ import {
   PencilLine,
   Loader2,
   Send,
+  Save,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
@@ -46,14 +47,28 @@ export default function KelolaIzinAlatItPage() {
   const [itSignLoading, setItSignLoading] = useState(false)
   const [itSignNote, setItSignNote] = useState('')
   const [itSignerName, setItSignerName] = useState('')
+  const [itIpMode, setItIpMode] = useState<'dhcp' | 'static'>('dhcp')
   const [itAssignedIp, setItAssignedIp] = useState('')
+  const [itStaticSubnet, setItStaticSubnet] = useState('255.255.255.0')
+  const [itStaticGateway, setItStaticGateway] = useState('')
+  const [itDnsPriority, setItDnsPriority] = useState('')
+  const [itDnsSecondary, setItDnsSecondary] = useState('')
+  const [itSavingIpConfig, setItSavingIpConfig] = useState(false)
+  const [itSaveIpSuccess, setItSaveIpSuccess] = useState<string | null>(null)
   const [itResendingId, setItResendingId] = useState<number | null>(null)
   const [itResendNotice, setItResendNotice] = useState<string | null>(null)
 
   useEffect(() => {
     if (selectedItSub) {
-      setItAssignedIp(selectedItSub.form_data?.assigned_ip || selectedItSub.form_data?.static_ip || '')
+      const fd = selectedItSub.form_data || {}
+      setItIpMode(fd.ip_mode === 'static' ? 'static' : 'dhcp')
+      setItAssignedIp(fd.assigned_ip || fd.static_ip || fd.ip_address || '')
+      setItStaticSubnet(fd.static_subnet || '255.255.255.0')
+      setItStaticGateway(fd.static_gateway || '')
+      setItDnsPriority(fd.dns_priority || '')
+      setItDnsSecondary(fd.dns_secondary || '')
       setItSignNote('')
+      setItSaveIpSuccess(null)
     }
   }, [selectedItSub])
 
@@ -134,20 +149,70 @@ export default function KelolaIzinAlatItPage() {
     }
   }
 
+  const handleSaveIpConfig = async () => {
+    if (!selectedItSub) return
+    setItSavingIpConfig(true)
+    setItSaveIpSuccess(null)
+    try {
+      const updates: Record<string, any> = {
+        ip_mode: itIpMode,
+        assigned_ip: itAssignedIp.trim(),
+        static_ip: itAssignedIp.trim(),
+        ip_address: itAssignedIp.trim(),
+        static_subnet: itIpMode === 'static' ? (itStaticSubnet.trim() || '255.255.255.0') : undefined,
+        static_gateway: itIpMode === 'static' ? itStaticGateway.trim() : undefined,
+        dns_priority: itIpMode === 'static' ? itDnsPriority.trim() : undefined,
+        dns_secondary: itIpMode === 'static' ? itDnsSecondary.trim() : undefined,
+      }
+      const res = await fetch(`/api/it-form-submissions/${selectedItSub.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form_data: updates, assigned_ip: itAssignedIp.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Gagal menyimpan konfigurasi IP')
+      if (data.submission) {
+        setSelectedItSub(data.submission)
+      }
+      await fetchItSubmissions()
+      setItSaveIpSuccess('Konfigurasi IP berhasil diperbarui & tersinkronisasi ke PDF!')
+      setTimeout(() => setItSaveIpSuccess(null), 4000)
+    } catch (err: any) {
+      alert(err.message || 'Gagal menyimpan konfigurasi IP')
+    } finally {
+      setItSavingIpConfig(false)
+    }
+  }
+
   const handleSignItSub = async (stepNum: number, decision: 'approve' | 'reject') => {
     if (!selectedItSub) return
     setItSignLoading(true)
     try {
+      const payload: Record<string, any> = {
+        step_number: stepNum,
+        decision,
+        approver_name: itSignerName || username || 'IT Admin',
+        signature_note: itSignNote || null,
+      }
+
+      if (selectedItSub.form_code === 'ISMS-F-03-00-003' && stepNum === 2 && decision === 'approve') {
+        payload.assigned_ip = itAssignedIp.trim() || undefined
+        payload.form_data_updates = {
+          ip_mode: itIpMode,
+          assigned_ip: itAssignedIp.trim(),
+          static_ip: itAssignedIp.trim(),
+          ip_address: itAssignedIp.trim(),
+          static_subnet: itIpMode === 'static' ? (itStaticSubnet.trim() || '255.255.255.0') : undefined,
+          static_gateway: itIpMode === 'static' ? itStaticGateway.trim() : undefined,
+          dns_priority: itIpMode === 'static' ? itDnsPriority.trim() : undefined,
+          dns_secondary: itIpMode === 'static' ? itDnsSecondary.trim() : undefined,
+        }
+      }
+
       const res = await fetch(`/api/it-form-submissions/${selectedItSub.id}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          step_number: stepNum,
-          decision,
-          approver_name: itSignerName || username || 'IT Admin',
-          signature_note: itSignNote || null,
-          assigned_ip: itAssignedIp.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Gagal memproses tanda tangan')
@@ -1625,7 +1690,9 @@ export default function KelolaIzinAlatItPage() {
                     </div>
                     <div>
                       <span className="text-muted-foreground block">Metode IP:</span>
-                      <span className="font-semibold text-emerald-600">DHCP (Automatic)</span>
+                      <span className={`font-semibold ${selectedItSub.form_data?.ip_mode === 'static' ? 'text-blue-600' : 'text-emerald-600'}`}>
+                        {selectedItSub.form_data?.ip_mode === 'static' ? 'STATIC IP (Manual / Darurat)' : 'DHCP (Automatic)'}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block">Alokasi IP Address:</span>
@@ -1636,6 +1703,181 @@ export default function KelolaIzinAlatItPage() {
                   </div>
                 )}
               </div>
+
+              {/* Dedicated IT Network IP Configuration Panel (ISMS-F-03-00-003) */}
+              {selectedItSub.form_code === 'ISMS-F-03-00-003' && (
+                <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-blue-500/20 pb-2.5">
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <ShieldCheck className="size-4 text-blue-600" />
+                        <span>Pengaturan Alamat IP (IT Network Management)</span>
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Normal menggunakan DHCP. Ganti ke <strong>STATIC IP</strong> jika darurat (misal saat PIC Network berhalangan / konfigurasi manual).
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-card border border-border text-foreground font-semibold">
+                        MAC: {selectedItSub.form_data?.mac_address || '-'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Toggle Mode: DHCP vs STATIC IP */}
+                  <div>
+                    <label className="text-[11px] font-bold text-foreground block mb-1.5">
+                      Pilih Metode Alokasi IP:
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5 max-w-sm">
+                      <button
+                        type="button"
+                        onClick={() => setItIpMode('dhcp')}
+                        className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          itIpMode === 'dhcp'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-card border border-border text-muted-foreground hover:bg-secondary'
+                        }`}
+                      >
+                        {itIpMode === 'dhcp' && <Check className="size-3.5" />}
+                        <span>DHCP (Automatic)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setItIpMode('static')}
+                        className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          itIpMode === 'static'
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-card border border-border text-muted-foreground hover:bg-secondary'
+                        }`}
+                      >
+                        {itIpMode === 'static' && <Check className="size-3.5" />}
+                        <span>STATIC IP (Darurat / Manual)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Input fields based on mode */}
+                  {itIpMode === 'dhcp' ? (
+                    <div>
+                      <label className="text-[11px] font-bold text-foreground block mb-1">
+                        Alokasi IP Address IT (DHCP Reservation)
+                      </label>
+                      <input
+                        type="text"
+                        value={itAssignedIp}
+                        onChange={(e) => setItAssignedIp(e.target.value)}
+                        placeholder="Contoh: 192.168.10.150"
+                        className="h-8 w-full max-w-md rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                      />
+                      <p className="text-[10.5px] text-muted-foreground mt-1">
+                        *IP yang dialokasikan Tim IT untuk MAC Address perangkat tamu.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="text-[11px] font-bold text-foreground block mb-1">
+                            IP Address (Manual) <span className="text-destructive">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={itAssignedIp}
+                            onChange={(e) => setItAssignedIp(e.target.value)}
+                            placeholder="192.168.1.xxx"
+                            className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-foreground block mb-1">
+                            Subnet Mask <span className="text-destructive">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={itStaticSubnet}
+                            onChange={(e) => setItStaticSubnet(e.target.value)}
+                            placeholder="255.255.255.0"
+                            className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-foreground block mb-1">
+                            Gateway Address <span className="text-destructive">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={itStaticGateway}
+                            onChange={(e) => setItStaticGateway(e.target.value)}
+                            placeholder="192.168.1.1"
+                            className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[11px] font-medium text-foreground block mb-1">
+                            DNS Priority (Opsional)
+                          </label>
+                          <input
+                            type="text"
+                            value={itDnsPriority}
+                            onChange={(e) => setItDnsPriority(e.target.value)}
+                            placeholder="192.168.1.1 atau 8.8.8.8"
+                            className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono text-foreground outline-none focus:border-ring focus:ring-2"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-medium text-foreground block mb-1">
+                            DNS Secondary (Opsional)
+                          </label>
+                          <input
+                            type="text"
+                            value={itDnsSecondary}
+                            onChange={(e) => setItDnsSecondary(e.target.value)}
+                            placeholder="8.8.4.4"
+                            className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono text-foreground outline-none focus:border-ring focus:ring-2"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                        *Mode STATIC IP ini otomatis mencentang kotak STATIC pada form PDF dan mencetak seluruh parameter IP, Subnet, dan Gateway pada lembar dokumen resmi.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Save button - accessible anytime, including when already approved! */}
+                  <div className="pt-2 border-t border-blue-500/20 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveIpConfig}
+                        disabled={itSavingIpConfig}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition shadow-xs cursor-pointer"
+                      >
+                        {itSavingIpConfig ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
+                        <span>{itSavingIpConfig ? 'Menyimpan...' : 'Simpan / Perbarui Konfigurasi IP'}</span>
+                      </button>
+                      {itSaveIpSuccess && (
+                        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-in fade-in">
+                          <Check className="size-3.5" /> {itSaveIpSuccess}
+                        </span>
+                      )}
+                    </div>
+
+                    <a
+                      href={`/api/it-form-submissions/${selectedItSub.id}/pdf`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="size-3" /> Preview Dokumen PDF
+                    </a>
+                  </div>
+                </div>
+              )}
 
               {/* Approval Steps & Actions */}
               <div>
@@ -1716,24 +1958,16 @@ export default function KelolaIzinAlatItPage() {
                           <div className="mt-3 border-t border-border/60 pt-3">
                             {/* If ISMS-F-03-00-003 and Step 2 (IT Check), show IP Address allocation input */}
                             {selectedItSub.form_code === 'ISMS-F-03-00-003' && sig.step_number === 2 && (
-                              <div className="mb-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1.5">
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs font-bold text-blue-900 dark:text-blue-200">
-                                    Alokasi IP Address IT (DHCP Reservation / IP JAI)
-                                  </label>
-                                  <span className="text-[10px] font-mono text-muted-foreground">
-                                    MAC: {selectedItSub.form_data?.mac_address || '-'}
+                              <div className="mb-2.5 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-900 dark:text-blue-200">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 font-bold">
+                                  <span>Konfigurasi IP yang Akan Diterapkan:</span>
+                                  <span className="font-mono text-xs">
+                                    {itIpMode === 'static' ? 'STATIC IP' : 'DHCP'} · {itAssignedIp || '(Alamat IP belum diisi)'}
+                                    {itIpMode === 'static' && itStaticSubnet ? ` (Mask: ${itStaticSubnet})` : ''}
                                   </span>
                                 </div>
-                                <input
-                                  type="text"
-                                  value={itAssignedIp}
-                                  onChange={(e) => setItAssignedIp(e.target.value)}
-                                  placeholder="Contoh: 192.168.10.150 / 172.16.20.10"
-                                  className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
-                                />
-                                <p className="text-[10px] text-muted-foreground">
-                                  *Alamat IP yang dialokasikan IT untuk perangkat tamu ini akan dicetak otomatis pada dokumen PDF resmi.
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  *Konfigurasi ini disinkronkan dari panel Pengaturan Alamat IP di atas. Anda dapat mengubah ke DHCP atau Static IP manual kapan saja.
                                 </p>
                               </div>
                             )}

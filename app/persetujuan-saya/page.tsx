@@ -162,7 +162,10 @@ export default function PersetujuanSayaPage() {
   const [copiedCode, setCopiedCode] = useState(false)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [itIpMode, setItIpMode] = useState<'dhcp' | 'static'>('dhcp')
   const [itAssignedIp, setItAssignedIp] = useState('')
+  const [itStaticSubnet, setItStaticSubnet] = useState('255.255.255.0')
+  const [itStaticGateway, setItStaticGateway] = useState('')
 
   // Direct Token Login: auto authenticates approvers whose email matches an account in admins
   const [tokenAuthChecking, setTokenAuthChecking] = useState(false)
@@ -199,8 +202,10 @@ export default function PersetujuanSayaPage() {
       setConfirm(item)
       setCodeError(null)
       setCopiedCode(false)
-      setApprovalCode(item.code ? item.code.trim() : '')
+      setItIpMode('dhcp')
       setItAssignedIp('')
+      setItStaticSubnet('255.255.255.0')
+      setItStaticGateway('')
       return
     }
 
@@ -330,17 +335,28 @@ export default function PersetujuanSayaPage() {
     setCodeError(null)
     try {
       if (confirm.category === 'it_form') {
+        const payload: Record<string, any> = {
+          step_number: confirm.revision,
+          decision: 'approve',
+          approver_name: confirm.approverName || sessionUser?.username || 'Approver',
+          signature_note: 'Disetujui via Dashboard Approval',
+          assigned_ip: itAssignedIp.trim() || undefined,
+        }
+        if (confirm.revision === 2 && (confirm.controlNo?.includes('ISMS-F-03-00-003') || confirm.title?.toLowerCase().includes('network'))) {
+          payload.form_data_updates = {
+            ip_mode: itIpMode,
+            assigned_ip: itAssignedIp.trim(),
+            static_ip: itAssignedIp.trim(),
+            ip_address: itAssignedIp.trim(),
+            static_subnet: itIpMode === 'static' ? (itStaticSubnet.trim() || '255.255.255.0') : undefined,
+            static_gateway: itIpMode === 'static' ? itStaticGateway.trim() : undefined,
+          }
+        }
         const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions/${confirm.documentId}/sign`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({
-            step_number: confirm.revision,
-            decision: 'approve',
-            approver_name: confirm.approverName || sessionUser?.username || 'Approver',
-            signature_note: 'Disetujui via Dashboard Approval',
-            assigned_ip: itAssignedIp.trim() || undefined,
-          }),
+          body: JSON.stringify(payload),
         })
         const body = await res.json().catch(() => null)
         if (!res.ok) {
@@ -1243,20 +1259,103 @@ export default function PersetujuanSayaPage() {
           </div>
 
           {confirm?.category === 'it_form' && confirm?.revision === 2 && (confirm.controlNo?.includes('ISMS-F-03-00-003') || confirm.title?.toLowerCase().includes('network')) && (
-            <div className="p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5 text-xs text-foreground space-y-1.5">
-              <label className="font-bold text-blue-900 dark:text-blue-300 block">
-                Alokasi IP Address IT (DHCP Reservation / IP JAI)
-              </label>
-              <input
-                type="text"
-                value={itAssignedIp}
-                onChange={(e) => setItAssignedIp(e.target.value)}
-                placeholder="Contoh: 192.168.10.150 / 172.16.20.10"
-                className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-mono font-medium outline-none focus:border-ring focus:ring-2"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                *Alamat IP yang dialokasikan Tim IT untuk perangkat tamu/rekanan ini akan dicetak otomatis pada dokumen PDF resmi.
-              </p>
+            <div className="p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5 text-xs text-foreground space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-blue-900 dark:text-blue-300 block">
+                  Metode Pengaturan Alamat IP
+                </label>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  Step 2: IT Section Check
+                </span>
+              </div>
+
+              {/* Mode Toggle Buttons matching design */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setItIpMode('dhcp')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition border cursor-pointer ${
+                    itIpMode === 'dhcp'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-card text-muted-foreground border-input hover:text-foreground'
+                  }`}
+                >
+                  {itIpMode === 'dhcp' ? '✓ ' : ''}DHCP (Automatic IP)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setItIpMode('static')}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition border cursor-pointer ${
+                    itIpMode === 'static'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-card text-muted-foreground border-input hover:text-foreground'
+                  }`}
+                >
+                  {itIpMode === 'static' ? '✓ ' : ''}STATIC IP (Manual)
+                </button>
+              </div>
+
+              {itIpMode === 'dhcp' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-foreground block">
+                    Alokasi IP Address IT (DHCP Reservation / IP JAI)
+                  </label>
+                  <input
+                    type="text"
+                    value={itAssignedIp}
+                    onChange={(e) => setItAssignedIp(e.target.value)}
+                    placeholder="Contoh: 192.168.10.150 / 172.16.20.10"
+                    className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-mono font-medium outline-none focus:border-ring focus:ring-2"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    *Alamat IP yang dialokasikan Tim IT untuk perangkat tamu/rekanan ini akan dicetak otomatis pada dokumen PDF resmi.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="text-[11px] font-bold text-foreground block mb-1">
+                      IP Address <span className="text-destructive">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={itAssignedIp}
+                      onChange={(e) => setItAssignedIp(e.target.value)}
+                      placeholder="192.168.1.xxx"
+                      className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-bold text-foreground block mb-1">
+                        Subnet Mask <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={itStaticSubnet}
+                        onChange={(e) => setItStaticSubnet(e.target.value)}
+                        placeholder="255.255.255.0"
+                        className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-foreground block mb-1">
+                        Gateway Address <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={itStaticGateway}
+                        onChange={(e) => setItStaticGateway(e.target.value)}
+                        placeholder="192.168.1.1"
+                        className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10.5px] text-amber-800 dark:text-amber-300 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                    *Mode STATIC IP darurat/manual ini mencentang opsi STATIC pada form PDF dan mencetak Subnet Mask serta Gateway pada dokumen resmi.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -565,12 +565,11 @@ export function Navbar() {
               ) : (
                 <button
                   onClick={() => setLoginOpen(true)}
-                  className="group hidden items-center gap-2 rounded-full py-2 pl-4 pr-2 text-[11.5px] font-semibold uppercase tracking-[0.045em] text-white transition-transform duration-200 hover:scale-[1.03] sm:flex"
-                  style={{ background: 'linear-gradient(135deg, var(--p-550) 0%, var(--p-500) 100%)', boxShadow: '0 3px 12px color-mix(in oklch, var(--p-550) 40%, transparent)' }}
+                  className="group hidden items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/15 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-primary-foreground transition-all hover:bg-primary-foreground/25 active:scale-95 sm:flex cursor-pointer shadow-2xs"
                 >
-                  Admin Login
-                  <span className="grid size-6 place-items-center rounded-full bg-white/20 transition-transform duration-300 group-hover:rotate-45">
-                    <ArrowUpRight className="size-3.5" />
+                  <span>Admin Login</span>
+                  <span className="grid size-5 place-items-center rounded-full bg-primary-foreground/15 transition-transform duration-200 group-hover:translate-x-0.5">
+                    <ArrowUpRight className="size-3" />
                   </span>
                 </button>
               )

@@ -63,6 +63,7 @@ import {
 import { API_BASE_PATH } from '@/lib/config'
 import { IT_FORM_DEFINITIONS, type ItFormApprover, type ItFormSubmission } from '@/lib/it-form-shared'
 import { downloadExcel } from '@/lib/excel-export'
+import { SignalGrid } from '@/components/backgrounds'
 import { useAuth } from '@/context/AuthContext'
 
 interface DepartmentItem {
@@ -829,6 +830,7 @@ function FormItContent() {
         {/* Soft glowing ambient lighting */}
         <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-primary/25 blur-3xl" />
         <div aria-hidden className="pointer-events-none absolute -left-20 -bottom-20 size-72 rounded-full bg-blue-500/15 blur-3xl" />
+        <SignalGrid color="#93c5fd" opacity={0.28} speed={0.4} anchor="right" squareSize={8} gridStep={20} />
 
         {/* Top Compliance & Operational Status Bar */}
         <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 font-mono text-[11px] tracking-wide text-slate-300">

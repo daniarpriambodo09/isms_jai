@@ -26,6 +26,7 @@ import {
 import { useAuth, type AdminRole, type AdminUser } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { welcomeAdmin, WELCOME_COVERED_MS } from '@/components/admin-welcome'
+import { SignalGrid } from '@/components/backgrounds'
 
 // ─── Styles ───
 
@@ -139,13 +140,14 @@ function BrandPanel({ kiosk }: { kiosk: boolean }) {
               'radial-gradient(ellipse 80% 60% at 85% 10%, color-mix(in oklch, var(--accent) 35%, transparent), transparent 60%), linear-gradient(to top, color-mix(in oklch, var(--p-950) 92%, transparent) 0%, transparent 60%)',
           }}
         />
-        <div
-          className="absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
+        <SignalGrid
+          color="#93c5fd"
+          anchor="left"
+          speed={0.4}
+          opacity={0.35}
+          gridStep={20}
+          squareSize={7}
+          className="mix-blend-screen pointer-events-none"
         />
       </div>
 
@@ -296,7 +298,8 @@ export function AuthSplitLogin({
       <BrandPanel kiosk={kiosk} />
 
       {/* Right Form Section: Clean Elevated Card on Warm Canvas */}
-      <section className="relative flex flex-col justify-center px-4 py-8 sm:px-8 lg:px-12 xl:px-16">
+      <section className="relative flex flex-col justify-center px-4 py-8 sm:px-8 lg:px-12 xl:px-16 overflow-hidden">
+        <SignalGrid color="var(--primary)" opacity={0.08} speed={0.3} anchor="right" squareSize={6} gridStep={24} />
         {topRight && <div className="absolute right-5 top-5 z-20">{topRight}</div>}
 
         <div className="auth-rise mx-auto my-auto w-full max-w-[440px]">

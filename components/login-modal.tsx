@@ -55,8 +55,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     >
       <div className="min-h-full lg:h-full">
         <AuthSplitLogin
-          eyebrow="Admin Portal"
-          title={<>Selamat datang <span className="font-serif-accent text-[color:var(--p-600)]">kembali</span>.</>}
+          eyebrow="Admin Portal Otorisasi"
+          title={<>Selamat Datang <span className="text-blue-400">Kembali</span></>}
           subtitle="Masuk untuk mengelola Portal ISMS — atau, dengan akun approver, untuk menyetujui dokumen di Persetujuan Saya."
           successSubtitle="Mengalihkan ke Portal ISMS…"
           onSuccess={finish}
@@ -68,7 +68,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
               type="button"
               onClick={onClose}
               aria-label="Tutup"
-              className="grid size-10 place-items-center rounded-full border border-border bg-card/80 text-muted-foreground shadow-sm transition hover:text-foreground"
+              className="grid size-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white/80 shadow-md backdrop-blur-md transition hover:bg-white/20 hover:text-white cursor-pointer active:scale-95"
             >
               <X className="size-[18px]" />
             </button>

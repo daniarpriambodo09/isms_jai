@@ -46,8 +46,16 @@ export default function KelolaIzinAlatItPage() {
   const [itSignLoading, setItSignLoading] = useState(false)
   const [itSignNote, setItSignNote] = useState('')
   const [itSignerName, setItSignerName] = useState('')
+  const [itAssignedIp, setItAssignedIp] = useState('')
   const [itResendingId, setItResendingId] = useState<number | null>(null)
   const [itResendNotice, setItResendNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (selectedItSub) {
+      setItAssignedIp(selectedItSub.form_data?.assigned_ip || selectedItSub.form_data?.static_ip || '')
+      setItSignNote('')
+    }
+  }, [selectedItSub])
 
   const handleResendItEmail = async (sub: ItFormSubmission) => {
     setItResendingId(sub.id)
@@ -138,6 +146,7 @@ export default function KelolaIzinAlatItPage() {
           decision,
           approver_name: itSignerName || username || 'IT Admin',
           signature_note: itSignNote || null,
+          assigned_ip: itAssignedIp.trim() || undefined,
         }),
       })
       const data = await res.json()
@@ -1599,6 +1608,33 @@ export default function KelolaIzinAlatItPage() {
                     </span>
                   </div>
                 </div>
+
+                {selectedItSub.form_code === 'ISMS-F-03-00-003' && (
+                  <div className="mt-3 pt-3 border-t border-border/60 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-muted-foreground block">MAC Address Perangkat:</span>
+                      <span className="font-mono font-bold text-foreground">
+                        {selectedItSub.form_data?.mac_address || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">OS &amp; Anti-Virus:</span>
+                      <span className="font-medium text-foreground">
+                        {selectedItSub.form_data?.os_info || '-'} · {selectedItSub.form_data?.antivirus_name || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">Metode IP:</span>
+                      <span className="font-semibold text-emerald-600">DHCP (Automatic)</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">Alokasi IP Address:</span>
+                      <span className="font-mono font-bold text-foreground">
+                        {selectedItSub.form_data?.assigned_ip || selectedItSub.form_data?.static_ip || (selectedItSub.current_step >= 2 ? 'Menunggu IT Check' : 'Menunggu IAA')}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Approval Steps & Actions */}
@@ -1665,9 +1701,43 @@ export default function KelolaIzinAlatItPage() {
                           </div>
                         </div>
 
+                        {/* Display allocated IP address if this step is IT Check and already approved */}
+                        {selectedItSub.form_code === 'ISMS-F-03-00-003' && sig.step_number === 2 && (selectedItSub.form_data?.assigned_ip || selectedItSub.form_data?.static_ip) && (
+                          <div className="mt-2.5 pt-2 border-t border-border/50 text-[11px] flex items-center justify-between">
+                            <span className="text-muted-foreground">IP Address Dialokasikan:</span>
+                            <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                              {selectedItSub.form_data?.assigned_ip || selectedItSub.form_data?.static_ip}
+                            </span>
+                          </div>
+                        )}
+
                         {/* If pending and user is admin, allow sign here */}
                         {isPendingCurrent && (
                           <div className="mt-3 border-t border-border/60 pt-3">
+                            {/* If ISMS-F-03-00-003 and Step 2 (IT Check), show IP Address allocation input */}
+                            {selectedItSub.form_code === 'ISMS-F-03-00-003' && sig.step_number === 2 && (
+                              <div className="mb-2.5 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                                    Alokasi IP Address IT (DHCP Reservation / IP JAI)
+                                  </label>
+                                  <span className="text-[10px] font-mono text-muted-foreground">
+                                    MAC: {selectedItSub.form_data?.mac_address || '-'}
+                                  </span>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={itAssignedIp}
+                                  onChange={(e) => setItAssignedIp(e.target.value)}
+                                  placeholder="Contoh: 192.168.10.150 / 172.16.20.10"
+                                  className="h-8 w-full rounded-lg border border-input bg-card px-2.5 text-xs font-mono font-semibold text-foreground outline-none focus:border-ring focus:ring-2"
+                                />
+                                <p className="text-[10px] text-muted-foreground">
+                                  *Alamat IP yang dialokasikan IT untuk perangkat tamu ini akan dicetak otomatis pada dokumen PDF resmi.
+                                </p>
+                              </div>
+                            )}
+
                             <div className="mb-2">
                               <input
                                 type="text"

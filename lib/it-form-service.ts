@@ -750,6 +750,25 @@ export async function deleteItFormSubmission(id: number): Promise<boolean> {
   return (res.rowCount ?? 0) > 0
 }
 
+export async function updateItFormSubmissionData(
+  submissionId: number,
+  updates: Record<string, any>
+): Promise<boolean> {
+  await ensureItFormTables()
+  const subRes = await query<ItFormSubmission>(
+    `SELECT form_data FROM it_form_submissions WHERE id = $1 LIMIT 1`,
+    [submissionId]
+  )
+  if (!subRes.rowCount) return false
+  const current = (typeof subRes.rows[0].form_data === 'object' && subRes.rows[0].form_data) ? subRes.rows[0].form_data : {}
+  const merged = { ...current, ...updates }
+  await query(
+    `UPDATE it_form_submissions SET form_data = $1, updated_at = NOW() WHERE id = $2`,
+    [JSON.stringify(merged), submissionId]
+  )
+  return true
+}
+
 export async function signItFormStep(
   submissionId: number,
   stepNumber: number,
@@ -757,6 +776,8 @@ export async function signItFormStep(
     decision: 'approve' | 'reject'
     approverName: string
     signatureNote?: string
+    assignedIp?: string
+    formDataUpdates?: Record<string, any>
   }
 ): Promise<{ success: boolean; message: string; submission?: ItFormSubmission }> {
   await ensureItFormTables()
@@ -826,6 +847,22 @@ export async function signItFormStep(
      WHERE id = $4`,
     [data.approverName || sig.approver_name, data.signatureNote || null, verCode, sig.id]
   )
+
+  // If IT Section added/assigned an IP address or form updates (e.g. for network forms)
+  if (data.assignedIp || (data.formDataUpdates && Object.keys(data.formDataUpdates).length > 0)) {
+    const currentFormData = (typeof sub.form_data === 'object' && sub.form_data) ? sub.form_data : {}
+    const updatedFormData = { ...currentFormData, ...(data.formDataUpdates || {}) }
+    if (data.assignedIp && data.assignedIp.trim()) {
+      const cleanIp = data.assignedIp.trim()
+      updatedFormData.assigned_ip = cleanIp
+      updatedFormData.static_ip = cleanIp
+      updatedFormData.ip_address = cleanIp
+    }
+    await query(
+      `UPDATE it_form_submissions SET form_data = $1 WHERE id = $2`,
+      [JSON.stringify(updatedFormData), submissionId]
+    )
+  }
 
   // Check next step
   const nextStep = stepNumber + 1

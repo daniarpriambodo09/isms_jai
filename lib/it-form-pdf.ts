@@ -646,17 +646,40 @@ async function stampOnTemplate(
     if (swVersion) write(swVersion.slice(0, 16), 355, 282, 8.5)
     if (defUpdate) write(defUpdate.slice(0, 16), 468, 282, 8.5)
 
-    write(formData.os_info || 'Windows 11 Pro 64-bit', 355, 252, 8.5)
+    const macPart = formData.mac_address ? ` | MAC: ${formData.mac_address}` : ''
+    const osWithMac = `${formData.os_info || 'Windows 11 Pro 64-bit'}${macPart}`
+    write(osWithMac.slice(0, 48), 355, 252, formData.mac_address ? 7.5 : 8.5)
 
+    // For guest/network connections, DHCP is checked (X: 390, Y: 220)
+    // If an older submission explicitly set static, tick STATIC (X: 478, Y: 220)
     if (formData.ip_mode === 'static') {
       tick(478, 220) // STATIC
-      write(formData.static_ip || '-', 225, 197, 8.5, fontBold)
-      write(formData.static_subnet || '255.255.255.0', 225, 184, 8.5)
-      write(formData.static_gateway || '-', 225, 167, 8.5)
-      write(formData.dns_priority || '-', 225, 152, 8.5)
-      write(formData.dns_secondary || '-', 225, 137, 8.5)
     } else {
-      tick(390, 220) // DHCP
+      tick(390, 220) // DHCP (Default tamu & rekanan)
+    }
+
+    // IP Address (assigned by IT during IT Check or static)
+    const effectiveIp = formData.assigned_ip || formData.static_ip || formData.ip_address || ''
+    if (effectiveIp) {
+      write(effectiveIp, 225, 197, 8.5, fontBold)
+    }
+
+    if (formData.static_subnet) {
+      write(formData.static_subnet, 225, 184, 8.5)
+    }
+    if (formData.static_gateway) {
+      write(formData.static_gateway, 225, 167, 8.5)
+    }
+    if (formData.dns_priority) {
+      write(formData.dns_priority, 225, 152, 8.5)
+    }
+    if (formData.dns_secondary) {
+      write(formData.dns_secondary, 225, 137, 8.5)
+    }
+
+    // Always stamp MAC Address prominently in the OTHERS (proxy, etc.) line
+    if (formData.mac_address) {
+      write(`MAC: ${formData.mac_address}`, 225, 121.8, 8, fontBold)
     }
 
     // Approvals: IT Check (centerX=410.0) & IAA Approval (centerX=510.0)

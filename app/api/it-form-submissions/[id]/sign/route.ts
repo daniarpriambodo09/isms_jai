@@ -15,7 +15,14 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { step_number, decision, approver_name, signature_note } = body
+    const {
+      step_number,
+      decision,
+      approver_name,
+      signature_note,
+      assigned_ip,
+      form_data_updates,
+    } = body
 
     if (!step_number || !decision) {
       return NextResponse.json({ error: 'Tahapan step dan keputusan approval wajib diisi' }, { status: 400 })
@@ -29,6 +36,8 @@ export async function POST(
       decision: decision === 'reject' ? 'reject' : 'approve',
       approverName: effectiveApprover,
       signatureNote: signature_note,
+      assignedIp: assigned_ip,
+      formDataUpdates: form_data_updates,
     })
 
     if (!result.success) {

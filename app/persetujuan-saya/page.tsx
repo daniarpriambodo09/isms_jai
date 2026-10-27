@@ -162,6 +162,7 @@ export default function PersetujuanSayaPage() {
   const [copiedCode, setCopiedCode] = useState(false)
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const [itAssignedIp, setItAssignedIp] = useState('')
 
   // Direct Token Login: auto authenticates approvers whose email matches an account in admins
   const [tokenAuthChecking, setTokenAuthChecking] = useState(false)
@@ -199,6 +200,7 @@ export default function PersetujuanSayaPage() {
       setCodeError(null)
       setCopiedCode(false)
       setApprovalCode(item.code ? item.code.trim() : '')
+      setItAssignedIp('')
       return
     }
 
@@ -337,6 +339,7 @@ export default function PersetujuanSayaPage() {
             decision: 'approve',
             approver_name: confirm.approverName || sessionUser?.username || 'Approver',
             signature_note: 'Disetujui via Dashboard Approval',
+            assigned_ip: itAssignedIp.trim() || undefined,
           }),
         })
         const body = await res.json().catch(() => null)
@@ -1229,13 +1232,33 @@ export default function PersetujuanSayaPage() {
           setCopiedCode(false)
         }}
       >
-        <div className="rounded-xl border border-emerald-500/25 bg-emerald-50/10 p-4 text-xs leading-relaxed text-foreground">
-          <p className="font-semibold text-emerald-800 dark:text-emerald-400">
-            Pengesahan Tanda Tangan Digital Resmi
-          </p>
-          <p className="mt-1 text-muted-foreground">
-            Karena Anda telah masuk ke akun resmi Approver ({data?.email}), tanda tangan elektronik digital (QR E-Sign) Anda akan langsung dibubuhkan resmi pada pengajuan ini selaku <strong className="text-foreground">{confirm?.roleTitle}</strong>.
-          </p>
+        <div className="space-y-3">
+          <div className="rounded-xl border border-emerald-500/25 bg-emerald-50/10 p-4 text-xs leading-relaxed text-foreground">
+            <p className="font-semibold text-emerald-800 dark:text-emerald-400">
+              Pengesahan Tanda Tangan Digital Resmi
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Karena Anda telah masuk ke akun resmi Approver ({data?.email}), tanda tangan elektronik digital (QR E-Sign) Anda akan langsung dibubuhkan resmi pada pengajuan ini selaku <strong className="text-foreground">{confirm?.roleTitle}</strong>.
+            </p>
+          </div>
+
+          {confirm?.category === 'it_form' && confirm?.revision === 2 && (confirm.controlNo?.includes('ISMS-F-03-00-003') || confirm.title?.toLowerCase().includes('network')) && (
+            <div className="p-3.5 rounded-xl border border-blue-500/30 bg-blue-500/5 text-xs text-foreground space-y-1.5">
+              <label className="font-bold text-blue-900 dark:text-blue-300 block">
+                Alokasi IP Address IT (DHCP Reservation / IP JAI)
+              </label>
+              <input
+                type="text"
+                value={itAssignedIp}
+                onChange={(e) => setItAssignedIp(e.target.value)}
+                placeholder="Contoh: 192.168.10.150 / 172.16.20.10"
+                className="h-9 w-full rounded-lg border border-input bg-card px-3 text-xs font-mono font-medium outline-none focus:border-ring focus:ring-2"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                *Alamat IP yang dialokasikan Tim IT untuk perangkat tamu/rekanan ini akan dicetak otomatis pada dokumen PDF resmi.
+              </p>
+            </div>
+          )}
         </div>
       </ConfirmDialog>
 

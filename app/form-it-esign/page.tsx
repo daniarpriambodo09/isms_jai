@@ -540,6 +540,7 @@ function FormItContent() {
   const [antivirusVersion, setAntivirusVersion] = useState('v1.405.210')
   const [virusDefinitionUpdate, setVirusDefinitionUpdate] = useState('Latest Definition')
   const [osInfo, setOsInfo] = useState('Windows 11 Pro 64-bit')
+  const [macAddress, setMacAddress] = useState('')
   const [ipMode, setIpMode] = useState<'dhcp' | 'static'>('dhcp')
   const [staticIp, setStaticIp] = useState('')
   const [staticSubnet, setStaticSubnet] = useState('255.255.255.0')
@@ -697,9 +698,15 @@ function FormItContent() {
       return
     }
 
-    if (selectedFormCode === 'ISMS-F-03-00-003' && !companyName.trim()) {
-      setErrorMsg('Company / Organization (組織または会社名) wajib diisi untuk formulir ISMS-F-03-00-003.')
-      return
+    if (selectedFormCode === 'ISMS-F-03-00-003') {
+      if (!companyName.trim()) {
+        setErrorMsg('Company / Organization (組織または会社名) wajib diisi untuk formulir ISMS-F-03-00-003.')
+        return
+      }
+      if (!macAddress.trim()) {
+        setErrorMsg('MAC Address Perangkat (Physical Address) wajib diisi untuk pendaftaran koneksi jaringan.')
+        return
+      }
     }
 
     setSubmitting(true)
@@ -756,14 +763,8 @@ function FormItContent() {
         formDataPayload.antivirus_version = antivirusVersion.trim()
         formDataPayload.virus_definition_update = virusDefinitionUpdate.trim()
         formDataPayload.os_info = osInfo.trim()
-        formDataPayload.ip_mode = ipMode
-        if (ipMode === 'static') {
-          formDataPayload.static_ip = staticIp.trim()
-          formDataPayload.static_subnet = staticSubnet.trim()
-          formDataPayload.static_gateway = staticGateway.trim()
-          formDataPayload.dns_priority = dnsPriority.trim()
-          formDataPayload.dns_secondary = dnsSecondary.trim()
-        }
+        formDataPayload.mac_address = macAddress.trim().toUpperCase()
+        formDataPayload.ip_mode = 'dhcp'
       }
 
       const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions`, {
@@ -1572,6 +1573,39 @@ function FormItContent() {
                   </div>
                 )}
               </div>
+              {submissionResult.form_code === 'ISMS-F-03-00-003' && (
+                <div className="mt-4 pt-3 border-t border-border/60">
+                  <span className="text-[11px] font-bold text-foreground uppercase tracking-wide block mb-2.5">
+                    Informasi Perangkat &amp; Alokasi Jaringan (IT Check)
+                  </span>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+                    <div>
+                      <span className="text-muted-foreground block text-[11px] mb-0.5">MAC Address Perangkat:</span>
+                      <span className="font-mono font-bold text-foreground">
+                        {submissionResult.form_data?.mac_address || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[11px] mb-0.5">Metode IP:</span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-400">
+                        <Check className="size-3" /> DHCP (Automatic)
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground block text-[11px] mb-0.5">Alokasi IP Address IT:</span>
+                      {submissionResult.form_data?.assigned_ip || submissionResult.form_data?.static_ip ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 font-mono font-bold text-emerald-800 dark:text-emerald-300">
+                          <Check className="size-3.5" /> {submissionResult.form_data?.assigned_ip || submissionResult.form_data?.static_ip}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-[11px] font-medium">
+                          <Clock className="size-3" /> Menunggu Alokasi Tim IT (Setelah IT Check)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               {submissionResult.notes && (
                 <div className="mt-4 pt-3 border-t border-border/60 text-xs">
                   <span className="text-muted-foreground block text-[11px] mb-0.5">Catatan / Alasan:</span>
@@ -2977,70 +3011,47 @@ function FormItContent() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-xs font-bold text-foreground">Metode Pengaturan Alamat IP</label>
-                    <div className="grid grid-cols-2 gap-3 max-w-md">
-                      <button
-                        type="button"
-                        onClick={() => setIpMode('dhcp')}
-                        className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-4 text-xs font-bold transition active:scale-95 cursor-pointer ${
-                          ipMode === 'dhcp'
-                            ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                            : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-secondary/40'
-                        }`}
-                      >
-                        {ipMode === 'dhcp' && <Check className="size-3.5 text-primary-foreground" />}
-                        <span>DHCP (Automatic IP)</span>
-                      </button>
+                  {/* Metode Pengaturan Alamat IP & MAC Address */}
+                  <div className="pt-3 border-t border-border/60 space-y-3">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-foreground">
+                          Metode Pengaturan Alamat IP
+                        </label>
+                        <div className="flex items-center gap-2 h-10 px-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                          <Check className="size-4 text-emerald-600" />
+                          <span>DHCP (Automatic IP - Standar Tamu &amp; Rekanan)</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          *Sesuai ketentuan keamanan ISMS JAI, seluruh perangkat tamu/rekanan menggunakan DHCP.
+                        </p>
+                      </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setIpMode('static')}
-                        className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-4 text-xs font-bold transition active:scale-95 cursor-pointer ${
-                          ipMode === 'static'
-                            ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                            : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-secondary/40'
-                        }`}
-                      >
-                        {ipMode === 'static' && <Check className="size-3.5 text-primary-foreground" />}
-                        <span>STATIC IP (Manual)</span>
-                      </button>
+                      <div>
+                        <label className="mb-1 block text-xs font-bold text-foreground">
+                          MAC Address Perangkat (Physical Address) <span className="text-destructive">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={macAddress}
+                          onChange={(e) => setMacAddress(e.target.value)}
+                          placeholder="Contoh: 00:1A:2B:3C:4D:5E atau E0-D5-5E-12-34-56"
+                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-mono font-bold text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs uppercase tracking-wide"
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          *Wajib diisi oleh tamu. Cek pada Windows (<code className="font-mono font-bold text-foreground">getmac</code>) atau Network Adapter Settings.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-blue-900 dark:text-blue-300 flex items-start gap-2.5">
+                      <ShieldCheck className="size-4 text-blue-600 mt-0.5 shrink-0" />
+                      <div className="leading-relaxed">
+                        <span className="font-bold">Ketentuan Alokasi Alamat IP:</span> Tamu tidak perlu mengetahui atau mengisi alamat IP. Alamat IP akan dialokasikan dan dikonfigurasi resmi oleh Tim IT setelah permohonan disetujui IAA (Pak Teguh Sunjoyo) dan dilakukan pengecekan oleh IT Section (IT Check).
+                      </div>
                     </div>
                   </div>
-
-                  {ipMode === 'static' && (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 pt-2 animate-in fade-in">
-                      <div>
-                        <label className="mb-1 block text-xs font-bold text-foreground">IP Address</label>
-                        <input
-                          type="text"
-                          value={staticIp}
-                          onChange={(e) => setStaticIp(e.target.value)}
-                          placeholder="192.168.1.xxx"
-                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-mono font-medium text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-bold text-foreground">Subnet Mask</label>
-                        <input
-                          type="text"
-                          value={staticSubnet}
-                          onChange={(e) => setStaticSubnet(e.target.value)}
-                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-mono font-medium text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-bold text-foreground">Gateway Address</label>
-                        <input
-                          type="text"
-                          value={staticGateway}
-                          onChange={(e) => setStaticGateway(e.target.value)}
-                          placeholder="192.168.1.1"
-                          className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-mono font-medium text-foreground outline-none focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             )}

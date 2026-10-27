@@ -246,7 +246,9 @@ describe('IT Forms and E-Sign System Verification', () => {
         antivirus_version: 'v14.0.1192',
         virus_definition_update: '2026-10-27',
         os_info: 'Windows 11 Pro 64-bit',
-        ip_mode: 'dhcp'
+        mac_address: '00:1A:2B:3C:4D:5E',
+        ip_mode: 'dhcp',
+        assigned_ip: '192.168.10.150'
       },
       status: 'approved',
       current_step: 2,

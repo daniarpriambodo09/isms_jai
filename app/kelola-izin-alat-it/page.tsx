@@ -1277,12 +1277,12 @@ export default function KelolaIzinAlatItPage() {
               {selectedReq.status === 'pending' && !showRejectForm && (
                 <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-3">
                   <h4 className="font-bold text-blue-900 flex items-center gap-1.5">
-                    <ShieldCheck className="size-4 text-blue-600" /> Persetujuan & E-Sign IT (ACC)
+                    <ShieldCheck className="size-4 text-blue-600" /> Persetujuan & E-Sign (Manager / IAA & IT Check)
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Nama Petugas IT (Approver)
+                        Nama Approver / Petugas
                       </label>
                       <input
                         type="text"
@@ -1292,15 +1292,34 @@ export default function KelolaIzinAlatItPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Jabatan Petugas IT
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-700">
+                          Jabatan Approver
+                        </label>
+                        <span className="text-[10px] text-slate-500">Preset:</span>
+                      </div>
                       <input
                         type="text"
                         value={approverTitle}
                         onChange={(e) => setApproverTitle(e.target.value)}
                         className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
                       />
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {[
+                          'Manager Departemen / IAA',
+                          'System Security Administrator (IT)',
+                          'Information Assets Administrator (IAA)',
+                        ].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setApproverTitle(preset)}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 transition cursor-pointer"
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="sm:col-span-2">
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">

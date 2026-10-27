@@ -182,7 +182,7 @@ export async function buildItEquipmentPdf(
   const appBoxX = leftX + leftTableW
   rect(appBoxX, tableTopY - leftTableH, appBoxW, leftTableH, COLOR_LINE, COLOR_WHITE, 1.2)
   rect(appBoxX, tableTopY - 20, appBoxW, 20, COLOR_LINE, COLOR_LIGHT_BG, 1)
-  const appTitle = isFormIn ? 'Disetujui (IT ACC)' : 'Disetujui oleh Mgr'
+  const appTitle = isFormIn ? 'Disetujui (diterima oleh)' : 'Disetujui oleh Mgr'
   const appTitleW = fontBold.widthOfTextAtSize(appTitle, 8)
   text(appTitle, appBoxX + (appBoxW - appTitleW) / 2, tableTopY - 14, 8, fontBold, COLOR_INK)
 
@@ -225,8 +225,8 @@ export async function buildItEquipmentPdf(
     text('DITOLAK (REJECTED)', appBoxX + 8, tableTopY - 55, 7.5, fontBold, COLOR_RED)
     text(req.rejected_by || 'IT Administrator', appBoxX + 8, tableTopY - 70, 7, fontRegular, COLOR_MUTED)
   } else {
-    text('(Menunggu ACC IT)', appBoxX + 12, tableTopY - 55, 7.5, fontRegular, COLOR_MUTED)
-    text('H-1 Approval', appBoxX + 24, tableTopY - 70, 7, fontRegular, COLOR_MUTED)
+    text('(Menunggu Persetujuan)', appBoxX + 8, tableTopY - 55, 7, fontRegular, COLOR_MUTED)
+    text('Mgr / IAA / IT Check', appBoxX + 12, tableTopY - 70, 7, fontRegular, COLOR_MUTED)
   }
 
   curY = tableTopY - leftTableH - 18

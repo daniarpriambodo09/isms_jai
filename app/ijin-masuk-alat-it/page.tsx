@@ -361,7 +361,7 @@ function FormContent() {
               {isPending && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#fff3d6] text-[#8a6100] font-semibold text-sm">
                   <Clock className="size-4 text-[#8a6100]" />
-                  MENUNGGU ACC DIVISI IT
+                  MENUNGGU PERSETUJUAN (MGR / IAA & CHECK BY IT)
                 </div>
               )}
             </div>
@@ -530,18 +530,18 @@ function FormContent() {
             <div className="p-4 bg-[#dff5e6] border border-[#a3e3b7] rounded-xl space-y-1 text-xs text-[#1a6e3a]">
               <div className="font-bold flex items-center gap-2">
                 <CheckCircle2 className="size-4 text-[#1a6e3a]" />
-                Persetujuan Resmi Divisi IT PT. JAI
+                Persetujuan & E-Sign Resmi (Manager / IAA & IT Check)
               </div>
               <div>
                 Petugas ACC: <span className="font-semibold">{submittedReq.approved_by}</span> (
-                {submittedReq.approved_title || 'IT Dept'})
+                {submittedReq.approved_title || 'Approver'})
               </div>
               <div className="text-[11px] opacity-80">
                 Waktu ACC: {submittedReq.approved_at ? new Date(submittedReq.approved_at).toLocaleString('id-ID') : '-'}
               </div>
               {submittedReq.approval_notes && (
                 <div className="italic pt-1">
-                  Catatan IT: &quot;{submittedReq.approval_notes}&quot;
+                  Catatan: &quot;{submittedReq.approval_notes}&quot;
                 </div>
               )}
             </div>
@@ -551,7 +551,7 @@ function FormContent() {
             <div className="p-4 bg-[#fdecec] border border-[#f5b8b5] rounded-xl space-y-1 text-xs text-[#b3413a]">
               <div className="font-bold flex items-center gap-2">
                 <XCircle className="size-4 text-[#b3413a]" />
-                Pengajuan Ditolak oleh Tim IT
+                Pengajuan Ditolak
               </div>
               <div>Alasan: &quot;{submittedReq.rejection_reason}&quot;</div>
             </div>
@@ -561,8 +561,7 @@ function FormContent() {
             <div className="p-4 bg-[#fff3d6] border border-[#fde2a6] rounded-xl text-xs text-[#8a6100] flex items-start gap-3">
               <Clock className="size-4 shrink-0 mt-0.5" />
               <div>
-                Pengajuan Anda sedang diproses oleh tim IT PT. JAI. Harap tunjukkan halaman ini atau simpan tautan status
-                sebelum tiba di pos Security/Lobby.
+                Pengajuan Anda sedang diproses untuk persetujuan Manager Departemen terkait / IAA dan verifikasi (Check by IT). Harap simpan tautan status ini.
               </div>
             </div>
           )}
@@ -728,8 +727,9 @@ function FormContent() {
                 : 'Ijin Membawa Keluar PC, USB & Alat IT'}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground max-w-xl">
-              Wajib diisi tamu/visitor sebelum masuk kantor (H-1) untuk mendapatkan persetujuan (ACC) dari
-              divisi IT PT. JAI.
+              {formType === 'in'
+                ? 'Wajib diisi tamu/visitor (H-1). Pengajuan bawa masuk disetujui Manager Departemen yang bersangkutan / IAA, setelah itu dilakukan check by IT.'
+                : 'Wajib diisi sebelum membawa keluar alat IT (H-1) untuk mendapatkan persetujuan dari Manager dan tim IT.'}
             </p>
           </div>
 
@@ -919,8 +919,7 @@ function FormContent() {
           <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-xs text-foreground flex items-center gap-2.5">
             <Info className="size-4 shrink-0 text-primary" />
             <span>
-              <strong>Aturan Pengajuan H-1:</strong> Disarankan mengisi formulir minimal 1 hari sebelum kunjungan agar tim IT
-              dapat memverifikasi dan menyetujui (ACC) sebelum Anda tiba di pos Security.
+              <strong>Aturan Pengajuan H-1:</strong> Disarankan mengisi formulir minimal 1 hari sebelum kunjungan agar Manager Departemen yang bersangkutan / IAA dan tim IT dapat menyetujui serta memeriksa sebelum Anda tiba di pos Security.
             </span>
           </div>
 
@@ -1180,16 +1179,16 @@ function FormContent() {
             {loading ? (
               <>
                 <div className="animate-spin size-4 border-2 border-white border-t-transparent rounded-full" />
-                Mengirim Pengajuan ke Tim IT...
+                Mengirim Pengajuan Izin Alat...
               </>
             ) : (
               <>
-                Kirim Pengajuan Izin Alat ke Divisi IT <ArrowRight className="size-4" />
+                Kirim Pengajuan Izin Alat <ArrowRight className="size-4" />
               </>
             )}
           </button>
           <p className="text-[11px] text-muted-foreground text-center mt-2.5">
-            Setelah dikirim, pihak IT PT. JAI akan melakukan pengecekan dan pengesahan (ACC E-Sign).
+            Setelah dikirim, pengajuan bawa masuk disetujui Manager dari Departemen yang bersangkutan / IAA, setelah itu dilakukan check by IT.
           </p>
         </div>
       </form>

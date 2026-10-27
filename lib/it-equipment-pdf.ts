@@ -1,5 +1,7 @@
 // lib/it-equipment-pdf.ts
 import 'server-only'
+import { readFile } from 'fs/promises'
+import path from 'path'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import QRCode from 'qrcode'
 import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
@@ -82,15 +84,17 @@ export async function buildItEquipmentPdf(
 
   let curY = PAGE_H - 45
 
-  // 1. Header: Yazaki Logo Symbol + Text
-  page.drawSvgPath('M 0 0 L 18 14 L 36 0 L 24 6 L 18 3 L 12 6 Z', {
-    x: leftX,
-    y: curY,
-    color: COLOR_RED,
-  })
-
-  text('YAZAKI', leftX + 44, curY + 4, 15, fontBold, COLOR_INK)
-  text('PT. JATIM AUTOCOMP INDONESIA', leftX + 44, curY - 7, 7.5, fontBold, COLOR_MUTED)
+  // 1. Header: Official Yazaki Logo Image
+  try {
+    const logoBytes = await readFile(path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'))
+    const logoImg = await pdf.embedJpg(logoBytes)
+    const logoH = 28
+    const logoW = (logoImg.width / logoImg.height) * logoH
+    page.drawImage(logoImg, { x: leftX, y: curY - 11, width: logoW, height: logoH })
+  } catch (err) {
+    text('YAZAKI', leftX, curY + 4, 15, fontBold, COLOR_RED)
+    text('PT. JATIM AUTOCOMP INDONESIA', leftX, curY - 7, 7.5, fontBold, COLOR_MUTED)
+  }
 
   // Confidential badge
   const confW = 86

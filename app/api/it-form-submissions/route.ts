@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       applicant_position: body.applicant_position,
       employee_status: body.employee_status,
       department: body.department,
-      company_name: body.company_name,
+      company_name: body.company_name?.trim() || 'PT. Jatim Autocomp Indonesia',
       purpose: body.purpose,
       form_data: body.form_data || {},
       notes: body.notes,

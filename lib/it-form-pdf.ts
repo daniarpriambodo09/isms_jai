@@ -913,8 +913,16 @@ async function renderDynamicPdf(
   }
 
   let y = PAGE_H - 35
-  text('YAZAKI', leftX, y, 16, fontBold, COLOR_RED)
-  text('PT. JATIM AUTOCOMP INDONESIA', leftX, y - 9, 7.5, fontBold, COLOR_INK)
+  try {
+    const logoBytes = await readFile(path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'))
+    const logoImg = await pdf.embedJpg(logoBytes)
+    const logoH = 26
+    const logoW = (logoImg.width / logoImg.height) * logoH
+    page.drawImage(logoImg, { x: leftX, y: y - 10, width: logoW, height: logoH })
+  } catch {
+    text('YAZAKI', leftX, y, 16, fontBold, COLOR_RED)
+    text('PT. JATIM AUTOCOMP INDONESIA', leftX, y - 9, 7.5, fontBold, COLOR_INK)
+  }
 
   rect(PAGE_W - MARGIN_X - 95, y - 10, 95, 24, COLOR_RED, undefined, 1.2)
   text('CONFIDENTIAL', PAGE_W - MARGIN_X - 86, y - 3, 10, fontBold, COLOR_RED)

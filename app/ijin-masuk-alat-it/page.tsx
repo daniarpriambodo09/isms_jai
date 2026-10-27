@@ -38,6 +38,7 @@ import {
   type ItEquipmentRequest,
 } from '@/lib/it-equipment-shared'
 import { API_BASE_PATH } from '@/lib/config'
+import { downloadExcel } from '@/lib/excel-export'
 import { useAuth } from '@/context/AuthContext'
 
 const inputClass =
@@ -165,6 +166,82 @@ function FormContent() {
       setSearchError(err.message || 'Gagal mencari status pengajuan.')
     } finally {
       setSearchLoading(false)
+    }
+  }
+
+  const [exportingExcel, setExportingExcel] = useState(false)
+  const handleExportEquipmentExcel = async () => {
+    setExportingExcel(true)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/it-equipment-requests`)
+      if (!res.ok) {
+        if (res.status === 401) {
+          alert('Silakan login sebagai Admin IT / Security untuk mengunduh rekap Excel izin barang masuk/keluar.')
+          return
+        }
+        throw new Error('Gagal memuat data pengajuan.')
+      }
+      const data = await res.json()
+      const reqs: ItEquipmentRequest[] = data.requests || []
+      if (!reqs.length) {
+        alert('Belum ada data izin barang masuk/keluar untuk diexport.')
+        return
+      }
+      const filename = `rekap-izin-masuk-keluar-alat-it-${new Date().toISOString().slice(0, 10)}`
+      const headers = [
+        'No',
+        'No. Pengajuan',
+        'Tipe Izin',
+        'Tanggal Masuk',
+        'Rencana Keluar',
+        'Nama Tamu / Pembawa',
+        'Perusahaan / Instansi',
+        'Departemen Pembawa',
+        'Seksi',
+        'Lokasi Akses',
+        'Tujuan Kunjungan',
+        'Jumlah Alat',
+        'Rincian Alat (Merk - Model - S/N)',
+        'Status Approval',
+        'Tanggal ACC',
+        'Catatan IT',
+      ]
+      const rows = reqs.map((r, idx) => {
+        const itemSummary = (r.items || [])
+          .map((it, i) => `[${i + 1}] ${it.equipment_type} ${it.brand} ${it.model || ''} (S/N: ${it.serial_no || '-'})`)
+          .join('; ')
+        const statusLabel =
+          r.status === 'approved'
+            ? 'Disetujui (Aktif)'
+            : r.status === 'returned'
+            ? 'Sudah Keluar / Dikembalikan'
+            : r.status === 'rejected'
+            ? 'Ditolak'
+            : 'Menunggu ACC'
+        return [
+          idx + 1,
+          r.request_no,
+          r.form_type === 'in' ? 'Izin Masuk' : 'Izin Keluar',
+          r.date_in,
+          r.date_out_plan,
+          r.applicant_name,
+          r.company_name,
+          r.department,
+          r.section || '-',
+          r.location,
+          r.purpose,
+          (r.items || []).length,
+          itemSummary || '-',
+          statusLabel,
+          r.approved_at || '-',
+          r.approval_notes || '-',
+        ]
+      })
+      downloadExcel(filename, headers, rows, 'Izin Masuk Keluar Alat')
+    } catch (err: any) {
+      alert(err.message || 'Gagal export data Excel.')
+    } finally {
+      setExportingExcel(false)
     }
   }
 
@@ -543,13 +620,25 @@ function FormContent() {
         </Link>
         <div className="flex items-center gap-3">
           {adminUser && (
-            <Link
-              href="/kelola-izin-alat-it"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground shadow-2xs"
-            >
-              <Laptop className="size-3.5" />
-              <span>Kelola Izin Alat IT (Admin)</span>
-            </Link>
+            <>
+              <button
+                type="button"
+                onClick={handleExportEquipmentExcel}
+                disabled={exportingExcel}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white transition shadow-2xs disabled:opacity-50 cursor-pointer"
+                title="Export rekap data izin barang masuk/keluar ke Excel (.xlsx)"
+              >
+                <Download className="size-3.5" />
+                <span>{exportingExcel ? 'Mengunduh...' : 'Export Excel'}</span>
+              </button>
+              <Link
+                href="/kelola-izin-alat-it"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground shadow-2xs"
+              >
+                <Laptop className="size-3.5" />
+                <span>Kelola Izin Alat IT (Admin)</span>
+              </Link>
+            </>
           )}
           <button
             type="button"

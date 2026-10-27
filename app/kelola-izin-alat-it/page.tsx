@@ -501,6 +501,16 @@ export default function KelolaIzinAlatItPage() {
             </Link>
             <button
               type="button"
+              onClick={mainSection === 'equipment' ? handleExportEquipmentExcel : handleExportItFormsExcel}
+              disabled={mainSection === 'equipment' ? filteredRequests.length === 0 : filteredItSubmissions.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none"
+              title={`Export data ${mainSection === 'equipment' ? 'Izin Barang Masuk/Keluar' : 'Formulir IT E-Sign'} ke Excel (.xlsx)`}
+            >
+              <Download className="size-3.5" />
+              <span>Export Excel {mainSection === 'equipment' ? `Barang (${filteredRequests.length})` : `Form IT (${filteredItSubmissions.length})`}</span>
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 fetchRequests()
                 fetchItSubmissions()

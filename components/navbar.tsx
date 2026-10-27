@@ -40,7 +40,7 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
       { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin & pengembalian device', icon: Camera },
       { href: '/kelola-kamera', label: 'Master Kamera, USB & Smart Device', hint: 'Unit kamera, USB & smart device', icon: Aperture },
       { href: '/kelola-pic-approve', label: 'PIC Approver Foto/Video', hint: 'Penyetuju internal & default visitor', icon: UserCheck },
-      { href: '/kelola-izin-alat-it', label: 'Izin Masuk Alat IT', hint: 'Tinjau izin bawa PC/alat IT', icon: Laptop },
+      { href: '/kelola-izin-alat-it', label: 'Izin Alat IT & Form E-Sign', hint: 'Kelola barang masuk/keluar & formulir IT', icon: Laptop },
       { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk, master area & escort', icon: ShieldAlert },
       { href: '/kelola-approver-it', label: 'Approver Form Layanan IT', hint: 'Alur 5 formulir e-sign IT', icon: FileSignature },
       { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Matriks approval prosedur ISMS', icon: FileSignature },

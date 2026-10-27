@@ -422,8 +422,24 @@ function FormItContent() {
     window.scrollTo({ top: 120, behavior: 'smooth' })
   }
 
-  const handleExportHistoryExcel = () => {
-    if (!historyList.length) return
+  const handleExportHistoryExcel = async () => {
+    let list = historyList
+    if (!list.length) {
+      try {
+        const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions`)
+        const data = await res.json()
+        if (data.submissions && Array.isArray(data.submissions)) {
+          list = data.submissions
+          setHistoryList(data.submissions)
+        }
+      } catch (err) {
+        console.error('Failed to load submissions for export:', err)
+      }
+    }
+    if (!list.length) {
+      alert('Tidak ada data formulir IT untuk diexport.')
+      return
+    }
     const filename = `riwayat-formulir-it-esign-${new Date().toISOString().slice(0, 10)}`
     const headers = [
       'No',
@@ -758,9 +774,17 @@ function FormItContent() {
           applicant_name: applicantName.trim(),
           applicant_nik: applicantNik.trim() || null,
           applicant_position: applicantPosition.trim() || null,
-          employee_status: employeeStatus === 'Other' ? otherStatus.trim() || 'Lainnya' : employeeStatus,
+          employee_status:
+            selectedFormCode === 'ISMS-F-03-00-003'
+              ? null
+              : employeeStatus === 'Other'
+              ? otherStatus.trim() || 'Lainnya'
+              : employeeStatus,
           department,
-          company_name: companyName.trim() || null,
+          company_name:
+            selectedFormCode === 'ISMS-F-03-00-003'
+              ? companyName.trim() || 'PT. Jatim Autocomp Indonesia'
+              : 'PT. Jatim Autocomp Indonesia',
           purpose: purpose.trim() || null,
           form_data: formDataPayload,
           notes: notes.trim() || null,
@@ -899,6 +923,15 @@ function FormItContent() {
             )}
             <button
               type="button"
+              onClick={handleExportHistoryExcel}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-md transition hover:-translate-y-0.5 cursor-pointer"
+              title="Download rekap data formulir IT ke Excel (.xlsx)"
+            >
+              <Download className="size-4" />
+              <span>Export Excel IT ({historyCounts.all || historyList.length || 'Semua'})</span>
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setActiveTab(activeTab === 'history' ? 'form' : 'history')
                 if (activeTab === 'form') fetchHistory()
@@ -977,17 +1010,28 @@ function FormItContent() {
           </button>
         </div>
 
-        {activeTab === 'history' && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => fetchHistory()}
-            disabled={historyLoading}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition disabled:opacity-50 cursor-pointer"
+            onClick={handleExportHistoryExcel}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold transition shadow-xs cursor-pointer"
+            title="Download rekap data seluruh formulir IT ke Excel (.xlsx)"
           >
-            <RefreshCw className={`size-3.5 ${historyLoading ? 'animate-spin text-primary' : ''}`} />
-            <span className="hidden sm:inline">Refresh Data</span>
+            <Download className="size-3.5" />
+            <span>Export Excel</span>
           </button>
-        )}
+          {activeTab === 'history' && (
+            <button
+              type="button"
+              onClick={() => fetchHistory()}
+              disabled={historyLoading}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`size-3.5 ${historyLoading ? 'animate-spin text-primary' : ''}`} />
+              <span className="hidden sm:inline">Refresh Data</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* History View (When in 'history' tab) */}
@@ -1850,37 +1894,33 @@ function FormItContent() {
                   </div>
                 )}
 
-                {/* Perusahaan / Organisasi (COMPANY/ORGANIZATION 組織または会社名) */}
-                <div className="sm:col-span-2 lg:col-span-3 animate-in fade-in">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold text-foreground">
-                      Company / Organization (組織または会社名) {selectedFormCode === 'ISMS-F-03-00-003' && <span className="text-destructive">*</span>}
-                    </label>
-                    <span className="text-[10px] font-bold text-muted-foreground font-mono">
-                      {selectedFormCode === 'ISMS-F-03-00-003' ? (
-                        <span className="text-primary font-semibold">Kolom Wajib Formulir ISMS-F-03-00-003</span>
-                      ) : (
-                        'Perusahaan / Organisasi Pemohon'
-                      )}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="Contoh: PT. Jatim Autocomp Indonesia / Nama Perusahaan Pemohon"
-                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
-                      required={selectedFormCode === 'ISMS-F-03-00-003'}
-                    />
-                  </div>
-                  {selectedFormCode === 'ISMS-F-03-00-003' && (
+                {/* Perusahaan / Organisasi (Khusus Formulir ISMS-F-03-00-003 Network Connection) */}
+                {selectedFormCode === 'ISMS-F-03-00-003' && (
+                  <div className="sm:col-span-2 lg:col-span-3 animate-in fade-in">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-foreground">
+                        Company / Organization (組織または会社名) <span className="text-destructive">*</span>
+                      </label>
+                      <span className="text-[10px] font-bold text-primary font-mono">
+                        Kolom Wajib Formulir ISMS-F-03-00-003
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="Contoh: PT. Jatim Autocomp Indonesia / Nama Perusahaan Pemohon"
+                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
+                        required
+                      />
+                    </div>
                     <p className="mt-1 text-[11px] text-muted-foreground font-medium">
                       Dicetak pada baris <code className="font-mono font-bold text-foreground">COMPANY/ORGANIZATION (組織または会社名)</code> formulir resmi koneksi jaringan ISMS-F-03-00-003.
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* Departemen & Seksi / Bagian (CASCADING DROPDOWNS) */}
                 <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 shadow-xs">
@@ -1972,54 +2012,58 @@ function FormItContent() {
                   </p>
                 </div>
 
-                {/* Status Karyawan - Modern Segmented Buttons */}
-                <div className="sm:col-span-2">
-                  <label className="mb-1.5 block text-xs font-bold text-foreground">
-                    Status Karyawan (ステータス)
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['TETAP', 'KONTRAK', 'Other'] as const).map((st) => {
-                      const isSelected = employeeStatus === st
-                      return (
-                        <button
-                          key={st}
-                          type="button"
-                          onClick={() => setEmployeeStatus(st)}
-                          className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-bold transition cursor-pointer active:scale-95 ${
-                            isSelected
-                              ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                              : 'border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
-                          }`}
-                        >
-                          {isSelected ? (
-                            <Check className="size-3.5 shrink-0" />
-                          ) : st === 'TETAP' ? (
-                            <BadgeCheck className="size-3.5 text-muted-foreground shrink-0" />
-                          ) : st === 'KONTRAK' ? (
-                            <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
-                          ) : (
-                            <User className="size-3.5 text-muted-foreground shrink-0" />
-                          )}
-                          <span>{st === 'Other' ? 'Lainnya' : st}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+                {/* Status Karyawan - Khusus formulir internal karyawan (disembunyikan untuk ISMS-F-03-00-003 koneksi jaringan) */}
+                {selectedFormCode !== 'ISMS-F-03-00-003' && (
+                  <>
+                    <div className="sm:col-span-2">
+                      <label className="mb-1.5 block text-xs font-bold text-foreground">
+                        Status Karyawan (ステータス)
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['TETAP', 'KONTRAK', 'Other'] as const).map((st) => {
+                          const isSelected = employeeStatus === st
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => setEmployeeStatus(st)}
+                              className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-bold transition cursor-pointer active:scale-95 ${
+                                isSelected
+                                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                                  : 'border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <Check className="size-3.5 shrink-0" />
+                              ) : st === 'TETAP' ? (
+                                <BadgeCheck className="size-3.5 text-muted-foreground shrink-0" />
+                              ) : st === 'KONTRAK' ? (
+                                <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
+                              ) : (
+                                <User className="size-3.5 text-muted-foreground shrink-0" />
+                              )}
+                              <span>{st === 'Other' ? 'Lainnya' : st}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
 
-                {employeeStatus === 'Other' && (
-                  <div className="sm:col-span-3 animate-in fade-in">
-                    <label className="mb-1.5 block text-xs font-bold text-foreground">
-                      Keterangan Status Lainnya (e.g. Magang, PKL, Tamu)
-                    </label>
-                    <input
-                      type="text"
-                      value={otherStatus}
-                      onChange={(e) => setOtherStatus(e.target.value)}
-                      placeholder="Tuliskan status kekaryawanan..."
-                      className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
-                    />
-                  </div>
+                    {employeeStatus === 'Other' && (
+                      <div className="sm:col-span-3 animate-in fade-in">
+                        <label className="mb-1.5 block text-xs font-bold text-foreground">
+                          Keterangan Status Lainnya (e.g. Magang, PKL, Tamu)
+                        </label>
+                        <input
+                          type="text"
+                          value={otherStatus}
+                          onChange={(e) => setOtherStatus(e.target.value)}
+                          placeholder="Tuliskan status kekaryawanan..."
+                          className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

@@ -15,6 +15,7 @@ import { LoginModal } from '@/components/login-modal'
 import { NotificationBell } from '@/components/documents/NotificationBell'
 import { SearchPalette } from '@/components/search-palette'
 import { ApproverMessagesDialog } from '@/components/approvals/ApproverMessagesDialog'
+import { SignalGrid } from '@/components/backgrounds'
 
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -261,8 +262,9 @@ export function Navbar() {
         boxShadow: '0 20px 45px color-mix(in oklch, var(--p-950) 25%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent)',
       }}
     >
-      <div className="nav-dropdown-bar h-[2.5px] w-full" />
-      <div className="p-2">{children}</div>
+      <SignalGrid color="var(--primary)" opacity={0.07} speed={0.25} anchor="right" squareSize={6} gridStep={18} />
+      <div className="nav-dropdown-bar h-[2.5px] w-full relative z-10" />
+      <div className="relative z-10 p-2">{children}</div>
     </div>
   )
 
@@ -463,8 +465,9 @@ export function Navbar() {
                         boxShadow: '0 24px 60px color-mix(in oklch, var(--p-950) 28%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent)',
                       }}
                     >
-                      <div className="nav-dropdown-bar h-[2.5px] w-full" />
-                      <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                      <SignalGrid color="var(--primary)" opacity={0.06} speed={0.25} anchor="right" squareSize={7} gridStep={22} />
+                      <div className="nav-dropdown-bar h-[2.5px] w-full relative z-10" />
+                      <div className="relative z-10 flex items-center justify-between gap-4 border-b border-border px-5 py-3">
                         <div>
                           <p className="portal-eyebrow">Admin Panel</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">Pilih fitur yang ingin dikelola</p>

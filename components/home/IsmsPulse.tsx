@@ -11,6 +11,7 @@
 
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { API_BASE_PATH } from '@/lib/config'
+import { SignalGrid } from '@/components/backgrounds'
 
 const FULL_BLEED = 'w-screen ml-[calc(50%-50vw)]'
 
@@ -160,10 +161,11 @@ export function IsmsPulse() {
   return (
     <section
       ref={sectionRef}
-      className={`home-chapter isms-pulse ${FULL_BLEED} bg-background text-foreground`}
+      className={`home-chapter isms-pulse ${FULL_BLEED} bg-background text-foreground relative overflow-hidden`}
       style={{ '--sp': 0, '--words': WORD_COUNT } as React.CSSProperties}
     >
-      <div className="mx-auto max-w-[1480px] px-10 pb-16 pt-12 max-[900px]:px-6 max-[680px]:px-4 max-[680px]:pb-12 max-[680px]:pt-9">
+      <SignalGrid color="var(--primary)" opacity={0.06} speed={0.3} anchor="right" squareSize={6} gridStep={24} />
+      <div className="relative z-10 mx-auto max-w-[1480px] px-10 pb-16 pt-12 max-[900px]:px-6 max-[680px]:px-4 max-[680px]:pb-12 max-[680px]:pt-9">
         <div className="flex items-center justify-between gap-4 border-b border-border pb-3 font-mono-label text-[10.5px] text-muted-foreground">
           <span>(<span className="chapter-num" />) — Komitmen ISMS</span>
           <span className="flex items-center gap-2 text-right">

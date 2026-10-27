@@ -11,6 +11,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ArrowRight, BatteryFull, Camera, Check, Folder, GraduationCap, HardHat, Languages, Layers } from 'lucide-react'
+import { SignalGrid } from '@/components/backgrounds'
 
 type WithAction = { action?: ReactNode }
 
@@ -249,6 +250,7 @@ export function PaperHero({
   const now = useNow(1000)
   return (
     <section className="hero-paper relative isolate overflow-hidden rounded-3xl border-2 border-border/80 text-foreground shadow-xl transition-all">
+      <SignalGrid color="var(--primary)" opacity={0.06} speed={0.25} anchor="right" squareSize={6} gridStep={22} />
       {/* Official Japanese/ISO 27001 Red Hanko Approval Stamp Watermark */}
       <div className="pointer-events-none absolute right-12 top-12 -rotate-12 select-none opacity-90 max-[900px]:hidden">
         <div className="rounded-full border-2 border-dashed border-red-600/70 p-2 text-red-600 dark:border-red-500/70 dark:text-red-400">
@@ -367,12 +369,13 @@ export function ControlPanelHero({ title, count, pdf, xls, updatedAt, action, ch
     ['Pembaruan terakhir', updatedAt ? new Date(updatedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '—'],
   ]
   return (
-    <section className="overflow-hidden rounded-2xl bg-[color:var(--p-900)] text-primary-foreground shadow-xl">
-      <div className="flex items-center justify-between border-b border-white/10 px-6 py-3 font-mono text-[10.5px] tracking-[0.08em] text-primary-foreground/60">
+    <section className="relative overflow-hidden rounded-2xl bg-[color:var(--p-900)] text-primary-foreground shadow-xl">
+      <SignalGrid color="#93c5fd" opacity={0.22} speed={0.35} anchor="right" squareSize={7} gridStep={20} />
+      <div className="relative z-10 flex items-center justify-between border-b border-white/10 px-6 py-3 font-mono text-[10.5px] tracking-[0.08em] text-primary-foreground/60">
         <span className="flex items-center gap-2"><span className="hero-blink size-2 rounded-full bg-emerald-400" /> SYSTEM ONLINE</span>
         <span className="tabular-nums">{now ? now.toLocaleTimeString('id-ID', { hour12: false }) : '--.--.--'} WIB</span>
       </div>
-      <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.3fr_1fr]">
+      <div className="relative z-10 grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.3fr_1fr]">
         <div>
           <p className="font-mono-label text-[10px] text-accent">Control room</p>
           <h2 className="mt-3 font-display text-[clamp(2.2rem,4.5vw,3.6rem)] font-semibold leading-[0.95]">{title}</h2>
@@ -388,7 +391,7 @@ export function ControlPanelHero({ title, count, pdf, xls, updatedAt, action, ch
           ))}
         </div>
       </div>
-      {children}
+      {children && <div className="relative z-10">{children}</div>}
     </section>
   )
 }

@@ -256,8 +256,8 @@ function FormContent() {
 
     // Validate equipment rows
     for (let i = 0; i < items.length; i++) {
-      if (!items[i].brand.trim() || !items[i].serial_no.trim()) {
-        setErrorMsg(`Alat #${i + 1}: Merk dan Serial Number wajib diisi.`)
+      if (!items[i].brand.trim() || !items[i].serial_no.trim() || !items[i].id_no?.trim()) {
+        setErrorMsg(`Alat #${i + 1}: Merk, Serial Number, dan No. Identifikasi Alat / Asset Tag wajib diisi.`)
         return
       }
     }
@@ -1088,10 +1088,13 @@ function FormContent() {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className={labelClass}>No. Identifikasi Alat / Asset Tag (Jika Ada)</label>
+                    <label className={labelClass}>
+                      No. Identifikasi Alat / Asset Tag <span className="text-destructive">*</span>
+                    </label>
                     <input
                       type="text"
-                      placeholder="Nomor Asset Tag inventaris internal perusahaan tamu (opsional)"
+                      required
+                      placeholder="Contoh: AST-0192 / No. Identifikasi Asset Inventaris"
                       value={item.id_no || ''}
                       onChange={(e) => handleItemChange(idx, 'id_no', e.target.value)}
                       className={inputClass}

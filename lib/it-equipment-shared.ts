@@ -4,7 +4,7 @@
 export type ItEquipmentItem = {
   id?: string
   equipment_type: string // e.g. 'PC / Laptop', 'USB Memory / Flashdisk', 'Kamera', 'External HDD', 'Tablet', 'Lainnya'
-  id_no?: string // No. Identifikasi alat (jika ada)
+  id_no?: string // No. / Nama Identifikasi alat (wajib diisi)
   brand: string // Produsen / Merk
   model: string // Model
   serial_no: string // Serial Number

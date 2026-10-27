@@ -271,7 +271,7 @@ function FormContent() {
     // Validate equipment rows
     for (let i = 0; i < items.length; i++) {
       if (!items[i].brand.trim() || !items[i].serial_no.trim() || !items[i].id_no?.trim()) {
-        setErrorMsg(`Alat #${i + 1}: Merk, Serial Number, dan No. Identifikasi Alat / Asset Tag wajib diisi.`)
+        setErrorMsg(`Alat #${i + 1}: Produsen/Merk, Serial Number, dan No. / Nama Identifikasi Alat wajib diisi.`)
         return
       }
     }
@@ -1187,12 +1187,16 @@ function FormContent() {
 
                   <div className="sm:col-span-2">
                     <label className={labelClass}>
-                      No. Identifikasi Alat / Asset Tag <span className="text-destructive">*</span>
+                      No. / Nama Identifikasi Alat <span className="text-destructive">*</span>
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Contoh: AST-0192 / No. Identifikasi Asset Inventaris"
+                      placeholder={
+                        formType === 'out'
+                          ? 'Contoh: AST-JAI-0192 / Laptop Kantor IT JAI (Wajib Diisi)'
+                          : 'Contoh: AST-0192 / Laptop Vendor / Label Identifikasi Device (Wajib Diisi)'
+                      }
                       value={item.id_no || ''}
                       onChange={(e) => handleItemChange(idx, 'id_no', e.target.value)}
                       className={inputClass}

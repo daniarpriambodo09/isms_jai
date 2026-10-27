@@ -110,6 +110,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]
+      if (!it.brand?.trim() || !it.serial_no?.trim() || !it.id_no?.trim()) {
+        return NextResponse.json(
+          { error: `Alat #${i + 1}: Produsen/Merk, Serial Number, dan No. / Nama Identifikasi Alat wajib diisi.` },
+          { status: 400 }
+        )
+      }
+    }
+
     // Generate request number format: IT-IN-YYYYMMDD-XXXX or IT-OUT-YYYYMMDD-XXXX
     const typePrefix = form_type === 'out' ? 'IT-OUT' : 'IT-IN'
     const today = new Date()

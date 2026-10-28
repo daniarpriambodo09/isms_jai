@@ -393,7 +393,7 @@ export function AuthSplitLogin({
                       htmlFor={kiosk ? 'klf-username' : 'lm-username'}
                       className="block text-xs font-bold text-foreground"
                     >
-                      Username Akun / NIK
+                      Username Akun
                     </label>
                     <div className="group relative flex items-center rounded-xl border border-border bg-card transition-all focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 shadow-2xs">
                       <div className="grid size-10 place-items-center text-muted-foreground group-focus-within:text-primary shrink-0">
@@ -408,7 +408,7 @@ export function AuthSplitLogin({
                         required
                         autoFocus={kiosk}
                         autoComplete="username"
-                        placeholder="Masukkan username admin / NIK"
+                        placeholder="Masukkan username akun"
                         className="h-10 w-full bg-transparent pr-4 text-xs sm:text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground/50"
                       />
                     </div>

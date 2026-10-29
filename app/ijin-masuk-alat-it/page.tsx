@@ -364,7 +364,9 @@ function FormContent() {
               {isApproved && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#dff5e6] text-[#1a6e3a] font-semibold text-sm">
                   <CheckCircle2 className="size-4 text-[#1a6e3a]" />
-                  DISETUJUI LENGKAP (IAA / MGR DEPT &amp; CHECK BY IT)
+                  {submittedReq.form_type === 'out'
+                    ? 'IZIN AKTIF · SEDANG DIBAWA KELUAR (BELUM CLOSED)'
+                    : 'DISETUJUI LENGKAP (IAA / MGR DEPT & CHECK BY IT)'}
                 </div>
               )}
               {isApprovedManager && (
@@ -376,7 +378,9 @@ function FormContent() {
               {isReturned && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/15 text-primary font-semibold text-sm">
                   <CheckCircle2 className="size-4 text-primary" />
-                  SELESAI (SUDAH DIKEMBALIKAN &amp; DICHECK)
+                  {submittedReq.form_type === 'out'
+                    ? 'CLOSED / SELESAI · PERANGKAT TELAH KEMBALI & DITANDATANGANI LENGKAP'
+                    : 'SELESAI (SUDAH DIKEMBALIKAN & DICHECK)'}
                 </div>
               )}
               {isRejected && (

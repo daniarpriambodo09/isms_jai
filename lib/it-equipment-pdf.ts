@@ -360,28 +360,9 @@ export async function buildItEquipmentPdf(
       writeCenter(req.rejected_by || 'Manager Dept / IAA', 528, 628, 6.5, fontRegular, COLOR_MUTED, 82)
     }
 
-    // Kotak Persetujuan Tahap 2 (IT / PIC penyimpan record): HANYA terisi setelah Tahap 1 Manager/IAA selesai DAN Tahap 2 IT disetujui
-    if (req.status === 'approved' || req.status === 'returned') {
-      const itParts = parseDateParts(req.it_checked_at || req.returned_at || req.approved_at || req.request_date)
-      const itBox = {
-        cx: 289.0,
-        s1: 272.9,
-        s2: 301.9,
-        label: req.it_checked_by || req.returned_checked_by || 'System Security Admin (IT)',
-      }
-      page.drawRectangle({ x: itBox.cx - 35, y: 176, width: 70, height: 12, color: COLOR_WHITE })
-      const qrItSize = 24
-      await stampQr(`${verifyUrl}&stage=it_check`, itBox.cx - qrItSize / 2, 192, qrItSize)
-      writeCenter('CHECKED BY IT', itBox.cx, 184, 5.5, fontBold, COLOR_RED)
-      writeCenter(itBox.label, itBox.cx, 175, 6.5, fontBold, COLOR_INK, 76)
-      if (itParts) {
-        writeCenter(itParts.dd, itBox.s1 - 12, 165.2, 7, fontBold)
-        writeCenter(itParts.mm, (itBox.s1 + itBox.s2) / 2, 165.2, 7, fontBold)
-        writeCenter(itParts.yy, itBox.s2 + 12, 165.2, 7, fontBold)
-      }
-    }
-
-    // Bagian [KEMBALI] (HANYA terisi jika perangkat telah dikembalikan: status === 'returned')
+    // Bagian [KEMBALI] (HANYA terisi jika perangkat telah dikembalikan & CLOSED: status === 'returned')
+    // Sesuai alur fisik Form 002: Selama izin aktif dibawa keluar, bagian [KEMBALI] tetap kosong (belum closed).
+    // Setelah kembali ke JAI, dilakukan cek virus/data & ttd 3 pihak: PIC bawa keluar, Manager konfirmasi, dan IT simpan record.
     if (req.status === 'returned') {
       if (req.return_check_items !== false) {
         drawCheckmark(168, 301)
@@ -391,15 +372,44 @@ export async function buildItEquipmentPdf(
       }
 
       const retParts = parseDateParts(req.returned_at || req.date_out_plan)
-      const boxes = [
-        { cx: 408.5, s1: 392.4, s2: 421.4, label: req.approved_by || 'Manager Dept / IAA' },
-        { cx: 528.0, s1: 511.9, s2: 541.0, label: req.applicant_name || 'PIC' },
+
+      // 3 Kotak Tanda Tangan Pengembalian [KEMBALI]:
+      // 1. Kiri (cx=289.0): IT / PIC penyimpan record (simpan)
+      // 2. Tengah (cx=408.5): Manager (Konfirmasi kembali)
+      // 3. Kanan (cx=528.0): PIC bawa keluar (check virus)
+      const returnBoxes = [
+        {
+          cx: 289.0,
+          s1: 272.9,
+          s2: 301.9,
+          label: req.it_checked_by || req.returned_checked_by || 'System Security Admin (IT)',
+          title: 'RECORD SAVED',
+          qrStage: 'it_record',
+        },
+        {
+          cx: 408.5,
+          s1: 392.4,
+          s2: 421.4,
+          label: req.approved_by || 'Manager Dept / IAA',
+          title: 'VERIFIED',
+          qrStage: 'mgr_return',
+        },
+        {
+          cx: 528.0,
+          s1: 511.9,
+          s2: 541.0,
+          label: req.applicant_name || 'PIC Bawa Keluar',
+          title: 'VERIFIED',
+          qrStage: 'pic_return',
+        },
       ]
 
-      for (const b of boxes) {
+      for (const b of returnBoxes) {
         page.drawRectangle({ x: b.cx - 35, y: 176, width: 70, height: 12, color: COLOR_WHITE })
-        writeCenter('VERIFIED', b.cx, 196, 6, fontBold, COLOR_RED)
-        writeCenter(b.label, b.cx, 184, 6.5, fontBold, COLOR_INK, 76)
+        const qrBoxSize = 24
+        await stampQr(`${verifyUrl}&stage=${b.qrStage}`, b.cx - qrBoxSize / 2, 192, qrBoxSize)
+        writeCenter(b.title, b.cx, 184, 5.5, fontBold, COLOR_RED)
+        writeCenter(b.label, b.cx, 175, 6.5, fontBold, COLOR_INK, 76)
         if (retParts) {
           writeCenter(retParts.dd, b.s1 - 12, 165.2, 7, fontBold)
           writeCenter(retParts.mm, (b.s1 + b.s2) / 2, 165.2, 7, fontBold)

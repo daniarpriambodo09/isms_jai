@@ -987,12 +987,15 @@ export default function KelolaIzinAlatItPage() {
                           )}
                           {isApproved && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#dff5e6] text-[#1a6e3a] text-[11px] font-semibold">
-                              <CheckCircle2 className="size-3" /> Di-ACC Lengkap (Mgr/IAA &amp; IT)
+                              <CheckCircle2 className="size-3" />{' '}
+                              {req.form_type === 'out'
+                                ? 'Izin Aktif · Sedang Dibawa Keluar (Belum Closed)'
+                                : 'Di-ACC Lengkap (Masuk)'}
                             </span>
                           )}
                           {isReturned && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/15 text-primary text-[11px] font-semibold">
-                              <CheckCircle2 className="size-3" /> Dikembalikan
+                              <CheckCircle2 className="size-3" /> Selesai (Closed / Sudah Kembali)
                             </span>
                           )}
                           {isRejected && (
@@ -1391,8 +1394,14 @@ export default function KelolaIzinAlatItPage() {
                   <div className="font-bold text-slate-800 text-sm">
                     {selectedReq.status === 'pending' && 'Tahap 1: Menunggu Persetujuan IAA / Manager Departemen'}
                     {selectedReq.status === 'approved_manager' && 'Tahap 2: Disetujui IAA / Mgr Dept · Menunggu Verifikasi IT (SSA)'}
-                    {selectedReq.status === 'approved' && 'Disetujui Lengkap (IAA / Manager Departemen & Verifikasi IT)'}
-                    {selectedReq.status === 'returned' && 'Telah Dikembalikan & Diperiksa ([Kembali])'}
+                    {selectedReq.status === 'approved' &&
+                      (selectedReq.form_type === 'out'
+                        ? 'Izin Aktif · Perangkat Sedang Dibawa Keluar (Belum Closed)'
+                        : 'Disetujui Lengkap (IAA / Manager Departemen & Verifikasi IT)')}
+                    {selectedReq.status === 'returned' &&
+                      (selectedReq.form_type === 'out'
+                        ? 'Closed / Selesai · Perangkat Selesai Dikembalikan & Ditandatangani Lengkap'
+                        : 'Selesai (Closed) · Telah Dikembalikan & Diperiksa')}
                     {selectedReq.status === 'rejected' && 'Ditolak'}
                   </div>
                 </div>
@@ -1677,10 +1686,15 @@ export default function KelolaIzinAlatItPage() {
               {showReturnModal && (
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
                   <h4 className="font-bold text-emerald-900 flex items-center gap-1.5">
-                    <RotateCcw className="size-4 text-emerald-600" /> Pengecheckan Sebelum Tamu Kembali (Selesai Kunjungan)
+                    <RotateCcw className="size-4 text-emerald-600" />{' '}
+                    {selectedReq.form_type === 'out'
+                      ? 'Pengecekan Pengembalian & Closing Form Bawa Keluar (ISMS-F-03-00-002)'
+                      : 'Pengecheckan Sebelum Tamu Kembali (Selesai Kunjungan)'}
                   </h4>
                   <p className="text-[11px] text-emerald-800">
-                    Berdasarkan ketentuan form ISMS-F-03-00-001, pastikan verifikasi berikut telah dilakukan:
+                    {selectedReq.form_type === 'out'
+                      ? 'Perangkat telah kembali ke PT. JAI. Berdasarkan ketentuan Form ISMS-F-03-00-002 [KEMBALI], pastikan verifikasi berikut telah dilakukan sebelum form di-close:'
+                      : 'Berdasarkan ketentuan form ISMS-F-03-00-001, pastikan verifikasi berikut telah dilakukan:'}
                   </p>
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1691,7 +1705,9 @@ export default function KelolaIzinAlatItPage() {
                         className="rounded text-emerald-600 focus:ring-emerald-500"
                       />
                       <span className="text-xs font-medium text-emerald-950">
-                        PC, flashdisk, camera, dll. sama dengan yang diajukan.
+                        {selectedReq.form_type === 'out'
+                          ? 'Tidak disambungkan ke network, komputer atau server di tempat tujuan.'
+                          : 'PC, flashdisk, camera, dll. sama dengan yang diajukan.'}
                       </span>
                     </label>
 
@@ -1703,7 +1719,9 @@ export default function KelolaIzinAlatItPage() {
                         className="rounded text-emerald-600 focus:ring-emerald-500"
                       />
                       <span className="text-xs font-medium text-emerald-950">
-                        Tidak membawa pulang informasi rahasia tidak terkait.
+                        {selectedReq.form_type === 'out'
+                          ? 'Tidak mengimport data atau USB memory orang lain / Telah dicheck virus.'
+                          : 'Tidak membawa pulang informasi rahasia tidak terkait.'}
                       </span>
                     </label>
                   </div>
@@ -1714,7 +1732,11 @@ export default function KelolaIzinAlatItPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="Contoh: Perangkat telah diperiksa lengkap di pos security."
+                      placeholder={
+                        selectedReq.form_type === 'out'
+                          ? 'Contoh: Perangkat kembali utuh, diverifikasi bebas virus, dan record disimpan.'
+                          : 'Contoh: Perangkat telah diperiksa lengkap di pos security.'
+                      }
                       value={returnNotes}
                       onChange={(e) => setReturnNotes(e.target.value)}
                       className="w-full text-xs px-2.5 py-1.5 border border-emerald-300 rounded-lg bg-white"
@@ -1735,7 +1757,11 @@ export default function KelolaIzinAlatItPage() {
                       onClick={handleReturnCheck}
                       className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
                     >
-                      {actionLoading ? 'Menyimpan...' : 'Simpan Pengecekan Kembali'}
+                      {actionLoading
+                        ? 'Menyimpan...'
+                        : selectedReq.form_type === 'out'
+                        ? 'Konfirmasi Pengembalian Selesai (Close Form 002)'
+                        : 'Simpan Pengecekan Kembali'}
                     </button>
                   </div>
                 </div>
@@ -1804,7 +1830,10 @@ export default function KelolaIzinAlatItPage() {
                     onClick={() => setShowReturnModal(true)}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition shadow-sm"
                   >
-                    <RotateCcw className="size-4" /> Pengecekan Pengembalian (Selesai)
+                    <RotateCcw className="size-4" />{' '}
+                    {selectedReq.form_type === 'out'
+                      ? 'Konfirmasi Kembali & Closing Form (002)'
+                      : 'Pengecekan Pengembalian (Selesai)'}
                   </button>
                 )}
 

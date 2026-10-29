@@ -98,6 +98,50 @@ describe('IT Forms and E-Sign System Verification', () => {
     expect(header).toBe('%PDF-')
   })
 
+  it('generates IT Equipment OUT PDF (ISMS-F-03-00-002) returned / closed with all 3 return signatures', async () => {
+    const mockReturnedOut: ItEquipmentRequest = {
+      id: 3,
+      request_no: 'REQ-EQ-20261020-003',
+      form_type: 'out',
+      request_date: '2026-10-20',
+      company_name: 'PT. JATIM AUTOCOMP INDONESIA',
+      applicant_name: 'Siti Aminah',
+      applicant_nik: 'JAI-12345',
+      department: 'Quality Assurance',
+      section: 'QA Testing',
+      location: 'Plant Pasuruan',
+      purpose: 'Pengujian QA di Plant Pasuruan',
+      date_in: '2026-10-20',
+      date_out_plan: '2026-10-22',
+      agree_rules: true,
+      items: [
+        { equipment_type: 'Laptop / PC', brand: 'ThinkPad', model: 'T14s', serial_no: 'TP99881', id_no: 'ASSET-01' }
+      ],
+      status: 'returned',
+      return_check_items: true,
+      return_check_confidential: true,
+      approved_by: 'TEGUH SUNJOYO',
+      approved_title: 'Manager Departemen / IAA',
+      approved_at: '2026-10-20T08:30:00Z',
+      it_checked_by: 'Budi Santoso',
+      it_checked_title: 'System Security Administrator (IT)',
+      it_checked_at: '2026-10-22T16:00:00Z',
+      returned_at: '2026-10-22T16:00:00Z',
+      returned_checked_by: 'Budi Santoso',
+      returned_notes: 'Perangkat kembali utuh, diverifikasi bebas virus, dan disimpan oleh IT.',
+      approval_code: 'ESIGN-EQ-003',
+      token: 'tok-eq-out-ret-789',
+      created_at: '2026-10-20T08:00:00Z',
+      updated_at: '2026-10-22T16:00:00Z'
+    }
+
+    const pdfBytes = await buildItEquipmentPdf(mockReturnedOut, 'https://isms.jai.co.id/api/it-equipment-requests/3/verify?t=tok-eq-out-ret-789')
+    expect(pdfBytes).toBeDefined()
+    expect(pdfBytes.length).toBeGreaterThan(1000)
+    const header = Buffer.from(pdfBytes.slice(0, 5)).toString()
+    expect(header).toBe('%PDF-')
+  })
+
   const formCodes = [
     'ISMS-F-010-001',
     'ISMS-F-010-003',

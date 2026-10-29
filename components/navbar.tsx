@@ -282,16 +282,11 @@ export function Navbar() {
     </>
   )
 
-  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs', '/form-it-esign', '/registrasi-fingerprint', '/ijin-masuk-alat-it', '/kelola-izin-alat-it']
+  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs']
   const isFormCsActive = formCsRoutes.includes(pathname)
   const formCsItems = (
     <>
       <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Application Form</Link>
-      <Link href="/ijin-masuk-alat-it" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Izin Masuk/Keluar Alat IT &amp; Link Tamu</Link>
-      <Link href="/form-it-esign" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Form Layanan E-Sign IT</Link>
-      {isLoggedIn && (
-        <Link href="/kelola-izin-alat-it" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] font-bold uppercase tracking-[0.04em] text-primary">Kelola Link Tamu &amp; Izin Alat IT</Link>
-      )}
       <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">CS Control</Link>
     </>
   )

@@ -494,7 +494,7 @@ export function GuestLinksAdminPanel({
                 <th className="px-4 py-3.5">Nama Tamu &amp; Link Unik</th>
                 <th className="px-4 py-3.5">Status 2 Form (Alat IT &amp; Network)</th>
                 <th className="px-4 py-3.5">Username &amp; IP Jaringan Internal</th>
-                <th className="px-4 py-3.5 text-right">Aksi Admin IT</th>
+                <th className="px-4 py-3.5 text-right whitespace-nowrap min-w-[280px]">Aksi Admin IT</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -739,15 +739,15 @@ export function GuestLinksAdminPanel({
                       </td>
 
                       {/* Kolom 5: Tombol Aksi Bertahap (Tahap 1 -> Tahap 2A -> Tahap 2B) */}
-                      <td className="px-4 py-3.5 align-top text-right whitespace-nowrap">
-                        <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+                      <td className="px-4 py-3.5 align-top text-right whitespace-nowrap min-w-[280px]">
+                        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                           {/* TAHAP 1A: Persetujuan IAA / Manager Departemen pada Form 1 (Masuk/Keluar) terlebih dahulu! */}
                           {item.equipment_request && item.equipment_request.status === 'pending' && (
                             <button
                               type="button"
                               disabled={processingForm1Id === item.id}
                               onClick={() => handleQuickApproveForm1Manager(item)}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50 transition"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                               {processingForm1Id === item.id
@@ -762,7 +762,7 @@ export function GuestLinksAdminPanel({
                               type="button"
                               disabled={processingForm1Id === item.id}
                               onClick={() => handleQuickApproveForm1(item)}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                               {processingForm1Id === item.id
@@ -776,7 +776,7 @@ export function GuestLinksAdminPanel({
                             <button
                               type="button"
                               onClick={() => openApprovalModal(item, 'approve')}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition"
                             >
                               <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
                               {item.status === 'approved'
@@ -798,7 +798,7 @@ export function GuestLinksAdminPanel({
                                 type="button"
                                 disabled={processingIaaId === item.id}
                                 onClick={() => handleQuickApproveIaa(item)}
-                                className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+                                className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50 transition"
                               >
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
                                 {processingIaaId === item.id ? 'Menyimpan...' : '3. Approve IAA (Pak Tsu)'}
@@ -809,8 +809,9 @@ export function GuestLinksAdminPanel({
                             <button
                               type="button"
                               onClick={() => openApprovalModal(item, 'reject')}
-                              className="inline-flex items-center gap-1 rounded-xl border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/20"
+                              className="inline-flex items-center gap-1 rounded-xl border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/20 transition"
                             >
+                              <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
                               Tolak
                             </button>
                           )}
@@ -820,7 +821,7 @@ export function GuestLinksAdminPanel({
                             disabled={deletingId === item.id}
                             onClick={() => handleDeleteLink(item)}
                             title="Hapus Link Tamu"
-                            className="inline-flex items-center gap-1 rounded-xl border border-destructive/40 bg-card px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+                            className="inline-flex items-center gap-1 rounded-xl border border-destructive/40 bg-card px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 transition"
                           >
                             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                             Hapus

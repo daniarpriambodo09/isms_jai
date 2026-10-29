@@ -43,6 +43,7 @@ import { API_BASE_PATH } from '@/lib/config'
 import { downloadExcel } from '@/lib/excel-export'
 import { useAuth } from '@/context/AuthContext'
 import { GuestLinkGeneratorModal } from '@/components/it/GuestLinkGeneratorModal'
+import { NetworkPassCard } from '@/components/it/NetworkPassCard'
 
 const inputClass =
   'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15'
@@ -664,6 +665,41 @@ function FormContent() {
             </button>
           </div>
         </section>
+
+        {/* Slip Parameter Jaringan & Internet Resmi PT. JAI */}
+        {isApproved && submittedReq.form_type === 'in' && (
+          <section className="space-y-2">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
+              Slip Parameter Jaringan &amp; Internet Tamu PT. JAI
+            </h3>
+            <NetworkPassCard
+              data={{
+                recipientName: submittedReq.applicant_name,
+                companyOrDept: `${submittedReq.company_name} · ${submittedReq.department}`,
+                requestNoOrCode: submittedReq.request_no,
+                ssid: submittedReq.network_ssid || 'JAI-CORP-GUEST',
+                networkUsername: submittedReq.network_username,
+                networkPassword: submittedReq.network_password,
+                ipMode: submittedReq.ip_mode || 'static',
+                assignedIp:
+                  submittedReq.assigned_ip ||
+                  `192.168.50.${(submittedReq.id % 150) + 50}`,
+                subnetMask: submittedReq.subnet_mask || '255.255.255.0',
+                gateway: submittedReq.gateway || '192.168.50.1',
+                dnsPrimary: submittedReq.dns_primary || '192.168.1.10',
+                dnsSecondary: submittedReq.dns_secondary || '8.8.8.8',
+                validFrom: submittedReq.date_in,
+                validUntil: submittedReq.date_out_plan,
+                approvedBy:
+                  submittedReq.it_checked_by ||
+                  submittedReq.approved_by ||
+                  'System Security Admin (IT)',
+                approvedAt: submittedReq.it_checked_at || submittedReq.approved_at,
+                directLink: typeof window !== 'undefined' ? window.location.href : undefined,
+              }}
+            />
+          </section>
+        )}
 
         <div className="text-center pb-8">
           <button

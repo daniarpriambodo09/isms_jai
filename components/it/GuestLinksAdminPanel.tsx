@@ -24,6 +24,7 @@ import {
   Wifi,
   Laptop,
   Network,
+  Send,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import {
@@ -31,6 +32,7 @@ import {
   type ItGuestAccessLink,
 } from '@/lib/it-guest-link-shared'
 import { GuestLinkGeneratorModal } from '@/components/it/GuestLinkGeneratorModal'
+import { NetworkPassModal, type NetworkPassData } from '@/components/it/NetworkPassCard'
 
 interface GuestLinksAdminPanelProps {
   defaultApproverName?: string
@@ -83,6 +85,32 @@ export function GuestLinksAdminPanel({
 
   // Delete loading state
   const [deletingId, setDeletingId] = useState<number | null>(null)
+
+  // Network Pass Modal state (Slip Parameter Jaringan & WhatsApp)
+  const [selectedSlipData, setSelectedSlipData] = useState<NetworkPassData | null>(null)
+
+  const openNetworkSlipModal = (item: ItGuestAccessLink) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    setSelectedSlipData({
+      recipientName: item.guest_name,
+      companyOrDept: item.company_name || item.department,
+      requestNoOrCode: item.link_code,
+      ssid: item.network_ssid || 'JAI-CORP-GUEST',
+      networkUsername: item.network_username,
+      networkPassword: item.network_password,
+      ipMode: item.ip_mode,
+      assignedIp: item.assigned_ip || '',
+      subnetMask: item.subnet_mask || '255.255.255.0',
+      gateway: item.gateway || '192.168.50.1',
+      dnsPrimary: item.dns_primary || '192.168.1.10',
+      dnsSecondary: item.dns_secondary || '8.8.8.8',
+      validFrom: item.visit_date,
+      validUntil: item.visit_end_date,
+      approvedBy: item.approved_by || 'System Security Admin (IT)',
+      approvedAt: item.approved_at,
+      directLink: `${origin}/tamu-it/${item.link_code}`,
+    })
+  }
 
   const fetchGuestLinks = useCallback(async () => {
     setLoading(true)
@@ -695,6 +723,18 @@ export function GuestLinksAdminPanel({
                               ({item.network_ssid || 'JAI-CORP-GUEST'})
                             </span>
                           </div>
+                          {item.assigned_ip && (
+                            <div className="pt-1">
+                              <button
+                                type="button"
+                                onClick={() => openNetworkSlipModal(item)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold transition shadow-xs"
+                                title="Lihat Slip Parameter Jaringan & Kirim WhatsApp"
+                              >
+                                <Send className="size-3" /> Slip Jaringan &amp; WA
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -1093,6 +1133,13 @@ export function GuestLinksAdminPanel({
           </div>
         </div>
       )}
+
+      {/* Network Pass Slip & WhatsApp Modal */}
+      <NetworkPassModal
+        open={!!selectedSlipData}
+        onClose={() => setSelectedSlipData(null)}
+        data={selectedSlipData}
+      />
     </div>
   )
 }

@@ -33,6 +33,7 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { NetworkPassCard, type NetworkPassData } from '@/components/it/NetworkPassCard'
 import {
   EQUIPMENT_TYPES,
   DEFAULT_DEPARTMENTS,
@@ -638,202 +639,29 @@ export default function GuestItCombinedFormPage() {
             )}
 
             {guestLink.status === 'approved' && (
-              <div className="space-y-6">
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-start gap-3.5">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
-                      </div>
-                      <div>
-                        <span className="inline-block rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                          APPROVED BY IT ADMIN ({guestLink.approved_by || 'IT Security Admin'})
-                        </span>
-                        <h2 className="mt-1 text-lg font-bold text-foreground">
-                          Kredensial Akses Jaringan &amp; Internet Internal PT. JAI
-                        </h2>
-                        <p className="text-xs text-muted-foreground">
-                          Gunakan parameter resmi di bawah ini untuk menyambungkan perangkat Anda ke jaringan/internet internal perusahaan.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* KARTU KREDENSIAL LOGIN & IP JARINGAN INTERNAL */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  {/* Blok 1: Akun Login Jaringan / Captive Portal & Wi-Fi */}
-                  <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-4">
-                    <div className="flex items-center gap-2 border-b border-border pb-3">
-                      <KeyRound className="h-4 w-4 text-primary" aria-hidden="true" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                        1. Akun Login Jaringan Internal (Captive Portal / 802.1X)
-                      </h3>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">
-                            Username Jaringan Internal
-                          </p>
-                          <p className="font-mono text-sm font-bold text-primary">
-                            {guestLink.network_username || '-'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy('username', guestLink.network_username || '')}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
-                        >
-                          {copiedField === 'username' ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
-                              Disalin
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                              Salin
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">
-                            Password / Kode Akses Jaringan
-                          </p>
-                          <p className="font-mono text-sm font-bold text-foreground">
-                            {showPassword
-                              ? guestLink.network_password || '-'
-                              : '••••••••••••'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((p) => !p)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                            ) : (
-                              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy('password', guestLink.network_password || '')}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
-                          >
-                            {copiedField === 'password' ? (
-                              <>
-                                <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
-                                Disalin
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                                Salin
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">
-                            Nama Jaringan (SSID Wi-Fi / VLAN Internal)
-                          </p>
-                          <p className="font-mono text-sm font-bold text-foreground">
-                            {guestLink.network_ssid || 'JAI-CORP-GUEST'}
-                          </p>
-                        </div>
-                        <span className="rounded-md bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">
-                          Authorized
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Blok 2: Konfigurasi IP Address, Subnet, Gateway & DNS */}
-                  <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-4">
-                    <div className="flex items-center justify-between border-b border-border pb-3">
-                      <div className="flex items-center gap-2">
-                        <Server className="h-4 w-4 text-primary" aria-hidden="true" />
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                          2. Konfigurasi IP &amp; Parameter Internet Internal
-                        </h3>
-                      </div>
-                      <span className="rounded-md border border-border bg-card px-2 py-0.5 text-[10px] font-bold uppercase text-foreground">
-                        Mode: {guestLink.ip_mode === 'static' ? 'Static IP' : 'DHCP / Reserved IP'}
-                      </span>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">
-                            IP Address yang Dialokasikan
-                          </p>
-                          <p className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                            {guestLink.assigned_ip || '-'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy('ip', guestLink.assigned_ip || '')}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted"
-                        >
-                          {copiedField === 'ip' ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />
-                              Disalin
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                              Salin IP
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="rounded-xl border border-border bg-card p-3">
-                          <p className="text-[11px] font-medium text-muted-foreground">Subnet Mask</p>
-                          <p className="font-mono text-xs font-bold text-foreground mt-0.5">
-                            {guestLink.subnet_mask || '255.255.255.0'}
-                          </p>
-                        </div>
-                        <div className="rounded-xl border border-border bg-card p-3">
-                          <p className="text-[11px] font-medium text-muted-foreground">Default Gateway</p>
-                          <p className="font-mono text-xs font-bold text-foreground mt-0.5">
-                            {guestLink.gateway || '192.168.50.1'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="rounded-xl border border-border bg-card p-3">
-                          <p className="text-[11px] font-medium text-muted-foreground">Preferred DNS</p>
-                          <p className="font-mono text-xs font-bold text-foreground mt-0.5">
-                            {guestLink.dns_primary || '192.168.1.10'}
-                          </p>
-                        </div>
-                        <div className="rounded-xl border border-border bg-card p-3">
-                          <p className="text-[11px] font-medium text-muted-foreground">Alternate DNS</p>
-                          <p className="font-mono text-xs font-bold text-foreground mt-0.5">
-                            {guestLink.dns_secondary || '8.8.8.8'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="space-y-5">
+                {/* Official Yazaki Network Pass Card with WhatsApp Share & Print Slip */}
+                <NetworkPassCard
+                  data={{
+                    recipientName: guestLink.guest_name,
+                    companyOrDept: guestLink.company_name || guestLink.department,
+                    requestNoOrCode: guestLink.link_code,
+                    ssid: guestLink.network_ssid || 'JAI-CORP-GUEST',
+                    networkUsername: guestLink.network_username,
+                    networkPassword: guestLink.network_password,
+                    ipMode: guestLink.ip_mode,
+                    assignedIp: guestLink.assigned_ip || '',
+                    subnetMask: guestLink.subnet_mask || '255.255.255.0',
+                    gateway: guestLink.gateway || '192.168.50.1',
+                    dnsPrimary: guestLink.dns_primary || '192.168.1.10',
+                    dnsSecondary: guestLink.dns_secondary || '8.8.8.8',
+                    validFrom: guestLink.visit_date,
+                    validUntil: guestLink.visit_end_date,
+                    approvedBy: guestLink.approved_by || 'System Security Admin (IT)',
+                    approvedAt: guestLink.approved_at,
+                    directLink: typeof window !== 'undefined' ? window.location.href : undefined,
+                  }}
+                />
 
                 {/* Panduan Singkat Menyambung ke Internet / Jaringan Internal */}
                 <div className="rounded-xl border border-border bg-muted/15 p-4 text-xs text-muted-foreground space-y-1.5">

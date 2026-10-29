@@ -34,7 +34,21 @@ export async function GET(request: NextRequest) {
     // If querying by visitor public tracking token
     if (token) {
       const res = await query<ItEquipmentRequest>(
-        `SELECT * FROM it_equipment_requests WHERE token = $1 LIMIT 1`,
+        `SELECT er.*,
+                gl.link_code,
+                gl.network_username,
+                gl.network_password,
+                gl.network_ssid,
+                gl.assigned_ip,
+                gl.subnet_mask,
+                gl.gateway,
+                gl.dns_primary,
+                gl.dns_secondary,
+                gl.ip_mode
+         FROM it_equipment_requests er
+         LEFT JOIN guest_it_access_links gl ON gl.equipment_request_id = er.id
+         WHERE er.token = $1
+         LIMIT 1`,
         [token]
       )
       if (res.rowCount === 0) {

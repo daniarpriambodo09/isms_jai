@@ -38,12 +38,14 @@ import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
 import { IT_FORM_DEFINITIONS, type ItFormSubmission } from '@/lib/it-form-shared'
 import { downloadExcel } from '@/lib/excel-export'
 import { GuestLinksAdminPanel } from '@/components/it/GuestLinksAdminPanel'
+import { NetworkPassModal, type NetworkPassData } from '@/components/it/NetworkPassCard'
 
 export default function KelolaIzinAlatItPage() {
   const { isLoggedIn, adminUser, logout } = useAuth()
   const role = adminUser?.role
   const username = adminUser?.username || ''
   const [mainSection, setMainSection] = useState<'guest_links' | 'equipment' | 'it_forms'>('guest_links')
+  const [adminSlipData, setAdminSlipData] = useState<NetworkPassData | null>(null)
   const [deletingEqId, setDeletingEqId] = useState<number | null>(null)
   const [deletingSubId, setDeletingSubId] = useState<number | null>(null)
   const [requests, setRequests] = useState<ItEquipmentRequest[]>([])
@@ -1770,7 +1772,7 @@ export default function KelolaIzinAlatItPage() {
 
             {/* Modal Footer Actions */}
             <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <a
                   href={`/api/it-equipment-requests/${selectedReq.id}/pdf`}
                   target="_blank"
@@ -1779,6 +1781,43 @@ export default function KelolaIzinAlatItPage() {
                 >
                   <Download className="size-3.5" /> Unduh Dokumen PDF
                 </a>
+
+                {selectedReq.status === 'approved' && selectedReq.form_type === 'in' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                      setAdminSlipData({
+                        recipientName: selectedReq.applicant_name,
+                        companyOrDept: `${selectedReq.company_name} · ${selectedReq.department}`,
+                        requestNoOrCode: selectedReq.request_no,
+                        ssid: selectedReq.network_ssid || 'JAI-CORP-GUEST',
+                        networkUsername: selectedReq.network_username,
+                        networkPassword: selectedReq.network_password,
+                        ipMode: selectedReq.ip_mode || 'static',
+                        assignedIp:
+                          selectedReq.assigned_ip ||
+                          `192.168.50.${(selectedReq.id % 150) + 50}`,
+                        subnetMask: selectedReq.subnet_mask || '255.255.255.0',
+                        gateway: selectedReq.gateway || '192.168.50.1',
+                        dnsPrimary: selectedReq.dns_primary || '192.168.1.10',
+                        dnsSecondary: selectedReq.dns_secondary || '8.8.8.8',
+                        validFrom: selectedReq.date_in,
+                        validUntil: selectedReq.date_out_plan,
+                        approvedBy:
+                          selectedReq.it_checked_by ||
+                          selectedReq.approved_by ||
+                          'System Security Admin (IT)',
+                        approvedAt: selectedReq.it_checked_at || selectedReq.approved_at,
+                        directLink: `${origin}/ijin-masuk-alat-it?token=${selectedReq.token}`,
+                      })
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
+                    title="Lihat Slip Parameter Jaringan & Salin WA"
+                  >
+                    <Send className="size-3.5" /> Slip Jaringan &amp; WA
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -2261,8 +2300,8 @@ export default function KelolaIzinAlatItPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-secondary/30 border-t border-border flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+            <div className="p-4 bg-secondary/30 border-t border-border flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <a
                   href={`/api/it-form-submissions/${selectedItSub.id}/pdf`}
                   target="_blank"
@@ -2278,6 +2317,35 @@ export default function KelolaIzinAlatItPage() {
                 >
                   <ExternalLink className="size-3.5" /> Buka di Portal E-Sign
                 </Link>
+                {(selectedItSub.form_code === 'ISMS-F-03-00-003' || itAssignedIp) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                      setAdminSlipData({
+                        recipientName: selectedItSub.applicant_name,
+                        companyOrDept: `${selectedItSub.company_name} · ${selectedItSub.department}`,
+                        requestNoOrCode: selectedItSub.request_no,
+                        ssid: 'JAI-CORP-GUEST',
+                        networkUsername: selectedItSub.applicant_name.toLowerCase().replace(/\s+/g, '.'),
+                        ipMode: itIpMode,
+                        assignedIp: itAssignedIp || '192.168.50.101',
+                        subnetMask: itStaticSubnet || '255.255.255.0',
+                        gateway: itStaticGateway || '192.168.50.1',
+                        dnsPrimary: itDnsPriority || '192.168.1.10',
+                        dnsSecondary: itDnsSecondary || '8.8.8.8',
+                        validFrom: selectedItSub.request_date,
+                        validUntil: selectedItSub.request_date,
+                        approvedBy: username || 'System Security Admin (IT)',
+                        directLink: `${origin}/form-it-esign?token=${selectedItSub.token}`,
+                      })
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
+                    title="Lihat Slip Parameter Jaringan & Salin WA"
+                  >
+                    <Send className="size-3.5" /> Slip Jaringan &amp; WA
+                  </button>
+                )}
               </div>
               <button
                 type="button"
@@ -2290,6 +2358,13 @@ export default function KelolaIzinAlatItPage() {
           </div>
         </div>
       )}
+
+      {/* Network Pass Slip & WhatsApp Modal */}
+      <NetworkPassModal
+        open={!!adminSlipData}
+        onClose={() => setAdminSlipData(null)}
+        data={adminSlipData}
+      />
     </div>
   )
 }

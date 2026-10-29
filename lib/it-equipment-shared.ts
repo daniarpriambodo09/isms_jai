@@ -47,6 +47,16 @@ export type ItEquipmentRequest = {
   returned_notes?: string | null
   return_check_items: boolean
   return_check_confidential: boolean
+  assigned_ip?: string | null
+  ip_mode?: 'dhcp' | 'static' | string | null
+  network_ssid?: string | null
+  network_username?: string | null
+  network_password?: string | null
+  subnet_mask?: string | null
+  gateway?: string | null
+  dns_primary?: string | null
+  dns_secondary?: string | null
+  link_code?: string | null
   created_at: string
   updated_at: string
 }

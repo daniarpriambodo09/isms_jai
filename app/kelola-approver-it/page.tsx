@@ -359,7 +359,8 @@ export default function KelolaApproverItPage() {
             </div>
           </div>
 
-          {/* Section 2: Global Special Security Area (Fingerprint) */}
+          {/* Section 2: Global Special Security Area (Fingerprint) - Hanya ditampilkan untuk ISM_ADMIN */}
+          {adminUser?.role !== 'it' && (
           <div>
             <div className="flex items-center justify-between mb-2 px-1">
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5">
@@ -403,6 +404,7 @@ export default function KelolaApproverItPage() {
               })}
             </div>
           </div>
+          )}
         </div>
 
         {/* Selected Form Details & Approver Management */}

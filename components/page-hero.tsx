@@ -10,7 +10,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import { ArrowRight, BatteryFull, Camera, Check, Folder, GraduationCap, HardHat, Languages, Layers } from 'lucide-react'
+import { ArrowRight, BatteryFull, Camera, Folder, GraduationCap, HardHat, Languages, Layers } from 'lucide-react'
 import { SignalGrid } from '@/components/backgrounds'
 
 type WithAction = { action?: ReactNode }
@@ -247,107 +247,53 @@ export function PaperHero({
   count,
   action,
 }: WithAction & { title: string; count: number }) {
-  const now = useNow(1000)
   return (
-    <section className="hero-paper relative isolate overflow-hidden rounded-3xl border-2 border-border/80 text-foreground shadow-xl transition-all">
-      <SignalGrid color="var(--primary)" opacity={0.06} speed={0.25} anchor="right" squareSize={6} gridStep={22} />
-      {/* Official Japanese/ISO 27001 Red Hanko Approval Stamp Watermark */}
-      <div className="pointer-events-none absolute right-12 top-12 -rotate-12 select-none opacity-90 max-[900px]:hidden">
-        <div className="rounded-full border-2 border-dashed border-red-600/70 p-2 text-red-600 dark:border-red-500/70 dark:text-red-400">
-          <div className="flex size-28 flex-col items-center justify-center rounded-full border-2 border-red-600/90 text-center font-mono leading-none">
-            <span className="text-[8px] font-black uppercase tracking-widest text-red-700 dark:text-red-300">PT. JAI</span>
-            <span className="my-1 text-[11px] font-black tracking-tight">ISO 27001</span>
-            <span className="rounded bg-red-600 px-1.5 py-0.5 text-[9px] font-bold text-white dark:bg-red-500">TERKENDALI</span>
-            <span className="mt-1 text-[7.5px] font-bold tracking-wider">OFFICIAL FORM</span>
-          </div>
-        </div>
+    <section className="hero-paper relative isolate overflow-hidden rounded-2xl border border-border text-foreground">
+      <SignalGrid color="var(--primary)" opacity={0.05} speed={0.25} anchor="right" squareSize={6} gridStep={22} />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-secondary/45 px-6 py-2.5 font-mono-label text-[10px] text-muted-foreground">
+        <span>Register formulir · ISMS-F</span>
+        <span>PT. Jatim Autocomp Indonesia</span>
       </div>
 
-      {/* Top Document Classification Bar (Distinct from Kontrol CS telemetry) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 bg-secondary/60 px-6 py-2.5 font-mono text-[11px] tracking-[0.05em] text-muted-foreground backdrop-blur-xs">
-        <div className="flex items-center gap-2.5">
-          <span className="size-2 rounded-full bg-rose-500" />
-          <span className="font-bold text-foreground">DOKUMEN TERKENDALI</span>
-          <span className="text-border">/</span>
-          <span className="font-semibold text-rose-600 dark:text-rose-400">ISMS-F-000 HUB</span>
-          <span className="text-border max-[640px]:hidden">&bull;</span>
-          <span className="font-medium text-muted-foreground max-[640px]:hidden">PT. JATIM AUTOCOMP INDONESIA</span>
-        </div>
-        <div className="flex items-center gap-3 text-xs font-mono">
-          <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-[10.5px] font-bold text-rose-700 dark:text-rose-300">
-            RESMI BERLAKU
-          </span>
-          <span className="tabular-nums font-bold text-foreground">
-            {now ? now.toLocaleTimeString('id-ID', { hour12: false }) : '--.--.--'} WIB
-          </span>
-        </div>
-      </div>
-
-      {/* Main hero body with vertical binder filing rule */}
-      <div className="relative grid grid-cols-1 items-start gap-8 p-6 sm:p-8 lg:grid-cols-[1.4fr_1fr] lg:p-10">
-        {/* Left red margin line & punch holes (official paper filing motif) */}
-        <div className="pointer-events-none absolute bottom-0 left-0 top-0 hidden w-6 flex-col items-center justify-around border-r-2 border-rose-500/20 py-8 lg:flex">
-          <span className="size-3 rounded-full border border-border bg-background shadow-inner" />
-          <span className="size-3 rounded-full border border-border bg-background shadow-inner" />
-          <span className="size-3 rounded-full border border-border bg-background shadow-inner" />
+      <div className="relative grid grid-cols-1 items-end gap-8 p-6 sm:p-8 lg:grid-cols-[1.45fr_1fr] lg:p-10">
+        {/* Left binder rule & punch holes (single physical paper motif) */}
+        <div aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 hidden w-6 flex-col items-center justify-around border-r border-border/80 py-8 lg:flex">
+          <span className="size-2.5 rounded-full border border-border bg-background" />
+          <span className="size-2.5 rounded-full border border-border bg-background" />
+          <span className="size-2.5 rounded-full border border-border bg-background" />
         </div>
 
         <div className="lg:pl-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/80 px-3.5 py-1 font-mono-label text-[11px] font-bold text-foreground shadow-2xs">
-            <Layers className="size-3.5 text-primary" />
-            <span>Katalog Formulir &bull; {count} Dokumen Master Terdaftar</span>
-          </div>
-
-          <h2 className="mt-4 font-display text-[clamp(2.4rem,4.8vw,4rem)] font-extrabold leading-[0.95] text-foreground tracking-tight">
-            Form Aplikasi <span className="font-serif-accent text-primary italic font-normal">&amp; Dokumen</span>
+          <p className="portal-eyebrow">Katalog formulir</p>
+          <h2 className="mt-3 font-display text-[clamp(2.2rem,4.5vw,3.8rem)] font-semibold leading-[0.95] text-foreground">
+            {title} <span className="font-serif-accent text-[color:var(--p-600)]">&amp; Layanan Online</span>
           </h2>
-
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Pusat arsip formulir resmi dan pengajuan izin online PT. JAI. Unduh berkas fisik terkendali atau gunakan formulir elektronik ber-E-Sign untuk persetujuan cepat dan terlacak.
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+            Unduh master formulir terkendali atau ajukan permohonan secara elektronik melalui layanan ber-E-Sign QR Code.
           </p>
-
-          {/* Quick feature pill highlights with document checkmark */}
-          <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs">
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 font-semibold text-foreground shadow-2xs">
-              <Check className="size-3.5 text-rose-600 dark:text-rose-400" strokeWidth={3} /> Standar Dokumen ISO/IEC 27001
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 font-semibold text-foreground shadow-2xs">
-              <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} /> E-Sign Digital Ber-QR Code
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-1.5 font-semibold text-foreground shadow-2xs">
-              <Check className="size-3.5 text-primary" strokeWidth={3} /> Alur Otorisasi Multi-Departemen
-            </span>
-          </div>
         </div>
 
-        {/* Right side: Archival Docket Index Card */}
-        <div className="flex flex-col gap-4 self-stretch justify-between rounded-2xl border-2 border-dashed border-border bg-card/90 p-5 shadow-sm backdrop-blur-xs">
-          <div className="flex items-center justify-between border-b border-border/80 pb-2.5 font-mono text-[10.5px]">
-            <span className="font-bold text-muted-foreground uppercase tracking-wider">Lembar Kendali Berkas</span>
-            <span className="rounded bg-primary/10 px-2 py-0.5 font-bold text-primary">ISO 27001</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3.5 my-2">
-            <div className="rounded-xl border border-border bg-secondary/50 p-4">
-              <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Total Dokumen</p>
-              <p className="mt-1.5 font-display text-3xl font-black tabular-nums text-foreground sm:text-4xl">
+        <div className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-5">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="font-mono-label text-[10px] text-muted-foreground">Dokumen master</p>
+              <p className="mt-2 font-display text-4xl font-semibold leading-none tabular-nums text-foreground">
                 {count}
               </p>
-              <p className="mt-1 text-[11px] font-medium text-muted-foreground">Berkas master aktif</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">Berkas aktif terdaftar</p>
             </div>
-
-            <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-4">
-              <p className="font-mono-label text-[10.5px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">Layanan Online</p>
-              <p className="mt-1.5 font-display text-3xl font-black tabular-nums text-rose-600 dark:text-rose-400 sm:text-4xl">
+            <div className="border-l border-border pl-4">
+              <p className="font-mono-label text-[10px] text-muted-foreground">Layanan online</p>
+              <p className="mt-2 font-display text-4xl font-semibold leading-none tabular-nums text-[color:var(--p-600)]">
                 5
               </p>
-              <p className="mt-1 text-[11px] font-medium text-rose-600/80 dark:text-rose-300/80">E-Sign &amp; Izin Digital</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">Form e-sign &amp; izin</p>
             </div>
           </div>
 
-          {/* Action buttons (Admin Add Document & Group Header) */}
           {action && (
-            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-border/80">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3.5">
               {action}
             </div>
           )}

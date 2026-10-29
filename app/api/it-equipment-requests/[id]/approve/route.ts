@@ -25,7 +25,15 @@ export async function POST(
 
     const { id } = await params
     const body = await request.json()
-    const { action, approver_name, approver_title, notes, rejection_reason } = body
+    const { action, stage, approver_name, approver_title, notes, rejection_reason } = body
+
+    await query(`
+      ALTER TABLE it_equipment_requests
+      ADD COLUMN IF NOT EXISTS it_checked_by VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS it_checked_title VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS it_checked_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS it_check_notes TEXT;
+    `).catch(() => {})
 
     const existingRes = await query<ItEquipmentRequest>(
       `SELECT * FROM it_equipment_requests WHERE id = $1 LIMIT 1`,
@@ -37,28 +45,64 @@ export async function POST(
 
     const currentReq = existingRes.rows[0]
 
-    if (action === 'approve') {
-      const approvalCode = crypto.randomBytes(4).toString('hex').toUpperCase() // e.g. 8 chars
-      const signerName = approver_name?.trim() || admin.username
-      const signerTitle = approver_title?.trim() || 'System Security Administrator (IT)'
+    // Tahap 1: Persetujuan IAA / Manager Departemen
+    if (action === 'approve_manager' || (action === 'approve' && currentReq.status === 'pending' && stage !== 'it')) {
+      const signerName = approver_name?.trim() || 'Manager Departemen / IAA'
+      const signerTitle = approver_title?.trim() || 'Manager Departemen / IAA'
+
+      const updateRes = await query<ItEquipmentRequest>(
+        `UPDATE it_equipment_requests
+         SET status = 'approved_manager',
+             approved_by = $1,
+             approved_title = $2,
+             approved_at = NOW(),
+             approval_notes = $3,
+             updated_at = NOW()
+         WHERE id = $4
+         RETURNING *`,
+        [signerName, signerTitle, notes || null, id]
+      )
+
+      return NextResponse.json({
+        success: true,
+        message: 'Tahap 1: Pengajuan berhasil disetujui oleh IAA / Manager Departemen. Selanjutnya menunggu verifikasi IT.',
+        request: updateRes.rows[0],
+      })
+    }
+
+    // Tahap 2: Verifikasi / Persetujuan IT (System Security Administrator)
+    if (action === 'approve_it' || (action === 'approve' && (currentReq.status === 'approved_manager' || stage === 'it'))) {
+      if (currentReq.status !== 'approved_manager' && currentReq.status !== 'approved') {
+        return NextResponse.json(
+          {
+            error:
+              'Alur harus berurutan: Tahap 1 (Persetujuan IAA / Manager Departemen) belum disetujui. Harap setujui Tahap 1 terlebih dahulu sebelum verifikasi IT.',
+          },
+          { status: 400 }
+        )
+      }
+
+      const approvalCode = currentReq.approval_code || crypto.randomBytes(4).toString('hex').toUpperCase()
+      const checkerName = approver_name?.trim() || admin.username || 'System Security Admin (IT)'
+      const checkerTitle = approver_title?.trim() || 'System Security Administrator (IT)'
 
       const updateRes = await query<ItEquipmentRequest>(
         `UPDATE it_equipment_requests
          SET status = 'approved',
              approval_code = $1,
-             approved_by = $2,
-             approved_title = $3,
-             approved_at = NOW(),
-             approval_notes = $4,
+             it_checked_by = $2,
+             it_checked_title = $3,
+             it_checked_at = NOW(),
+             it_check_notes = COALESCE($4, it_check_notes),
              updated_at = NOW()
          WHERE id = $5
          RETURNING *`,
-        [approvalCode, signerName, signerTitle, notes || null, id]
+        [approvalCode, checkerName, checkerTitle, notes || null, id]
       )
 
       return NextResponse.json({
         success: true,
-        message: 'Pengajuan berhasil disetujui (ACC)',
+        message: 'Tahap 2: Pengajuan telah diverifikasi dan disetujui oleh IT (System Security Administrator).',
         request: updateRes.rows[0],
       })
     } else if (action === 'reject') {

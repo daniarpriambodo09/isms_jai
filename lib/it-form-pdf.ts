@@ -610,71 +610,107 @@ async function stampOnTemplate(
     write(sub.company_name || 'PT. Jatim Autocomp Indonesia', 225, 625, 9)
     write(formatDeptSection(sub.department, formData.section), 225, 595, 9)
 
-    // Connection Periode
-    write(formatDateId(formData.period_from), 245, 565, 8.5)
-    write(formatDateId(formData.period_to), 370, 565, 8.5)
+    // Connection Periode: isi tepat pada slot "FROM: dd / mm /20yy ~ TO: dd / mm /20yy"
+    const rawFrom = formData.period_from || formData.start_date || sub.request_date
+    const rawTo = formData.period_to || formData.end_date || rawFrom
+    const fromParts = parseDateParts(rawFrom)
+    const toParts = parseDateParts(rawTo)
+
+    if (fromParts) {
+      writeCenter(fromParts.dd, 255.0, 556.0, 8.5, fontBold)
+      writeCenter(fromParts.mm, 281.5, 556.0, 8.5, fontBold)
+      write(fromParts.yy, 310.5, 556.0, 8.5, fontBold)
+    }
+    if (toParts) {
+      writeCenter(toParts.dd, 374.5, 556.4, 8.5, fontBold)
+      writeCenter(toParts.mm, 401.0, 556.4, 8.5, fontBold)
+      write(toParts.yy, 430.0, 556.4, 8.5, fontBold)
+    }
 
     write(formData.location || '-', 225, 535, 9)
 
-    // Purpose checkboxes
-    if (formData.purpose_internet) tick(231, 512)
-    if (formData.purpose_email) tick(231, 497)
-    if (formData.purpose_web) tick(231, 482)
-    if (formData.purpose_ftp) tick(231, 467)
-    if (formData.purpose_others) {
-      tick(231, 452)
-      write(formData.purpose_others.slice(0, 24), 330, 452, 8)
+    // Purpose checkboxes (kotak □ berada pada x=228.7)
+    const hasAnyPurposeFlag =
+      Boolean(formData.purpose_internet) ||
+      Boolean(formData.purpose_email) ||
+      Boolean(formData.purpose_web) ||
+      Boolean(formData.purpose_ftp) ||
+      Boolean(formData.purpose_others)
+
+    if (formData.purpose_internet || !hasAnyPurposeFlag) tick(229, 511)
+    if (formData.purpose_email) tick(229, 496)
+    if (formData.purpose_web) tick(229, 481)
+    if (formData.purpose_ftp) tick(229, 466)
+    const othersText =
+      typeof formData.purpose_others === 'string' && formData.purpose_others.trim()
+        ? formData.purpose_others.trim()
+        : !hasAnyPurposeFlag && sub.purpose
+        ? sub.purpose.trim()
+        : ''
+    if (othersText) {
+      tick(229, 451)
+      write(othersText.slice(0, 26), 325, 451.5, 8)
     }
 
-    // IT Check items
-    if (formData.antivirus_installed !== false) {
-      tick(408, 355) // YES
+    // IT Check items:
+    // 1. IS ANTI-VIRUS INSTALLED? ("YES" di x=405.7, "NO" di x=481.2, y=353.3)
+    const avInstalled =
+      formData.antivirus_installed !== false &&
+      String(formData.antivirus_installed).toLowerCase() !== 'tidak' &&
+      String(formData.antivirus_installed).toLowerCase() !== 'no'
+    if (avInstalled) {
+      tick(392, 355) // Tepat di sebelah kiri kata YES agar tidak menabrak huruf Y
     } else {
-      tick(483, 355) // NO
+      tick(468, 355) // Tepat di sebelah kiri kata NO
     }
 
-    write(formData.antivirus_name || 'Windows Defender', 355, 312, 8.5)
+    // 2. ANTI-VIRUS SOFTWARE NAME?
+    write(formData.antivirus_name || 'Windows Security / Defender', 355, 311, 8.5)
 
-    // Software Version & Virus Definition Last Update (pre-printed slash at X: 457)
-    let swVersion = formData.antivirus_version || ''
-    let defUpdate = formData.virus_definition_update || ''
+    // 3. SOFTWARE VERSION & VIRUS DEFINITION LAST UPDATE? (tanda "/" tercetak di x=456.9, y=277.3)
+    let swVersion = String(formData.antivirus_version || 'Terbaru').trim()
+    let defUpdate = String(formData.virus_definition_update || '').trim()
     if (!defUpdate && swVersion.includes('/')) {
       const parts = swVersion.split('/')
       swVersion = parts[0].trim()
       defUpdate = parts.slice(1).join('/').trim()
     }
-    if (swVersion) write(swVersion.slice(0, 16), 355, 282, 8.5)
-    if (defUpdate) write(defUpdate.slice(0, 16), 468, 282, 8.5)
+    if (!defUpdate) {
+      const avUpd = String(formData.antivirus_updated || 'Ya').toLowerCase()
+      defUpdate = avUpd === 'tidak' || avUpd === 'no' ? 'Belum Update' : formatDateId(sub.request_date)
+    }
+    write(swVersion.slice(0, 18), 355, 280, 8)
+    write(defUpdate.slice(0, 16), 466, 280, 8)
 
+    // 4. OPERATING SYSTEM INFORMATION
     const macPart = formData.mac_address ? ` | MAC: ${formData.mac_address}` : ''
     const osWithMac = `${formData.os_info || 'Windows 11 Pro 64-bit'}${macPart}`
-    write(osWithMac.slice(0, 48), 355, 252, formData.mac_address ? 7.5 : 8.5)
+    write(osWithMac.slice(0, 48), 355, 250, formData.mac_address ? 7.5 : 8.5)
 
-    // For guest/network connections, DHCP is checked (X: 390, Y: 220)
-    // If an older submission explicitly set static, tick STATIC (X: 478, Y: 220)
+    // 5. NETWORK SETTING INFORMATION BEFORE CONNECTION ("DHCP" di x=387.6, "STATIC" di x=476.3, y=217.6)
     if (formData.ip_mode === 'static') {
-      tick(478, 220) // STATIC
+      tick(463, 219) // Tepat di sebelah kiri STATIC
     } else {
-      tick(390, 220) // DHCP (Default tamu & rekanan)
+      tick(374, 219) // Tepat di sebelah kiri DHCP agar tidak menabrak huruf D
     }
 
     // IP Address (assigned by IT during IT Check or static)
     const effectiveIp = formData.assigned_ip || formData.static_ip || formData.ip_address || ''
     if (effectiveIp) {
-      write(effectiveIp, 225, 197, 8.5, fontBold)
+      write(effectiveIp, 225, 196.8, 8.5, fontBold)
     }
 
     if (formData.static_subnet) {
-      write(formData.static_subnet, 225, 184, 8.5)
+      write(formData.static_subnet, 225, 181.8, 8.5)
     }
     if (formData.static_gateway) {
-      write(formData.static_gateway, 225, 167, 8.5)
+      write(formData.static_gateway, 225, 166.8, 8.5)
     }
     if (formData.dns_priority) {
-      write(formData.dns_priority, 225, 152, 8.5)
+      write(formData.dns_priority, 225, 151.8, 8.5)
     }
     if (formData.dns_secondary) {
-      write(formData.dns_secondary, 225, 137, 8.5)
+      write(formData.dns_secondary, 225, 136.8, 8.5)
     }
 
     // Always stamp MAC Address prominently in the OTHERS (proxy, etc.) line
@@ -682,45 +718,52 @@ async function stampOnTemplate(
       write(`MAC: ${formData.mac_address}`, 225, 121.8, 8, fontBold)
     }
 
-    // Approvals: IT Check (centerX=410.0) & IAA Approval (centerX=510.0)
-    const sigIt = signatures.find((s) =>
-      s.slot_label.toUpperCase().includes('CHECK') ||
-      s.slot_label.toUpperCase().includes('CEK') ||
-      s.role_title.toUpperCase().includes('IT') ||
-      s.role_title.toUpperCase().includes('SECURITY')
-    ) || signatures.find((s) => s.step_number === 2) || signatures[1]
+    // Selalu tutup tulisan bawaan template "TEGUH SUNJOYO" pada y=77.4 (di bawah garis y=85)
+    // tanpa menyentuh garis tabel horizontal (y=85) agar tidak muncul sebelum di-approve IAA!
+    page.drawRectangle({
+      x: 465,
+      y: 73.5,
+      width: 90,
+      height: 10.5,
+      color: rgb(1, 1, 1),
+    })
 
-    const sigIaa = signatures.find((s) =>
-      s.slot_label.toUpperCase().includes('APPROV') ||
-      s.role_title.toUpperCase().includes('INFORMATION') ||
-      s.role_title.toUpperCase().includes('IAA') ||
-      s.approver_name.toUpperCase().includes('TEGUH')
-    ) || signatures.find((s) => s.step_number === 1) || signatures[0]
+    // Approvals: IT SECTION CHECK (centerX=411.5) & APPROVAL IAA (centerX=510.5)
+    // Area kotak tanda tangan berada di antara y=86 s/d y=175
+    const sigIt = signatures.find(
+      (s) =>
+        s.slot_label.toUpperCase().includes('CHECK') ||
+        s.slot_label.toUpperCase().includes('CEK') ||
+        s.role_title.toUpperCase().includes('IT SECTION') ||
+        s.role_title.toUpperCase().includes('SECURITY')
+    )
 
-    const qrSize = 38
+    const sigIaa = signatures.find(
+      (s) =>
+        s.id !== sigIt?.id &&
+        (s.slot_label.toUpperCase().includes('APPROV') ||
+          s.slot_label.toUpperCase().includes('SETUJU') ||
+          s.role_title.toUpperCase().includes('INFORMATION') ||
+          s.role_title.toUpperCase().includes('IAA') ||
+          s.approver_name.toUpperCase().includes('TEGUH'))
+    )
+
+    const qrSize = 36
 
     if (sigIt && sigIt.status === 'approved') {
       const qrUrl = `${verifyUrl}&step=${sigIt.step_number}&code=${sigIt.verification_code || ''}`
-      await stampQr(qrUrl, 410.0 - qrSize / 2, 118, qrSize)
-      writeCenter('E-SIGN VERIFIED', 410.0, 107, 6.5, fontBold, COLOR_RED)
-      writeCenter(sigIt.approver_name.slice(0, 18), 410.0, 97, 7.5, fontBold, COLOR_INK)
-      writeCenter(formatDateId(sigIt.signed_at), 410.0, 86, 6.5, fontRegular, COLOR_MUTED)
+      await stampQr(qrUrl, 411.5 - qrSize / 2, 127, qrSize)
+      writeCenter('E-SIGN VERIFIED', 411.5, 116, 6, fontBold, COLOR_RED)
+      writeCenter(sigIt.approver_name.slice(0, 18), 411.5, 105, 7, fontBold, COLOR_INK)
+      writeCenter(formatDateId(sigIt.signed_at), 411.5, 94, 6, fontRegular, COLOR_MUTED)
     }
 
     if (sigIaa && sigIaa.status === 'approved') {
-      // Cover pre-printed "TEGUH SUNJOYO" inside the box so actual approver name replaces it cleanly
-      page.drawRectangle({
-        x: 468,
-        y: 72,
-        width: 88,
-        height: 16,
-        color: rgb(1, 1, 1),
-      })
       const qrUrl = `${verifyUrl}&step=${sigIaa.step_number}&code=${sigIaa.verification_code || ''}`
-      await stampQr(qrUrl, 510.0 - qrSize / 2, 118, qrSize)
-      writeCenter('E-SIGN VERIFIED', 510.0, 107, 6.5, fontBold, COLOR_RED)
-      writeCenter(sigIaa.approver_name.slice(0, 18), 510.0, 97, 7.5, fontBold, COLOR_INK)
-      writeCenter(formatDateId(sigIaa.signed_at), 510.0, 77, 6.5, fontRegular, COLOR_MUTED)
+      await stampQr(qrUrl, 510.5 - qrSize / 2, 127, qrSize)
+      writeCenter('E-SIGN VERIFIED', 510.5, 116, 6, fontBold, COLOR_RED)
+      writeCenter(sigIaa.approver_name.slice(0, 18), 510.5, 105, 7, fontBold, COLOR_INK)
+      writeCenter(formatDateId(sigIaa.signed_at), 510.5, 94, 6, fontRegular, COLOR_MUTED)
     }
   }
 

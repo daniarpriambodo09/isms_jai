@@ -110,10 +110,10 @@ export const IT_FORM_DEFINITIONS: ItFormDefinition[] = [
   },
   {
     code: 'ISMS-F-03-00-001',
-    name: 'Ijin Membawa Masuk PC, USB memory, Kamera, dll.',
+    name: 'Ijin Membawa Masuk / Keluar PC, USB memory, Kamera, dll. (001 & 002)',
     jpName: '【記録】持込・持出許可申請書',
     category: 'Perangkat & Alat IT',
-    description: 'Form izin membawa masuk laptop, komputer, atau media penyimpanan ke lingkungan perusahaan.',
+    description: 'Form izin membawa masuk (001) dan membawa keluar (002) perangkat IT (Step 1: IAA / Manager Departemen, Step 2: Check IT / SSA).',
     badge: 'Security',
   },
   {

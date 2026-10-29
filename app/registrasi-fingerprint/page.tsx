@@ -466,51 +466,31 @@ function FingerprintPageInner() {
 
         <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-start gap-4">
-            <div className="relative grid size-14 shrink-0 place-items-center rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-2xs">
-              <Fingerprint className="size-7" />
-              <span className="absolute -top-1 -right-1 flex size-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
-              </span>
+            <div className="grid size-13 shrink-0 place-items-center rounded-xl bg-primary/10 border border-primary/20 text-primary shadow-2xs">
+              <Fingerprint className="size-6.5" />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-rose-700 dark:text-rose-400 uppercase">
-                  <Lock className="size-3" />
-                  CONFIDENTIAL - LEVEL 3
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/60 px-2 py-0.5 font-mono text-[10px] font-bold text-foreground">
-                  <ShieldCheck className="size-3 text-primary" />
-                  Special Security Area
-                </span>
-                <span className="hidden sm:inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-0.5 font-mono text-[10px] font-bold text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <span className="portal-eyebrow">SPECIAL SECURITY AREA</span>
+                <span className="text-muted-foreground/40">&bull;</span>
+                <span className="font-mono text-[11px] font-bold text-primary">
                   ISMS-F-02-00-002
                 </span>
+                <span className="text-muted-foreground/40 hidden sm:inline">&bull;</span>
+                <span className="font-mono text-[11px] text-muted-foreground hidden sm:inline">
+                  【記録】特別セキュリティ区画指紋入退システム申請書
+                </span>
               </div>
-              <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 Pengajuan Registrasi Finger Print Special Security Area
               </h1>
-              <p className="mt-1 font-mono text-xs text-muted-foreground sm:text-sm">
-                【記録】特別セキュリティ区画指紋入退システム申請書
-              </p>
               <p className="mt-1.5 text-xs text-muted-foreground max-w-2xl leading-relaxed">
-                PT. Jatim Autocomp Indonesia &bull; Pendaftaran &amp; permohonan izin sidik jari masuk kawasan berkeamanan tinggi dengan pengesahan resmi Information Assets Administrator (IAA - Teguh Sunjoyo).
+                PT. Jatim Autocomp Indonesia &bull; Pendaftaran izin sidik jari masuk kawasan berkeamanan tinggi dengan pengesahan Information Assets Administrator (IAA).
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab(activeTab === 'history' ? 'form' : 'history')
-                if (activeTab === 'form') fetchHistory()
-              }}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs transition hover:bg-secondary active:scale-95 cursor-pointer"
-            >
-              <History className="size-4 text-primary" />
-              <span>{activeTab === 'history' ? 'Buka Form Pendaftaran' : `Lihat Riwayat (${historyCounts.all})`}</span>
-            </button>
             <Link
               href="/form-it-esign"
               className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-foreground shadow-2xs transition hover:border-primary/50 hover:bg-secondary active:scale-95"
@@ -570,7 +550,7 @@ function FingerprintPageInner() {
             disabled={historyLoading}
             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition disabled:opacity-50"
           >
-            <RefreshCw className={`size-3.5 ${historyLoading ? 'animate-spin text-indigo-600' : ''}`} />
+            <RefreshCw className={`size-3.5 ${historyLoading ? 'animate-spin text-primary' : ''}`} />
             <span className="hidden sm:inline">Refresh Data</span>
           </button>
         )}
@@ -579,7 +559,7 @@ function FingerprintPageInner() {
 
       {/* Submission Result / Active Review Box */}
       {submissionResult && activeTab === 'form' && (
-        <section className="relative overflow-hidden rounded-3xl border-2 border-indigo-500/40 bg-card p-6 shadow-md">
+        <section className="relative overflow-hidden rounded-3xl border-2 border-primary/40 bg-card p-6 shadow-md">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-4">
             <div>
               <div className="flex items-center gap-2">
@@ -622,7 +602,7 @@ function FingerprintPageInner() {
                 href={`${API_BASE_PATH}/api/it-form-submissions/${submissionResult.id}/pdf?token=${submissionResult.token}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition hover:opacity-90"
               >
                 <Download className="size-4" />
                 <span>Download Form PDF (Single Copy)</span>
@@ -653,7 +633,7 @@ function FingerprintPageInner() {
                   setActiveTab('history')
                   fetchHistory()
                 }}
-                className="inline-flex items-center gap-1 rounded-xl border border-indigo-200 bg-indigo-50/50 px-3 py-2.5 text-xs font-semibold text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300 hover:bg-indigo-100"
+                className="inline-flex items-center gap-1 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/15"
               >
                 <History className="size-3.5" />
                 <span>Ke Riwayat</span>
@@ -678,7 +658,7 @@ function FingerprintPageInner() {
             </div>
             <div className="rounded-xl border border-border/70 bg-secondary/30 p-3">
               <p className="text-muted-foreground font-semibold">Area Akses (Special / Bisnis)</p>
-              <p className="mt-1 font-bold text-indigo-600 dark:text-indigo-400 text-sm">
+              <p className="mt-1 font-bold text-primary text-sm">
                 {submissionResult.form_data?.area_special_security || submissionResult.purpose || 'Area Akses Terdaftar'}
               </p>
               <p className="text-muted-foreground font-mono mt-0.5">
@@ -700,7 +680,7 @@ function FingerprintPageInner() {
           {submissionResult.signatures && submissionResult.signatures.length > 0 && (
             <div className="mt-6 border-t border-border/70 pt-5">
               <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                <FileCheck className="size-4 text-indigo-600" />
+                <FileCheck className="size-4 text-primary" />
                 <span>Otorisasi &amp; Tanda Tangan Digital Resmi (E-Sign Verification)</span>
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -756,227 +736,230 @@ function FingerprintPageInner() {
 
       {/* Main Registration Form (When in 'form' tab and not viewing result) */}
       {!submissionResult && activeTab === 'form' && (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {errorMsg && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 flex items-center gap-2.5">
-              <AlertTriangle className="size-5 shrink-0 text-red-600" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {/* Section 1: Data Identitas Pemohon */}
-          <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs">
-            <div className="flex items-center gap-2.5 border-b border-border/70 pb-4 mb-6">
-              <div className="grid size-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
-                <User className="size-5" />
+        <form onSubmit={handleSubmit} className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+          <div className="divide-y divide-border p-6 sm:p-8 [&>section+section]:pt-8 space-y-8">
+            {errorMsg && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 flex items-center gap-2.5">
+                <AlertTriangle className="size-5 shrink-0 text-red-600" />
+                <span>{errorMsg}</span>
               </div>
-              <div>
-                <h3 className="font-display text-base font-bold text-foreground">
-                  1. Informasi Identitas Pemohon
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Data karyawan PT. JAI atau mitra yang mengajukan pendaftaran akses sidik jari.
-                </p>
-              </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {/* Nama Lengkap */}
-              <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-bold text-foreground">
-                  Nama Lengkap Pemohon (申請者の氏名) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    required
-                    value={applicantName}
-                    onChange={(e) => setApplicantName(e.target.value)}
-                    placeholder="Contoh: FADILAH / AHMAD FAUZI"
-                    className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15"
-                  />
+            {/* Section 1: Data Identitas Pemohon */}
+            <section className="space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-border">
+                <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                  01
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                    Informasi Identitas Pemohon
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    Data karyawan PT. JAI atau mitra yang mengajukan pendaftaran akses sidik jari
+                  </p>
                 </div>
               </div>
 
-              {/* NIK */}
-              <div>
-                <label className="mb-1.5 block text-xs font-bold text-foreground">
-                  Nomor Induk Karyawan / NIK (従業員IDコード) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <BadgeCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    required
-                    value={applicantNik}
-                    onChange={(e) => setApplicantNik(e.target.value)}
-                    placeholder="Contoh: 38913"
-                    className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Jabatan */}
-              <div>
-                <label className="mb-1.5 block text-xs font-bold text-foreground">
-                  Jabatan (職務)
-                </label>
-                <div className="relative">
-                  <Briefcase className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={applicantPosition}
-                    onChange={(e) => setApplicantPosition(e.target.value)}
-                    placeholder="Contoh: Staff, Supervisor, Leader"
-                    className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15"
-                  />
-                </div>
-              </div>
-
-              {/* Departemen & Seksi (CASCADING DROPDOWNS) */}
-              <div className="sm:col-span-2 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-4 dark:border-indigo-950/60 dark:bg-indigo-950/20">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Departemen */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-foreground">
-                        Departemen (所属部署) <span className="text-red-500">*</span>
-                      </label>
-                      <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
-                        Sinkron Database ISMS
-                      </span>
-                    </div>
-                    <div className="relative">
-                      <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <select
-                        value={department}
-                        onChange={(e) => setDepartment(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-8 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 font-medium"
-                      >
-                        {(rawDepartments.length > 0 ? rawDepartments.map((d) => d.name) : DEFAULT_DEPARTMENTS).map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {/* Nama Lengkap */}
+                <div className="sm:col-span-2">
+                  <label className="mb-1.5 block text-xs font-bold text-foreground">
+                    Nama Lengkap Pemohon (申請者の氏名) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      required
+                      autoComplete="name"
+                      value={applicantName}
+                      onChange={(e) => setApplicantName(e.target.value)}
+                      placeholder="Contoh: FADILAH / AHMAD FAUZI"
+                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15"
+                    />
                   </div>
+                </div>
 
-                  {/* Seksi / Bagian (Cascading Dropdown) */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-foreground">
-                        Seksi / Bagian (課・係) <span className="text-red-500">*</span>
-                      </label>
-                      {availableSections.length > 0 && (
-                        <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          {availableSections.length} Seksi Terdaftar
+                {/* NIK */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-foreground">
+                    Nomor Induk Karyawan / NIK (従業員IDコード) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <BadgeCheck className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      required
+                      value={applicantNik}
+                      onChange={(e) => setApplicantNik(e.target.value)}
+                      placeholder="Contoh: 38913"
+                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15 font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Jabatan */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold text-foreground">
+                    Jabatan (職務)
+                  </label>
+                  <div className="relative">
+                    <Briefcase className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={applicantPosition}
+                      onChange={(e) => setApplicantPosition(e.target.value)}
+                      placeholder="Contoh: Staff, Supervisor, Leader"
+                      className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15"
+                    />
+                  </div>
+                </div>
+
+                {/* Departemen & Seksi (CASCADING DROPDOWNS) */}
+                <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Departemen */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold text-foreground">
+                          Departemen (所属部署) <span className="text-red-500">*</span>
+                        </label>
+                        <span className="text-[10px] font-semibold text-primary">
+                          Sinkron Database ISMS
                         </span>
-                      )}
-                    </div>
-
-                    {availableSections.length > 0 ? (
-                      <div className="space-y-2">
+                      </div>
+                      <div className="relative">
+                        <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <select
-                          value={sectionChoice}
-                          onChange={(e) => setSectionChoice(e.target.value)}
-                          className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 font-medium"
+                          value={department}
+                          onChange={(e) => setDepartment(e.target.value)}
+                          className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-8 text-xs sm:text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 font-medium"
                         >
-                          <option value="">-- Pilih Seksi / Bagian --</option>
-                          {availableSections.map((sec) => (
-                            <option key={sec.id} value={sec.name}>
-                              {sec.name} {department.toUpperCase() === 'PGA' && sec.name === 'IT' ? '(Information Technology)' : ''}
+                          {(rawDepartments.length > 0 ? rawDepartments.map((d) => d.name) : DEFAULT_DEPARTMENTS).map((d) => (
+                            <option key={d} value={d}>
+                              {d}
                             </option>
                           ))}
-                          <option value="__custom__">+ Input Seksi Lainnya...</option>
                         </select>
+                      </div>
+                    </div>
 
-                        {sectionChoice === '__custom__' && (
-                          <input
-                            type="text"
-                            value={customSection}
-                            onChange={(e) => setCustomSection(e.target.value)}
-                            placeholder="Sebutkan nama seksi / bagian..."
-                            className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
-                          />
+                    {/* Seksi / Bagian (Cascading Dropdown) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold text-foreground">
+                          Seksi / Bagian (課・係) <span className="text-red-500">*</span>
+                        </label>
+                        {availableSections.length > 0 && (
+                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            {availableSections.length} Seksi Terdaftar
+                          </span>
                         )}
                       </div>
-                    ) : (
+
+                      {availableSections.length > 0 ? (
+                        <div className="space-y-2">
+                          <select
+                            value={sectionChoice}
+                            onChange={(e) => setSectionChoice(e.target.value)}
+                            className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 font-medium"
+                          >
+                            <option value="">-- Pilih Seksi / Bagian --</option>
+                            {availableSections.map((sec) => (
+                              <option key={sec.id} value={sec.name}>
+                                {sec.name} {department.toUpperCase() === 'PGA' && sec.name === 'IT' ? '(Information Technology)' : ''}
+                              </option>
+                            ))}
+                            <option value="__custom__">+ Input Seksi Lainnya...</option>
+                          </select>
+
+                          {sectionChoice === '__custom__' && (
+                            <input
+                              type="text"
+                              value={customSection}
+                              onChange={(e) => setCustomSection(e.target.value)}
+                              placeholder="Sebutkan nama seksi / bagian..."
+                              className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-ring"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={customSection}
+                          onChange={(e) => setCustomSection(e.target.value)}
+                          placeholder="Contoh: IT Section / Maintenance"
+                          className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none focus:border-ring"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Karyawan */}
+                <div className="sm:col-span-2">
+                  <label className="mb-2 block text-xs font-bold text-foreground">
+                    Status Karyawan (ステータス)
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {(['TETAP', 'KONTRAK', 'MAGANG', 'Other'] as const).map((st) => {
+                      const isSelected = employeeStatus === st
+                      return (
+                        <button
+                          key={st}
+                          type="button"
+                          onClick={() => setEmployeeStatus(st)}
+                          className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-bold transition active:scale-95 cursor-pointer ${
+                            isSelected
+                              ? 'border-primary bg-primary text-primary-foreground shadow-2xs'
+                              : 'border-border bg-card text-muted-foreground hover:bg-secondary/50'
+                          }`}
+                        >
+                          {isSelected && <Check className="size-3.5 shrink-0" />}
+                          <span>{st === 'Other' ? 'Lainnya' : st}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {employeeStatus === 'Other' && (
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 animate-in fade-in">
                       <input
                         type="text"
-                        value={customSection}
-                        onChange={(e) => setCustomSection(e.target.value)}
-                        placeholder="Contoh: IT Section / Maintenance"
-                        className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none focus:border-indigo-500"
+                        value={otherStatus}
+                        onChange={(e) => setOtherStatus(e.target.value)}
+                        placeholder="Sebutkan status hubungan kerja..."
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-ring"
                       />
-                    )}
-                  </div>
+                      <input
+                        type="text"
+                        autoComplete="organization"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="Nama Perusahaan / Organisasi..."
+                        className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-ring"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
+            </section>
 
-              {/* Status Karyawan */}
-              <div className="sm:col-span-2">
-                <label className="mb-2 block text-xs font-bold text-foreground">
-                  Status Karyawan (ステータス)
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(['TETAP', 'KONTRAK', 'MAGANG', 'Other'] as const).map((st) => {
-                    const isSelected = employeeStatus === st
-                    return (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => setEmployeeStatus(st)}
-                        className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 px-3 text-xs font-bold transition active:scale-95 ${
-                          isSelected
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300 ring-2 ring-indigo-500/20'
-                            : 'border-border bg-card text-muted-foreground hover:bg-secondary/50'
-                        }`}
-                      >
-                        {isSelected && <Check className="size-3.5 text-indigo-600 shrink-0" />}
-                        <span>{st === 'Other' ? 'Lainnya' : st}</span>
-                      </button>
-                    )
-                  })}
+            {/* Section 2: Detail Akses Area (Special Security / Business Area) */}
+            <section className="space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-border">
+                <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                  02
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                    Area Akses (Special Security / Business Area) &amp; Masa Berlaku
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    Pemilihan zona keamanan khusus atau area bisnis yang dimohonkan akses sidik jarinya
+                  </p>
                 </div>
-                {employeeStatus === 'Other' && (
-                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 animate-in fade-in">
-                    <input
-                      type="text"
-                      value={otherStatus}
-                      onChange={(e) => setOtherStatus(e.target.value)}
-                      placeholder="Sebutkan status hubungan kerja..."
-                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
-                    />
-                    <input
-                      type="text"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="Nama Perusahaan / Organisasi..."
-                      className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                )}
               </div>
-            </div>
-          </div>
-
-          {/* Section 2: Detail Akses Area (Special Security / Business Area) */}
-          <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs">
-            <div className="flex items-center gap-2.5 border-b border-border/70 pb-4 mb-6">
-              <div className="grid size-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
-                <ShieldAlert className="size-5" />
-              </div>
-              <div>
-                <h3 className="font-display text-base font-bold text-foreground">
-                  2. Area Akses (Special Security / Business Area) &amp; Masa Berlaku
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Pemilihan zona keamanan khusus atau area bisnis yang dimohonkan akses sidik jarinya (tersinkron dengan Master Area PT. JAI).
-                </p>
-              </div>
-            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {/* Area Akses (Special Security / Area Bisnis) - DYNAMIC MASTER LIST */}
@@ -993,7 +976,7 @@ function FingerprintPageInner() {
                 <select
                   value={areaChoice}
                   onChange={(e) => setAreaChoice(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-indigo-500 font-semibold"
+                  className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition focus:border-ring font-semibold"
                 >
                   {specialAreas.map((opt) => (
                     <option key={opt} value={opt}>
@@ -1008,7 +991,7 @@ function FingerprintPageInner() {
                     value={customArea}
                     onChange={(e) => setCustomArea(e.target.value)}
                     placeholder="Sebutkan area khusus atau area bisnis yang dimohonkan..."
-                    className="mt-2 h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500"
+                    className="mt-2 h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-ring"
                   />
                 )}
                 <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
@@ -1017,7 +1000,7 @@ function FingerprintPageInner() {
                     <Link
                       href="/kelola-izin-area-special"
                       target="_blank"
-                      className="text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5"
+                      className="text-primary hover:underline inline-flex items-center gap-0.5"
                     >
                       <span>Master Area</span>
                       <ExternalLink className="size-2.5" />
@@ -1036,7 +1019,7 @@ function FingerprintPageInner() {
                   value={fingerprintId}
                   onChange={(e) => setFingerprintId(e.target.value)}
                   placeholder="Contoh: FP-0012 atau nomor ID mesin"
-                  className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-indigo-500 font-mono"
+                  className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring font-mono"
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Bila dikosongkan, sistem otomatis menggunakan NIK ({applicantNik || 'Nomor Induk Karyawan'}) agar pas dan tercetak di kolom Kode ID formulir PDF.
@@ -1055,7 +1038,7 @@ function FingerprintPageInner() {
                       name="expirationMode"
                       checked={noExpiration}
                       onChange={() => setNoExpiration(true)}
-                      className="size-4 text-indigo-600 focus:ring-indigo-500"
+                      className="size-4 accent-primary"
                     />
                     <span>Sesuai Masa Penugasan / Tidak Terbatas (Default Standar ISO 27001)</span>
                   </label>
@@ -1066,7 +1049,7 @@ function FingerprintPageInner() {
                       name="expirationMode"
                       checked={!noExpiration}
                       onChange={() => setNoExpiration(false)}
-                      className="size-4 text-indigo-600 focus:ring-indigo-500"
+                      className="size-4 accent-primary"
                     />
                     <span>Tentukan Tanggal Penghapusan Akses Tertentu:</span>
                   </label>
@@ -1077,7 +1060,7 @@ function FingerprintPageInner() {
                         type="date"
                         value={accessDeletionDate}
                         onChange={(e) => setAccessDeletionDate(e.target.value)}
-                        className="h-10 rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-indigo-500 font-mono"
+                        className="h-10 rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-ring font-mono"
                       />
                     </div>
                   )}
@@ -1085,9 +1068,9 @@ function FingerprintPageInner() {
               </div>
 
               {/* Komitmen Special Security Area (YAZAKI STANDARD) */}
-              <div className="sm:col-span-2 rounded-2xl border-2 border-indigo-200/90 bg-indigo-50/60 p-5 dark:border-indigo-900/60 dark:bg-indigo-950/20">
-                <p className="font-display text-xs font-bold text-indigo-950 dark:text-indigo-200 uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <Lock className="size-4 text-indigo-600" />
+              <div className="sm:col-span-2 rounded-2xl border border-primary/30 bg-primary/5 p-5">
+                <p className="font-display text-xs font-bold text-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <Lock className="size-4 text-primary" />
                   <span>KOMITMEN / 約束 (Standar Khusus Yazaki Special Security Area)</span>
                 </p>
                 <ol className="list-decimal list-inside space-y-2 text-xs text-foreground/90 pl-1 leading-relaxed">
@@ -1107,13 +1090,13 @@ function FingerprintPageInner() {
                   </li>
                 </ol>
 
-                <div className="mt-4 pt-3 border-t border-indigo-200/80 dark:border-indigo-900/60">
+                <div className="mt-4 pt-3 border-t border-border">
                   <label className="flex items-start gap-2.5 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={komitmenAgreed}
                       onChange={(e) => setKomitmenAgreed(e.target.checked)}
-                      className="mt-0.5 size-4 rounded text-indigo-600 focus:ring-indigo-500"
+                      className="mt-0.5 size-4 rounded accent-primary"
                     />
                     <span className="text-xs font-bold text-foreground">
                       Saya telah membaca, memahami, dan berjanji mematuhi seluruh butir komitmen di atas demi menjaga integritas keamanan ISMS ISO/IEC 27001. <span className="text-red-500">*</span>
@@ -1132,50 +1115,51 @@ function FingerprintPageInner() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Keterangan permohonan, alasan akses, atau referensi penugasan..."
-                  className="w-full rounded-xl border border-input bg-card p-3 text-xs text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-indigo-500"
+                  className="w-full rounded-xl border border-input bg-card p-3 text-xs text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring"
                 />
               </div>
             </div>
-          </div>
+            </section>
 
-          {/* Section 3: Pejabat Penyetuju (E-Sign Approver) */}
-          <div className="rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-xs">
-            <div className="flex items-center gap-2.5 border-b border-border/70 pb-4 mb-4">
-              <div className="grid size-9 place-items-center rounded-xl bg-indigo-600 text-white shadow-xs">
-                <FileCheck className="size-5" />
-              </div>
-              <div>
-                <h3 className="font-display text-base font-bold text-foreground">
-                  3. Alur Pengesahan Resmi (E-Sign Flow)
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Pejabat yang berwenang memberikan verifikasi &amp; stempel tanda tangan digital ber-QR Code.
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-indigo-200/90 bg-indigo-50/40 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="grid size-11 place-items-center rounded-xl bg-indigo-600 text-white font-bold text-sm shadow-xs">
-                  IAA
-                </div>
+            {/* Section 3: Pejabat Penyetuju (E-Sign Approver) */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-border">
+                <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                  03
+                </span>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
-                    Information Assets Administrator (MENYETUJUI / 指紋入退申請許可)
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                    Alur Pengesahan Resmi (E-Sign Flow)
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    Pejabat yang berwenang memberikan verifikasi &amp; stempel tanda tangan digital ber-QR Code
                   </p>
-                  <p className="text-sm font-bold text-foreground">Teguh Sunjoyo</p>
-                  <p className="text-xs text-muted-foreground">teguh.sunjoyo@jai.co.id &bull; PT. Jatim Autocomp Indonesia</p>
                 </div>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-300 self-start sm:self-center">
-                <ShieldCheck className="size-3.5 text-indigo-600" />
-                <span>Otoritas Tunggal Dokumen F-02-00-002</span>
-              </span>
-            </div>
+
+              <div className="rounded-xl border border-border bg-secondary/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-2xs">
+                    IAA
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                      Information Assets Administrator (MENYETUJUI / 指紋入退申請許可)
+                    </p>
+                    <p className="text-sm font-bold text-foreground">Teguh Sunjoyo</p>
+                    <p className="text-xs text-muted-foreground">teguh.sunjoyo@jai.co.id &bull; PT. Jatim Autocomp Indonesia</p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary self-start sm:self-center">
+                  <ShieldCheck className="size-3.5 text-primary" />
+                  <span>Otoritas Tunggal Dokumen F-02-00-002</span>
+                </span>
+              </div>
+            </section>
           </div>
 
-          {/* Submit Button */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+          {/* Submit Footer Bar */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border bg-secondary/25 px-6 py-4 sm:px-8">
             <Link
               href="/"
               className="text-xs font-semibold text-muted-foreground hover:text-foreground transition"
@@ -1186,7 +1170,7 @@ function FingerprintPageInner() {
             <button
               type="submit"
               disabled={submitting || !komitmenAgreed}
-              className="inline-flex w-full sm:w-auto items-center justify-center gap-2.5 rounded-2xl bg-indigo-600 px-8 py-3.5 text-sm font-bold text-white shadow-md shadow-indigo-600/25 transition hover:bg-indigo-700 hover:shadow-lg disabled:opacity-50"
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-2.5 rounded-xl bg-primary px-7 py-3 text-xs sm:text-sm font-bold text-primary-foreground shadow-xs transition hover:opacity-90 disabled:opacity-50 cursor-pointer"
             >
               {submitting ? (
                 <>
@@ -1252,14 +1236,14 @@ function FingerprintPageInner() {
                     }}
                     className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                       isSelected
-                        ? 'bg-indigo-600 text-white shadow-xs'
+                        ? 'bg-primary text-primary-foreground shadow-xs'
                         : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
                     }`}
                   >
                     <span>{tab.label}</span>
                     <span
                       className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-background text-foreground'
+                        isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-foreground'
                       }`}
                     >
                       {tab.count}
@@ -1281,7 +1265,7 @@ function FingerprintPageInner() {
                     setHistorySearch(e.target.value)
                     fetchHistory(historyFilterStatus, e.target.value)
                   }}
-                  className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-indigo-500 outline-none"
+                  className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-8 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-ring outline-none"
                 />
                 {historySearch && (
                   <button
@@ -1301,10 +1285,10 @@ function FingerprintPageInner() {
                 type="button"
                 onClick={handleExportHistoryExcel}
                 disabled={historyList.length === 0}
-                className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-bold border border-border bg-card hover:bg-secondary text-foreground transition shadow-2xs disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap w-full sm:w-auto cursor-pointer"
                 title="Export riwayat pendaftaran fingerprint ke Excel (.xlsx)"
               >
-                <Download className="size-3.5" />
+                <Download className="size-3.5 text-primary" />
                 <span>Export Excel</span>
               </button>
             </div>
@@ -1314,13 +1298,13 @@ function FingerprintPageInner() {
           {historyLoading ? (
             <div className="flex min-h-[300px] items-center justify-center rounded-3xl border border-border/80 bg-card p-10">
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="size-7 animate-spin text-indigo-600" />
+                <Loader2 className="size-7 animate-spin text-primary" />
                 <p className="text-xs font-semibold text-muted-foreground">Memuat riwayat pengajuan fingerprint...</p>
               </div>
             </div>
           ) : historyList.length === 0 ? (
             <div className="flex min-h-[300px] flex-col items-center justify-center rounded-3xl border border-dashed border-border/80 bg-card p-10 text-center">
-              <div className="grid size-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+              <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
                 <Fingerprint className="size-6" />
               </div>
               <h4 className="mt-3.5 font-display text-base font-bold text-foreground">
@@ -1334,7 +1318,7 @@ function FingerprintPageInner() {
               <button
                 type="button"
                 onClick={() => setActiveTab('form')}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-indigo-700"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-xs transition hover:opacity-90"
               >
                 <FileText className="size-3.5" />
                 <span>Buat Pengajuan Baru</span>
@@ -1368,7 +1352,7 @@ function FingerprintPageInner() {
                           className="transition hover:bg-secondary/25"
                         >
                           <td className="px-4 py-3.5 align-top">
-                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                            <span className="font-mono font-bold text-primary">
                               {sub.request_no}
                             </span>
                             <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -1403,7 +1387,7 @@ function FingerprintPageInner() {
                           </td>
 
                           <td className="px-4 py-3.5 align-top">
-                            <span className="inline-flex items-center gap-1 rounded-md border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 font-semibold text-indigo-700 dark:text-indigo-300">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 font-semibold text-primary">
                               <Shield className="size-3" />
                               <span>{areaName}</span>
                             </span>
@@ -1460,7 +1444,7 @@ function FingerprintPageInner() {
                                 onClick={() => viewDetailFromHistory(sub)}
                                 className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition"
                               >
-                                <Eye className="size-3.5 text-indigo-600" />
+                                <Eye className="size-3.5 text-primary" />
                                 <span className="hidden md:inline">Detail</span>
                               </button>
 
@@ -1469,7 +1453,7 @@ function FingerprintPageInner() {
                                 target="_blank"
                                 rel="noreferrer"
                                 title="Download Formulir Resmi PDF (Single Copy)"
-                                className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 shadow-2xs transition"
+                                className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 shadow-2xs transition"
                               >
                                 <FileDown className="size-3.5" />
                                 <span className="hidden md:inline">PDF</span>
@@ -1522,7 +1506,7 @@ function FingerprintPageLoading() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <Loader2 className="size-8 animate-spin text-indigo-600" />
+        <Loader2 className="size-8 animate-spin text-primary" />
         <p className="text-xs font-semibold text-muted-foreground">Memuat Form Registrasi Fingerprint...</p>
       </div>
     </div>

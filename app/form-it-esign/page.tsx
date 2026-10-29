@@ -59,12 +59,14 @@ import {
   FileDown,
   Filter,
   X,
+  Link2,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { IT_FORM_DEFINITIONS, type ItFormApprover, type ItFormSubmission } from '@/lib/it-form-shared'
 import { downloadExcel } from '@/lib/excel-export'
 import { SignalGrid } from '@/components/backgrounds'
 import { useAuth } from '@/context/AuthContext'
+import { GuestLinkGeneratorModal } from '@/components/it/GuestLinkGeneratorModal'
 
 interface DepartmentItem {
   id: number
@@ -558,6 +560,7 @@ function FormItContent() {
   // Token search
   const [searchInput, setSearchInput] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
+  const [guestLinkModalOpen, setGuestLinkModalOpen] = useState(false)
 
   // Auto-fill dates
   useEffect(() => {
@@ -825,128 +828,64 @@ function FormItContent() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-24 pt-4 px-3 sm:px-6">
-      {/* Top Banner / Dedicated Paperless Digital E-Sign Terminal (Distinct from Kontrol CS) */}
-      <section className="hero-esign relative overflow-hidden rounded-3xl border border-primary/30 text-white p-6 sm:p-9 shadow-2xl shadow-slate-950/30 transition-all">
-        {/* Soft glowing ambient lighting */}
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 size-72 rounded-full bg-primary/25 blur-3xl" />
-        <div aria-hidden className="pointer-events-none absolute -left-20 -bottom-20 size-72 rounded-full bg-blue-500/15 blur-3xl" />
-        <SignalGrid color="#93c5fd" opacity={0.28} speed={0.4} anchor="right" squareSize={8} gridStep={20} />
+      {/* Top Banner / Dedicated Paperless Digital E-Sign Terminal */}
+      <section className="hero-esign relative overflow-hidden rounded-3xl border border-primary/25 text-primary-foreground p-6 sm:p-9 shadow-xl transition-all">
+        <SignalGrid color="currentColor" opacity={0.18} speed={0.4} anchor="right" squareSize={8} gridStep={20} />
 
         {/* Top Compliance & Operational Status Bar */}
-        <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 font-mono text-[11px] tracking-wide text-slate-300">
+        <div className="relative mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4 font-mono text-[11px] tracking-wide text-primary-foreground/75">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/20 px-3 py-1 text-[10.5px] font-bold text-blue-200 shadow-xs">
-              <span className="size-2 rounded-full bg-blue-400 animate-pulse" />
-              PORTAL RESMI E-SIGN IT
+            <span className="portal-eyebrow text-primary-foreground/90">
+              PORTAL E-SIGN IT
             </span>
-            <span className="text-white/20 hidden sm:inline">&bull;</span>
-            <span className="font-semibold text-slate-200 hidden sm:inline">PT. JATIM AUTOCOMP INDONESIA</span>
+            <span className="text-white/25 hidden sm:inline">&bull;</span>
+            <span className="font-semibold text-primary-foreground/80 hidden sm:inline">PT. JATIM AUTOCOMP INDONESIA</span>
           </div>
-          <div className="flex items-center gap-2.5 text-xs">
-            <span className="rounded-md border border-white/10 bg-slate-900/60 px-2.5 py-0.5 text-[10.5px] font-bold text-blue-200 font-mono">
-              ISO/IEC 27001 PAPERLESS WORKFLOW
-            </span>
-            <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-mono text-slate-300">
-              5 FORM DIGITAL
+          <div className="flex items-center gap-2 text-xs">
+            <span className="rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-bold text-primary-foreground font-mono">
+              ISO/IEC 27001
             </span>
           </div>
         </div>
 
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4 sm:gap-5">
-            {/* Illuminated Digital Signing Glyph */}
-            <div className="relative grid size-14 sm:size-16 shrink-0 place-items-center rounded-xl bg-white/10 border border-white/20 text-white shadow-xs backdrop-blur-md">
-              <FileSignature className="size-7 sm:size-8 text-white" />
-              <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white shadow-xs">
-                <Check className="size-2.5 stroke-[3]" />
-              </span>
+            <div className="relative grid size-14 sm:size-16 shrink-0 place-items-center rounded-xl bg-white/10 border border-white/20 text-primary-foreground shadow-xs backdrop-blur-md">
+              <FileSignature className="size-7 sm:size-8 text-primary-foreground" />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2 mb-2 font-mono text-[10px]">
-                <span className="rounded-md bg-white/15 border border-white/20 px-2.5 py-0.5 font-bold tracking-wider text-white">
-                  LAYANAN PERMOHONAN RESMI
-                </span>
-                <span className="text-white/30">/</span>
-                <span className="font-semibold text-slate-300">
-                  OTORISASI DIGITAL BERJENJANG (E-SIGN)
-                </span>
-              </div>
-              <h1 className="font-display text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
+              <h1 className="font-display text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl lg:text-4xl">
                 Formulir Layanan Digital &amp; E-Sign Otorisasi IT
               </h1>
-              <p className="mt-2 text-xs sm:text-sm text-slate-300/90 max-w-2xl leading-relaxed font-normal">
-                Portal mandiri pengajuan aset PC/Laptop, lisensi software, akun domain &amp; akses jaringan dengan alur tanda tangan elektronik (E-Sign) berjenjang dan verifikasi QR Code terenkripsi.
+              <p className="mt-2 text-xs sm:text-sm text-primary-foreground/80 max-w-2xl leading-relaxed font-normal">
+                Portal pengajuan aset PC/Laptop, lisensi software, akun domain &amp; akses jaringan dengan alur tanda tangan elektronik (E-Sign) berjenjang.
               </p>
-
-              {/* Service tags chips */}
-              <div className="mt-3.5 flex flex-wrap gap-1.5">
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
-                  <Laptop className="size-3 text-slate-300" />
-                  <span>PC/Laptop</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
-                  <Layers className="size-3 text-slate-300" />
-                  <span>Lisensi Software</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
-                  <RotateCcw className="size-3 text-slate-300" />
-                  <span>Pinjam Laptop</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
-                  <User className="size-3 text-slate-300" />
-                  <span>Email &amp; User ID</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/10 px-2.5 py-0.5 text-[10.5px] font-semibold text-slate-200">
-                  <Network className="size-3 text-slate-300" />
-                  <span>Jaringan</span>
-                </span>
-              </div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
             <Link
               href="/ijin-masuk-alat-it"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-slate-900/60 hover:bg-slate-800/80 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-slate-200 shadow-xs transition hover:-translate-y-0.5"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-xs transition"
             >
-              <Laptop className="size-4 text-blue-300" />
+              <Laptop className="size-4 text-accent" />
               <span>Izin Bawa Alat IT</span>
             </Link>
             {adminUser && (
               <Link
                 href="/kelola-approver-it"
-                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 px-4 py-2.5 text-xs font-bold text-white shadow-2xs transition active:scale-95"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/15 px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-2xs transition active:scale-95"
               >
                 <Users className="size-4" />
                 <span>Pengaturan Approver</span>
               </Link>
             )}
-            <button
-              type="button"
-              onClick={handleExportHistoryExcel}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-bold shadow-2xs transition active:scale-95 cursor-pointer"
-              title="Download rekap data formulir IT ke Excel (.xlsx)"
-            >
-              <Download className="size-4" />
-              <span>Export Excel IT ({historyCounts.all || historyList.length || 'Semua'})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab(activeTab === 'history' ? 'form' : 'history')
-                if (activeTab === 'form') fetchHistory()
-              }}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 backdrop-blur-sm px-4 py-2.5 text-xs font-bold text-white shadow-2xs transition active:scale-95 cursor-pointer"
-            >
-              <History className="size-4 text-slate-300" />
-              <span>{activeTab === 'history' ? 'Buka Formulir' : `Lihat Riwayat (${historyCounts.all})`}</span>
-            </button>
           </div>
         </div>
 
-        {/* Search tracking bar with modern Corporate E-Sign signature styling */}
-        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border border-white/20 bg-slate-950/70 p-2 shadow-inner backdrop-blur-md focus-within:border-white/40 focus-within:ring-2 focus-within:ring-white/10 transition-all">
-          <div className="flex items-center justify-center size-9 rounded-xl bg-white/10 text-slate-300 ml-1 shrink-0 border border-white/15">
+        {/* Search tracking bar */}
+        <div className="relative mt-7 flex items-center gap-2 rounded-2xl border border-white/20 bg-black/25 p-2 backdrop-blur-md focus-within:border-white/40 transition-all">
+          <div className="flex items-center justify-center size-9 rounded-xl bg-white/10 text-primary-foreground/80 ml-1 shrink-0 border border-white/15">
             <Search className="size-4" />
           </div>
           <input
@@ -955,13 +894,13 @@ function FormItContent() {
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && searchInput.trim() && fetchSubmissionByToken(searchInput.trim())}
             placeholder="Masukkan nomor permohonan atau kode token verifikasi e-sign (contoh: req-2026-..., a7b8c9d0...)"
-            className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-slate-400 sm:text-sm px-2 font-mono font-medium"
+            className="flex-1 bg-transparent text-xs text-primary-foreground outline-none placeholder:text-primary-foreground/50 sm:text-sm px-2 font-mono font-medium"
           />
           <button
             type="button"
             onClick={() => searchInput.trim() && fetchSubmissionByToken(searchInput.trim())}
             disabled={searchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-2xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent hover:opacity-90 px-5 py-2.5 text-xs font-bold text-accent-foreground shadow-2xs transition active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             {searchLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Search className="size-3.5" />}
             <span>{searchLoading ? 'Memeriksa...' : 'Lacak Status E-Sign'}</span>
@@ -1014,10 +953,10 @@ function FormItContent() {
           <button
             type="button"
             onClick={handleExportHistoryExcel}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 text-xs font-bold transition shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-foreground px-3.5 py-2 text-xs font-bold transition shadow-2xs cursor-pointer"
             title="Download rekap data seluruh formulir IT ke Excel (.xlsx)"
           >
-            <Download className="size-3.5" />
+            <Download className="size-3.5 text-primary" />
             <span>Export Excel</span>
           </button>
           {activeTab === 'history' && (
@@ -1137,17 +1076,6 @@ function FormItContent() {
                   </button>
                 )}
               </div>
-
-              <button
-                type="button"
-                onClick={handleExportHistoryExcel}
-                disabled={historyList.length === 0}
-                className="inline-flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
-                title="Export data riwayat pengajuan formulir IT ke Excel (.xlsx)"
-              >
-                <Download className="size-3.5" />
-                <span>Export Excel</span>
-              </button>
             </div>
           </div>
 
@@ -1658,7 +1586,7 @@ function FormItContent() {
               </Link>
             </div>
 
-            {/* Symmetrical 5-Card Responsive Grid with Anti-Slop Precision Styling */}
+            {/* Symmetrical 5-Card Responsive Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {displayedForms.map((def, idx) => {
                 const active = selectedFormCode === def.code
@@ -1670,59 +1598,34 @@ function FormItContent() {
                     key={def.code}
                     type="button"
                     onClick={() => handleSelectForm(def.code)}
-                    className={`group relative flex flex-col items-center justify-between rounded-2xl p-4 text-center transition-all duration-200 cursor-pointer min-h-[168px] ${
+                    className={`group relative flex flex-col items-start justify-between rounded-2xl p-4 text-left transition-all duration-200 cursor-pointer ${
                       active
-                        ? 'border-2 border-primary bg-primary/[0.03] shadow-xs -translate-y-0.5'
-                        : 'border border-border/80 bg-card hover:border-foreground/25 hover:bg-secondary/30 shadow-2xs hover:-translate-y-0.5'
+                        ? 'border-2 border-primary bg-primary/[0.04] shadow-xs'
+                        : 'border border-border/80 bg-card hover:border-foreground/25 hover:bg-secondary/30 shadow-2xs'
                     }`}
                   >
-                    {active && (
-                      <span className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-primary" />
-                    )}
-
-                    <span className={`absolute top-2.5 right-2.5 font-mono text-[9px] font-bold ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-                      0{idx + 1}
-                    </span>
-
-                    <div
-                      className={`grid size-11 place-items-center rounded-xl transition-all duration-200 ${
-                        active
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'bg-secondary border border-border/80 text-foreground group-hover:bg-primary/10 group-hover:text-primary'
-                      }`}
-                    >
-                      <IconComponent className="size-5" />
+                    <div className="w-full flex items-center justify-between mb-3">
+                      <div
+                        className={`grid size-10 place-items-center rounded-xl transition-all duration-200 ${
+                          active
+                            ? 'bg-primary text-primary-foreground shadow-2xs'
+                            : 'bg-secondary border border-border/80 text-foreground group-hover:bg-primary/10 group-hover:text-primary'
+                        }`}
+                      >
+                        <IconComponent className="size-4.5" />
+                      </div>
+                      <span className={`font-mono text-[10px] font-bold ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                        0{idx + 1}
+                      </span>
                     </div>
 
-                    <div className="w-full my-1.5 space-y-0.5">
-                      <span className={`font-mono text-[9px] font-bold tracking-wider uppercase block truncate ${active ? 'text-primary' : 'text-muted-foreground'}`}>
-                        {meta.opCategory}
+                    <div className="w-full space-y-1">
+                      <span className="font-mono text-[10px] font-semibold text-muted-foreground block truncate">
+                        {def.code}
                       </span>
                       <h3 className="font-display text-xs font-bold text-foreground leading-snug line-clamp-2">
                         {meta.shortTitle}
                       </h3>
-                      <span className="font-mono text-[9px] font-semibold text-muted-foreground block truncate">
-                        {def.code}
-                      </span>
-                    </div>
-
-                    <div className="w-full pt-2 border-t border-border/70 flex items-center justify-center">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-md px-2.5 py-0.5 text-[9.5px] font-bold transition font-mono ${
-                          active
-                            ? 'bg-primary text-primary-foreground shadow-2xs'
-                            : 'bg-secondary text-secondary-foreground border border-border/60 group-hover:bg-primary/10 group-hover:text-primary'
-                        }`}
-                      >
-                        {active ? (
-                          <span className="inline-flex items-center gap-1">
-                            <Check className="size-2.5" />
-                            <span>AKTIF</span>
-                          </span>
-                        ) : (
-                          'Pilih Form →'
-                        )}
-                      </span>
                     </div>
                   </button>
                 )
@@ -1730,131 +1633,44 @@ function FormItContent() {
             </div>
           </div>
 
-          {/* Active Form Separation Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-3.5 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-xl font-mono text-xs font-black shrink-0 bg-primary text-primary-foreground shadow-2xs">
-                {currentFormDef.code.slice(-3)}
-              </span>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-foreground">{currentFormDef.name}</span>
-                  <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-secondary text-foreground border border-border font-mono">
-                    {currentMeta.tag}
-                  </span>
-                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-mono font-bold text-muted-foreground border border-border">
-                    {currentFormDef.code}
-                  </span>
-                </div>
-                <p className="text-[11.5px] text-muted-foreground mt-0.5 font-medium">
-                  Formulir mandiri berotorisasi {currentMeta.approvalCount} pejabat penyetuju &bull; Standar ISO 27001.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-semibold text-primary">
-              <span className="inline-flex size-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-mono text-[11px] font-bold">Formulir Terbuka Siap Diisi</span>
-            </div>
-          </div>
-
           {/* MAIN FORM CANVAS - Dedicated per-form container */}
           <form
             onSubmit={handleSubmit}
-            className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-9 shadow-md space-y-8"
+            className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-9 shadow-sm space-y-8"
           >
             {/* Top theme accent bar */}
-            <span className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
-            {/* Form Title Banner with Theme Accent & Stepper */}
-            <div className="relative overflow-hidden rounded-2xl border border-border bg-secondary/30 p-6 sm:p-7 shadow-xs">
-              <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full blur-3xl opacity-25 bg-primary/15" />
-              <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div className="flex items-start gap-4">
-                  <div className="relative grid size-16 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-md">
-                    {React.createElement(currentMeta.icon, {
-                      className: 'size-8 text-primary-foreground',
-                    })}
-                    <span className="absolute -bottom-1 -right-1 flex size-3">
-                      <span className="relative inline-flex size-3 rounded-full bg-primary ring-2 ring-card" />
+            <span className="absolute inset-x-0 top-0 h-1 bg-primary" />
+
+            {/* Clean Document Header */}
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-b border-border pb-6">
+              <div className="flex items-start gap-4">
+                <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                  {React.createElement(currentMeta.icon, {
+                    className: 'size-6 text-primary-foreground',
+                  })}
+                </div>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-primary">
+                      {currentFormDef.code}
+                    </span>
+                    <span className="text-muted-foreground/40">&bull;</span>
+                    <span className="font-mono text-[11px] font-medium text-muted-foreground">
+                      {currentFormDef.jpName}
                     </span>
                   </div>
-                  <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-md border border-primary/20 bg-primary/10 text-primary">
-                        {currentFormDef.code}
-                      </span>
-                      <span className="rounded-full bg-foreground border border-foreground px-2.5 py-0.5 text-[10px] font-bold text-background uppercase tracking-wider">
-                        {currentFormDef.badge}
-                      </span>
-                      <span className="rounded-full bg-card px-2.5 py-0.5 text-[10px] font-bold text-foreground border border-border flex items-center gap-1 shadow-2xs">
-                        <Users className="size-3 text-primary" />
-                        <span>{currentMeta.approvalCount} Tingkat Approver E-Sign</span>
-                      </span>
-                      <span className="rounded-full px-2.5 py-0.5 text-[10px] font-bold border border-primary/20 bg-primary/10 text-primary">
-                        {currentMeta.category}
-                      </span>
-                    </div>
-
-                    <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
-                      {currentFormDef.name}
-                    </h2>
-
-                    <div className="inline-flex items-center gap-1.5 rounded-md bg-card px-2.5 py-0.5 text-[11px] font-mono text-muted-foreground border border-border shadow-2xs">
-                      <span>🇯🇵</span>
-                      <span className="font-semibold">{currentFormDef.jpName}</span>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed pt-1 font-medium">
-                      {currentMeta.shortDesc}
-                    </p>
-
-                    {/* Features Pill Row */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      {currentMeta.features.map((feat, i) => (
-                        <span
-                          key={i}
-                          className="inline-flex items-center gap-1 rounded-full bg-card px-2.5 py-0.5 text-[10px] font-semibold text-foreground border border-border shadow-2xs"
-                        >
-                          <CheckCircle2 className="size-3 text-primary" />
-                          <span>{feat}</span>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                  <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                    {currentFormDef.name}
+                  </h2>
+                  <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
+                    {currentMeta.shortDesc}
+                  </p>
                 </div>
+              </div>
 
-                {/* 4-Step Progress Indicator */}
-                <div className="rounded-2xl bg-card p-3.5 sm:p-4 border border-border shadow-xs shrink-0 self-stretch lg:self-center">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span>Tahapan Pengisian</span>
-                    <span className="font-mono font-bold text-primary">4 Langkah</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2 text-[11px]">
-                    <div className="flex items-center gap-2 rounded-xl p-2 font-bold bg-primary/10 text-primary border border-primary/20">
-                      <span className="grid size-5 place-items-center rounded-full text-[10px] font-black shrink-0 bg-primary text-primary-foreground">
-                        1
-                      </span>
-                      <span className="truncate">Data Pemohon</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl bg-secondary/50 border border-border p-2 font-medium text-muted-foreground">
-                      <span className="grid size-5 place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground shrink-0">
-                        2
-                      </span>
-                      <span className="truncate">Spesifikasi</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl bg-secondary/50 border border-border p-2 font-medium text-muted-foreground">
-                      <span className="grid size-5 place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground shrink-0">
-                        3
-                      </span>
-                      <span className="truncate">Catatan &amp; Alasan</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-xl bg-secondary/50 border border-border p-2 font-medium text-muted-foreground">
-                      <span className="grid size-5 place-items-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground shrink-0">
-                        4
-                      </span>
-                      <span className="truncate">Alur E-Sign</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-[11px] font-mono font-semibold text-foreground self-start shrink-0">
+                <Users className="size-3.5 text-primary" />
+                <span>{currentMeta.approvalCount} Tingkat E-Sign</span>
               </div>
             </div>
 
@@ -1866,24 +1682,19 @@ function FormItContent() {
             )}
 
             {/* SECTION 1: APPLICANT INFORMATION */}
-            <div className="rounded-3xl border border-border bg-card p-6 sm:p-7 space-y-6 shadow-xs">
-              <div className="flex items-center justify-between pb-3.5 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
-                    01
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Data Pemohon (Applicant Identity)
-                    </h3>
-                    <p className="text-[11px] text-muted-foreground font-medium">
-                      Informasi identitas karyawan yang mengajukan {currentFormDef.name}
-                    </p>
-                  </div>
-                </div>
-                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full shadow-2xs">
-                  <span>Langkah 1 dari 4</span>
+            <div className="space-y-5">
+              <div className="flex items-center gap-3 pb-3 border-b border-border">
+                <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                  01
                 </span>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                    Data Pemohon (Applicant Identity)
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    Informasi identitas karyawan yang mengajukan {currentFormDef.name}
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1896,6 +1707,7 @@ function FormItContent() {
                     <User className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
+                      autoComplete="name"
                       value={applicantName}
                       onChange={(e) => setApplicantName(e.target.value)}
                       placeholder="Nama lengkap pemohon..."
@@ -1958,6 +1770,7 @@ function FormItContent() {
                       <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                       <input
                         type="text"
+                        autoComplete="organization"
                         value={companyName}
                         onChange={(e) => setCompanyName(e.target.value)}
                         placeholder="Contoh: PT. Jatim Autocomp Indonesia / Nama Perusahaan Pemohon"
@@ -2120,29 +1933,19 @@ function FormItContent() {
             {/* SECTION 2: FORM SPECIFIC FIELDS */}
             {/* ISMS-F-010-001: Pengadaan PC / Laptop */}
             {selectedFormCode === 'ISMS-F-010-001' && (
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-6 shadow-xs">
-                <div className="flex items-center justify-between pb-3.5 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
-                      02
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                          Informasi Pengadaan PC/Laptop &amp; Lisensi Wajib
-                        </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
-                          HARDWARE ASSET
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                        Tentukan jenis pengadaan baru atau pembaharuan unit beserta spesifikasi perangkat komputer
-                      </p>
-                    </div>
-                  </div>
-                  <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full">
-                    STEP 2 / 4
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center gap-3 pb-3 border-b border-border">
+                  <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                    02
                   </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                      Informasi Pengadaan PC/Laptop &amp; Lisensi Wajib
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      Tentukan jenis pengadaan baru atau pembaharuan unit beserta spesifikasi perangkat komputer
+                    </p>
+                  </div>
                 </div>
 
                 {/* Jenis Pengadaan Feature Cards */}
@@ -2151,9 +1954,11 @@ function FormItContent() {
                     Jenis Pengadaan (購入種類) <span className="text-destructive">*</span>
                   </label>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={jenisPengadaan === 'baru'}
                       onClick={() => setJenisPengadaan('baru')}
-                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                         jenisPengadaan === 'baru'
                           ? 'border-2 border-primary bg-primary/[0.05] shadow-sm ring-2 ring-primary/20'
                           : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2173,11 +1978,13 @@ function FormItContent() {
                           Penambahan unit komputer/laptop kerja baru untuk karyawan baru atau divisi baru.
                         </p>
                       </div>
-                    </div>
+                    </button>
 
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={jenisPengadaan === 'pembaharuan'}
                       onClick={() => setJenisPengadaan('pembaharuan')}
-                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                         jenisPengadaan === 'pembaharuan'
                           ? 'border-2 border-primary bg-primary/[0.05] shadow-sm ring-2 ring-primary/20'
                           : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2197,7 +2004,7 @@ function FormItContent() {
                           Penggantian / upgrade unit PC lama yang rusak atau tidak sesuai spesifikasi lagi.
                         </p>
                       </div>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
@@ -2354,29 +2161,19 @@ function FormItContent() {
 
             {/* ISMS-F-010-003: Pengadaan Software */}
             {selectedFormCode === 'ISMS-F-010-003' && (
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-6 shadow-xs">
-                <div className="flex items-center justify-between pb-3.5 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
-                      02
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                          Informasi Software &amp; Komputer yang Akan Diinstall
-                        </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
-                          LICENSE &amp; COMPLIANCE
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                        Rincian lisensi software yang diajukan dan identitas PC tujuan instalasi
-                      </p>
-                    </div>
-                  </div>
-                  <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full">
-                    STEP 2 / 4
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center gap-3 pb-3 border-b border-border">
+                  <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                    02
                   </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                      Informasi Software &amp; Komputer yang Akan Diinstall
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      Rincian lisensi software yang diajukan dan identitas PC tujuan instalasi
+                    </p>
+                  </div>
                 </div>
 
                 <div>
@@ -2384,9 +2181,11 @@ function FormItContent() {
                     Jenis Pengadaan Software (購入種類) <span className="text-destructive">*</span>
                   </label>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={jenisPengadaan === 'baru'}
                       onClick={() => setJenisPengadaan('baru')}
-                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                         jenisPengadaan === 'baru'
                           ? 'border-2 border-primary bg-primary/[0.05] shadow-sm ring-2 ring-primary/20'
                           : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2406,11 +2205,13 @@ function FormItContent() {
                           Pembelian lisensi baru yang belum pernah dimiliki sebelumnya.
                         </p>
                       </div>
-                    </div>
+                    </button>
 
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={jenisPengadaan === 'pembaharuan'}
                       onClick={() => setJenisPengadaan('pembaharuan')}
-                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                      className={`relative flex items-start gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                         jenisPengadaan === 'pembaharuan'
                           ? 'border-2 border-primary bg-primary/[0.05] shadow-sm ring-2 ring-primary/20'
                           : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2430,7 +2231,7 @@ function FormItContent() {
                           Upgrade versi software resmi ke rilis yang lebih baru.
                         </p>
                       </div>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
@@ -2564,36 +2365,28 @@ function FormItContent() {
 
             {/* ISMS-F-010-006: Email & User ID */}
             {selectedFormCode === 'ISMS-F-010-006' && (
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-6 shadow-xs">
-                <div className="flex items-center justify-between pb-3.5 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
-                      02
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                          Perihal Pengajuan / Perubahan Akun (件名)
-                        </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
-                          IDENTITY &amp; DOMAIN ACCESS
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                        Pilih layanan email atau user ID login yang hendak dibuat atau dimodifikasi
-                      </p>
-                    </div>
-                  </div>
-                  <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full">
-                    STEP 2 / 4
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center gap-3 pb-3 border-b border-border">
+                  <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                    02
                   </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                      Perihal Pengajuan / Perubahan Akun (件名)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      Pilih layanan email atau user ID login yang hendak dibuat atau dimodifikasi
+                    </p>
+                  </div>
                 </div>
 
                 {/* 4 Interactive Toggle Cards */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={reqEmail}
                     onClick={() => setReqEmail(!reqEmail)}
-                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                       reqEmail
                         ? 'border-2 border-primary bg-primary/[0.05] ring-2 ring-primary/20 shadow-sm'
                         : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2608,11 +2401,13 @@ function FormItContent() {
                       <div className={`text-xs font-bold ${reqEmail ? 'text-primary' : 'text-foreground'}`}>Pengajuan Email Baru</div>
                       <div className="text-[10px] text-muted-foreground font-medium">Pembuatan alamat mailbox baru @jai.co.id (Eメール申請)</div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={changeEmail}
                     onClick={() => setChangeEmail(!changeEmail)}
-                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                       changeEmail
                         ? 'border-2 border-primary bg-primary/[0.05] ring-2 ring-primary/20 shadow-sm'
                         : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2627,11 +2422,13 @@ function FormItContent() {
                       <div className={`text-xs font-bold ${changeEmail ? 'text-primary' : 'text-foreground'}`}>Perubahan Email Address</div>
                       <div className="text-[10px] text-muted-foreground font-medium">Ganti alias atau nama display email (Eメール変更)</div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={reqUserId}
                     onClick={() => setReqUserId(!reqUserId)}
-                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                       reqUserId
                         ? 'border-2 border-primary bg-primary/[0.05] ring-2 ring-primary/20 shadow-sm'
                         : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2646,11 +2443,13 @@ function FormItContent() {
                       <div className={`text-xs font-bold ${reqUserId ? 'text-primary' : 'text-foreground'}`}>Pengajuan User ID Login</div>
                       <div className="text-[10px] text-muted-foreground font-medium">Pembuatan kredensial login Windows / Domain (ユーザID申請)</div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={changeUserId}
                     onClick={() => setChangeUserId(!changeUserId)}
-                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                       changeUserId
                         ? 'border-2 border-primary bg-primary/[0.05] ring-2 ring-primary/20 shadow-sm'
                         : 'border border-border bg-card hover:border-primary/40 hover:bg-secondary/40'
@@ -2665,7 +2464,7 @@ function FormItContent() {
                       <div className={`text-xs font-bold ${changeUserId ? 'text-primary' : 'text-foreground'}`}>Perubahan User ID Login</div>
                       <div className="text-[10px] text-muted-foreground font-medium">Update hak akses atau nama user login (ユーザID変更)</div>
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
@@ -2718,29 +2517,19 @@ function FormItContent() {
 
             {/* ISMS-F-010-007: Deletion of Email & ID */}
             {selectedFormCode === 'ISMS-F-010-007' && (
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-6 shadow-xs">
-                <div className="flex items-center justify-between pb-3.5 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
-                      02
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                          Perihal Penghapusan / Penonaktifan Akun (件名)
-                        </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
-                          DECOMMISSION &amp; REVOKE
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                        Pilih penonaktifan akun email atau user login untuk karyawan resign / mutasi
-                      </p>
-                    </div>
-                  </div>
-                  <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full">
-                    STEP 2 / 4
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center gap-3 pb-3 border-b border-border">
+                  <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                    02
                   </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                      Perihal Penghapusan / Penonaktifan Akun (件名)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      Pilih penonaktifan akun email atau user login untuk karyawan resign / mutasi
+                    </p>
+                  </div>
                 </div>
 
                 <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4.5 text-xs text-destructive flex items-start gap-3 shadow-xs">
@@ -2752,9 +2541,11 @@ function FormItContent() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={delEmail}
                     onClick={() => setDelEmail(!delEmail)}
-                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                       delEmail
                         ? 'border-2 border-destructive bg-destructive/[0.08] ring-2 ring-destructive/20 shadow-sm'
                         : 'border border-border bg-card hover:border-border/80 hover:bg-secondary/40'
@@ -2769,11 +2560,13 @@ function FormItContent() {
                       <div className={`text-xs font-bold ${delEmail ? 'text-destructive' : 'text-foreground'}`}>Penghapusan Email Address</div>
                       <div className="text-[10px] text-muted-foreground font-medium">Deaktivasi &amp; backup mailbox (Eメールアドレスの削除)</div>
                     </div>
-                  </div>
+                  </button>
 
-                  <div
+                  <button
+                    type="button"
+                    aria-pressed={delUserId}
                     onClick={() => setDelUserId(!delUserId)}
-                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 cursor-pointer transition ${
+                    className={`flex items-center gap-3.5 rounded-xl border p-4.5 text-left cursor-pointer transition ${
                       delUserId
                         ? 'border-2 border-destructive bg-destructive/[0.08] ring-2 ring-destructive/20 shadow-sm'
                         : 'border border-border bg-card hover:border-border/80 hover:bg-secondary/40'
@@ -2788,7 +2581,7 @@ function FormItContent() {
                       <div className={`text-xs font-bold ${delUserId ? 'text-destructive' : 'text-foreground'}`}>Penghapusan Login User ID</div>
                       <div className="text-[10px] text-muted-foreground font-medium">Pencabutan akun domain Windows (ユーザIDの削除)</div>
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
@@ -2828,29 +2621,19 @@ function FormItContent() {
 
             {/* ISMS-F-03-00-003: Network Connection */}
             {selectedFormCode === 'ISMS-F-03-00-003' && (
-              <div className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-6 shadow-xs">
-                <div className="flex items-center justify-between pb-3.5 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
-                      02
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                          Informasi Koneksi &amp; Perangkat Jaringan (Network Details)
-                        </h3>
-                        <span className="hidden sm:inline-block font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
-                          INFRASTRUCTURE &amp; SECURITY
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                        Rincian durasi sambungan, lokasi fisik, tujuan akses, dan konfigurasi IP perangkat
-                      </p>
-                    </div>
-                  </div>
-                  <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full">
-                    STEP 2 / 4
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center gap-3 pb-3 border-b border-border">
+                  <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                    02
                   </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                      Informasi Koneksi &amp; Perangkat Jaringan (Network Details)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      Rincian durasi sambungan, lokasi fisik, tujuan akses, dan konfigurasi IP perangkat
+                    </p>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -2908,53 +2691,61 @@ function FormItContent() {
                     Tujuan Penggunaan Jaringan (使用目的)
                   </label>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={purposeInternet}
                       onClick={() => setPurposeInternet(!purposeInternet)}
-                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 text-left cursor-pointer transition ${
                         purposeInternet
                           ? 'border-2 border-primary bg-primary/[0.05] text-primary font-bold ring-2 ring-primary/20 shadow-sm'
                           : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-secondary/40'
                       }`}
                     >
-                      <Globe className={`size-4 ${purposeInternet ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <Globe className={`size-4 shrink-0 ${purposeInternet ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="text-xs">Internet Browsing</span>
-                    </div>
+                    </button>
 
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={purposeEmail}
                       onClick={() => setPurposeEmail(!purposeEmail)}
-                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 text-left cursor-pointer transition ${
                         purposeEmail
                           ? 'border-2 border-primary bg-primary/[0.05] text-primary font-bold ring-2 ring-primary/20 shadow-sm'
                           : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-secondary/40'
                       }`}
                     >
-                      <Mail className={`size-4 ${purposeEmail ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <Mail className={`size-4 shrink-0 ${purposeEmail ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="text-xs">Mail Client</span>
-                    </div>
+                    </button>
 
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={purposeWeb}
                       onClick={() => setPurposeWeb(!purposeWeb)}
-                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 text-left cursor-pointer transition ${
                         purposeWeb
                           ? 'border-2 border-primary bg-primary/[0.05] text-primary font-bold ring-2 ring-primary/20 shadow-sm'
                           : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-secondary/40'
                       }`}
                     >
-                      <Layers className={`size-4 ${purposeWeb ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <Layers className={`size-4 shrink-0 ${purposeWeb ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="text-xs">Internal Web Apps</span>
-                    </div>
+                    </button>
 
-                    <div
+                    <button
+                      type="button"
+                      aria-pressed={purposeFtp}
                       onClick={() => setPurposeFtp(!purposeFtp)}
-                      className={`flex items-center gap-3 rounded-xl border p-3.5 cursor-pointer transition ${
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 text-left cursor-pointer transition ${
                         purposeFtp
                           ? 'border-2 border-primary bg-primary/[0.05] text-primary font-bold ring-2 ring-primary/20 shadow-sm'
                           : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-secondary/40'
                       }`}
                     >
-                      <HardDrive className={`size-4 ${purposeFtp ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <HardDrive className={`size-4 shrink-0 ${purposeFtp ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="text-xs">FTP &amp; File Server</span>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
@@ -3056,10 +2847,10 @@ function FormItContent() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-blue-900 dark:text-blue-300 flex items-start gap-2.5">
-                      <ShieldCheck className="size-4 text-blue-600 mt-0.5 shrink-0" />
+                    <div className="rounded-xl border border-border bg-card p-3 text-xs text-muted-foreground flex items-start gap-2.5">
+                      <ShieldCheck className="size-4 text-primary mt-0.5 shrink-0" />
                       <div className="leading-relaxed">
-                        <span className="font-bold">Ketentuan Alokasi Alamat IP:</span> Tamu tidak perlu mengetahui atau mengisi alamat IP. Alamat IP akan dialokasikan dan dikonfigurasi resmi oleh Tim IT setelah permohonan disetujui IAA (Pak Teguh Sunjoyo) dan dilakukan pengecekan oleh IT Section (IT Check).
+                        <span className="font-bold text-foreground">Ketentuan Alokasi Alamat IP:</span> Tamu tidak perlu mengetahui atau mengisi alamat IP. Alamat IP akan dialokasikan dan dikonfigurasi resmi oleh Tim IT setelah permohonan disetujui IAA (Pak Teguh Sunjoyo) dan dilakukan pengecekan oleh IT Section (IT Check).
                       </div>
                     </div>
                   </div>
@@ -3068,24 +2859,19 @@ function FormItContent() {
             )}
 
             {/* SECTION 3: NOTES & JUSTIFICATION */}
-            <div className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-4 shadow-xs">
-              <div className="flex items-center justify-between pb-3.5 border-b border-border">
-                <div className="flex items-center gap-3">
-                  <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
-                    03
-                  </span>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                      Catatan Tambahan &amp; Alasan Permohonan (Justification)
-                    </h3>
-                    <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                      Tuliskan justifikasi operasional atau alasan kebutuhan pengajuan ini
-                    </p>
-                  </div>
-                </div>
-                <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full">
-                  STEP 3 / 4
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-3 pb-3 border-b border-border">
+                <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                  03
                 </span>
+                <div>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                    Catatan Tambahan &amp; Alasan Permohonan (Justification)
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground font-medium">
+                    Tuliskan justifikasi operasional atau alasan kebutuhan pengajuan ini
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -3126,43 +2912,38 @@ function FormItContent() {
             </div>
 
             {/* SECTION 4: APPROVERS SEQUENCE PREVIEW */}
-            <div className="rounded-2xl border border-border bg-card p-6 sm:p-7 space-y-5 shadow-xs">
-              <div className="flex items-center justify-between pb-3.5 border-b border-border">
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
                 <div className="flex items-center gap-3">
-                  <span className="grid size-8 place-items-center rounded-xl font-mono text-xs font-black shadow-2xs bg-primary text-primary-foreground">
+                  <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
                     04
                   </span>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
                       Alur Pejabat Penyetuju Form Ini (Configured Approvers)
                     </h3>
-                    <p className="text-xs text-muted-foreground font-medium mt-0.5">
+                    <p className="text-[11px] text-muted-foreground font-medium">
                       Daftar pejabat yang akan menerima berkas untuk tanda tangan elektronik digital secara berjenjang
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <span className="hidden sm:inline-flex items-center text-[11px] font-mono font-bold text-muted-foreground bg-secondary border border-border px-3 py-1 rounded-full">
-                    STEP 4 / 4
-                  </span>
-                  {adminUser && (
-                    <Link
-                      href="/kelola-approver-it"
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary bg-secondary hover:bg-secondary/80 border border-border px-3 py-1.5 rounded-lg transition"
-                    >
-                      <span>Ubah Pejabat</span>
-                      <ExternalLink className="size-3.5" />
-                    </Link>
-                  )}
-                </div>
+                {adminUser && (
+                  <Link
+                    href="/kelola-approver-it"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary bg-secondary hover:bg-secondary/80 border border-border px-3 py-1.5 rounded-lg transition"
+                  >
+                    <span>Ubah Pejabat</span>
+                    <ExternalLink className="size-3.5" />
+                  </Link>
+                )}
               </div>
 
               <div className="rounded-xl border border-border bg-secondary/30 p-4 sm:p-5">
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   {approvers.map((a, idx) => (
                     <React.Fragment key={a.id}>
-                      <div className="flex-1 rounded-xl border border-border bg-card p-4 shadow-xs hover:border-primary/40 hover:shadow-md transition-all">
+                      <div className="flex-1 rounded-xl border border-border bg-card p-4 shadow-xs">
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 bg-primary/10 text-primary">
                             STEP {idx + 1}
@@ -3202,22 +2983,16 @@ function FormItContent() {
               </div>
             </div>
 
-            {/* GRAND SUBMIT ACTION BAR */}
-            <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3.5 text-xs text-muted-foreground">
-                <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary border border-primary/20 shadow-xs">
-                  <ShieldCheck className="size-6" />
-                </div>
-                <div>
-                  <span className="font-bold text-foreground block text-sm">ISMS Digital Compliance</span>
-                  Formulir <span className="font-mono font-bold text-foreground">{currentFormDef.code}</span> diverifikasi berstandar ISO/IEC 27001 ISMS PT. JAI.
-                </div>
+            {/* SUBMIT ACTION BAR */}
+            <div className="border-t border-border pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="text-xs text-muted-foreground">
+                Dokumen <span className="font-mono font-bold text-foreground">{currentFormDef.code}</span> akan diteruskan ke <span className="font-bold text-foreground">{currentMeta.approvalCount} pejabat penyetuju</span> sesuai urutan di atas.
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground px-8 py-3.5 text-sm font-bold shadow-lg shadow-primary/20 transition-all hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 active:scale-95 cursor-pointer shrink-0"
+                className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground px-7 py-3 text-sm font-bold shadow-sm transition-all disabled:opacity-50 active:scale-95 cursor-pointer shrink-0"
               >
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -3232,6 +3007,12 @@ function FormItContent() {
       )}
         </>
       )}
+
+      <GuestLinkGeneratorModal
+        open={guestLinkModalOpen}
+        onClose={() => setGuestLinkModalOpen(false)}
+        defaultWalkIn={true}
+      />
     </div>
   )
 }

@@ -29,17 +29,23 @@ import {
   Loader2,
   Send,
   Save,
+  Link2,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { API_BASE_PATH } from '@/lib/config'
 import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
 import { IT_FORM_DEFINITIONS, type ItFormSubmission } from '@/lib/it-form-shared'
 import { downloadExcel } from '@/lib/excel-export'
+import { GuestLinksAdminPanel } from '@/components/it/GuestLinksAdminPanel'
 
 export default function KelolaIzinAlatItPage() {
   const { isLoggedIn, adminUser, logout } = useAuth()
   const role = adminUser?.role
   const username = adminUser?.username || ''
-  const [mainSection, setMainSection] = useState<'equipment' | 'it_forms'>('equipment')
+  const [mainSection, setMainSection] = useState<'guest_links' | 'equipment' | 'it_forms'>('guest_links')
+  const [deletingEqId, setDeletingEqId] = useState<number | null>(null)
+  const [deletingSubId, setDeletingSubId] = useState<number | null>(null)
   const [requests, setRequests] = useState<ItEquipmentRequest[]>([])
   const [itSubmissions, setItSubmissions] = useState<ItFormSubmission[]>([])
   const [loadingItSubmissions, setLoadingItSubmissions] = useState(false)
@@ -104,7 +110,7 @@ export default function KelolaIzinAlatItPage() {
 
   // Approve state
   const [approverName, setApproverName] = useState('')
-  const [approverTitle, setApproverTitle] = useState('System Security Administrator (IT)')
+  const [approverTitle, setApproverTitle] = useState('Manager Departemen / IAA')
   const [approvalNotes, setApprovalNotes] = useState('')
 
   // Reject state
@@ -242,7 +248,9 @@ export default function KelolaIzinAlatItPage() {
 
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
-      if (activeTab !== 'all' && r.status !== activeTab) {
+      if (activeTab === 'pending') {
+        if (r.status !== 'pending' && r.status !== 'approved_manager') return false
+      } else if (activeTab !== 'all' && r.status !== activeTab) {
         return false
       }
       if (searchQuery.trim()) {
@@ -260,7 +268,7 @@ export default function KelolaIzinAlatItPage() {
   const stats = useMemo(() => {
     return {
       total: requests.length,
-      pending: requests.filter((r) => r.status === 'pending').length,
+      pending: requests.filter((r) => r.status === 'pending' || r.status === 'approved_manager').length,
       approved: requests.filter((r) => r.status === 'approved').length,
       returned: requests.filter((r) => r.status === 'returned').length,
       rejected: requests.filter((r) => r.status === 'rejected').length,
@@ -291,26 +299,42 @@ export default function KelolaIzinAlatItPage() {
     })
   }, [itSubmissions, itFormFilter, itStatusFilter, itSearchQuery])
 
-  const handleApprove = async () => {
+  const handleApprove = async (stageOverride?: 'manager' | 'it') => {
     if (!selectedReq) return
     setActionLoading(true)
     setActionError('')
+    const isStep1Manager =
+      stageOverride === 'manager' || (!stageOverride && selectedReq.status === 'pending')
     try {
       const res = await fetch(`/api/it-equipment-requests/${selectedReq.id}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'approve',
-          approver_name: approverName,
-          approver_title: approverTitle,
+          action: isStep1Manager ? 'approve_manager' : 'approve_it',
+          stage: isStep1Manager ? 'manager' : 'it',
+          approver_name:
+            approverName ||
+            (isStep1Manager ? 'IAA / Manager Departemen' : username || 'System Security Admin (IT)'),
+          approver_title:
+            approverTitle ||
+            (isStep1Manager ? 'Manager Departemen / IAA' : 'System Security Administrator (IT)'),
           notes: approvalNotes,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Gagal menyetujui pengajuan')
 
-      setActionSuccess('Pengajuan berhasil di-ACC oleh IT!')
+      setActionSuccess(
+        isStep1Manager
+          ? 'Tahap 1: Berhasil disetujui oleh IAA / Manager Departemen! Silakan lanjutkan Tahap 2 (Verifikasi IT).'
+          : 'Tahap 2: Pengajuan telah diverifikasi & disetujui oleh IT (System Security Administrator)!'
+      )
       setSelectedReq(data.request)
+      if (isStep1Manager) {
+        setApproverName(username || 'System Security Admin (IT)')
+        setApproverTitle('System Security Administrator (IT)')
+        setApprovalNotes('')
+      }
       fetchRequests()
     } catch (err: any) {
       setActionError(err.message || 'Terjadi kesalahan')
@@ -379,10 +403,56 @@ export default function KelolaIzinAlatItPage() {
   }
 
   const copyGuestLink = (req: ItEquipmentRequest) => {
-    const url = `${window.location.origin}/ijin-masuk-alat-it?token=${req.token}`
+    const url = `${window.location.origin}${API_BASE_PATH}/ijin-masuk-alat-it?token=${req.token}`
     navigator.clipboard.writeText(url)
     setCopiedId(req.id)
     setTimeout(() => setCopiedId(null), 2500)
+  }
+
+  const handleDeleteEquipmentRequest = async (req: ItEquipmentRequest) => {
+    const ok = window.confirm(
+      `Hapus data pengajuan Izin Alat IT "${req.request_no}" atas nama ${req.applicant_name}?`
+    )
+    if (!ok) return
+    setDeletingEqId(req.id)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/it-equipment-requests/${req.id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Gagal menghapus data pengajuan')
+      }
+      setRequests((prev) => prev.filter((item) => item.id !== req.id))
+      if (selectedReq?.id === req.id) setSelectedReq(null)
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus data pengajuan')
+    } finally {
+      setDeletingEqId(null)
+    }
+  }
+
+  const handleDeleteItSubmission = async (sub: ItFormSubmission) => {
+    const ok = window.confirm(
+      `Hapus data permohonan Formulir IT "${sub.request_no}" (${sub.form_code}) atas nama ${sub.applicant_name}?`
+    )
+    if (!ok) return
+    setDeletingSubId(sub.id)
+    try {
+      const res = await fetch(`${API_BASE_PATH}/api/it-form-submissions/${sub.id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Gagal menghapus permohonan formulir IT')
+      }
+      setItSubmissions((prev) => prev.filter((item) => item.id !== sub.id))
+      if (selectedItSub?.id === sub.id) setSelectedItSub(null)
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus permohonan formulir IT')
+    } finally {
+      setDeletingSubId(null)
+    }
   }
 
   const handleExportEquipmentExcel = () => {
@@ -598,7 +668,18 @@ export default function KelolaIzinAlatItPage() {
         </div>
 
         {/* Section Switcher Tabs */}
-        <div className="flex border-b border-border mt-6">
+        <div className="flex flex-wrap border-b border-border mt-6">
+          <button
+            type="button"
+            onClick={() => setMainSection('guest_links')}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-bold transition ${
+              mainSection === 'guest_links'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Link2 className="size-4" /> Generate Link Tamu &amp; Network (2 Form)
+          </button>
           <button
             type="button"
             onClick={() => setMainSection('equipment')}
@@ -757,7 +838,15 @@ export default function KelolaIzinAlatItPage() {
       </section>
 
       {/* Main Content Area */}
-      {mainSection === 'equipment' ? (
+      {mainSection === 'guest_links' ? (
+        <GuestLinksAdminPanel
+          defaultApproverName={username || 'Admin IT'}
+          onDataChanged={() => {
+            fetchRequests()
+            fetchItSubmissions()
+          }}
+        />
+      ) : mainSection === 'equipment' ? (
         <div className="space-y-4">
         {/* Controls: Search & Tabs */}
         <div className="bg-card p-4 rounded-2xl border border-border shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -843,6 +932,7 @@ export default function KelolaIzinAlatItPage() {
                 ) : (
                   filteredRequests.map((req) => {
                     const isPending = req.status === 'pending'
+                    const isApprovedManager = req.status === 'approved_manager'
                     const isApproved = req.status === 'approved'
                     const isReturned = req.status === 'returned'
                     const isRejected = req.status === 'rejected'
@@ -888,12 +978,17 @@ export default function KelolaIzinAlatItPage() {
                         <td className="py-3 px-4 text-center whitespace-nowrap">
                           {isPending && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#fff3d6] text-[#8a6100] text-[11px] font-semibold">
-                              <Clock className="size-3" /> Menunggu ACC
+                              <Clock className="size-3" /> 1. Menunggu IAA / Mgr Dept
+                            </span>
+                          )}
+                          {isApprovedManager && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-500/15 text-blue-700 text-[11px] font-semibold">
+                              <Clock className="size-3" /> 2. ACC Mgr/IAA · Tunggu Check IT
                             </span>
                           )}
                           {isApproved && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#dff5e6] text-[#1a6e3a] text-[11px] font-semibold">
-                              <CheckCircle2 className="size-3" /> Di-ACC (Aktif)
+                              <CheckCircle2 className="size-3" /> Di-ACC Lengkap (Mgr/IAA &amp; IT)
                             </span>
                           )}
                           {isReturned && (
@@ -917,6 +1012,13 @@ export default function KelolaIzinAlatItPage() {
                                 setActionSuccess('')
                                 setShowRejectForm(false)
                                 setShowReturnModal(false)
+                                if (req.status === 'pending') {
+                                  setApproverName('IAA / Manager Departemen')
+                                  setApproverTitle('Manager Departemen / IAA')
+                                } else {
+                                  setApproverName(username || 'System Security Admin (IT)')
+                                  setApproverTitle('System Security Administrator (IT)')
+                                }
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary hover:opacity-90 text-primary-foreground font-medium text-xs transition"
                             >
@@ -945,6 +1047,17 @@ export default function KelolaIzinAlatItPage() {
                             >
                               <Download className="size-3.5" />
                             </a>
+
+                            <button
+                              type="button"
+                              disabled={deletingEqId === req.id}
+                              onClick={() => handleDeleteEquipmentRequest(req)}
+                              title="Hapus Pengajuan Izin Alat IT"
+                              className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 bg-card px-2 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 transition"
+                            >
+                              <Trash2 className="size-3.5" />
+                              <span>Hapus</span>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -1204,6 +1317,16 @@ export default function KelolaIzinAlatItPage() {
                               >
                                 <ExternalLink className="size-3.5" />
                               </Link>
+                              <button
+                                type="button"
+                                disabled={deletingSubId === sub.id}
+                                onClick={() => handleDeleteItSubmission(sub)}
+                                title="Hapus Permohonan Formulir IT"
+                                className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 bg-card px-2 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 transition"
+                              >
+                                <Trash2 className="size-3.5" />
+                                <span>Hapus</span>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1264,12 +1387,13 @@ export default function KelolaIzinAlatItPage() {
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-semibold block">
-                    Status Dokumen
+                    Status Dokumen (Alur: 1. IAA / Manager Departemen &rarr; 2. Check IT)
                   </span>
                   <div className="font-bold text-slate-800 text-sm">
-                    {selectedReq.status === 'pending' && 'Menunggu ACC IT'}
-                    {selectedReq.status === 'approved' && 'Disetujui oleh IT (ACC)'}
-                    {selectedReq.status === 'returned' && 'Telah Dikembalikan & Diperiksa'}
+                    {selectedReq.status === 'pending' && 'Tahap 1: Menunggu Persetujuan IAA / Manager Departemen'}
+                    {selectedReq.status === 'approved_manager' && 'Tahap 2: Disetujui IAA / Mgr Dept · Menunggu Verifikasi IT (SSA)'}
+                    {selectedReq.status === 'approved' && 'Disetujui Lengkap (IAA / Manager Departemen & Verifikasi IT)'}
+                    {selectedReq.status === 'returned' && 'Telah Dikembalikan & Diperiksa ([Kembali])'}
                     {selectedReq.status === 'rejected' && 'Ditolak'}
                   </div>
                 </div>
@@ -1372,16 +1496,56 @@ export default function KelolaIzinAlatItPage() {
                 </div>
               </div>
 
-              {/* Action Form: IT Approval Inputs (if pending) */}
-              {selectedReq.status === 'pending' && !showRejectForm && (
+              {/* Ringkasan Tahap 1 jika sudah disetujui oleh IAA / Manager Departemen */}
+              {(selectedReq.status === 'approved_manager' ||
+                selectedReq.status === 'approved' ||
+                selectedReq.status === 'returned') && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1 text-emerald-900">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="size-4 text-emerald-600" />
+                    Tahap 1 Selesai: Disetujui oleh IAA / Manager Departemen ({selectedReq.approved_by || 'Manager Dept / IAA'})
+                  </div>
+                  <div className="text-[11px] text-emerald-800">
+                    Jabatan: {selectedReq.approved_title || 'Manager Departemen / IAA'}{' '}
+                    {selectedReq.approved_at ? `· Waktu: ${new Date(selectedReq.approved_at).toLocaleString('id-ID')}` : ''}
+                  </div>
+                </div>
+              )}
+
+              {/* Ringkasan Tahap 2 jika sudah diverifikasi oleh IT */}
+              {(selectedReq.status === 'approved' || selectedReq.status === 'returned') && (
+                <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl space-y-1 text-blue-900">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <ShieldCheck className="size-4 text-blue-600" />
+                    Tahap 2 Selesai: Diverifikasi oleh IT ({selectedReq.it_checked_by || 'System Security Admin (IT)'})
+                  </div>
+                  <div className="text-[11px] text-blue-800">
+                    Jabatan: {selectedReq.it_checked_title || 'System Security Administrator (IT)'}{' '}
+                    {selectedReq.it_checked_at ? `· Waktu: ${new Date(selectedReq.it_checked_at).toLocaleString('id-ID')}` : ''}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Form: Sequential Approval (Tahap 1 IAA/Manager Dept -> Tahap 2 IT) */}
+              {(selectedReq.status === 'pending' || selectedReq.status === 'approved_manager') && !showRejectForm && (
                 <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-3">
                   <h4 className="font-bold text-blue-900 flex items-center gap-1.5">
-                    <ShieldCheck className="size-4 text-blue-600" /> Persetujuan & E-Sign (Manager / IAA & IT Check)
+                    <ShieldCheck className="size-4 text-blue-600" />{' '}
+                    {selectedReq.status === 'pending'
+                      ? 'Tahap 1: Persetujuan IAA / Manager Departemen (Wajib Terlebih Dahulu)'
+                      : 'Tahap 2: Verifikasi / Check oleh Divisi IT (System Security Administrator)'}
                   </h4>
+                  {selectedReq.status === 'pending' && (
+                    <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                      Alur Berurutan: Tahap 2 (Verifikasi IT) masih terkunci dan baru dapat dilakukan setelah Tahap 1 (IAA / Manager Departemen) disetujui.
+                    </p>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Nama Approver / Petugas
+                        {selectedReq.status === 'pending'
+                          ? 'Nama IAA / Manager Departemen'
+                          : 'Nama Petugas IT (SSA)'}
                       </label>
                       <input
                         type="text"
@@ -1404,11 +1568,10 @@ export default function KelolaIzinAlatItPage() {
                         className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
                       />
                       <div className="flex flex-wrap gap-1 mt-1.5">
-                        {[
-                          'Manager Departemen / IAA',
-                          'System Security Administrator (IT)',
-                          'Information Assets Administrator (IAA)',
-                        ].map((preset) => (
+                        {(selectedReq.status === 'pending'
+                          ? ['Manager Departemen / IAA', 'Information Assets Administrator (IAA)']
+                          : ['System Security Administrator (IT)', 'IT Section / PIC Record']
+                        ).map((preset) => (
                           <button
                             key={preset}
                             type="button"
@@ -1568,11 +1731,32 @@ export default function KelolaIzinAlatItPage() {
                     <button
                       type="button"
                       disabled={actionLoading}
-                      onClick={handleApprove}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold transition shadow-sm"
+                      onClick={() => handleApprove('manager')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold transition shadow-sm"
                     >
                       <CheckCircle2 className="size-4" />
-                      {actionLoading ? 'Memproses...' : 'Setujui Pengajuan (ACC IT)'}
+                      {actionLoading ? 'Memproses...' : '1. Setujui Tahap 1 (IAA / Manager Departemen)'}
+                    </button>
+                  </>
+                )}
+
+                {selectedReq.status === 'approved_manager' && !showRejectForm && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectForm(true)}
+                      className="px-3.5 py-2 rounded-xl bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold transition"
+                    >
+                      Tolak
+                    </button>
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={() => handleApprove('it')}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold transition shadow-sm"
+                    >
+                      <ShieldCheck className="size-4" />
+                      {actionLoading ? 'Memproses...' : '2. Setujui Tahap 2 (Verifikasi / Check IT)'}
                     </button>
                   </>
                 )}

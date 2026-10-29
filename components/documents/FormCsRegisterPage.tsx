@@ -5,12 +5,10 @@ import Link from 'next/link'
 import {
   ArrowRight,
   Camera,
-  CheckCircle2,
   ChevronRight,
   Cpu,
   Download,
   FileSignature,
-  FileText,
   Fingerprint,
   Laptop,
   Mail,
@@ -19,7 +17,6 @@ import {
   Search,
   Settings2,
   ShieldAlert,
-  ShieldCheck,
   Trash2,
   X,
 } from 'lucide-react'
@@ -234,330 +231,239 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
 
       {category === 'form-aplikasi' && (
         <section aria-label="Layanan Formulir Online Resmi" className="space-y-4">
-          {/* Header with Anti-Slop Refined Typography */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/80 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                </span>
-                <p className="portal-eyebrow !mb-0 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Enterprise Services · ISO/IEC 27001
-                </p>
-              </div>
-              <h3 className="font-display text-xl sm:text-2xl font-black text-foreground tracking-tight mt-1">
-                Layanan Formulir &amp; Pengajuan Izin Online
-              </h3>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
-                Pusat perizinan terpadu PT. JAI dengan alur persetujuan digital, integrasi E-Sign QR Code resmi, dan kepatuhan standar keamanan informasi.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-1.5 font-mono text-xs font-semibold text-foreground shadow-2xs">
-                <ShieldCheck className="size-3.5 text-primary" />
-                <span>5 Layanan Terverifikasi</span>
-              </span>
-            </div>
+          <div className="border-b border-border pb-3">
+            <p className="portal-eyebrow">Layanan online</p>
+            <h3 className="mt-1 font-display text-xl font-semibold text-foreground sm:text-2xl">
+              Pengajuan Izin &amp; Formulir E-Sign
+            </h3>
           </div>
 
-          {/* Bento Grid Layout (Anti-Slop Architecture) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* HERO BENTO (Left 7 Cols): Form Layanan IT (E-Sign) */}
-            <div className="group lg:col-span-7 flex flex-col justify-between rounded-2xl border border-border bg-card p-6 shadow-xs hover:border-foreground/30 hover:shadow-lg transition-all duration-200 relative overflow-hidden">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            {/* Form Layanan IT (E-Sign) */}
+            <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-6 transition-colors hover:border-[color:var(--p-600)] lg:col-span-7">
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="grid size-11 place-items-center rounded-xl bg-secondary border border-border text-foreground transition-transform duration-200 group-hover:scale-105 shadow-2xs">
-                      <FileSignature className="size-5.5 text-primary" />
+                    <div className="grid size-10 place-items-center rounded-xl bg-secondary text-[color:var(--p-600)]">
+                      <FileSignature className="size-5" />
                     </div>
                     <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">
-                          ISMS-F-010 / F-03
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
-                          <CheckCircle2 className="size-3 text-emerald-600" />
-                          <span>E-Sign Terintegrasi</span>
-                        </span>
-                      </div>
-                      <h4 className="font-display text-base sm:text-lg font-black text-foreground tracking-tight mt-1">
+                      <span className="font-mono-label text-[10px] text-[color:var(--p-600)]">
+                        ISMS-F-010 / F-03
+                      </span>
+                      <h4 className="font-display text-lg font-semibold text-foreground">
                         Form Layanan IT (E-Sign)
                       </h4>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-xs sm:text-[13px] leading-relaxed text-muted-foreground">
-                  Pengadaan dan peremajaan komputer, lisensi software terverifikasi, pembuatan &amp; mutasi akun domain, serta izin sambungan jaringan tamu dan rekanan.
+                <p className="text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+                  Pengadaan perangkat komputer, lisensi software resmi, pembuatan/penghapusan akun domain, serta izin koneksi jaringan.
                 </p>
 
-                {/* Sub-Category Interactive Tiles (2x2 Grid) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
                   <Link
                     href="/form-it-esign?form=ISMS-F-010-001"
-                    className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-border/80 bg-secondary/40 hover:bg-secondary hover:border-foreground/20 transition-all text-xs group/item"
+                    className="group/item flex items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary/35 p-2.5 text-xs transition-colors hover:bg-secondary"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-7 rounded-lg bg-card border border-border flex items-center justify-center shrink-0 text-foreground">
-                        <Laptop className="size-3.5" />
-                      </div>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Laptop className="size-4 shrink-0 text-[color:var(--p-600)]" />
                       <div className="truncate">
-                        <div className="font-bold text-foreground truncate">PC &amp; Laptop</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">F-010-001 · Baru/Refresh</div>
+                        <div className="truncate font-semibold text-foreground">PC &amp; Laptop</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">ISMS-F-010-001</div>
                       </div>
                     </div>
-                    <ChevronRight className="size-3.5 text-muted-foreground group-hover/item:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5" />
                   </Link>
 
                   <Link
                     href="/form-it-esign?form=ISMS-F-010-003"
-                    className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-border/80 bg-secondary/40 hover:bg-secondary hover:border-foreground/20 transition-all text-xs group/item"
+                    className="group/item flex items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary/35 p-2.5 text-xs transition-colors hover:bg-secondary"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-7 rounded-lg bg-card border border-border flex items-center justify-center shrink-0 text-foreground">
-                        <Cpu className="size-3.5" />
-                      </div>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Cpu className="size-4 shrink-0 text-[color:var(--p-600)]" />
                       <div className="truncate">
-                        <div className="font-bold text-foreground truncate">Lisensi Software</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">F-010-003 · CAD, Office, SAP</div>
+                        <div className="truncate font-semibold text-foreground">Lisensi Software</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">ISMS-F-010-003</div>
                       </div>
                     </div>
-                    <ChevronRight className="size-3.5 text-muted-foreground group-hover/item:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5" />
                   </Link>
 
                   <Link
                     href="/form-it-esign?form=ISMS-F-010-006"
-                    className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-border/80 bg-secondary/40 hover:bg-secondary hover:border-foreground/20 transition-all text-xs group/item"
+                    className="group/item flex items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary/35 p-2.5 text-xs transition-colors hover:bg-secondary"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-7 rounded-lg bg-card border border-border flex items-center justify-center shrink-0 text-foreground">
-                        <Mail className="size-3.5" />
-                      </div>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Mail className="size-4 shrink-0 text-[color:var(--p-600)]" />
                       <div className="truncate">
-                        <div className="font-bold text-foreground truncate">Email &amp; User ID</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">F-010-006/007 · Akun JAI</div>
+                        <div className="truncate font-semibold text-foreground">Email &amp; User ID</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">ISMS-F-010-006 / 007</div>
                       </div>
                     </div>
-                    <ChevronRight className="size-3.5 text-muted-foreground group-hover/item:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5" />
                   </Link>
 
                   <Link
                     href="/form-it-esign?form=ISMS-F-03-00-003"
-                    className="flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-border/80 bg-secondary/40 hover:bg-secondary hover:border-foreground/20 transition-all text-xs group/item"
+                    className="group/item flex items-center justify-between gap-2.5 rounded-xl border border-border bg-secondary/35 p-2.5 text-xs transition-colors hover:bg-secondary"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-7 rounded-lg bg-card border border-border flex items-center justify-center shrink-0 text-foreground">
-                        <Network className="size-3.5" />
-                      </div>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Network className="size-4 shrink-0 text-[color:var(--p-600)]" />
                       <div className="truncate">
-                        <div className="font-bold text-foreground truncate">Koneksi Jaringan</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">F-03-00-003 · Tamu &amp; Rekanan</div>
+                        <div className="truncate font-semibold text-foreground">Koneksi Jaringan</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">ISMS-F-03-00-003</div>
                       </div>
                     </div>
-                    <ChevronRight className="size-3.5 text-muted-foreground group-hover/item:translate-x-0.5 transition-transform shrink-0" />
+                    <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover/item:translate-x-0.5" />
                   </Link>
                 </div>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <span className="text-[11px] text-muted-foreground">
-                  *Dokumen sah otomatis dibubuhi QR Code tanda tangan elektronik terverifikasi.
+              <div className="mt-5 flex items-center justify-between gap-3 border-t border-border pt-4">
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  5 formulir · E-Sign QR
                 </span>
                 <Link
                   href="/form-it-esign"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2.5 text-xs font-bold shadow-xs transition-all duration-200 group/btn shrink-0"
+                  className="group/btn inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition hover:bg-primary/90"
                 >
-                  <span>Buka Portal Form IT</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-1" />
+                  <span>Buka Form Layanan IT</span>
+                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </Link>
               </div>
             </div>
 
-            {/* BENTO COMPANION (Right 5 Cols): Izin Bawa Masuk / Keluar Alat IT */}
-            <div className="group lg:col-span-5 flex flex-col justify-between rounded-2xl border border-border bg-card p-6 shadow-xs hover:border-foreground/30 hover:shadow-lg transition-all duration-200">
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid size-11 place-items-center rounded-xl bg-secondary border border-border text-foreground transition-transform duration-200 group-hover:scale-105 shadow-2xs">
-                      <Laptop className="size-5.5 text-foreground" />
-                    </div>
-                    <div>
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary border border-border px-2 py-0.5 rounded-md">
-                        ISMS-F-03-00-001/002
-                      </span>
-                      <h4 className="font-display text-base sm:text-lg font-black text-foreground tracking-tight mt-1">
-                        Izin Bawa Alat IT
-                      </h4>
-                    </div>
+            {/* Izin Bawa Masuk / Keluar Alat IT */}
+            <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-6 transition-colors hover:border-[color:var(--p-600)] lg:col-span-5">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-10 place-items-center rounded-xl bg-secondary text-[color:var(--p-600)]">
+                    <Laptop className="size-5" />
+                  </div>
+                  <div>
+                    <span className="font-mono-label text-[10px] text-muted-foreground">
+                      ISMS-F-03-00-001 / 002
+                    </span>
+                    <h4 className="font-display text-lg font-semibold text-foreground">
+                      Izin Bawa Alat IT
+                    </h4>
                   </div>
                 </div>
 
-                <p className="text-xs sm:text-[13px] leading-relaxed text-muted-foreground">
-                  Izin resmi membawa masuk dan keluar perangkat elektronik (Laptop, PC, USB Drive, Kamera) melewati gerbang pos keamanan pabrik PT. JAI.
+                <p className="text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+                  Izin membawa masuk atau keluar perangkat elektronik (Laptop, PC, USB Drive, Kamera) melewati pos pemeriksaan pabrik PT. JAI, lengkap dengan verifikasi nomor seri dan cetak kartu izin.
                 </p>
-
-                {/* Key feature checklist */}
-                <div className="space-y-2 pt-1 text-xs">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle2 className="size-3.5 text-primary shrink-0" />
-                    <span>Verifikasi nomor seri &amp; barcode otomatis di Pos Satpam</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle2 className="size-3.5 text-primary shrink-0" />
-                    <span>Opsi izin sementara (kunjungan) atau izin jangka panjang</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <CheckCircle2 className="size-3.5 text-primary shrink-0" />
-                    <span>Integrasi cetak label barcode &amp; kartu izin resmi</span>
-                  </div>
-                </div>
               </div>
 
-              <div className="mt-5 pt-4 border-t border-border">
+              <div className="mt-5 border-t border-border pt-4">
                 <Link
                   href="/ijin-masuk-alat-it"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border px-4 py-2.5 text-xs font-bold transition-all duration-200 group/btn"
+                  className="group/btn flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/70 px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary"
                 >
                   <span>Buka Form Alat IT</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-1" />
+                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </Link>
               </div>
             </div>
 
-            {/* ROW 2: 3 BALANCED TILES */}
             {/* Tile 1: Registrasi Fingerprint */}
-            <div className="group lg:col-span-4 flex flex-col justify-between rounded-2xl border border-border bg-card p-5.5 shadow-xs hover:border-foreground/30 hover:shadow-lg transition-all duration-200">
-              <div className="space-y-3.5">
+            <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-[color:var(--p-600)] lg:col-span-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-secondary border border-border text-foreground transition-transform duration-200 group-hover:scale-105 shadow-2xs">
-                    <Fingerprint className="size-5 text-foreground" />
+                  <div className="grid size-9 place-items-center rounded-xl bg-secondary text-[color:var(--p-600)]">
+                    <Fingerprint className="size-4.5" />
                   </div>
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary border border-border px-2 py-0.5 rounded-md">
-                    F-02-00-002
+                  <span className="font-mono text-[10px] font-semibold text-muted-foreground">
+                    ISMS-F-02-00-002
                   </span>
                 </div>
 
                 <div>
-                  <h4 className="font-display text-sm sm:text-base font-black text-foreground tracking-tight">
+                  <h4 className="font-display text-base font-semibold text-foreground">
                     Registrasi Fingerprint
                   </h4>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Pendaftaran sidik jari biometrik untuk otorisasi akses pintu Special Security Area (Server Room &amp; Ruang Arsip).
+                    Pendaftaran sidik jari untuk akses pintu Special Security Area dengan pengesahan Information Assets Administrator (IAA).
                   </p>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Server Room
-                  </span>
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Ruang Arsip
-                  </span>
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Otorisasi IAA
-                  </span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3.5 border-t border-border">
+              <div className="mt-4 border-t border-border pt-3.5">
                 <Link
                   href="/registrasi-fingerprint"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border px-3.5 py-2 text-xs font-bold transition-all duration-200 group/btn"
+                  className="group/btn flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/70 px-3.5 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary"
                 >
                   <span>Buka Form Fingerprint</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-1" />
+                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </Link>
               </div>
             </div>
 
             {/* Tile 2: Izin Foto & Video */}
-            <div className="group lg:col-span-4 flex flex-col justify-between rounded-2xl border border-border bg-card p-5.5 shadow-xs hover:border-foreground/30 hover:shadow-lg transition-all duration-200">
-              <div className="space-y-3.5">
+            <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-[color:var(--p-600)] lg:col-span-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-secondary border border-border text-foreground transition-transform duration-200 group-hover:scale-105 shadow-2xs">
-                    <Camera className="size-5 text-foreground" />
+                  <div className="grid size-9 place-items-center rounded-xl bg-secondary text-[color:var(--p-600)]">
+                    <Camera className="size-4.5" />
                   </div>
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary border border-border px-2 py-0.5 rounded-md">
-                    F-04-00-001
+                  <span className="font-mono text-[10px] font-semibold text-muted-foreground">
+                    ISMS-F-04-00-001
                   </span>
                 </div>
 
                 <div>
-                  <h4 className="font-display text-sm sm:text-base font-black text-foreground tracking-tight">
+                  <h4 className="font-display text-base font-semibold text-foreground">
                     Izin Foto &amp; Video
                   </h4>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Permohonan izin pengambilan dokumentasi visual di area pabrik &amp; fasilitas PT. JAI sesuai audit kerahasiaan ISMS.
+                    Permohonan izin pengambilan dokumentasi visual di area perusahaan bagi karyawan internal maupun tamu.
                   </p>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Audit Visual
-                  </span>
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Pemberian Pita Kamera
-                  </span>
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Pencegahan Kebocoran
-                  </span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3.5 border-t border-border">
+              <div className="mt-4 border-t border-border pt-3.5">
                 <Link
                   href="/ijin-foto-video"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border px-3.5 py-2 text-xs font-bold transition-all duration-200 group/btn"
+                  className="group/btn flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/70 px-3.5 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary"
                 >
                   <span>Buka Form Foto/Video</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-1" />
+                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </Link>
               </div>
             </div>
 
             {/* Tile 3: Special Security Area */}
-            <div className="group lg:col-span-4 flex flex-col justify-between rounded-2xl border border-border bg-card p-5.5 shadow-xs hover:border-foreground/30 hover:shadow-lg transition-all duration-200">
-              <div className="space-y-3.5">
+            <div className="flex flex-col justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-[color:var(--p-600)] lg:col-span-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="grid size-10 place-items-center rounded-xl bg-secondary border border-border text-foreground transition-transform duration-200 group-hover:scale-105 shadow-2xs">
-                    <ShieldAlert className="size-5 text-foreground" />
+                  <div className="grid size-9 place-items-center rounded-xl bg-secondary text-[color:var(--p-600)]">
+                    <ShieldAlert className="size-4.5" />
                   </div>
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary border border-border px-2 py-0.5 rounded-md">
-                    F-006-001
+                  <span className="font-mono text-[10px] font-semibold text-muted-foreground">
+                    ISMS-F-006-001
                   </span>
                 </div>
 
                 <div>
-                  <h4 className="font-display text-sm sm:text-base font-black text-foreground tracking-tight">
+                  <h4 className="font-display text-base font-semibold text-foreground">
                     Special Security Area
                   </h4>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Izin akses fisik, inspeksi, dan kegiatan teknis di zona terbatas dengan pengawasan ketat (Server Room &amp; Ruang Arsip).
+                    Izin masuk sementara, inspeksi, atau pekerjaan teknis di area terbatas (Server Room &amp; Ruang Arsip).
                   </p>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Zona Terbatas
-                  </span>
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Wajib Pendamping
-                  </span>
-                  <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-secondary/60 border border-border/80 px-2 py-0.5 rounded">
-                    Log Akses Terverifikasi
-                  </span>
                 </div>
               </div>
 
-              <div className="mt-4 pt-3.5 border-t border-border">
+              <div className="mt-4 border-t border-border pt-3.5">
                 <button
                   type="button"
                   onClick={() => setSpecialAreaModalOpen(true)}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border px-3.5 py-2 text-xs font-bold transition-all duration-200 group/btn cursor-pointer"
+                  className="group/btn flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-secondary/70 px-3.5 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary"
                 >
                   <span>Buka Form Zona Khusus</span>
-                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-1" />
+                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </button>
               </div>
             </div>

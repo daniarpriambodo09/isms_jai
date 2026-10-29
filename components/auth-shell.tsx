@@ -500,9 +500,6 @@ export function AuthSplitLogin({
                     >
                       Lupa kata sandi?
                     </a>
-                    <span className="font-mono text-[10px] text-muted-foreground">
-                      Otorisasi Terenkripsi
-                    </span>
                   </div>
                 </form>
 

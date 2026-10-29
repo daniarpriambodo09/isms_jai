@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent, Fragment } from 'react'
-import { CalendarDays, Camera, Check, CheckCircle2, Clock, Copy, History, MapPin, ScanLine, Search, Send, Users } from 'lucide-react'
+import { CalendarDays, Camera, Check, CheckCircle2, Clock, Copy, History, MapPin, ScanLine, Search, Send } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { cardsChanged } from '@/components/kiosk/kiosk-shared'
@@ -399,124 +399,124 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
     }
   }
 
-  const heading = isInternal ? 'Pengajuan Ijin Pengambilan Foto/Video' : 'Registration for Recording Photo/Video'
-  const subheading = isInternal ? 'Berlaku untuk seluruh Dept./Section' : 'For visitor / non-employee'
   const submitLabel = isInternal ? 'Kirim Pengajuan' : 'Submit Registration'
   const noteText = isInternal ? 'Lengkapi seluruh kolom di atas sebelum mengirim.' : 'Please complete every field above before submitting.'
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      {/* Form header — distinctive corporate enterprise card */}
-      <section className="relative overflow-hidden rounded-t-[1.75rem] border border-b-0 border-border bg-card shadow-sm">
-        <div className="h-2 w-full" style={{ background: 'repeating-linear-gradient(-45deg, #0284c7 0 10px, #0369a1 10px 20px)' }} />
-        <div className="px-6 pb-6 pt-5 sm:px-8">
-          <div className="flex flex-wrap items-center gap-2 font-mono text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
-            <span className="size-2 rounded-full bg-sky-500 animate-pulse" />
-            <span>PT. JATIM AUTOCOMP INDONESIA</span>
-            <span className="text-slate-300 dark:text-slate-700">/</span>
-            <span>ISO/IEC 27001 ISMS CONTROLLED</span>
-            <span className="text-slate-300 dark:text-slate-700">/</span>
-            <span className="font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800">
+    <div className="mx-auto w-full max-w-4xl">
+      <form onSubmit={handleSubmit} className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+        <div className="h-1 w-full bg-primary" />
+
+        {/* Compact ISMS Document Bar + Step Progress */}
+        <div className="flex flex-col gap-3 border-b border-border bg-secondary/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md border border-primary/25 bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary">
               {isInternal ? 'ISMS-F-01-00-002' : 'ISMS-F-005-001'}
+            </span>
+            <span className="text-xs font-semibold text-foreground">
+              {isInternal ? 'Formulir Izin Foto/Video & Peminjaman Kamera/USB' : 'Visitor Photo/Video Recording Registration'}
+            </span>
+            <span className="hidden text-xs text-muted-foreground md:inline">
+              &bull; 写真・ビデオ撮影許可申請書
             </span>
           </div>
 
-          <div className="mt-4 flex items-start gap-4">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-sky-950 text-sky-400 shadow-sm border border-sky-800/40 dark:bg-sky-900/60">
-              <Camera className="size-6" />
+          <nav aria-label={isInternal ? 'Langkah pengisian' : 'Form steps'} className="flex items-center gap-1.5">
+            {(isInternal ? ['Data Pemohon', 'Info Foto/Video', 'Kirim'] : ['Requester', 'Recording Info', 'Submit']).map((label, index) => (
+              <Fragment key={label}>
+                {index > 0 && <span aria-hidden className={`h-px w-4 transition-colors duration-300 ${index <= currentStep ? 'bg-primary' : 'bg-border'}`} />}
+                <button
+                  type="button"
+                  onClick={() => document.getElementById(STEP_IDS[index])?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  aria-current={index === currentStep ? 'step' : undefined}
+                  className={`flex flex-none items-center gap-1.5 rounded-lg py-1 pl-1.5 pr-2.5 text-[11px] font-semibold transition-colors duration-300 cursor-pointer ${index === currentStep ? 'bg-primary text-primary-foreground' : index < currentStep ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  <span className={`grid size-5 place-items-center rounded font-mono text-[10px] font-bold ${index === currentStep ? 'bg-primary-foreground/20' : index < currentStep ? 'bg-primary/15 text-primary' : 'bg-secondary'}`}>{index + 1}</span>
+                  <span className={index === currentStep ? '' : 'max-[520px]:hidden'}>{label}</span>
+                </button>
+              </Fragment>
+            ))}
+          </nav>
+        </div>
+
+        <div className="divide-y divide-border p-6 sm:p-8 [&>div+div]:pt-8 space-y-8">
+          <div id="pv-step-1" className="scroll-mt-32 space-y-5">
+            <StatusLookup key={initialRef ?? 'none'} isInternal={isInternal} initialRef={initialRef} />
+            <div className="flex items-center gap-3 pb-3 border-b border-border">
+              <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                01
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                  {isInternal ? 'Data Pemohon (Applicant Identity)' : 'Requester Details'}
+                </h2>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  {isInternal ? 'Identitas karyawan PT. JAI yang mengajukan izin dokumentasi' : 'Visitor identity and organization details'}
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-                {heading}
-              </h1>
-              <p className="mt-1 text-xs text-muted-foreground sm:text-sm max-w-xl leading-relaxed">
-                {isInternal
-                  ? 'Formulir resmi izin pengambilan foto/video & peminjaman kamera / USB / Smart Device terkontrol ISMS.'
-                  : 'Official registration form for photo and video recording at PT. Jatim Autocomp Indonesia.'}
-              </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {isInternal && (
+                <Field label="NIK">
+                  <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Nomor Induk Karyawan" className={`${inputClass} font-mono`} />
+                </Field>
+              )}
+              <Field label={isInternal ? 'Nama Lengkap' : 'Full Name'} span={1}>
+                <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} autoComplete="name" required className={inputClass} />
+              </Field>
+              {isInternal ? (
+                <>
+                  <Field label="Dept.">
+                    <select value={deptId} onChange={(e) => { setDeptId(e.target.value); setSectionId(''); setPicApproveId('') }} required className={inputClass}>
+                      <option value="">Pilih departemen...</option>
+                      {departments.map((department) => (
+                        <option key={department.id} value={department.id}>{department.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Seksi">
+                    <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} disabled={!selectedDept || selectedDept.sections.length === 0} className={inputClass}>
+                      <option value="">{selectedDept && selectedDept.sections.length === 0 ? 'Tidak ada section' : 'Pilih section (opsional)...'}</option>
+                      {selectedDept?.sections.map((section) => (
+                        <option key={section.id} value={section.id}>{section.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </>
+              ) : (
+                <Field label="Company / Organization">
+                  <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} autoComplete="organization" required className={inputClass} />
+                </Field>
+              )}
+              {!isInternal && (
+                <Field label="Department">
+                  <input value={dept} onChange={(e) => setDept(e.target.value)} required className={inputClass} />
+                </Field>
+              )}
+              {/* Internal only: a visitor is told the result at the Lobby / Pos Security (or by the status link). */}
+              {isInternal && (
+                <Field label="Email (opsional)" span={2}>
+                  <input type="email" value={requesterEmail} onChange={(e) => setRequesterEmail(e.target.value)} placeholder="nama@jai.co.id" autoComplete="email" className={inputClass} />
+                  <p className="mt-1 text-[11px] text-muted-foreground">Isi bila ingin menerima hasil keputusan (disetujui/ditolak) lewat email.</p>
+                </Field>
+              )}
             </div>
           </div>
-        </div>
-        <div aria-hidden className="absolute inset-x-6 bottom-0 border-b-2 border-dashed border-border sm:inset-x-8" />
-      </section>
 
-      <form onSubmit={handleSubmit} className="rounded-b-[1.75rem] border border-t-0 border-border bg-card p-6 shadow-md sm:p-8">
-        {/* Step bar: stays under the navbar while the form scrolls */}
-        <nav aria-label={isInternal ? 'Langkah pengisian' : 'Form steps'} className="sticky top-[78px] z-10 -mx-6 -mt-6 mb-6 flex items-center gap-1.5 border-b border-border bg-card/95 px-6 py-3 backdrop-blur sm:-mx-8 sm:-mt-8 sm:px-8 max-[680px]:top-[70px]">
-          {(isInternal ? ['Data pemohon', 'Info foto/video', 'Kirim'] : ['Requester', 'Photo/video info', 'Submit']).map((label, index) => (
-            <Fragment key={label}>
-              {index > 0 && <span aria-hidden className={`h-px flex-1 transition-colors duration-300 ${index <= currentStep ? 'bg-[color:var(--p-600)]' : 'bg-border'}`} />}
-              <button
-                type="button"
-                onClick={() => document.getElementById(STEP_IDS[index])?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                aria-current={index === currentStep ? 'step' : undefined}
-                className={`flex flex-none items-center gap-2 rounded-full py-1 pl-1 pr-3 text-xs font-semibold transition-colors duration-300 ${index === currentStep ? 'bg-primary text-primary-foreground' : index < currentStep ? 'text-[color:var(--p-600)]' : 'text-muted-foreground'}`}
-              >
-                <span className={`grid size-6 place-items-center rounded-full font-mono text-[11px] ${index === currentStep ? 'bg-primary-foreground/20' : index < currentStep ? 'bg-[color:var(--p-600)] text-white' : 'bg-secondary'}`}>{index + 1}</span>
-                <span className={index === currentStep ? '' : 'max-[520px]:hidden'}>{label}</span>
-              </button>
-            </Fragment>
-          ))}
-        </nav>
-
-        <div id="pv-step-1" className="mb-6 flex scroll-mt-40 items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-primary"><Users className="size-4" /></span>
-          <p className="portal-eyebrow">{isInternal ? 'Data Pemohon' : 'Requester Details'}</p>
-        </div>
-        <StatusLookup key={initialRef ?? 'none'} isInternal={isInternal} initialRef={initialRef} />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {isInternal && (
-            <Field label="NIK">
-              <input value={nik} onChange={(e) => setNik(e.target.value)} placeholder="Nomor Induk Karyawan" className={inputClass} />
-            </Field>
-          )}
-          <Field label={isInternal ? 'Nama' : 'Full Name'} span={1}>
-            <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required className={inputClass} />
-          </Field>
-          {isInternal ? (
-            <>
-              <Field label="Dept.">
-                <select value={deptId} onChange={(e) => { setDeptId(e.target.value); setSectionId(''); setPicApproveId('') }} required className={inputClass}>
-                  <option value="">Pilih departemen...</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>{department.name}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Seksi">
-                <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} disabled={!selectedDept || selectedDept.sections.length === 0} className={inputClass}>
-                  <option value="">{selectedDept && selectedDept.sections.length === 0 ? 'Tidak ada section' : 'Pilih section (opsional)...'}</option>
-                  {selectedDept?.sections.map((section) => (
-                    <option key={section.id} value={section.id}>{section.name}</option>
-                  ))}
-                </select>
-              </Field>
-            </>
-          ) : (
-            <Field label="Company / Organization">
-              <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required className={inputClass} />
-            </Field>
-          )}
-          {!isInternal && (
-            <Field label="Department">
-              <input value={dept} onChange={(e) => setDept(e.target.value)} required className={inputClass} />
-            </Field>
-          )}
-          {/* Internal only: a visitor is told the result at the Lobby / Pos Security (or by the status link). */}
-          {isInternal && (
-            <Field label="Email (opsional)" span={2}>
-              <input type="email" value={requesterEmail} onChange={(e) => setRequesterEmail(e.target.value)} placeholder="nama@jai.co.id" autoComplete="email" className={inputClass} />
-              <p className="mt-1 text-[11px] text-muted-foreground">Isi bila ingin menerima hasil keputusan (disetujui/ditolak) lewat email.</p>
-            </Field>
-          )}
-        </div>
-
-        <div className="my-7 h-px bg-border" />
-
-        <div id="pv-step-2" className="mb-6 flex scroll-mt-40 items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-full bg-accent/20 text-accent-foreground"><Camera className="size-4" /></span>
-          <p className="portal-eyebrow">{isInternal ? 'Informasi Pengambilan Foto/Video' : 'Recording Photo/Video Information'}</p>
-        </div>
+          <div id="pv-step-2" className="scroll-mt-32 space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-border">
+              <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                02
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                  {isInternal ? 'Informasi Pengambilan Foto/Video & Perangkat' : 'Recording Photo/Video Information'}
+                </h2>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  {isInternal ? 'Pilihan kamera/USB/Smart Device terkontrol, approver, jadwal, dan lokasi' : 'Device serial number, schedule, location, and recording objective'}
+                </p>
+              </div>
+            </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isInternal && (
             <>
@@ -727,71 +727,74 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               <input value={location} onChange={(e) => setLocation(e.target.value)} required className={`${inputClass} pl-10`} />
             </div>
           </Field>
-          <Field label={isInternal ? 'Tujuan' : 'Objective'}>
-            <input value={objective} onChange={(e) => setObjective(e.target.value)} required className={inputClass} />
-          </Field>
-        </div>
-
-        <div id="pv-step-3" className="mt-7 flex scroll-mt-40 flex-col gap-4 rounded-2xl bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-muted-foreground">{noteText}</p>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--a-bright) 100%)', color: '#1a2f1a' }}
-          >
-            {submitting ? 'Mengirim...' : <><Send className="size-4" />{submitLabel}</>}
-          </button>
-        </div>
-
-        {error && (
-          <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
-        )}
-        {successInfo && (
-          <div className="mt-4 rounded-xl border border-accent/20 bg-accent/10 px-4 py-3 text-sm text-accent-foreground">
-            <p className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 flex-none" />
-              {isInternal ? 'Pengajuan terkirim' : 'Registration submitted'} &middot; {new Date(successInfo.submittedAt).toLocaleString('id-ID')}
-            </p>
-            {successInfo.id != null && (() => {
-              // A link that opens this page with the status already checked — easy to keep or forward.
-              const statusLink = typeof window === 'undefined' ? '' : `${window.location.origin}${API_BASE_PATH}/ijin-foto-video?type=${locale}&ref=${encodeURIComponent(successInfo.referenceCode)}`
-              const copyLink = async () => {
-                try { await navigator.clipboard.writeText(statusLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000) } catch { /* the link is selectable below */ }
-              }
-              return (
-                <div className="mt-2 pl-6 text-xs">
-                  <p>
-                    {isInternal ? 'Kode referensi: ' : 'Reference code: '}
-                    <strong className="font-mono text-sm select-all">{successInfo.referenceCode}</strong>
-                  </p>
-                  <p className="mt-1.5">{isInternal ? 'Link status pengajuan Anda — simpan atau bagikan:' : 'Your status link — keep or share it:'}</p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <a href={statusLink} className="min-w-0 break-all font-mono text-[11px] underline">{statusLink}</a>
-                    <button type="button" onClick={copyLink} className="inline-flex items-center gap-1 rounded-md border border-accent/40 bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary">
-                      {linkCopied ? (
-                        <>
-                          <Check className="size-3 text-emerald-600" />
-                          <span>{isInternal ? 'Tersalin' : 'Copied'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="size-3 text-muted-foreground" />
-                          <span>{isInternal ? 'Salin link' : 'Copy link'}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <p className="mt-1.5 text-muted-foreground">
-                    {successInfo.emailed
-                      ? (isInternal ? 'Hasil keputusan juga akan dikirim ke email Anda.' : 'The decision will also be sent to your email.')
-                      : (isInternal ? 'Buka link ini (atau "Cek status pengajuan saya" di atas) untuk melihat hasilnya atau membatalkan pengajuan.' : 'Open this link (or "Cek status pengajuan saya" above) to see the decision or cancel the request.')}
-                  </p>
-                </div>
-              )
-            })()}
+            <Field label={isInternal ? 'Tujuan' : 'Objective'}>
+              <input value={objective} onChange={(e) => setObjective(e.target.value)} required className={inputClass} />
+            </Field>
           </div>
-        )}
+        </div>
+
+        <div id="pv-step-3" className="scroll-mt-32 border-t border-border bg-secondary/25 px-6 py-4 sm:px-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">{noteText}</p>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-xs transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+            >
+              {submitting ? 'Mengirim...' : <><Send className="size-4" />{submitLabel}</>}
+            </button>
+          </div>
+
+          {error && (
+            <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
+          )}
+          {successInfo && (
+            <div className="mt-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
+              <p className="flex items-center gap-2 font-semibold text-primary">
+                <CheckCircle2 className="size-4 flex-none" />
+                {isInternal ? 'Pengajuan terkirim' : 'Registration submitted'} &middot; {new Date(successInfo.submittedAt).toLocaleString('id-ID')}
+              </p>
+              {successInfo.id != null && (() => {
+                // A link that opens this page with the status already checked — easy to keep or forward.
+                const statusLink = typeof window === 'undefined' ? '' : `${window.location.origin}${API_BASE_PATH}/ijin-foto-video?type=${locale}&ref=${encodeURIComponent(successInfo.referenceCode)}`
+                const copyLink = async () => {
+                  try { await navigator.clipboard.writeText(statusLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000) } catch { /* the link is selectable below */ }
+                }
+                return (
+                  <div className="mt-2 pl-6 text-xs">
+                    <p>
+                      {isInternal ? 'Kode referensi: ' : 'Reference code: '}
+                      <strong className="font-mono text-sm select-all">{successInfo.referenceCode}</strong>
+                    </p>
+                    <p className="mt-1.5">{isInternal ? 'Link status pengajuan Anda — simpan atau bagikan:' : 'Your status link — keep or share it:'}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <a href={statusLink} className="min-w-0 break-all font-mono text-[11px] text-primary underline">{statusLink}</a>
+                      <button type="button" onClick={copyLink} className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer">
+                        {linkCopied ? (
+                          <>
+                            <Check className="size-3 text-emerald-600" />
+                            <span>{isInternal ? 'Tersalin' : 'Copied'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="size-3 text-muted-foreground" />
+                            <span>{isInternal ? 'Salin link' : 'Copy link'}</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-muted-foreground">
+                      {successInfo.emailed
+                        ? (isInternal ? 'Hasil keputusan juga akan dikirim ke email Anda.' : 'The decision will also be sent to your email.')
+                        : (isInternal ? 'Buka link ini (atau "Cek status pengajuan saya" di atas) untuk melihat hasilnya atau membatalkan pengajuan.' : 'Open this link (or "Cek status pengajuan saya" above) to see the decision or cancel the request.')}
+                    </p>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+        </div>
+        </div>
       </form>
     </div>
   )

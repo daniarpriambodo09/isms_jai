@@ -28,13 +28,17 @@ export type ItEquipmentRequest = {
   applicant_phone?: string | null
   applicant_email?: string | null
   agree_rules: boolean
-  status: 'pending' | 'approved' | 'rejected' | 'returned'
+  status: 'pending' | 'approved_manager' | 'approved' | 'rejected' | 'returned'
   token?: string | null
   approval_code?: string | null
   approved_by?: string | null
   approved_title?: string | null
   approved_at?: string | null
   approval_notes?: string | null
+  it_checked_by?: string | null
+  it_checked_title?: string | null
+  it_checked_at?: string | null
+  it_check_notes?: string | null
   rejected_by?: string | null
   rejected_at?: string | null
   rejection_reason?: string | null

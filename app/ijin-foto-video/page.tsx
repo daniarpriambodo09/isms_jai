@@ -18,38 +18,35 @@ function IjinFotoVideoContent() {
   const { adminUser } = useAuth()
 
   const adminSlot = adminUser ? (
-    <div className="flex flex-col gap-2 rounded-2xl border border-emerald-500/40 bg-black/75 p-3.5 shadow-2xl backdrop-blur-md">
-      <div className="flex items-center justify-between gap-3 border-b border-white/15 pb-2">
-        <div className="flex items-center gap-2">
-          <span className="size-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-          <span className="font-mono text-[10.5px] font-black uppercase tracking-wider text-emerald-300">
-            Admin ISMS Control
-          </span>
-        </div>
-        <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 font-mono text-[9px] font-bold text-emerald-200 border border-emerald-500/30">
+    <div className="flex flex-col gap-2 rounded-xl border border-white/15 bg-black/45 p-3.5 shadow-lg backdrop-blur-md">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-2">
+        <span className="font-mono text-[10.5px] font-bold uppercase tracking-wider text-white/90">
+          Admin ISMS Control
+        </span>
+        <span className="rounded-md border border-white/15 bg-white/10 px-2 py-0.5 font-mono text-[9.5px] font-semibold text-white/80">
           Form Setting &amp; Master
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         <Link
           href="/kelola-permintaan-foto-video"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-600 hover:border-emerald-500 active:scale-95"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/20 active:scale-95"
         >
-          <Camera className="size-3 text-emerald-300" />
+          <Camera className="size-3 text-white/80" />
           <span>Tinjau Permintaan &amp; Device</span>
         </Link>
         <Link
           href="/kelola-kamera"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-600 hover:border-emerald-500 active:scale-95"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/20 active:scale-95"
         >
-          <Aperture className="size-3 text-emerald-300" />
+          <Aperture className="size-3 text-white/80" />
           <span>Master Kamera, USB &amp; Smart Device</span>
         </Link>
         <Link
           href="/kelola-pic-approve"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-600 hover:border-emerald-500 active:scale-95"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/20 active:scale-95"
         >
-          <UserCheck className="size-3 text-emerald-300" />
+          <UserCheck className="size-3 text-white/80" />
           <span>PIC Approvers</span>
         </Link>
         {adminUser.role === 'ism_admin' && (
@@ -57,9 +54,9 @@ function IjinFotoVideoContent() {
             triggerButton={
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-500/20 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-200 transition hover:bg-emerald-600 hover:text-white cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/15 px-2.5 py-1.5 text-[11px] font-semibold text-white transition hover:bg-white/25 cursor-pointer active:scale-95"
               >
-                <Settings className="size-3 text-emerald-300" />
+                <Settings className="size-3 text-white/80" />
                 <span>Setting Approver Foto/Video</span>
               </button>
             }
@@ -70,29 +67,31 @@ function IjinFotoVideoContent() {
   ) : null
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-16">
       <ViewfinderHero adminSlot={adminSlot} />
-      <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-center gap-3">
-        <div className="inline-flex rounded-full border border-border bg-card p-1 shadow-sm">
+      <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-2xs">
+        <div className="inline-flex rounded-lg border border-border bg-secondary/50 p-1">
           <button
             type="button"
             onClick={() => setLocale('internal')}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${locale === 'internal' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`rounded-md px-4 py-1.5 text-xs font-bold transition-colors cursor-pointer ${locale === 'internal' ? 'bg-primary text-primary-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            Internal
+            Internal (Karyawan PT. JAI)
           </button>
           <button
             type="button"
             onClick={() => setLocale('visitor')}
-            className={`rounded-full px-5 py-2 text-sm font-semibold transition-colors ${locale === 'visitor' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            className={`rounded-md px-4 py-1.5 text-xs font-bold transition-colors cursor-pointer ${locale === 'visitor' ? 'bg-primary text-primary-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            Visitor
+            Visitor / Tamu Eksternal
           </button>
         </div>
-        <Link href="/rekap-foto-video" className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
-          <ClipboardList className="size-3.5" /> Lihat rekap semua dept.
-        </Link>
-        {locale === 'visitor' && adminUser?.role === 'ism_admin' && <VisitorApproverSettings />}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/rekap-foto-video" className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+            <ClipboardList className="size-3.5" /> Lihat rekap semua dept.
+          </Link>
+          {locale === 'visitor' && adminUser?.role === 'ism_admin' && <VisitorApproverSettings />}
+        </div>
       </div>
 
       {/* ?ref=… (status link from the e-mail / after submitting) opens the status check right away. */}

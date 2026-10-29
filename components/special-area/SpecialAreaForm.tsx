@@ -58,10 +58,9 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
       .catch(() => setDepartments([]))
   }, [])
 
-  // Masuk (dari): "right now" by default — shown live and stamped by the server
+  // Masuk (dari): "right now" by default — stamped by the server
   // at the moment of submitting — or typed in by hand (manual mode).
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => { const t = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(t) }, [])
+  const [now] = useState(() => new Date())
   const [fromManual, setFromManual] = useState(false)
   const [fromDate, setFromDate] = useState(() => localParts().date)
   const [fromTime, setFromTime] = useState(() => localParts().time)
@@ -167,11 +166,11 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
         onClick={(e) => e.stopPropagation()}
         className="relative flex flex-col w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
-        <div className="h-2 shrink-0" style={{ background: 'repeating-linear-gradient(-45deg, #c7161e 0 10px, #8f0f15 10px 20px)' }} />
+        <div className="h-1 shrink-0 bg-primary" />
         <div className="flex items-start justify-between gap-4 border-b border-border bg-card px-6 py-4 shrink-0">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-2.5 py-0.5 rounded-full border border-red-500/25">
+              <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-md border border-primary/25">
                 <ShieldAlert className="size-3.5" /> ISMS-F-006-001
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
@@ -205,12 +204,12 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
             {/* Scrollable Form Body */}
             <div className="overflow-y-auto flex-1 p-6 grid gap-4 sm:grid-cols-2">
               <label className="sm:col-span-2">
-                <span className={label}>Nama</span>
-                <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} required autoFocus className={input} />
+                <span className={label}>Nama Lengkap</span>
+                <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} autoComplete="name" required autoFocus className={input} />
               </label>
               <label>
                 <span className={label}>Nama Organisasi / Perusahaan</span>
-                <input value={orgCompany} onChange={(e) => setOrgCompany(e.target.value)} required className={input} />
+                <input value={orgCompany} onChange={(e) => setOrgCompany(e.target.value)} autoComplete="organization" required className={input} />
               </label>
               <div>
                 <span className={label}>Departemen</span>
@@ -260,7 +259,7 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-muted-foreground">Masuk (dari){fromManual ? ' — manual' : ' — otomatis saat ini'}</span>
-                  <button type="button" onClick={() => (fromManual ? setFromManual(false) : startManual())} className="text-[11px] font-semibold text-[color:var(--p-600)] hover:underline cursor-pointer">
+                  <button type="button" onClick={() => (fromManual ? setFromManual(false) : startManual())} className="text-[11px] font-semibold text-primary hover:underline cursor-pointer">
                     {fromManual ? 'Pakai waktu sekarang' : 'Isi manual'}
                   </button>
                 </div>
@@ -270,10 +269,10 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
                     <input value={fromTime} onChange={(e) => setFromTime(e.target.value)} onBlur={() => { const t = normalizeTime(fromTime); if (t) setFromTime(t) }} required inputMode="numeric" placeholder="09:30" maxLength={5} aria-label="Jam masuk" className={`${input} text-center font-mono`} />
                   </div>
                 ) : (
-                  <div className="flex h-10 items-center gap-2 rounded-xl border border-dashed border-input bg-secondary/40 px-3 text-sm font-medium text-foreground" aria-live="off">
-                    <Clock className="size-4 text-emerald-600" />
-                    <span className="tabular-nums">{now.toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                    <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />Live</span>
+                  <div className="flex h-10 items-center gap-2 rounded-xl border border-border bg-secondary/40 px-3 text-sm font-medium text-foreground">
+                    <Clock className="size-4 text-primary" />
+                    <span className="tabular-nums">{now.toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-primary">Saat Ini</span>
                   </div>
                 )}
               </div>
@@ -321,7 +320,7 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
               <div className="sm:col-span-2 rounded-xl border border-border/70 bg-secondary/15 p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <label htmlFor="sa-id-card" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <ScanLine className="size-3.5 text-red-600 dark:text-red-400" />
+                    <ScanLine className="size-3.5 text-primary" />
                     <span>ID Card No. / Barcode Kartu</span>
                   </label>
                   <span className="text-[10.5px] font-medium text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-md">
@@ -396,7 +395,7 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 active:from-rose-700 active:to-red-700 active:scale-95 text-white px-5 py-2 text-xs font-bold shadow-md shadow-rose-600/30 transition disabled:opacity-60 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:opacity-90 active:scale-95 text-primary-foreground px-5 py-2 text-xs font-bold shadow-xs transition disabled:opacity-60 cursor-pointer"
               >
                 {submitting && <Loader2 className="size-3.5 animate-spin" />}
                 <span>Kirim Pengajuan</span>

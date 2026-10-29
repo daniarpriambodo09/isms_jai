@@ -288,9 +288,9 @@
 }
 /* Digital E-Sign Paperless Hub — Form Layanan IT */
 .hero-esign {
-  background: radial-gradient(circle at 14% 20%, rgba(30, 58, 138, 0.28) 0%, transparent 45%),
-              radial-gradient(circle at 86% 80%, rgba(59, 130, 246, 0.16) 0%, transparent 42%),
-              linear-gradient(135deg, #0b1526 0%, #11223e 42%, #152744 100%);
+  background: radial-gradient(ellipse 70% 60% at 12% 15%, color-mix(in oklch, var(--primary) 32%, transparent) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 50% at 88% 85%, color-mix(in oklch, var(--accent) 18%, transparent) 0%, transparent 55%),
+              linear-gradient(145deg, var(--p-950) 0%, var(--p-900) 55%, var(--p-850) 100%);
 }
 /* Film sprockets — Rekap Foto/Video */
 .hero-sprockets {

@@ -131,6 +131,49 @@ export async function ensureItFormTables() {
           ]
         )
       }
+      // Ensure ISMS-F-03-00-003 has correct workflow order:
+      // Step 1 (Left Box): IT SECTION CHECK (IT Section / System Security Admin)
+      // Step 2 (Right Box): APPROVAL (Information Assets Administrator - TEGUH SUNJOYO)
+      await query(
+        `UPDATE it_form_approvers
+         SET slot_number = 1, sort_order = 1
+         WHERE form_code = 'ISMS-F-03-00-003'
+           AND (UPPER(slot_label) LIKE '%CHECK%' OR UPPER(slot_label) LIKE '%CEK%' OR UPPER(role_title) LIKE '%IT SECTION%')`
+      ).catch(() => {})
+      await query(
+        `UPDATE it_form_approvers
+         SET slot_number = 2, sort_order = 2
+         WHERE form_code = 'ISMS-F-03-00-003'
+           AND (UPPER(slot_label) LIKE '%APPROV%' OR UPPER(role_title) LIKE '%INFORMATION%' OR UPPER(person_name) LIKE '%TEGUH%')`
+      ).catch(() => {})
+
+      // Ensure ISMS-F-03-00-001 (Membawa Masuk) & ISMS-F-03-00-002 (Membawa Keluar) follow:
+      // Step 1: IAA / Manager Departemen -> Step 2: IT (System Security Administrator)
+      for (const eqCode of ['ISMS-F-03-00-001', 'ISMS-F-03-00-002'] as const) {
+        const eqName =
+          eqCode === 'ISMS-F-03-00-001'
+            ? 'Ijin Membawa Masuk PC, USB memory, Kamera, dll.'
+            : 'Ijin Membawa Keluar PC, USB memory, Camera, dll.'
+        const existingEq = await query<{ id: number; slot_number: number; role_title: string }>(
+          'SELECT id, slot_number, role_title FROM it_form_approvers WHERE form_code = $1 ORDER BY slot_number ASC',
+          [eqCode]
+        )
+        if ((existingEq.rowCount ?? 0) < 2) {
+          await query('DELETE FROM it_form_approvers WHERE form_code = $1', [eqCode])
+          await query(
+            `INSERT INTO it_form_approvers (form_code, form_name, slot_number, slot_label, role_title, person_name, salutation, initials, email, department, sort_order)
+             VALUES
+               ($1, $2, 1, $3, 'Information Assets Administrator (IAA) / Departemen Manager', 'IAA / Manager Departemen', 'Bapak', 'MGR', 'dept.manager@jai.co.id', 'Departemen Pemohon', 1),
+               ($1, $2, 2, $4, 'System Security Administrator (IT)', 'System Security Admin (IT)', 'Bapak', 'SSA', 'it.admin@jai.co.id', 'IT Section', 2)`,
+            [
+              eqCode,
+              eqName,
+              eqCode === 'ISMS-F-03-00-001' ? 'DISETUJUI (IAA / MGR DEPT)' : 'DISETUJUI OLEH MGR / IAA',
+              eqCode === 'ISMS-F-03-00-001' ? 'SYSTEM SECURITY ADMIN CHECK (IT)' : 'PIC PENYIMPAN RECORD (IT)',
+            ]
+          ).catch(() => {})
+        }
+      }
     }
 
     initialized = true
@@ -275,24 +318,11 @@ export async function seedDefaultApprovers() {
       department: 'IT Section',
       sort_order: 3,
     },
-    // ISMS-F-03-00-003 (Disetujui Pak Teguh Sunjoyo / IAA dulu, baru IT Section Check di terakhir)
+    // ISMS-F-03-00-003 (Step 1: IT Section Check & pengisian IP dulu, Step 2: Approval IAA / Pak Teguh Sunjoyo)
     {
       form_code: 'ISMS-F-03-00-003',
       form_name: 'Company Network Connection Application Form',
       slot_number: 1,
-      slot_label: 'APPROVAL',
-      role_title: 'Information Assets Administrator',
-      person_name: 'TEGUH SUNJOYO',
-      salutation: 'Bapak',
-      initials: 'IAA',
-      email: 'teguh.sunjoyo@jai.co.id',
-      department: 'Management / IT',
-      sort_order: 1,
-    },
-    {
-      form_code: 'ISMS-F-03-00-003',
-      form_name: 'Company Network Connection Application Form',
-      slot_number: 2,
       slot_label: 'IT SECTION CHECK',
       role_title: 'IT Section / System Security Admin',
       person_name: 'IT Security Admin',
@@ -300,21 +330,74 @@ export async function seedDefaultApprovers() {
       initials: 'SSA',
       email: 'it.security@jai.co.id',
       department: 'IT Section',
+      sort_order: 1,
+    },
+    {
+      form_code: 'ISMS-F-03-00-003',
+      form_name: 'Company Network Connection Application Form',
+      slot_number: 2,
+      slot_label: 'APPROVAL',
+      role_title: 'Information Assets Administrator',
+      person_name: 'TEGUH SUNJOYO',
+      salutation: 'Bapak',
+      initials: 'IAA',
+      email: 'teguh.sunjoyo@jai.co.id',
+      department: 'Management / IT',
       sort_order: 2,
     },
-    // ISMS-F-03-00-001
+    // ISMS-F-03-00-001 (Step 1: IAA / Manager Departemen -> Step 2: IT / System Security Administrator)
     {
       form_code: 'ISMS-F-03-00-001',
-      form_name: 'Ijin Membawa Masuk/Keluar Alat IT',
+      form_name: 'Ijin Membawa Masuk PC, USB memory, Kamera, dll.',
       slot_number: 1,
-      slot_label: 'IT CHECK & APPROVAL',
+      slot_label: 'DISETUJUI (IAA / MGR DEPT)',
+      role_title: 'Information Assets Administrator (IAA) / Departemen Manager',
+      person_name: 'IAA / Manager Departemen',
+      salutation: 'Bapak',
+      initials: 'MGR',
+      email: 'dept.manager@jai.co.id',
+      department: 'Departemen Pemohon',
+      sort_order: 1,
+    },
+    {
+      form_code: 'ISMS-F-03-00-001',
+      form_name: 'Ijin Membawa Masuk PC, USB memory, Kamera, dll.',
+      slot_number: 2,
+      slot_label: 'SYSTEM SECURITY ADMIN CHECK (IT)',
       role_title: 'System Security Administrator (IT)',
-      person_name: 'System Security Admin',
+      person_name: 'System Security Admin (IT)',
       salutation: 'Bapak',
       initials: 'SSA',
       email: 'it.admin@jai.co.id',
       department: 'IT Section',
+      sort_order: 2,
+    },
+    // ISMS-F-03-00-002 (Step 1: IAA / Manager Departemen -> Step 2: IT / System Security Administrator)
+    {
+      form_code: 'ISMS-F-03-00-002',
+      form_name: 'Ijin Membawa Keluar PC, USB memory, Camera, dll.',
+      slot_number: 1,
+      slot_label: 'DISETUJUI OLEH MGR / IAA',
+      role_title: 'Information Assets Administrator (IAA) / Departemen Manager',
+      person_name: 'IAA / Manager Departemen',
+      salutation: 'Bapak',
+      initials: 'MGR',
+      email: 'dept.manager@jai.co.id',
+      department: 'Departemen Pemohon',
       sort_order: 1,
+    },
+    {
+      form_code: 'ISMS-F-03-00-002',
+      form_name: 'Ijin Membawa Keluar PC, USB memory, Camera, dll.',
+      slot_number: 2,
+      slot_label: 'PIC PENYIMPAN RECORD (IT)',
+      role_title: 'System Security Administrator (IT)',
+      person_name: 'System Security Admin (IT)',
+      salutation: 'Bapak',
+      initials: 'SSA',
+      email: 'it.admin@jai.co.id',
+      department: 'IT Section',
+      sort_order: 2,
     },
     // ISMS-F-02-00-002 (Fingerprint Special Security Area)
     {

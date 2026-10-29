@@ -29,22 +29,34 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
     items: [
       { href: '/dashboard-admin', label: 'Dashboard', hint: 'Yang perlu ditindaklanjuti', icon: Gauge },
       { href: '/kelola-pernyataan-kebijakan', label: 'Policy Read Log', hint: 'Rekap baca kebijakan ISMS', icon: ClipboardCheck },
-      // The kiosks: guests, and the cards currently in use (ISM Admin may open both).
       { href: '/admin-lobby', label: 'Admin Lobby', hint: 'Tamu & kartu dipakai', icon: ConciergeBell },
       { href: '/admin-pos-security', label: 'Pos Security', hint: 'Pendaftaran & kartu security', icon: ShieldCheck },
       { href: '/kelola-pos', label: 'Pengaturan Pos', hint: 'Aktif / nonaktifkan Lobby & Security', icon: Settings },
     ],
   },
   {
-    title: 'Pengaturan Form & E-Sign',
+    title: 'Izin Alat IT & Link Tamu',
+    items: [
+      { href: '/kelola-izin-alat-it', label: 'Kelola Link Tamu & Izin Alat IT', hint: 'Generate Link Tamu 2-in-1, Approve Alat & IP Network', icon: Laptop },
+      { href: '/ijin-masuk-alat-it', label: 'Form Izin Masuk/Keluar Alat IT (001/002)', hint: 'Form membawa masuk/keluar alat IT & buat link tamu', icon: ShieldCheck },
+    ],
+  },
+  {
+    title: 'Layanan E-Sign & Approver IT',
+    items: [
+      { href: '/kelola-approver-it', label: 'Approver Form Layanan IT', hint: 'Atur alur & matriks approver formulir E-Sign Divisi IT', icon: UserCheck },
+      { href: '/form-it-esign', label: 'Portal Form E-Sign Divisi IT', hint: 'Form PC, Software, Email & Koneksi Network (003)', icon: FileSignature },
+    ],
+  },
+  {
+    title: 'Izin Foto/Video, Area Khusus & Pengesahan',
+    ismOnly: true,
     items: [
       { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin & pengembalian device', icon: Camera },
       { href: '/kelola-kamera', label: 'Master Kamera, USB & Smart Device', hint: 'Unit kamera, USB & smart device', icon: Aperture },
       { href: '/kelola-pic-approve', label: 'PIC Approver Foto/Video', hint: 'Penyetuju internal & default visitor', icon: UserCheck },
-      { href: '/kelola-izin-alat-it', label: 'Izin Alat IT & Form E-Sign', hint: 'Kelola barang masuk/keluar & formulir IT', icon: Laptop },
       { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk, master area & escort', icon: ShieldAlert },
-      { href: '/kelola-approver-it', label: 'Approver Form Layanan IT', hint: 'Alur 5 formulir e-sign IT', icon: FileSignature },
-      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Matriks approval prosedur ISMS', icon: FileSignature },
+      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Matriks approval prosedur ISMS', icon: ClipboardCheck },
     ],
   },
   {
@@ -79,8 +91,6 @@ const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; l
 export function Navbar() {
   const pathname = usePathname()
   const { isLoggedIn, adminUser, sessionUser, isLoading, logout } = useAuth()
-  // "Persetujuan Saya": always there for an Approver account; for an admin
-  // only while something is waiting for (or queued behind) their address.
   const [myApprovals, setMyApprovals] = useState(0)
   useEffect(() => {
     if (!sessionUser) { setMyApprovals(0); return }
@@ -122,7 +132,6 @@ export function Navbar() {
       .catch(() => { })
   }, [])
 
-  // Scroll-triggered glass effect
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12)
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -131,10 +140,6 @@ export function Navbar() {
 
   useEffect(() => { setMobileOpen(false); setDeptMenuOpen(false); setIsmsStandardMenuOpen(false); setFormCsMenuOpen(false); setSettingsMenuOpen(false); setExpandedDept(null) }, [pathname])
 
-  // Close the desktop dropdowns on a click outside the menu that was clicked,
-  // or on Escape. A full-screen click-catcher can't do this: once the page is
-  // scrolled, the navbar's backdrop-filter traps position:fixed children
-  // inside the bar, so clicks on the page never reached it.
   const anyMenuOpen = deptMenuOpen || ismsStandardMenuOpen || formCsMenuOpen || settingsMenuOpen
   useEffect(() => {
     if (!anyMenuOpen) return
@@ -157,7 +162,6 @@ export function Navbar() {
     }
   }, [anyMenuOpen])
 
-  // Ctrl/⌘+K (or "/" outside a text field) opens the global search.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
@@ -171,14 +175,12 @@ export function Navbar() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
-  // Lets any page (e.g. the AdminGate empty-state) open the login modal without lifting its state.
   useEffect(() => {
     const handler = () => setLoginOpen(true)
     window.addEventListener('open-admin-login', handler)
     return () => window.removeEventListener('open-admin-login', handler)
   }, [])
 
-  // Escape closes whichever dropdown/drawer is currently open.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
@@ -194,13 +196,11 @@ export function Navbar() {
   const departmentHref = (dept: Department) => `/documents/department/${dept.slug}`
   const sectionHref = (dept: Department, section: Section) => `/documents/department/${dept.slug}/${section.slug}`
 
-  // Menu labels are set in capitals; Admin Settings (button and its menu) keeps normal case.
   const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-2 py-2 2xl:px-3 text-[11px] uppercase tracking-[0.035em] font-semibold text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
   const navLinkActive = 'bg-accent text-white hover:text-white'
   const adminGroups = ADMIN_GROUPS.filter((group) => !group.ismOnly || adminUser?.role === 'ism_admin')
   const isAdminSectionActive = ADMIN_GROUPS.some((group) => group.items.some((item) => item.href === pathname))
 
-  // Active items are already an acid pill — no extra underline needed.
   const activeIndicator = null
 
   const renderMainNavItem = (item: (typeof mainNav)[number]) => {
@@ -244,11 +244,16 @@ export function Navbar() {
     </>
   )
 
-  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs', '/form-it-esign', '/registrasi-fingerprint']
+  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs', '/form-it-esign', '/registrasi-fingerprint', '/ijin-masuk-alat-it', '/kelola-izin-alat-it']
   const isFormCsActive = formCsRoutes.includes(pathname)
   const formCsItems = (
     <>
       <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Application Form</Link>
+      <Link href="/ijin-masuk-alat-it" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Izin Masuk/Keluar Alat IT &amp; Link Tamu</Link>
+      <Link href="/form-it-esign" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Form Layanan E-Sign IT</Link>
+      {isLoggedIn && (
+        <Link href="/kelola-izin-alat-it" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] font-bold uppercase tracking-[0.04em] text-primary">Kelola Link Tamu &amp; Izin Alat IT</Link>
+      )}
       <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">CS Control</Link>
     </>
   )
@@ -322,8 +327,6 @@ export function Navbar() {
         }
       `}</style>
 
-      {/* Floating ink pill — the sticky wrapper itself is click-through so the
-          page behind the gutters stays usable while scrolling. */}
       <div className="pointer-events-none sticky top-0 z-30 px-4 pt-3 max-[680px]:px-2 max-[680px]:pt-2">
       <nav
         className="pointer-events-auto relative mx-auto max-w-[1480px] rounded-full bg-primary text-primary-foreground transition-all duration-300"
@@ -455,11 +458,16 @@ export function Navbar() {
                 </button>
                 {settingsMenuOpen && (
                   <>
-                    {/* Mega-menu: the groups side by side instead of one long column. */}
+                    {/* Mega-menu: the groups side by side filling all columns cleanly */}
                     <div
                       role="menu"
                       aria-label="Admin Settings"
-                      className="absolute left-1/2 top-[calc(100%+12px)] z-20 w-[min(1180px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground"
+                      className={cn(
+                        'absolute left-1/2 top-[calc(100%+12px)] z-20 -translate-x-1/2 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground',
+                        adminGroups.length <= 2
+                          ? 'w-[min(680px,calc(100vw-2rem))]'
+                          : 'w-[min(1180px,calc(100vw-2rem))]'
+                      )}
                       style={{
                         animation: 'dropdown-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
                         boxShadow: '0 24px 60px color-mix(in oklch, var(--p-950) 28%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent)',
@@ -470,29 +478,57 @@ export function Navbar() {
                       <div className="relative z-10 flex items-center justify-between gap-4 border-b border-border px-5 py-3">
                         <div>
                           <p className="portal-eyebrow">Admin Panel</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">Pilih fitur yang ingin dikelola</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {adminUser?.role === 'it'
+                              ? 'Pengaturan khusus yang dikelola Divisi IT'
+                              : 'Pilih fitur yang ingin dikelola'}
+                          </p>
                         </div>
                         <span className="rounded-full bg-secondary px-2.5 py-1 font-mono-label text-[10px] text-muted-foreground">{adminUser?.username}</span>
                       </div>
-                      <div className={cn('grid grid-cols-2 gap-x-2 gap-y-4 p-3 lg:grid-cols-3', adminGroups.length > 4 ? 'xl:grid-cols-5' : 'xl:grid-cols-4')}>
+                      <div
+                        className={cn(
+                          'relative z-10 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2',
+                          adminGroups.length <= 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3 xl:grid-cols-3'
+                        )}
+                      >
                         {adminGroups.map((group) => (
-                          <div key={group.title}>
-                            <p className="px-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground/70">{group.title}</p>
-                            <div className="flex flex-col">
+                          <div
+                            key={group.title}
+                            className="rounded-2xl border border-border/70 bg-secondary/25 p-3"
+                          >
+                            <p className="px-2 pb-2 text-[10.5px] font-bold uppercase tracking-wider text-primary">
+                              {group.title}
+                            </p>
+                            <div className="flex flex-col gap-1">
                               {group.items.map(({ href, label, hint, icon: Icon }) => {
                                 const active = pathname === href
                                 return (
                                   <Link
                                     key={href}
                                     href={href}
-                                    className={cn('nav-drop-item group flex items-center gap-2.5 rounded-xl px-2.5 py-2', active && 'bg-secondary')}
+                                    className={cn(
+                                      'nav-drop-item group flex items-center gap-3 rounded-xl px-2.5 py-2.5',
+                                      active ? 'bg-primary/12 ring-1 ring-primary/25' : 'hover:bg-background/80'
+                                    )}
                                   >
-                                    <span className={cn('grid size-8 flex-none place-items-center rounded-lg transition-colors', active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-[color:var(--p-600)] group-hover:bg-primary group-hover:text-primary-foreground')}>
+                                    <span
+                                      className={cn(
+                                        'grid size-9 flex-none place-items-center rounded-xl transition-colors',
+                                        active
+                                          ? 'bg-primary text-primary-foreground'
+                                          : 'bg-secondary text-[color:var(--p-600)] group-hover:bg-primary group-hover:text-primary-foreground'
+                                      )}
+                                    >
                                       <Icon className="size-4" />
                                     </span>
-                                    <span className="min-w-0">
-                                      <span className="block truncate text-[13px] font-medium leading-tight text-foreground">{label}</span>
-                                      <span className="block truncate text-[11px] leading-tight text-muted-foreground">{hint}</span>
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block truncate text-[13px] font-semibold leading-tight text-foreground">
+                                        {label}
+                                      </span>
+                                      <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">
+                                        {hint}
+                                      </span>
                                     </span>
                                   </Link>
                                 )
@@ -500,6 +536,35 @@ export function Navbar() {
                             </div>
                           </div>
                         ))}
+                      </div>
+
+                      {/* Quick Action Bar di bagian bawah Admin Settings */}
+                      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-secondary/35 px-5 py-3">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          Akses Cepat Operasional IT &amp; Link Tamu:
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Link
+                            href="/kelola-izin-alat-it"
+                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90"
+                          >
+                            <Laptop className="size-3.5" />
+                            Generate Link Tamu &amp; Kelola Alat IT
+                          </Link>
+                          <Link
+                            href="/ijin-masuk-alat-it"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                          >
+                            Form Izin Masuk/Keluar Alat IT (001/002)
+                          </Link>
+                          <Link
+                            href="/persetujuan-saya"
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                          >
+                            <ClipboardCheck className="size-3.5" />
+                            Persetujuan Saya
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </>

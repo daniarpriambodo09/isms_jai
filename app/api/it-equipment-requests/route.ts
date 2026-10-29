@@ -5,8 +5,26 @@ import { query } from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/auth'
 import type { ItEquipmentItem, ItEquipmentRequest } from '@/lib/it-equipment-shared'
 
+let schemaChecked = false
+async function ensureEquipmentRequestColumns() {
+  if (schemaChecked) return
+  try {
+    await query(`
+      ALTER TABLE it_equipment_requests
+      ADD COLUMN IF NOT EXISTS it_checked_by VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS it_checked_title VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS it_checked_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS it_check_notes TEXT;
+    `)
+    schemaChecked = true
+  } catch {
+    // Ignore if table not created yet or restricted
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
+    await ensureEquipmentRequestColumns()
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const formType = searchParams.get('form_type')
@@ -180,5 +198,40 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating IT equipment request:', error)
     return NextResponse.json({ error: 'Gagal mengirim pengajuan' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const admin = await getAdminFromRequest(request)
+    if (!admin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (admin.role !== 'it' && admin.role !== 'ism_admin') {
+      return NextResponse.json(
+        { error: 'Akses ditolak: Hanya Admin IT atau ISMS Admin yang dapat menghapus data pengajuan.' },
+        { status: 403 }
+      )
+    }
+
+    const { searchParams } = new URL(request.url)
+    const idParam = searchParams.get('id')
+    if (!idParam || isNaN(Number(idParam))) {
+      return NextResponse.json({ error: 'ID pengajuan tidak valid' }, { status: 400 })
+    }
+
+    const delRes = await query(`DELETE FROM it_equipment_requests WHERE id = $1`, [Number(idParam)])
+    if ((delRes.rowCount ?? 0) === 0) {
+      return NextResponse.json({ error: 'Data pengajuan tidak ditemukan' }, { status: 404 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Data pengajuan izin alat IT berhasil dihapus.',
+    })
+  } catch (error: any) {
+    console.error('Error deleting IT equipment request:', error)
+    return NextResponse.json({ error: 'Gagal menghapus data pengajuan' }, { status: 500 })
   }
 }

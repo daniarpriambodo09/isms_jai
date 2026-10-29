@@ -8,6 +8,7 @@ import {
   HardDrive,
   Camera,
   Plus,
+  Minus,
   Trash2,
   CheckCircle2,
   Clock,
@@ -30,6 +31,7 @@ import {
   Info,
   RotateCcw,
   ShieldAlert,
+  Link2,
 } from 'lucide-react'
 import {
   EQUIPMENT_TYPES,
@@ -40,6 +42,7 @@ import {
 import { API_BASE_PATH } from '@/lib/config'
 import { downloadExcel } from '@/lib/excel-export'
 import { useAuth } from '@/context/AuthContext'
+import { GuestLinkGeneratorModal } from '@/components/it/GuestLinkGeneratorModal'
 
 const inputClass =
   'h-11 w-full rounded-xl border border-input bg-card px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15'
@@ -98,6 +101,8 @@ function FormContent() {
   const [searchInput, setSearchInput] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState('')
+  const [guestLinkModalOpen, setGuestLinkModalOpen] = useState(false)
+  const [guestLinkCount, setGuestLinkCount] = useState<number>(1)
 
   // Default date in to tomorrow (H-1)
   useEffect(() => {
@@ -328,6 +333,7 @@ function FormContent() {
 
   // ── Success / Status Tracking View ──
   if (submittedReq) {
+    const isApprovedManager = submittedReq.status === 'approved_manager'
     const isApproved = submittedReq.status === 'approved'
     const isReturned = submittedReq.status === 'returned'
     const isRejected = submittedReq.status === 'rejected'
@@ -358,13 +364,19 @@ function FormContent() {
               {isApproved && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#dff5e6] text-[#1a6e3a] font-semibold text-sm">
                   <CheckCircle2 className="size-4 text-[#1a6e3a]" />
-                  DISETUJUI OLEH IT (ACC VALID)
+                  DISETUJUI LENGKAP (IAA / MGR DEPT &amp; CHECK BY IT)
+                </div>
+              )}
+              {isApprovedManager && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/15 text-blue-700 font-semibold text-sm">
+                  <Clock className="size-4 text-blue-700" />
+                  TAHAP 1 DISETUJUI IAA / MGR DEPT &middot; MENUNGGU VERIFIKASI IT
                 </div>
               )}
               {isReturned && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/15 text-primary font-semibold text-sm">
                   <CheckCircle2 className="size-4 text-primary" />
-                  SELESAI (SUDAH DIKEMBALIKAN & DICHECK)
+                  SELESAI (SUDAH DIKEMBALIKAN &amp; DICHECK)
                 </div>
               )}
               {isRejected && (
@@ -376,7 +388,7 @@ function FormContent() {
               {isPending && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#fff3d6] text-[#8a6100] font-semibold text-sm">
                   <Clock className="size-4 text-[#8a6100]" />
-                  MENUNGGU PERSETUJUAN (MGR / IAA & CHECK BY IT)
+                  TAHAP 1: MENUNGGU PERSETUJUAN IAA / MANAGER DEPARTEMEN
                 </div>
               )}
             </div>
@@ -414,15 +426,39 @@ function FormContent() {
             </div>
           </div>
 
-          {/* Stepper Timeline */}
+          {/* Stepper Timeline (1. Diajukan -> 2. IAA/Mgr Dept -> 3. Check IT -> 4. Kembali) */}
           <div className="mt-6 pt-5 border-t border-dashed border-border">
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="grid grid-cols-4 gap-2 text-center text-xs">
               <div className="space-y-1">
                 <div className="size-6 mx-auto rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-[10px]">
                   <Check className="size-3.5" />
                 </div>
-                <div className="font-semibold text-foreground text-[11px]">Diajukan</div>
+                <div className="font-semibold text-foreground text-[11px]">1. Diajukan</div>
                 <div className="text-[10px] text-muted-foreground">{submittedReq.request_date}</div>
+              </div>
+
+              <div className="space-y-1">
+                <div
+                  className={`size-6 mx-auto rounded-full flex items-center justify-center font-bold text-[10px] ${
+                    isApprovedManager || isApproved || isReturned
+                      ? 'bg-primary text-primary-foreground'
+                      : isRejected
+                      ? 'bg-destructive text-destructive-foreground'
+                      : 'bg-secondary text-foreground'
+                  }`}
+                >
+                  {isApprovedManager || isApproved || isReturned ? (
+                    <Check className="size-3.5" />
+                  ) : isRejected ? (
+                    <X className="size-3.5" />
+                  ) : (
+                    '2'
+                  )}
+                </div>
+                <div className="font-semibold text-foreground text-[11px]">2. IAA / Mgr Dept</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {submittedReq.approved_by || (isPending ? 'Menunggu' : '-')}
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -432,7 +468,7 @@ function FormContent() {
                       ? 'bg-primary text-primary-foreground'
                       : isRejected
                       ? 'bg-destructive text-destructive-foreground'
-                      : 'bg-secondary text-foreground'
+                      : 'bg-secondary text-muted-foreground'
                   }`}
                 >
                   {isApproved || isReturned ? (
@@ -440,12 +476,13 @@ function FormContent() {
                   ) : isRejected ? (
                     <X className="size-3.5" />
                   ) : (
-                    '2'
+                    '3'
                   )}
                 </div>
-                <div className="font-semibold text-foreground text-[11px]">Persetujuan (ACC IT)</div>
+                <div className="font-semibold text-foreground text-[11px]">3. Check IT (SSA)</div>
                 <div className="text-[10px] text-muted-foreground">
-                  {submittedReq.approved_by || (isPending ? 'Menunggu' : '-')}
+                  {submittedReq.it_checked_by ||
+                    (isApprovedManager ? 'Menunggu IT' : isPending ? 'Terkunci' : '-')}
                 </div>
               </div>
 
@@ -455,9 +492,9 @@ function FormContent() {
                     isReturned ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground'
                   }`}
                 >
-                  {isReturned ? <Check className="size-3.5" /> : '3'}
+                  {isReturned ? <Check className="size-3.5" /> : '4'}
                 </div>
-                <div className="font-semibold text-foreground text-[11px]">Pemeriksaan Kembali</div>
+                <div className="font-semibold text-foreground text-[11px]">4. Kembali</div>
                 <div className="text-[10px] text-muted-foreground">{isReturned ? 'Selesai' : 'Saat Pulang'}</div>
               </div>
             </div>
@@ -644,7 +681,7 @@ function FormContent() {
 
   // ── Registration Form View ──
   return (
-    <div className="mx-auto w-full max-w-3xl flex flex-col gap-6">
+    <div className="mx-auto w-full max-w-4xl flex flex-col gap-6 pb-16">
       {/* Top Banner & Quick Status Lookup */}
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <Link
@@ -653,22 +690,22 @@ function FormContent() {
         >
           ← Kembali ke Form Aplikasi
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {adminUser && (
             <>
               <button
                 type="button"
                 onClick={handleExportEquipmentExcel}
                 disabled={exportingExcel}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white transition shadow-2xs disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-secondary px-2.5 py-1.5 text-xs font-semibold text-foreground transition shadow-2xs disabled:opacity-50 cursor-pointer"
                 title="Export rekap data izin barang masuk/keluar ke Excel (.xlsx)"
               >
-                <Download className="size-3.5" />
+                <Download className="size-3.5 text-primary" />
                 <span>{exportingExcel ? 'Mengunduh...' : 'Export Excel'}</span>
               </button>
               <Link
                 href="/kelola-izin-alat-it"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground shadow-2xs"
               >
                 <Laptop className="size-3.5" />
                 <span>Kelola Izin Alat IT (Admin)</span>
@@ -678,7 +715,7 @@ function FormContent() {
           <button
             type="button"
             onClick={() => setSearchOpen((v) => !v)}
-            className="inline-flex items-center gap-1.5 text-primary hover:underline font-semibold transition"
+            className="inline-flex items-center gap-1.5 text-primary hover:underline font-semibold transition cursor-pointer"
           >
             <Search className="size-3.5" /> Sudah pernah mengajukan? Cek Status di Sini
           </button>
@@ -688,7 +725,7 @@ function FormContent() {
       {searchOpen && (
         <form
           onSubmit={handleSearchStatus}
-          className="p-4 rounded-2xl border border-primary/30 bg-primary/5 shadow-sm space-y-3"
+          className="p-4 rounded-2xl border border-primary/30 bg-primary/5 shadow-xs space-y-3"
         >
           <div className="flex items-center justify-between text-xs font-semibold text-foreground">
             <span className="flex items-center gap-1.5 text-primary">
@@ -697,7 +734,7 @@ function FormContent() {
             <button
               type="button"
               onClick={() => setSearchOpen(false)}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground cursor-pointer"
             >
               Tutup
             </button>
@@ -713,7 +750,7 @@ function FormContent() {
             <button
               type="submit"
               disabled={searchLoading}
-              className="px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold rounded-xl transition shrink-0"
+              className="px-4 py-2 bg-primary hover:opacity-90 text-primary-foreground text-xs font-semibold rounded-xl transition shrink-0 cursor-pointer"
             >
               {searchLoading ? 'Mencari...' : 'Periksa'}
             </button>
@@ -722,148 +759,191 @@ function FormContent() {
         </form>
       )}
 
-      {/* Main Card Header - Themed to warm cream & crisp card */}
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm">
-        <span aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
+      {/* Main Card Header */}
+      <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
+        <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-primary" />
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 items-center overflow-hidden rounded-full bg-white px-3 shadow-xs border border-border">
-              <img
-                src={`${API_BASE_PATH}/images/yazaki-logo.jpg`}
-                alt="Yazaki PT. Jatim Autocomp Indonesia"
-                className="h-4.5 w-auto object-contain"
-              />
-            </span>
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
+              <Laptop className="size-6" />
+            </div>
             <div>
-              <div className="text-[11px] font-bold text-[#c7161e] tracking-wider">YAZAKI GROUP</div>
-              <div className="text-xs text-muted-foreground">PT. Jatim Autocomp Indonesia</div>
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <span className="portal-eyebrow">SISTEM REGISTRASI &amp; E-SIGN IT (H-1)</span>
+                <span className="text-muted-foreground/40">&bull;</span>
+                <span className="rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-bold text-primary">
+                  {formType === 'in' ? 'ISMS-F-03-00-001' : 'ISMS-F-03-00-002'}
+                </span>
+              </div>
+              <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {formType === 'in'
+                  ? 'Izin Membawa Masuk PC, USB & Alat IT'
+                  : 'Izin Membawa Keluar PC, USB & Alat IT'}
+              </h1>
+              <p className="mt-1 text-xs sm:text-sm text-muted-foreground max-w-xl leading-relaxed">
+                {formType === 'in'
+                  ? 'Wajib diisi oleh affiliate Yazaki / rekanan / tamu (H-1) sebelum membawa masuk perangkat ke area PT. JAI untuk verifikasi dan persetujuan divisi IT.'
+                  : 'Khusus karyawan PT. JAI yang membawa perangkat IT inventaris kantor keluar dari area PT. JAI (H-1) dengan persetujuan Manager Departemen dan divisi IT.'}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider uppercase border border-red-500/30 bg-red-50 text-red-600">
-              CONFIDENTIAL
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-secondary border border-border text-foreground">
-              {formType === 'in' ? 'ISMS-F-03-00-001' : 'ISMS-F-03-00-002'}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col md:flex-row md:items-end justify-between gap-5">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 font-mono-label text-[10px] font-semibold text-primary mb-2">
-              <Laptop className="size-3.5" />
-              Sistem Registrasi & E-Sign IT (H-1)
+          {/* Responsive Segmented Switcher & Generate Link Tamu */}
+          <div className="flex flex-col items-stretch lg:items-end gap-2.5 shrink-0">
+            <div className="grid grid-cols-2 rounded-xl border border-border bg-secondary/50 p-1 shadow-2xs sm:inline-flex self-stretch lg:self-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setFormType('in')}
+                className={`rounded-lg px-3.5 py-2 text-left transition-colors cursor-pointer ${
+                  formType === 'in'
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="block text-xs font-bold">Membawa Masuk (001)</span>
+                <span className={`block text-[10px] ${formType === 'in' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                  Affiliate Yazaki / Tamu
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormType('out')}
+                className={`rounded-lg px-3.5 py-2 text-left transition-colors cursor-pointer ${
+                  formType === 'out'
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="block text-xs font-bold">Membawa Keluar (002)</span>
+                <span className={`block text-[10px] ${formType === 'out' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                  Karyawan PT. JAI
+                </span>
+              </button>
             </div>
-            <h1 className="font-display text-2xl sm:text-3xl font-semibold leading-tight text-foreground">
-              {formType === 'in'
-                ? 'Ijin Membawa Masuk PC, USB & Alat IT'
-                : 'Ijin Membawa Keluar PC, USB & Alat IT'}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground max-w-xl">
-              {formType === 'in'
-                ? 'Wajib diisi oleh affiliate Yazaki / rekanan / tamu (H-1) sebelum membawa masuk device ke area PT. JAI untuk verifikasi dan persetujuan (ACC) dari divisi IT PT. JAI.'
-                : 'Khusus karyawan PT. JAI yang membawa perangkat IT inventaris kantor keluar dari area PT. JAI (H-1) untuk mendapatkan persetujuan dari Manager Departemen dan divisi IT PT. JAI.'}
-            </p>
-          </div>
 
-          {/* Segmented Switcher in Theme */}
-          <div className="inline-flex rounded-full border border-border bg-secondary/50 p-1 shadow-xs self-start md:self-end">
-            <button
-              type="button"
-              onClick={() => setFormType('in')}
-              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                formType === 'in'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Membawa Masuk (Affiliate Yazaki / 001)
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormType('out')}
-              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
-                formType === 'out'
-                  ? 'bg-primary text-primary-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Membawa Keluar (Karyawan PT. JAI / 002)
-            </button>
+            {/* Kontrol Generate Link Tamu (Bisa Mengatur Jumlah Link) */}
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 rounded-xl border border-primary/25 bg-primary/5 p-1.5 pl-3">
+              <label htmlFor="header-guest-link-count" className="text-[11px] font-bold text-foreground whitespace-nowrap">
+                Jumlah Link:
+              </label>
+              <div className="inline-flex items-center rounded-lg border border-border bg-card">
+                <button
+                  type="button"
+                  onClick={() => setGuestLinkCount((c) => Math.max(1, c - 1))}
+                  aria-label="Kurangi jumlah link"
+                  className="px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <Minus className="size-3" aria-hidden="true" />
+                </button>
+                <input
+                  id="header-guest-link-count"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={guestLinkCount}
+                  onChange={(e) =>
+                    setGuestLinkCount(Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                  }
+                  className="w-10 bg-transparent text-center font-mono text-xs font-bold text-foreground outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setGuestLinkCount((c) => Math.min(50, c + 1))}
+                  aria-label="Tambah jumlah link"
+                  className="px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <Plus className="size-3" aria-hidden="true" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGuestLinkModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-2xs transition hover:bg-primary/90 cursor-pointer"
+              >
+                <Link2 className="size-3.5" aria-hidden="true" />
+                <span>Generate {guestLinkCount} Link Tamu (Alat IT + Network)</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Form Container */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {errorMsg && (
-          <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-2xl text-destructive text-xs flex items-center gap-2.5">
-            <AlertTriangle className="size-4 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
+      {/* Unified Document Form Sheet */}
+      <form onSubmit={handleSubmit} className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+        <div className="divide-y divide-border p-6 sm:p-8 [&>section+section]:pt-8 space-y-8">
+          {errorMsg && (
+            <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-xs flex items-center gap-2.5">
+              <AlertTriangle className="size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-        {/* Section 1: Data Tamu & Perusahaan */}
-        <section className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-5 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
-              <User className="size-3.5" />
-            </span>
-            <p className="portal-eyebrow">
-              {formType === 'out'
-                ? '1. Informasi Karyawan PT. JAI (Pemohon)'
-                : '1. Informasi Affiliate Yazaki / Tamu Pemohon'}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={labelClass}>
-                {formType === 'out' ? 'Nama Lengkap Karyawan PT. JAI' : 'Nama Lengkap Tamu / Affiliate'}{' '}
-                <span className="text-destructive">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder={formType === 'out' ? 'Contoh: Budi Santoso (Karyawan JAI)' : 'Contoh: Budi Santoso'}
-                value={applicantName}
-                onChange={(e) => setApplicantName(e.target.value)}
-                className={inputClass}
-              />
+          {/* Section 1: Data Tamu & Perusahaan */}
+          <section className="space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-border">
+              <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                01
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                  {formType === 'out'
+                    ? 'Informasi Karyawan PT. JAI (Pemohon)'
+                    : 'Informasi Affiliate Yazaki / Tamu Pemohon'}
+                </h2>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  Identitas pemohon, departemen tujuan, dan kontak konfirmasi persetujuan
+                </p>
+              </div>
             </div>
 
-            {formType === 'out' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>
-                  NIK / Nomor Karyawan PT. JAI <span className="text-destructive">*</span>
+                  {formType === 'out' ? 'Nama Lengkap Karyawan PT. JAI' : 'Nama Lengkap Tamu / Affiliate'}{' '}
+                  <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: 123456 / NIK Karyawan"
-                  value={applicantNik}
-                  onChange={(e) => setApplicantNik(e.target.value)}
-                  className={`${inputClass} font-mono`}
-                />
-              </div>
-            ) : (
-              <div>
-                <label className={labelClass}>
-                  Nama Perusahaan / Affiliate Yazaki <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Contoh: PT. EDS Manufacturing Indonesia / Yazaki Parts"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
+                  autoComplete="name"
+                  placeholder={formType === 'out' ? 'Contoh: Budi Santoso (Karyawan JAI)' : 'Contoh: Budi Santoso'}
+                  value={applicantName}
+                  onChange={(e) => setApplicantName(e.target.value)}
                   className={inputClass}
                 />
               </div>
-            )}
+
+              {formType === 'out' ? (
+                <div>
+                  <label className={labelClass}>
+                    NIK / Nomor Karyawan PT. JAI <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: 123456 / NIK Karyawan"
+                    value={applicantNik}
+                    onChange={(e) => setApplicantNik(e.target.value)}
+                    className={`${inputClass} font-mono`}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className={labelClass}>
+                    Nama Perusahaan / Affiliate Yazaki <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    autoComplete="organization"
+                    placeholder="Contoh: PT. EDS Manufacturing Indonesia / Yazaki Parts"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              )}
 
             <div>
               <label className={labelClass}>
@@ -975,6 +1055,7 @@ function FormContent() {
               </label>
               <input
                 type="tel"
+                autoComplete="tel"
                 placeholder="Contoh: 081234567890"
                 value={applicantPhone}
                 onChange={(e) => setApplicantPhone(e.target.value)}
@@ -985,16 +1066,21 @@ function FormContent() {
         </section>
 
         {/* Section 2: Jadwal & Tujuan */}
-        <section className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-5 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
-              <Calendar className="size-3.5" />
+        <section className="space-y-5">
+          <div className="flex items-center gap-3 pb-3 border-b border-border">
+            <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+              02
             </span>
-            <p className="portal-eyebrow">
-              {formType === 'out'
-                ? '2. Jadwal & Keperluan Membawa Alat Keluar PT. JAI'
-                : '2. Jadwal & Keperluan Masuk PT. JAI'}
-            </p>
+            <div>
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                {formType === 'out'
+                  ? 'Jadwal & Keperluan Membawa Alat Keluar PT. JAI'
+                  : 'Jadwal & Keperluan Masuk PT. JAI'}
+              </h2>
+              <p className="text-[11px] text-muted-foreground font-medium">
+                Rentang tanggal dan tujuan pengoperasian perangkat IT
+              </p>
+            </div>
           </div>
 
           <div className="p-3.5 rounded-xl bg-secondary/50 border border-border text-xs text-foreground flex items-center gap-2.5">
@@ -1062,17 +1148,22 @@ function FormContent() {
         </section>
 
         {/* Section 3: Daftar Alat */}
-        <section className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-5 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-            <div className="flex items-center gap-2">
-              <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
-                <Laptop className="size-3.5" />
+        <section className="space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+            <div className="flex items-center gap-3">
+              <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+                03
               </span>
-              <p className="portal-eyebrow">
-                {formType === 'out'
-                  ? '3. Alat IT PT. JAI yang Dibawa Keluar (Laptop, Flashdisk, Kamera, dll.)'
-                  : '3. Alat yang Dibawa Masuk ke PT. JAI (PC, Flashdisk, Kamera, dll.)'}
-              </p>
+              <div>
+                <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                  {formType === 'out'
+                    ? 'Alat IT PT. JAI yang Dibawa Keluar'
+                    : 'Alat yang Dibawa Masuk ke PT. JAI'}
+                </h2>
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  Rincian tipe perangkat, merk, serial number, dan nomor identifikasi aset
+                </p>
+              </div>
             </div>
 
             {/* Quick Presets */}
@@ -1080,21 +1171,21 @@ function FormContent() {
               <button
                 type="button"
                 onClick={() => handleAddItem('PC / Laptop')}
-                className="rounded-full border border-border bg-secondary/60 px-3 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary transition"
+                className="rounded-lg border border-border bg-secondary/60 px-3 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary transition cursor-pointer"
               >
                 + Laptop
               </button>
               <button
                 type="button"
                 onClick={() => handleAddItem('USB Memory / Flashdisk')}
-                className="rounded-full border border-border bg-secondary/60 px-3 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary transition"
+                className="rounded-lg border border-border bg-secondary/60 px-3 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary transition cursor-pointer"
               >
                 + Flashdisk
               </button>
               <button
                 type="button"
                 onClick={() => handleAddItem('Kamera')}
-                className="rounded-full border border-border bg-secondary/60 px-3 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary transition"
+                className="rounded-lg border border-border bg-secondary/60 px-3 py-1 text-[11px] font-semibold text-foreground hover:bg-secondary transition cursor-pointer"
               >
                 + Kamera
               </button>
@@ -1110,7 +1201,7 @@ function FormContent() {
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <span className="size-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-bold">
+                    <span className="size-5 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-mono text-[10px] font-bold">
                       {idx + 1}
                     </span>
                     Alat #{idx + 1}
@@ -1120,7 +1211,7 @@ function FormContent() {
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(idx)}
-                      className="text-muted-foreground hover:text-destructive p-1 rounded-lg transition"
+                      className="text-muted-foreground hover:text-destructive p-1 rounded-lg transition cursor-pointer"
                       title="Hapus baris alat ini"
                     >
                       <Trash2 className="size-4" />
@@ -1210,23 +1301,28 @@ function FormContent() {
           <button
             type="button"
             onClick={() => handleAddItem()}
-            className="w-full py-2.5 rounded-xl border border-dashed border-border hover:border-primary hover:bg-secondary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-2 transition"
+            className="w-full py-2.5 rounded-xl border border-dashed border-border hover:border-primary hover:bg-secondary/40 text-muted-foreground hover:text-foreground text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
           >
             <Plus className="size-4" /> Tambah Baris Alat Lainnya
           </button>
         </section>
 
         {/* Section 4: Rules & Security Notice */}
-        <section className="rounded-2xl border border-border bg-card p-6 sm:p-8 space-y-4 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-border pb-3">
-            <span className="grid size-7 place-items-center rounded-full bg-accent/20 text-accent-foreground">
-              <ShieldAlert className="size-3.5 text-accent" />
+        <section className="space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b border-border">
+            <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
+              04
             </span>
-            <p className="portal-eyebrow">
-              {formType === 'out'
-                ? '4. Ketentuan Keamanan ISMS (Khusus Karyawan PT. JAI Pembawa Alat Keluar)'
-                : '4. Ketentuan Keamanan ISMS (Wajib Dipatuhi Visitor / Affiliate Yazaki)'}
-            </p>
+            <div>
+              <h2 className="text-sm font-bold text-foreground uppercase tracking-wide">
+                {formType === 'out'
+                  ? 'Ketentuan Keamanan ISMS (Karyawan Pembawa Alat Keluar)'
+                  : 'Ketentuan Keamanan ISMS (Wajib Dipatuhi Visitor / Affiliate)'}
+              </h2>
+              <p className="text-[11px] text-muted-foreground font-medium">
+                Komitmen perlindungan data dan pemeriksaan fisik di pos Security
+              </p>
+            </div>
           </div>
 
           {formType === 'out' ? (
@@ -1298,7 +1394,7 @@ function FormContent() {
               required
               checked={agreeRules}
               onChange={(e) => setAgreeRules(e.target.checked)}
-              className="mt-0.5 size-4 rounded text-primary focus:ring-ring border-input"
+              className="mt-0.5 size-4 rounded accent-primary border-input"
             />
             <span className="text-xs font-medium text-foreground">
               {formType === 'out'
@@ -1307,37 +1403,45 @@ function FormContent() {
             </span>
           </label>
         </section>
+        </div>
 
-        {/* Submit Button */}
-        <div>
+        {/* Submit Footer Bar */}
+        <div className="border-t border-border bg-secondary/25 px-6 py-4 sm:px-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <p className="text-[11px] text-muted-foreground max-w-md leading-relaxed">
+            {formType === 'out'
+              ? 'Setelah dikirim, pengajuan bawa keluar wajib disetujui Manager Departemen terkait dan diperiksa oleh tim IT & Security PT. JAI.'
+              : 'Setelah dikirim, pengajuan bawa masuk disetujui Manager Departemen terkait / IAA, lalu diperiksa oleh tim IT.'}
+          </p>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 px-6 rounded-xl bg-primary hover:opacity-95 disabled:opacity-50 text-primary-foreground font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2"
+            className="py-3 px-6 rounded-xl bg-primary hover:opacity-90 disabled:opacity-50 text-primary-foreground font-bold text-xs sm:text-sm shadow-xs transition flex items-center justify-center gap-2 shrink-0 cursor-pointer"
           >
             {loading ? (
               <>
                 <div className="animate-spin size-4 border-2 border-white border-t-transparent rounded-full" />
                 {formType === 'out'
-                  ? 'Mengirim Pengajuan Bawa Keluar Alat...'
-                  : 'Mengirim Pengajuan Bawa Masuk Alat...'}
+                  ? 'Mengirim Pengajuan Bawa Keluar...'
+                  : 'Mengirim Pengajuan Bawa Masuk...'}
               </>
             ) : (
               <>
                 {formType === 'out'
-                  ? 'Kirim Pengajuan Izin Membawa Keluar Alat'
-                  : 'Kirim Pengajuan Izin Membawa Masuk Alat'}{' '}
+                  ? 'Kirim Pengajuan Membawa Keluar Alat'
+                  : 'Kirim Pengajuan Membawa Masuk Alat'}{' '}
                 <ArrowRight className="size-4" />
               </>
             )}
           </button>
-          <p className="text-[11px] text-muted-foreground text-center mt-2.5">
-            {formType === 'out'
-              ? 'Setelah dikirim, pengajuan bawa keluar wajib disetujui Manager Departemen yang bersangkutan dan dilakukan pemeriksaan fisik perangkat oleh tim IT & Security PT. JAI.'
-              : 'Setelah dikirim, pengajuan bawa masuk disetujui Manager dari Departemen yang bersangkutan / IAA, setelah itu dilakukan check by IT.'}
-          </p>
         </div>
       </form>
+
+      <GuestLinkGeneratorModal
+        open={guestLinkModalOpen}
+        onClose={() => setGuestLinkModalOpen(false)}
+        defaultWalkIn={true}
+        initialCount={guestLinkCount}
+      />
     </div>
   )
 }

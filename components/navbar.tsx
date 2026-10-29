@@ -4,7 +4,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Aperture, ArrowRight, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, Laptop, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
@@ -20,73 +20,108 @@ import { SignalGrid } from '@/components/backgrounds'
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
 
-// Admin Settings mega-menu, one column per group. ismOnly groups are shown
-// to ISM Admin accounts only.
-const ADMIN_GROUPS: { title: string; ismOnly?: boolean; items: { href: string; label: string; hint: string; icon: typeof Settings }[] }[] = [
-  {
-    title: 'Monitoring & Kiosks',
-    ismOnly: true,
-    items: [
-      { href: '/dashboard-admin', label: 'Dashboard', hint: 'Yang perlu ditindaklanjuti', icon: Gauge },
-      { href: '/kelola-pernyataan-kebijakan', label: 'Policy Read Log', hint: 'Rekap baca kebijakan ISMS', icon: ClipboardCheck },
-      { href: '/admin-lobby', label: 'Admin Lobby', hint: 'Tamu & kartu dipakai', icon: ConciergeBell },
-      { href: '/admin-pos-security', label: 'Pos Security', hint: 'Pendaftaran & kartu security', icon: ShieldCheck },
-      { href: '/kelola-pos', label: 'Pengaturan Pos', hint: 'Aktif / nonaktifkan Lobby & Security', icon: Settings },
-    ],
-  },
-  {
-    title: 'Izin Alat IT & Link Tamu',
-    items: [
-      { href: '/kelola-izin-alat-it', label: 'Kelola Link Tamu & Izin Alat IT', hint: 'Generate Link Tamu 2-in-1, Approve Alat & IP Network', icon: Laptop },
-      { href: '/ijin-masuk-alat-it', label: 'Form Izin Masuk/Keluar Alat IT (001/002)', hint: 'Form membawa masuk/keluar alat IT & buat link tamu', icon: ShieldCheck },
-    ],
-  },
-  {
-    title: 'Layanan E-Sign & Approver IT',
-    items: [
-      { href: '/kelola-approver-it', label: 'Approver Form Layanan IT', hint: 'Atur alur & matriks approver formulir E-Sign Divisi IT', icon: UserCheck },
-      { href: '/form-it-esign', label: 'Portal Form E-Sign Divisi IT', hint: 'Form PC, Software, Email & Koneksi Network (003)', icon: FileSignature },
-    ],
-  },
-  {
-    title: 'Izin Foto/Video, Area Khusus & Pengesahan',
-    ismOnly: true,
-    items: [
-      { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin & pengembalian device', icon: Camera },
-      { href: '/kelola-kamera', label: 'Master Kamera, USB & Smart Device', hint: 'Unit kamera, USB & smart device', icon: Aperture },
-      { href: '/kelola-pic-approve', label: 'PIC Approver Foto/Video', hint: 'Penyetuju internal & default visitor', icon: UserCheck },
-      { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk, master area & escort', icon: ShieldAlert },
-      { href: '/kelola-pengesahan', label: 'Approver Pengesahan', hint: 'Matriks approval prosedur ISMS', icon: ClipboardCheck },
-    ],
-  },
-  {
-    title: 'Organization & Accounts',
-    ismOnly: true,
-    items: [
-      { href: '/kelola-departemen', label: 'Manage Departments', hint: 'Departemen & section', icon: Building2 },
-      { href: '/kelola-admin', label: 'Manage Admin Accounts', hint: 'Akun, role & log aktivitas', icon: Users },
-    ],
-  },
-  {
-    title: 'Content & Master',
-    ismOnly: true,
-    items: [
-      { href: '/pengaturan', label: 'Manage Menu & Forms CS', hint: 'Isi menu & register form CS', icon: LayoutList },
-      { href: '/kelola-hero-slides', label: 'Manage Hero Slides', hint: 'Video & gambar di Home', icon: Images },
-      { href: '/kelola-jadwal', label: 'Manage Schedules', hint: 'Jadwal audit & training', icon: CalendarDays },
-    ],
-  },
-  {
-    title: 'System & Communications',
-    ismOnly: true,
-    items: [
-      { href: '/kelola-smtp', label: 'SMTP Settings', hint: 'Email notifikasi & App URL', icon: Mail },
-      { href: '/pratinjau-email', label: 'Email Preview', hint: 'Contoh tampilan tiap email', icon: MailOpen },
-      { href: '/notifikasi', label: 'Notification History', hint: 'Riwayat notifikasi 90 hari', icon: History },
-      { href: '/kelola-tema', label: 'Theme Colors', hint: 'Warna tema portal', icon: Palette },
-    ],
-  },
-]
+type AdminItem = { href: string; label: string; hint: string; icon: typeof Settings }
+type AdminGroup = { title: string; items: AdminItem[] }
+
+export function getAdminGroupsForRole(role?: string): AdminGroup[] {
+  if (role === 'it') {
+    return [
+      {
+        title: 'Izin Alat IT & Link Tamu',
+        items: [
+          { href: '/kelola-izin-alat-it', label: 'Kelola Link Tamu & Izin Alat IT', hint: 'Generate Link Tamu 2-in-1, Approve Alat & IP Network', icon: Laptop },
+          { href: '/ijin-masuk-alat-it', label: 'Form Izin Masuk/Keluar Alat IT (001/002)', hint: 'Form membawa masuk/keluar alat IT & buat link tamu', icon: ShieldCheck },
+        ],
+      },
+      {
+        title: 'Layanan E-Sign & Approver IT',
+        items: [
+          { href: '/kelola-approver-it', label: 'Approver Form Layanan IT', hint: 'Atur alur & matriks approver formulir E-Sign Divisi IT', icon: UserCheck },
+          { href: '/form-it-esign', label: 'Portal Form E-Sign Divisi IT', hint: 'Form PC, Software, Email & Koneksi Network (003)', icon: FileSignature },
+        ],
+      },
+    ]
+  }
+
+  if (role === 'lobby') {
+    return [
+      {
+        title: 'Kiosk Lobby',
+        items: [
+          { href: '/admin-lobby', label: 'Admin Lobby', hint: 'Kiosk pendaftaran tamu & kartu dipakai di Lobby', icon: ConciergeBell },
+        ],
+      },
+    ]
+  }
+
+  if (role === 'security') {
+    return [
+      {
+        title: 'Kiosk Pos Security',
+        items: [
+          { href: '/admin-pos-security', label: 'Pos Security', hint: 'Kiosk pos pendaftaran & kartu security', icon: ShieldCheck },
+        ],
+      },
+    ]
+  }
+
+  // Role ism_admin (default): 6 grup seimbang (3 kolom x 2 baris seimbang sempurna)
+  return [
+    {
+      title: 'Monitoring & Kiosks',
+      items: [
+        { href: '/dashboard-admin', label: 'Dashboard', hint: 'Ringkasan dokumen yang perlu ditindaklanjuti', icon: Gauge },
+        { href: '/kelola-pernyataan-kebijakan', label: 'Policy Read Log', hint: 'Rekap & log pembacaan kebijakan ISMS', icon: ClipboardCheck },
+        { href: '/admin-lobby', label: 'Admin Lobby', hint: 'Kiosk pendaftaran tamu & kartu dipakai di Lobby', icon: ConciergeBell },
+        { href: '/admin-pos-security', label: 'Pos Security', hint: 'Kiosk pos pendaftaran & kartu security', icon: ShieldCheck },
+        { href: '/kelola-pos', label: 'Pengaturan Pos', hint: 'Aktif / nonaktifkan Lobby & Pos Security', icon: Settings },
+      ],
+    },
+    {
+      title: 'Izin Foto/Video & Special Area',
+      items: [
+        { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin membawa kamera & pengembalian device', icon: Camera },
+        { href: '/kelola-kamera', label: 'Master Kamera, USB & Device', hint: 'Database unit kamera, USB memory & smart device', icon: Aperture },
+        { href: '/kelola-pic-approve', label: 'PIC Approver Foto/Video', hint: 'Penyetuju internal & default visitor pengajuan foto', icon: UserCheck },
+        { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk, master area server & escort', icon: ShieldAlert },
+      ],
+    },
+    {
+      title: 'Izin Alat & Form E-Sign IT',
+      items: [
+        { href: '/kelola-izin-alat-it', label: 'Kelola Link Tamu & Izin Alat IT', hint: 'Generate Link Tamu 2-in-1, Approve Alat & IP Network', icon: Laptop },
+        { href: '/ijin-masuk-alat-it', label: 'Form Izin Masuk/Keluar Alat IT (001/002)', hint: 'Form membawa masuk/keluar alat IT & buat link tamu', icon: ShieldCheck },
+        { href: '/form-it-esign', label: 'Portal Form E-Sign Divisi IT', hint: 'Form PC, Software, Email & Koneksi Network (003)', icon: FileSignature },
+        { href: '/kelola-approver-it', label: 'Approver Form Layanan IT', hint: 'Atur alur & matriks approver formulir E-Sign Divisi IT', icon: UserCheck },
+      ],
+    },
+    {
+      title: 'Organization & Accounts',
+      items: [
+        { href: '/kelola-departemen', label: 'Manage Departments', hint: 'Daftar departemen & seksi kerja PT. JAI', icon: Building2 },
+        { href: '/kelola-admin', label: 'Manage Admin Accounts', hint: 'Kelola akun admin, role & audit log aktivitas', icon: Users },
+        { href: '/kelola-pengesahan', label: 'Approver Pengesahan Prosedur', hint: 'Matriks alur approval prosedur ISMS', icon: ClipboardCheck },
+      ],
+    },
+    {
+      title: 'Content & Master Data',
+      items: [
+        { href: '/pengaturan', label: 'Manage Menu & Forms CS', hint: 'Pengaturan isi menu & register form CS Control', icon: LayoutList },
+        { href: '/kelola-hero-slides', label: 'Manage Hero Slides', hint: 'Video & gambar carousel pada halaman utama', icon: Images },
+        { href: '/kelola-jadwal', label: 'Manage Schedules', hint: 'Jadwal audit internal, eksternal & training ISMS', icon: CalendarDays },
+      ],
+    },
+    {
+      title: 'System & Communications',
+      items: [
+        { href: '/kelola-smtp', label: 'SMTP Settings', hint: 'Konfigurasi email notifikasi & domain App URL', icon: Mail },
+        { href: '/pratinjau-email', label: 'Email Preview', hint: 'Pratinjau visual template email notifikasi', icon: MailOpen },
+        { href: '/notifikasi', label: 'Notification History', hint: 'Riwayat log pengiriman notifikasi 90 hari', icon: History },
+        { href: '/kelola-tema', label: 'Theme Colors', hint: 'Palet warna & tampilan visual portal', icon: Palette },
+      ],
+    },
+  ]
+}
 
 export function Navbar() {
   const pathname = usePathname()
@@ -198,8 +233,11 @@ export function Navbar() {
 
   const navLink = 'nav-wipe relative isolate overflow-hidden rounded-full px-2 py-2 2xl:px-3 text-[11px] uppercase tracking-[0.035em] font-semibold text-primary-foreground/70 transition-colors hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-accent'
   const navLinkActive = 'bg-accent text-white hover:text-white'
-  const adminGroups = ADMIN_GROUPS.filter((group) => !group.ismOnly || adminUser?.role === 'ism_admin')
-  const isAdminSectionActive = ADMIN_GROUPS.some((group) => group.items.some((item) => item.href === pathname))
+  const adminGroups = useMemo(() => getAdminGroupsForRole(adminUser?.role), [adminUser?.role])
+  const isAdminSectionActive = useMemo(
+    () => adminGroups.some((group) => group.items.some((item) => item.href === pathname)),
+    [adminGroups, pathname]
+  )
 
   const activeIndicator = null
 
@@ -261,15 +299,15 @@ export function Navbar() {
   const dropdownPanel = (children: React.ReactNode) => (
     <div
       role="menu"
-      className="absolute left-0 top-[calc(100%+14px)] z-20 w-72 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground"
+      className="absolute left-0 top-[calc(100%+14px)] z-20 w-72 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground max-h-[calc(100dvh-5.5rem)] flex flex-col shadow-xl"
       style={{
         animation: 'dropdown-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
         boxShadow: '0 20px 45px color-mix(in oklch, var(--p-950) 25%, transparent), 0 0 0 1px color-mix(in oklch, var(--p-550) 12%, transparent)',
       }}
     >
       <SignalGrid color="var(--primary)" opacity={0.07} speed={0.25} anchor="right" squareSize={6} gridStep={18} />
-      <div className="nav-dropdown-bar h-[2.5px] w-full relative z-10" />
-      <div className="relative z-10 p-2">{children}</div>
+      <div className="nav-dropdown-bar h-[2.5px] w-full flex-none relative z-10" />
+      <div className="relative z-10 p-2 flex-1 overflow-y-auto">{children}</div>
     </div>
   )
 
@@ -463,10 +501,13 @@ export function Navbar() {
                       role="menu"
                       aria-label="Admin Settings"
                       className={cn(
-                        'absolute left-1/2 top-[calc(100%+12px)] z-20 -translate-x-1/2 overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground',
-                        adminGroups.length <= 2
-                          ? 'w-[min(680px,calc(100vw-2rem))]'
-                          : 'w-[min(1180px,calc(100vw-2rem))]'
+                        'absolute left-1/2 top-[calc(100%+10px)] z-20 -translate-x-1/2 flex flex-col overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground shadow-2xl',
+                        'max-h-[calc(100dvh-5rem)]',
+                        adminGroups.length <= 1
+                          ? 'w-[min(380px,calc(100vw-2rem))]'
+                          : adminGroups.length <= 2
+                          ? 'w-[min(840px,calc(100vw-2rem))]'
+                          : 'w-[min(1240px,calc(100vw-2rem))]'
                       )}
                       style={{
                         animation: 'dropdown-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both',
@@ -474,33 +515,43 @@ export function Navbar() {
                       }}
                     >
                       <SignalGrid color="var(--primary)" opacity={0.06} speed={0.25} anchor="right" squareSize={7} gridStep={22} />
-                      <div className="nav-dropdown-bar h-[2.5px] w-full relative z-10" />
-                      <div className="relative z-10 flex items-center justify-between gap-4 border-b border-border px-5 py-3">
+                      <div className="nav-dropdown-bar h-[2.5px] w-full flex-none relative z-10" />
+                      <div className="relative z-10 flex-none flex items-center justify-between gap-4 border-b border-border bg-popover/95 px-5 py-3 backdrop-blur-md">
                         <div>
                           <p className="portal-eyebrow">Admin Panel</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {adminUser?.role === 'it'
                               ? 'Pengaturan khusus yang dikelola Divisi IT'
-                              : 'Pilih fitur yang ingin dikelola'}
+                              : adminUser?.role === 'lobby'
+                              ? 'Kiosk Registrasi Tamu & Kartu Lobby'
+                              : adminUser?.role === 'security'
+                              ? 'Kiosk Pendaftaran & Kartu Pos Security'
+                              : 'Pilih modul & fitur yang ingin dikelola'}
                           </p>
                         </div>
-                        <span className="rounded-full bg-secondary px-2.5 py-1 font-mono-label text-[10px] text-muted-foreground">{adminUser?.username}</span>
+                        <span className="rounded-full bg-secondary px-2.5 py-1 font-mono-label text-[10px] text-muted-foreground">
+                          {adminUser?.username} ({adminUser?.role})
+                        </span>
                       </div>
                       <div
                         className={cn(
-                          'relative z-10 grid grid-cols-1 gap-4 p-4 sm:grid-cols-2',
-                          adminGroups.length <= 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3 xl:grid-cols-3'
+                          'relative z-10 flex-1 overflow-y-auto overscroll-contain p-4',
+                          adminGroups.length <= 1
+                            ? 'grid grid-cols-1 gap-4'
+                            : adminGroups.length <= 2
+                            ? 'grid grid-cols-1 gap-4 sm:grid-cols-2'
+                            : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
                         )}
                       >
                         {adminGroups.map((group) => (
                           <div
                             key={group.title}
-                            className="rounded-2xl border border-border/70 bg-secondary/25 p-3"
+                            className="rounded-2xl border border-border/70 bg-secondary/25 p-3 flex flex-col justify-start"
                           >
                             <p className="px-2 pb-2 text-[10.5px] font-bold uppercase tracking-wider text-primary">
                               {group.title}
                             </p>
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1.5">
                               {group.items.map(({ href, label, hint, icon: Icon }) => {
                                 const active = pathname === href
                                 return (
@@ -508,13 +559,13 @@ export function Navbar() {
                                     key={href}
                                     href={href}
                                     className={cn(
-                                      'nav-drop-item group flex items-center gap-3 rounded-xl px-2.5 py-2.5',
+                                      'nav-drop-item group flex items-start gap-3 rounded-xl px-2.5 py-2.5 transition',
                                       active ? 'bg-primary/12 ring-1 ring-primary/25' : 'hover:bg-background/80'
                                     )}
                                   >
                                     <span
                                       className={cn(
-                                        'grid size-9 flex-none place-items-center rounded-xl transition-colors',
+                                        'mt-0.5 grid size-9 flex-none place-items-center rounded-xl transition-colors',
                                         active
                                           ? 'bg-primary text-primary-foreground'
                                           : 'bg-secondary text-[color:var(--p-600)] group-hover:bg-primary group-hover:text-primary-foreground'
@@ -523,10 +574,10 @@ export function Navbar() {
                                       <Icon className="size-4" />
                                     </span>
                                     <span className="min-w-0 flex-1">
-                                      <span className="block truncate text-[13px] font-semibold leading-tight text-foreground">
+                                      <span className="block text-[13px] font-semibold leading-tight text-foreground">
                                         {label}
                                       </span>
-                                      <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">
+                                      <span className="mt-1 block text-[11px] leading-snug text-muted-foreground line-clamp-2">
                                         {hint}
                                       </span>
                                     </span>
@@ -536,35 +587,6 @@ export function Navbar() {
                             </div>
                           </div>
                         ))}
-                      </div>
-
-                      {/* Quick Action Bar di bagian bawah Admin Settings */}
-                      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-secondary/35 px-5 py-3">
-                        <span className="text-xs font-semibold text-muted-foreground">
-                          Akses Cepat Operasional IT &amp; Link Tamu:
-                        </span>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href="/kelola-izin-alat-it"
-                            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground transition hover:bg-primary/90"
-                          >
-                            <Laptop className="size-3.5" />
-                            Generate Link Tamu &amp; Kelola Alat IT
-                          </Link>
-                          <Link
-                            href="/ijin-masuk-alat-it"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
-                          >
-                            Form Izin Masuk/Keluar Alat IT (001/002)
-                          </Link>
-                          <Link
-                            href="/persetujuan-saya"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
-                          >
-                            <ClipboardCheck className="size-3.5" />
-                            Persetujuan Saya
-                          </Link>
-                        </div>
                       </div>
                     </div>
                   </>

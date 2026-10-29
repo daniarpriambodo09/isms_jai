@@ -9,3 +9,4 @@ ALTER TABLE it_equipment_requests
   ADD COLUMN IF NOT EXISTS it_check_notes TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_it_equipment_requests_it_checked_at ON it_equipment_requests (it_checked_at);
+

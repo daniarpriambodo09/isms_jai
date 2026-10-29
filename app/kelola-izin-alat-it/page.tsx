@@ -241,7 +241,6 @@ export default function KelolaIzinAlatItPage() {
 
   useEffect(() => {
     if (username) {
-      setApproverName(username)
       setItSignerName(username)
     }
   }, [username])
@@ -1013,8 +1012,8 @@ export default function KelolaIzinAlatItPage() {
                                 setShowRejectForm(false)
                                 setShowReturnModal(false)
                                 if (req.status === 'pending') {
-                                  setApproverName('IAA / Manager Departemen')
-                                  setApproverTitle('Manager Departemen / IAA')
+                                  setApproverName('TEGUH SUNJOYO')
+                                  setApproverTitle('Information Assets Administrator (IAA)')
                                 } else {
                                   setApproverName(username || 'System Security Admin (IT)')
                                   setApproverTitle('System Security Administrator (IT)')
@@ -1542,17 +1541,52 @@ export default function KelolaIzinAlatItPage() {
                   )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        {selectedReq.status === 'pending'
-                          ? 'Nama IAA / Manager Departemen'
-                          : 'Nama Petugas IT (SSA)'}
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-semibold text-slate-700">
+                          {selectedReq.status === 'pending'
+                            ? 'Nama IAA / Manager Departemen'
+                            : 'Nama Petugas IT (SSA)'}
+                        </label>
+                        <span className="text-[10px] text-slate-500">Pilih cepat:</span>
+                      </div>
                       <input
                         type="text"
                         value={approverName}
                         onChange={(e) => setApproverName(e.target.value)}
+                        placeholder={
+                          selectedReq.status === 'pending'
+                            ? 'Contoh: TEGUH SUNJOYO atau Manager Terkait'
+                            : 'Nama PIC Petugas IT / SSA'
+                        }
                         className="w-full text-xs px-2.5 py-1.5 border border-slate-300 rounded-lg bg-white"
                       />
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {(selectedReq.status === 'pending'
+                          ? [
+                              'TEGUH SUNJOYO',
+                              selectedReq.department ? `Manager ${selectedReq.department}` : 'Manager Departemen',
+                            ]
+                          : [username || 'IT Section / SSA', 'System Security Admin (IT)']
+                        ).map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => {
+                              setApproverName(preset)
+                              if (selectedReq.status === 'pending') {
+                                setApproverTitle(
+                                  preset === 'TEGUH SUNJOYO'
+                                    ? 'Information Assets Administrator (IAA)'
+                                    : 'Manager Departemen'
+                                )
+                              }
+                            }}
+                            className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 transition cursor-pointer"
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
@@ -1569,7 +1603,10 @@ export default function KelolaIzinAlatItPage() {
                       />
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {(selectedReq.status === 'pending'
-                          ? ['Manager Departemen / IAA', 'Information Assets Administrator (IAA)']
+                          ? [
+                              'Information Assets Administrator (IAA)',
+                              'Manager Departemen',
+                            ]
                           : ['System Security Administrator (IT)', 'IT Section / PIC Record']
                         ).map((preset) => (
                           <button

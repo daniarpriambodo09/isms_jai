@@ -152,20 +152,10 @@ export async function POST(
     }
 
     // =========================================================================
-    // TAHAP 2 SAJA: Pengajuan Form 2 (Penyambungan Jaringan Internal ISMS-F-03-00-003)
-    // WAJIB: Form 1 harus sudah berstatus 'approved'!
+    // Pengajuan Form 2 (Penyambungan Jaringan Internal ISMS-F-03-00-003)
+    // Terbuka langsung & dapat diajukan kapan saja
     // =========================================================================
     if (step === 'form_2') {
-      if (!existing.equipment_request || existing.equipment_request.status !== 'approved') {
-        return NextResponse.json(
-          {
-            error:
-              'Alur Bertahap: Formulir 1 (Izin Alat IT) belum di-Approve oleh Admin IT. Anda belum dapat mengajukan Formulir 2 (Penyambungan Jaringan).',
-          },
-          { status: 400 }
-        )
-      }
-
       if (!mac_address?.trim() || !os_info?.trim() || !antivirus_name?.trim()) {
         return NextResponse.json(
           {

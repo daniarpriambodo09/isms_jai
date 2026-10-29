@@ -460,34 +460,41 @@ export async function submitItGuestForm2Network(
     throw new Error('Link akses tamu tidak ditemukan.')
   }
 
-  if (!existing.equipment_request || existing.equipment_request.status !== 'approved') {
-    throw new Error(
-      'Alur Bertahap: Formulir 1 (Izin Membawa Masuk/Keluar Alat IT) harus di-Approve oleh Admin IT terlebih dahulu sebelum Anda dapat mengajukan Formulir 2 (Penyambungan Jaringan Internal).'
-    )
-  }
-
   const eq = existing.equipment_request
-  const items = Array.isArray(eq.items) ? eq.items : []
+  const items = eq && Array.isArray(eq.items) ? eq.items : []
   const primaryDevice = items[0] || {
-    equipment_type: 'PC / Laptop',
+    equipment_type: payload.device_type || 'PC / Laptop',
     brand: '-',
     model: '-',
     serial_no: '-',
     id_no: '-',
   }
 
-  const dateInStr = eq.date_in ? String(eq.date_in).slice(0, 10) : new Date().toISOString().slice(0, 10)
-  const dateOutStr = eq.date_out_plan ? String(eq.date_out_plan).slice(0, 10) : dateInStr
+  const dateInStr = eq?.date_in
+    ? String(eq.date_in).slice(0, 10)
+    : existing.visit_date
+    ? String(existing.visit_date).slice(0, 10)
+    : new Date().toISOString().slice(0, 10)
+  const dateOutStr = eq?.date_out_plan
+    ? String(eq.date_out_plan).slice(0, 10)
+    : existing.visit_end_date
+    ? String(existing.visit_end_date).slice(0, 10)
+    : dateInStr
+
+  const applicantName = eq?.applicant_name || existing.guest_name || 'Tamu PT. JAI'
+  const companyName = eq?.company_name || existing.company_name || 'PT. JAI Guest'
+  const department = eq?.department || existing.department || 'Information Technology'
+  const purpose = payload.network_purpose?.trim() || eq?.purpose || 'Koneksi Perangkat Tamu PT. JAI'
 
   const networkFormData: Record<string, any> = {
     guest_link_code: existing.link_code,
-    section: eq.section || '-',
-    location: eq.location || '-',
+    section: eq?.section || '-',
+    location: eq?.location || '-',
     connection_type: payload.connection_type || 'Wi-Fi Internal (Wireless)',
     device_type: payload.device_type || primaryDevice.equipment_type || 'Notebook / Laptop',
-    device_brand: `${primaryDevice.brand} ${primaryDevice.model}`.trim(),
-    serial_number: primaryDevice.serial_no,
-    asset_no: primaryDevice.id_no,
+    device_brand: `${primaryDevice.brand || ''} ${primaryDevice.model || ''}`.trim() || '-',
+    serial_number: primaryDevice.serial_no || '-',
+    asset_no: primaryDevice.id_no || '-',
     mac_address: payload.mac_address.trim(),
     os_info: payload.os_info.trim(),
     antivirus_installed: payload.antivirus_installed || 'Ya',
@@ -507,9 +514,9 @@ export async function submitItGuestForm2Network(
     purpose_others:
       payload.purpose_others !== undefined
         ? payload.purpose_others.trim()
-        : (payload.network_purpose?.trim() || eq.purpose || ''),
-    applicant_phone: eq.applicant_phone || '',
-    applicant_email: eq.applicant_email || '',
+        : (payload.network_purpose?.trim() || eq?.purpose || ''),
+    applicant_phone: eq?.applicant_phone || '',
+    applicant_email: eq?.applicant_email || '',
     ip_mode: existing.ip_mode || 'dhcp',
     assigned_ip: '',
     static_ip: '',
@@ -523,15 +530,15 @@ export async function submitItGuestForm2Network(
 
   const netSubmission = await createItFormSubmission({
     form_code: 'ISMS-F-03-00-003',
-    applicant_name: eq.applicant_name,
-    applicant_nik: eq.applicant_nik || `GUEST-${existing.seq_year}-${String(existing.seq_no).padStart(3, '0')}`,
-    applicant_position: `Tamu / Visitor (${eq.company_name})`,
+    applicant_name: applicantName,
+    applicant_nik: eq?.applicant_nik || `GUEST-${existing.seq_year}-${String(existing.seq_no).padStart(3, '0')}`,
+    applicant_position: `Tamu / Visitor (${companyName})`,
     employee_status: 'TAMU / VENDOR',
-    department: eq.department,
-    company_name: eq.company_name,
-    purpose: payload.network_purpose?.trim() || eq.purpose,
+    department: department,
+    company_name: companyName,
+    purpose: purpose,
     form_data: networkFormData,
-    notes: `Link Tamu Terpadu: ${existing.link_code} (Izin Alat Approved: ${eq.request_no})`,
+    notes: `Link Tamu Terpadu: ${existing.link_code}${eq ? ` (Izin Alat: ${eq.request_no})` : ''}`,
   })
 
   const updRes = await query<ItGuestAccessLink>(
@@ -885,13 +892,12 @@ export async function approveOrRejectItGuestLink(
   }
 
   // TAHAP 2B: Persetujuan Akhir oleh IAA (Pak Teguh Sunjoyo) pada Form 2 (ISMS-F-03-00-003)
-  // WAJIB: Tahap 2A (IT Section Check) HARUS sudah di-approve terlebih dahulu!
   if (input.action === 'approve_iaa') {
-    if (!existing.equipment_request || existing.equipment_request.status !== 'approved') {
-      throw new Error('Alur Bertahap: Form 1 (Izin Alat IT) belum di-approve! Tidak bisa langsung ke tahap kedua.')
+    if (existing.equipment_request && existing.equipment_request.status === 'rejected') {
+      throw new Error('Form 1 (Izin Alat IT) ditolak.')
     }
     if (!existing.network_submission_id || !existing.network_submission) {
-      throw new Error('Alur Bertahap: Form 2 (Penyambungan Jaringan) belum diisi oleh tamu.')
+      throw new Error('Form 2 (Penyambungan Jaringan) belum diisi.')
     }
 
     const sigIt = existing.network_submission.signatures?.find(

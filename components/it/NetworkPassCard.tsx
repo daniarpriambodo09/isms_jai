@@ -591,3 +591,4 @@ export function NetworkPassModal({ open, onClose, data }: NetworkPassModalProps)
     </div>
   )
 }
+

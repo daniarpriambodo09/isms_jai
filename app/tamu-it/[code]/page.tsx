@@ -782,7 +782,7 @@ export default function GuestItCombinedFormPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                            TAHAP 1 DARI 2 (WAJIB DI-APPROVE DULU)
+                            FORMULIR 1
                           </span>
                           <span className="font-mono text-[11px] font-bold text-muted-foreground">
                             {formType === 'in' ? 'ISMS-F-03-00-001' : 'ISMS-F-03-00-002'}
@@ -1175,18 +1175,13 @@ export default function GuestItCombinedFormPage() {
                         </span>
                       </div>
                       <h2 className="mt-1 text-base font-bold text-foreground">
-                        {guestLink.equipment_request.status === 'approved' ||
-                        guestLink.equipment_request.status === 'returned'
-                          ? 'Formulir 1 Selesai Disetujui (IAA/Manager Departemen & Verifikasi IT) — Silakan Lanjut Isi Formulir 2'
-                          : guestLink.equipment_request.status === 'approved_manager'
-                          ? 'Tahap 1A (IAA / Manager Departemen) Disetujui — Menunggu Tahap 1B Verifikasi IT (SSA)'
-                          : 'Formulir 1 Terkirim — Menunggu Tahap 1A Persetujuan IAA / Manager Departemen'}
+                        Formulir 1: Pengajuan Izin Membawa Alat IT (Terkirim)
                       </h2>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {guestLink.equipment_request.status === 'approved' ||
                         guestLink.equipment_request.status === 'returned'
-                          ? `Disetujui oleh ${guestLink.equipment_request.approved_by || 'Manager Dept / IAA'} dan diverifikasi oleh ${guestLink.equipment_request.it_checked_by || 'Divisi IT'}. Formulir 2 (Penyambungan Jaringan Internal) di bawah kini telah terbuka.`
-                          : 'Sesuai prosedur ISMS PT. JAI, Formulir 1 (Izin Masuk/Keluar Alat IT) wajib disetujui secara berurutan oleh 1. IAA / Manager Departemen terlebih dahulu, baru kemudian 2. Divisi IT (SSA).'}
+                          ? `Disetujui oleh ${guestLink.equipment_request.approved_by || 'Manager Dept / IAA'} dan diverifikasi oleh ${guestLink.equipment_request.it_checked_by || 'Divisi IT'}.`
+                          : 'Formulir 1 (Izin Masuk/Keluar Alat IT) berhasil dikirim. Anda dapat langsung mengisi Formulir 2 (Penyambungan Jaringan) di bawah.'}
                       </p>
                     </div>
                   </div>
@@ -1219,44 +1214,9 @@ export default function GuestItCombinedFormPage() {
 
             {/* ============================================================== */}
             {/* FORM 2: PENYAMBUNGAN JARINGAN INTERNAL (ISMS-F-03-00-003)       */}
-            {/* HANYA TERBUKA JIKA FORM 1 SUDAH DI-APPROVE!                     */}
+            {/* TERBUKA LANGSUNG (TIDAK DIKUNCI)                               */}
             {/* ============================================================== */}
-            {!guestLink.equipment_request ||
-            (guestLink.equipment_request.status !== 'approved' &&
-              guestLink.equipment_request.status !== 'returned') ? (
-              <section
-                aria-label="Formulir 2 Terkunci Menunggu Persetujuan Formulir 1"
-                className="overflow-hidden rounded-2xl border border-dashed border-border bg-muted/20 p-6 shadow-xs"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="flex items-start gap-3.5">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground">
-                      <Lock className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                          TAHAP 2 DARI 2 • TERKUNCI
-                        </span>
-                        <span className="font-mono text-[11px] font-bold text-muted-foreground">
-                          ISMS-F-03-00-003
-                        </span>
-                      </div>
-                      <h2 className="mt-1 text-base font-bold text-foreground">
-                        Formulir 2: Company Network Connection Application Form
-                      </h2>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        Tidak dapat langsung ke Formulir 2 sebelum <strong>Formulir 1 (Izin Membawa Masuk/Keluar Alat IT)</strong> disetujui secara berurutan oleh <strong>1. IAA / Manager Departemen</strong> dan <strong>2. Divisi IT (SSA)</strong> terlebih dahulu.
-                      </p>
-                    </div>
-                  </div>
-                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-700 dark:text-amber-300">
-                    <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                    Menunggu Tahap 1 Approved
-                  </span>
-                </div>
-              </section>
-            ) : (
+            {!guestLink.network_submission ? (
               <form
                 method="POST"
                 action={`${API_BASE_PATH}/api/it-guest-links/${encodeURIComponent(guestLink.link_code)}`}
@@ -1273,8 +1233,8 @@ export default function GuestItCombinedFormPage() {
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                        TAHAP 2 DARI 2 (TERBUKA SETELAH FORM 1 APPROVED)
+                      <span className="rounded-md bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                        FORMULIR 2
                       </span>
                       <span className="font-mono text-[11px] font-bold text-muted-foreground">
                         ISMS-F-03-00-003
@@ -1588,12 +1548,58 @@ export default function GuestItCombinedFormPage() {
                   <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                   {submitting
                     ? 'Mengirim Formulir 2...'
-                    : 'Kirim Formulir 2 (Tahap 2: Koneksi Jaringan)'}
+                    : 'Kirim Formulir 2 (Permohonan Akses Jaringan)'}
                 </button>
               </div>
               </div>
             </section>
             </form>
+            ) : (
+              <section className="overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600">
+                      <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                          FORMULIR 2 TERKIRIM
+                        </span>
+                        <span className="font-mono text-[11px] font-bold text-muted-foreground">
+                          ISMS-F-03-00-003
+                        </span>
+                        <span className="font-mono text-xs font-bold text-foreground">
+                          {guestLink.network_submission.request_no}
+                        </span>
+                      </div>
+                      <h2 className="mt-1 text-base font-bold text-foreground">
+                        Formulir 2: Company Network Connection Application Form
+                      </h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Status:{' '}
+                        <strong>
+                          {guestLink.network_submission.status === 'approved'
+                            ? 'Disetujui Lengkap oleh IT'
+                            : 'Sedang Diverifikasi oleh IT'}
+                        </strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`${API_BASE_PATH}/api/it-form-submissions/${guestLink.network_submission.id}/pdf?token=${encodeURIComponent(
+                      guestLink.network_submission.token
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                    Unduh PDF Form 003
+                  </a>
+                </div>
+              </section>
             )}
           </div>
         )}

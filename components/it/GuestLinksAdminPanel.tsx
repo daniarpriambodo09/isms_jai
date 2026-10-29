@@ -771,22 +771,19 @@ export function GuestLinksAdminPanel({
                             </button>
                           )}
 
-                          {/* TAHAP 2A: Hanya aktif JIKA Form 1 sudah di-approve DAN Tamu sudah mengisi Form 2 */}
-                          {item.equipment_request &&
-                            (item.equipment_request.status === 'approved' ||
-                              item.equipment_request.status === 'returned') &&
-                            item.network_submission && (
-                              <button
-                                type="button"
-                                onClick={() => openApprovalModal(item, 'approve')}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90"
-                              >
-                                <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                                {item.status === 'approved'
-                                  ? 'Ubah Username / IP'
-                                  : '2. Approve Network (IT Check) & Beri IP'}
-                              </button>
-                            )}
+                          {/* TAHAP 2A: Terbuka langsung jika Tamu sudah mengisi Form 2 */}
+                          {item.network_submission && (
+                            <button
+                              type="button"
+                              onClick={() => openApprovalModal(item, 'approve')}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                              {item.status === 'approved'
+                                ? 'Ubah Username / IP'
+                                : 'Approve Network & Beri IP'}
+                            </button>
+                          )}
 
                           {/* TAHAP 2B: Hanya aktif JIKA Tahap 2A (IT Section Check) sudah Approved */}
                           {item.status === 'approved' &&

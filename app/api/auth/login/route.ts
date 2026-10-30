@@ -18,20 +18,17 @@ type AdminRow = {
   role: 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 }
 
-const ROLES = ['ism_admin', 'lobby', 'security', 'approver', 'it'] as const
-type AdminRole = typeof ROLES[number]
-function isAdminRole(value: unknown): value is AdminRole { return typeof value === 'string' && (ROLES as readonly string[]).includes(value) }
-
 export async function POST(request: NextRequest) {
   try {
     const { username, password, expectedRole } = await request.json()
 
-    if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
-      return NextResponse.json({ message: 'Username dan password wajib diisi.' }, { status: 400 })
+    if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
+      return NextResponse.json({ message: 'Username/Email dan password wajib diisi.' }, { status: 400 })
     }
 
+    const cleanIdentifier = username.trim()
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
-    const rateLimitKey = `${ip}:${username.toLowerCase()}`
+    const rateLimitKey = `${ip}:${cleanIdentifier.toLowerCase()}`
     const lockedForSeconds = isLoginLocked(rateLimitKey)
     if (lockedForSeconds) {
       return NextResponse.json(
@@ -40,9 +37,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Support logging in via username or email (case-insensitive & trimmed)
     const result = await query<AdminRow>(
-      'SELECT id, username, email, password_hash, role FROM admins WHERE username = $1',
-      [username]
+      'SELECT id, username, email, password_hash, role FROM admins WHERE LOWER(TRIM(username)) = LOWER(TRIM($1)) OR (email IS NOT NULL AND LOWER(TRIM(email)) = LOWER(TRIM($1))) LIMIT 1',
+      [cleanIdentifier]
     )
     const admin = result.rows[0]
 
@@ -53,11 +51,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Username atau password salah.' }, { status: 401 })
     }
 
-    // The role picked on the sign-in screen is a routing aid, not an
-    // authority grant. Verify it here before a session cookie is issued.
-    if (expectedRole !== undefined && (!isAdminRole(expectedRole) || admin.role !== expectedRole)) {
-      return NextResponse.json({ message: 'Akun ini tidak sesuai dengan jenis akses yang dipilih.' }, { status: 403 })
-    }
+    // Role selected on the sign-in screen is a routing aid. We don't block
+    // users if they forgot to change the tab, so they can seamlessly access their role dashboard.
+    void expectedRole
 
     recordLoginSuccess(rateLimitKey)
 

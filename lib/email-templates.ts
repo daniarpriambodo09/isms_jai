@@ -1911,50 +1911,50 @@ export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subje
 
           ${chainHtml}
 
-          <!-- Action Button CTA -->
-          <tr>
-            <td style="padding:24px 32px 8px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="background:#ffffff;background-color:#ffffff;border:2px solid #0f766e;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(15,118,110,0.14);">
-                <tr>
-                  <td bgcolor="#0f766e" style="background-color:#0f766e;padding:12px 20px;text-align:center;">
-                    <p style="margin:0;color:#ffffff;font-size:12.5px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;">
-                      &#9889;&nbsp; Tindakan Diperlukan &middot; Persetujuan Tanda Tangan Digital (E-Sign)
-                    </p>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding:18px 24px 10px;text-align:center;font-size:13px;color:#1e293b;line-height:1.5;font-weight:600;">
-                    Pilih salah satu metode di bawah untuk memeriksa dan memberikan persetujuan (E-Sign) &mdash; Keduanya otomatis login:
-                  </td>
-                </tr>
-                <!-- Tombol Utama: Buka & Tanda Tangani di Halaman Formulir -->
-                <tr>
-                  <td align="center" style="padding:6px 20px 8px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;border-collapse:separate;">
-                      <tr>
-                        <td align="center" bgcolor="#047857" style="background-color:#047857;border:2px solid #065f46;border-radius:8px;box-shadow:0 3px 10px rgba(4,120,87,0.35);">
-                          <a href="${data.actionUrl}" target="_blank" style="display:inline-block;min-width:320px;padding:14px 28px;background-color:#047857;color:#ffffff !important;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px;line-height:1.3;font-family:Arial,Helvetica,sans-serif;text-align:center;">
-                            <span style="color:#ffffff !important;font-weight:bold;">&#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)</span>
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <!-- Tombol Kedua: Dashboard Persetujuan -->
-                <tr>
-                  <td align="center" style="padding:6px 20px 16px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;border-collapse:separate;">
-                      <tr>
-                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border:2px solid #0f172a;border-radius:8px;box-shadow:0 2px 6px rgba(30,41,59,0.25);">
-                          <a href="${dashUrl}" target="_blank" style="display:inline-block;min-width:320px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13px;line-height:1.3;font-family:Arial,Helvetica,sans-serif;text-align:center;">
-                            <span style="color:#ffffff !important;font-weight:bold;">&#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)</span>
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
+          <!-- Action Button CTA -->
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ffffff" style="background:#ffffff;background-color:#ffffff;border:2px solid #0f766e;border-radius:12px;overflow:hidden;">
+                <tr>
+                  <td bgcolor="#0f766e" style="background-color:#0f766e;padding:12px 20px;text-align:center;">
+                    <p style="margin:0;color:#ffffff;font-size:12.5px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;">
+                      &#9889;&nbsp; Tindakan Diperlukan &middot; Persetujuan Tanda Tangan Digital (E-Sign)
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:18px 24px 12px;text-align:center;font-size:13px;color:#1e293b;line-height:1.5;font-weight:600;">
+                    Pilih salah satu metode di bawah untuk memeriksa dan memberikan persetujuan (E-Sign) &mdash; Keduanya otomatis login:
+                  </td>
+                </tr>
+                <!-- Tombol Utama: Buka & Tanda Tangani di Halaman Formulir -->
+                <tr>
+                  <td align="center" style="padding:6px 20px 8px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 auto;max-width:380px;">
+                      <tr>
+                        <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:6px;padding:12px 24px;text-align:center;">
+                          <a href="${data.actionUrl}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;display:block;text-align:center;">
+                            <font color="#ffffff" style="color:#ffffff;">&#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)</font>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <!-- Tombol Kedua: Dashboard Persetujuan -->
+                <tr>
+                  <td align="center" style="padding:6px 20px 16px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 auto;max-width:380px;">
+                      <tr>
+                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:6px;padding:12px 24px;text-align:center;">
+                          <a href="${dashUrl}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:13px;font-family:Arial,Helvetica,sans-serif;display:block;text-align:center;">
+                            <font color="#ffffff" style="color:#ffffff;">&#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)</font>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
                 <!-- Security Note & Direct Link Fallback -->
                 <tr>
                   <td style="padding:0 24px 16px;">

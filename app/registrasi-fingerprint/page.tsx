@@ -830,17 +830,11 @@ function FingerprintPageInner() {
                         <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                           type="text"
-                          list="fp-dept-suggestions"
                           value={department}
                           onChange={(e) => setDepartment(e.target.value)}
-                          placeholder="Ketik nama departemen (contoh: PP - NYS, PGA, Produksi...)"
+                          placeholder="Ketik nama departemen (contoh: PP - NYS, HR, PGA, Produksi...)"
                           className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
                         />
-                        <datalist id="fp-dept-suggestions">
-                          {(rawDepartments.length > 0 ? rawDepartments.map((d) => d.name) : DEFAULT_DEPARTMENTS).map((d) => (
-                            <option key={d} value={d} />
-                          ))}
-                        </datalist>
                       </div>
                     </div>
 
@@ -853,7 +847,6 @@ function FingerprintPageInner() {
                       </div>
                       <input
                         type="text"
-                        list="fp-section-suggestions"
                         value={customSection || sectionChoice}
                         onChange={(e) => {
                           setCustomSection(e.target.value)
@@ -862,11 +855,6 @@ function FingerprintPageInner() {
                         placeholder="Ketik nama seksi / bagian (contoh: IT, Accounting, QA...)"
                         className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
                       />
-                      <datalist id="fp-section-suggestions">
-                        {availableSections.map((sec) => (
-                          <option key={sec.id} value={sec.name} />
-                        ))}
-                      </datalist>
                     </div>
                   </div>
 

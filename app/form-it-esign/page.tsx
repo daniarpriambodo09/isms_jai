@@ -1798,17 +1798,11 @@ function FormItContent() {
                         <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                           type="text"
-                          list="dept-suggestions"
                           value={department}
                           onChange={(e) => setDepartment(e.target.value)}
-                          placeholder="Ketik nama departemen (contoh: PP - NYS, PGA, Produksi...)"
+                          placeholder="Ketik nama departemen (contoh: PP - NYS, HR, PGA, Produksi...)"
                           className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
                         />
-                        <datalist id="dept-suggestions">
-                          {(availableDepartments.length > 0 ? availableDepartments : DEPARTMENTS).map((d) => (
-                            <option key={d} value={d} />
-                          ))}
-                        </datalist>
                       </div>
                     </div>
 
@@ -1821,7 +1815,6 @@ function FormItContent() {
                       </div>
                       <input
                         type="text"
-                        list="section-suggestions"
                         value={customSection || sectionChoice}
                         onChange={(e) => {
                           setCustomSection(e.target.value)
@@ -1830,11 +1823,6 @@ function FormItContent() {
                         placeholder="Ketik nama seksi / bagian (contoh: IT, Accounting, QA...)"
                         className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
                       />
-                      <datalist id="section-suggestions">
-                        {availableSections.map((sec) => (
-                          <option key={sec.id} value={sec.name} />
-                        ))}
-                      </datalist>
                     </div>
                   </div>
 

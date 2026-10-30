@@ -816,7 +816,7 @@ function FingerprintPageInner() {
                   </div>
                 </div>
 
-                {/* Departemen & Seksi (CASCADING DROPDOWNS) */}
+                {/* Departemen & Seksi (INPUT BEBAS / MENGISI LANGSUNG DENGAN SARAN) */}
                 <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Departemen */}
@@ -825,76 +825,57 @@ function FingerprintPageInner() {
                         <label className="block text-xs font-bold text-foreground">
                           Departemen (所属部署) <span className="text-red-500">*</span>
                         </label>
-                        <span className="text-[10px] font-semibold text-primary">
-                          Sinkron Database ISMS
-                        </span>
                       </div>
                       <div className="relative">
                         <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <select
+                        <input
+                          type="text"
+                          list="fp-dept-suggestions"
                           value={department}
                           onChange={(e) => setDepartment(e.target.value)}
-                          className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-8 text-xs sm:text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 font-medium"
-                        >
+                          placeholder="Ketik nama departemen (contoh: PP - NYS, PGA, Produksi...)"
+                          className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
+                        />
+                        <datalist id="fp-dept-suggestions">
                           {(rawDepartments.length > 0 ? rawDepartments.map((d) => d.name) : DEFAULT_DEPARTMENTS).map((d) => (
-                            <option key={d} value={d}>
-                              {d}
-                            </option>
+                            <option key={d} value={d} />
                           ))}
-                        </select>
+                        </datalist>
                       </div>
                     </div>
 
-                    {/* Seksi / Bagian (Cascading Dropdown) */}
+                    {/* Seksi / Bagian */}
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
                         <label className="block text-xs font-bold text-foreground">
                           Seksi / Bagian (課・係) <span className="text-red-500">*</span>
                         </label>
-                        {availableSections.length > 0 && (
-                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                            {availableSections.length} Seksi Terdaftar
-                          </span>
-                        )}
                       </div>
-
-                      {availableSections.length > 0 ? (
-                        <div className="space-y-2">
-                          <select
-                            value={sectionChoice}
-                            onChange={(e) => setSectionChoice(e.target.value)}
-                            className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 font-medium"
-                          >
-                            <option value="">-- Pilih Seksi / Bagian --</option>
-                            {availableSections.map((sec) => (
-                              <option key={sec.id} value={sec.name}>
-                                {sec.name} {department.toUpperCase() === 'PGA' && sec.name === 'IT' ? '(Information Technology)' : ''}
-                              </option>
-                            ))}
-                            <option value="__custom__">+ Input Seksi Lainnya...</option>
-                          </select>
-
-                          {sectionChoice === '__custom__' && (
-                            <input
-                              type="text"
-                              value={customSection}
-                              onChange={(e) => setCustomSection(e.target.value)}
-                              placeholder="Sebutkan nama seksi / bagian..."
-                              className="h-10 w-full rounded-xl border border-input bg-card px-3 text-xs text-foreground outline-none focus:border-ring"
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          value={customSection}
-                          onChange={(e) => setCustomSection(e.target.value)}
-                          placeholder="Contoh: IT Section / Maintenance"
-                          className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm text-foreground outline-none focus:border-ring"
-                        />
-                      )}
+                      <input
+                        type="text"
+                        list="fp-section-suggestions"
+                        value={customSection || sectionChoice}
+                        onChange={(e) => {
+                          setCustomSection(e.target.value)
+                          setSectionChoice(e.target.value)
+                        }}
+                        placeholder="Ketik nama seksi / bagian (contoh: IT, Accounting, QA...)"
+                        className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
+                      />
+                      <datalist id="fp-section-suggestions">
+                        {availableSections.map((sec) => (
+                          <option key={sec.id} value={sec.name} />
+                        ))}
+                      </datalist>
                     </div>
                   </div>
+
+                  <p className="mt-2.5 text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <Info className="size-3.5 text-muted-foreground shrink-0" />
+                    <span>
+                      Departemen &amp; Seksi di atas akan dicetak pada dokumen resmi PDF: <code className="font-mono text-foreground font-bold bg-secondary px-1.5 py-0.5 rounded border border-border">{department || '—'}{effectiveSection ? ` / ${effectiveSection}` : ''}</code>
+                    </span>
+                  </p>
                 </div>
 
                 {/* Status Karyawan */}

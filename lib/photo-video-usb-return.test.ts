@@ -92,4 +92,42 @@ describe('Photo Video USB and Return Time Logic', () => {
     expect(resolvedSmart1).toBe('SMT-QA-02')
     expect(resolvedSmart2).toBe('SMT-QA-01')
   })
+
+  it('validates flexible device borrowing (can borrow only USB, only Smart Device, or only Camera)', () => {
+    function validateDevices(devices: { cameraControlNo?: string | null; usbControlNo?: string | null; smartDeviceControlNo?: string | null }) {
+      const camera = devices.cameraControlNo?.trim() || null
+      const usb = devices.usbControlNo?.trim() || null
+      const smart = devices.smartDeviceControlNo?.trim() || null
+      if (!camera && !usb && !smart) {
+        return { valid: false, error: 'Pilih minimal 1 perangkat yang dipinjam (Kamera, USB Flashdisk, atau Smart Device).' }
+      }
+      return { valid: true, camera, usb, smart }
+    }
+
+    // Case 1: Only USB (User's case: pinjam usb aja, ga pinjem kamera)
+    const onlyUsb = validateDevices({ cameraControlNo: null, usbControlNo: 'FD-IT-EXT01' })
+    expect(onlyUsb.valid).toBe(true)
+    expect(onlyUsb.camera).toBeNull()
+    expect(onlyUsb.usb).toBe('FD-IT-EXT01')
+
+    // Case 2: Only Smart Device
+    const onlySmart = validateDevices({ smartDeviceControlNo: 'SMT-01' })
+    expect(onlySmart.valid).toBe(true)
+    expect(onlySmart.smart).toBe('SMT-01')
+
+    // Case 3: Both USB and Smart Device without Camera
+    const usbAndSmart = validateDevices({ usbControlNo: 'FD-IT-01', smartDeviceControlNo: 'SMT-02' })
+    expect(usbAndSmart.valid).toBe(true)
+    expect(usbAndSmart.camera).toBeNull()
+
+    // Case 4: Only Camera (classic case)
+    const onlyCamera = validateDevices({ cameraControlNo: 'CAM-01' })
+    expect(onlyCamera.valid).toBe(true)
+    expect(onlyCamera.camera).toBe('CAM-01')
+
+    // Case 5: Empty - none selected (should fail validation)
+    const noneSelected = validateDevices({ cameraControlNo: '', usbControlNo: '   ', smartDeviceControlNo: null })
+    expect(noneSelected.valid).toBe(false)
+    expect(noneSelected.error).toContain('minimal 1 perangkat')
+  })
 })

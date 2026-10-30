@@ -361,9 +361,18 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         : companyName
       const escort = isStaff ? escortFromChoice(escortChoice, escorts, { name: escortName, dept: escortDept }) : null
       if (isStaff && escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping JAI, atau kosongkan pilihannya.'); return }
-      if (isInternal && !picApproveId) {
-        setError('Pilih PIC Approve yang akan menyetujui permohonan foto/video.')
-        return
+      if (isInternal) {
+        if (!picApproveId) {
+          setError('Pilih PIC Approve yang akan menyetujui permohonan foto/video.')
+          return
+        }
+        const hasCamera = Boolean(cameraControlNo && cameraControlNo.trim())
+        const hasUsb = Boolean(usbControlNo && usbControlNo.trim())
+        const hasSmartDevice = Boolean(smartDeviceControlNo && smartDeviceControlNo.trim())
+        if (!hasCamera && !hasUsb && !hasSmartDevice) {
+          setError('Pilih minimal 1 perangkat yang dipinjam (Kamera, USB Flashdisk, atau Smart Device).')
+          return
+        }
       }
       const payload = {
         requestType: locale,
@@ -378,7 +387,16 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         // as the Visitor default — the server resolves it and ignores
         // picApproveId entirely for this type (see /api/photo-video-requests).
         ...(isInternal
-          ? { nik, deptPicKamera: selectedCameraDept?.name ?? '', deptPicKameraSection: selectedCameraSection?.name ?? null, cameraControlNo, photoIdNo, usbControlNo: usbControlNo.trim() || null, smartDeviceControlNo: smartDeviceControlNo.trim() || null, picApproveId }
+          ? {
+              nik,
+              deptPicKamera: selectedCameraDept?.name ?? '',
+              deptPicKameraSection: selectedCameraSection?.name ?? null,
+              cameraControlNo: cameraControlNo.trim() || null,
+              photoIdNo: photoIdNo.trim() || null,
+              usbControlNo: usbControlNo.trim() || null,
+              smartDeviceControlNo: smartDeviceControlNo.trim() || null,
+              picApproveId,
+            }
           : { dept, cameraSerialNo, photoIdNo }),
         ...(isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
       }
@@ -546,38 +564,36 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                   ))}
                 </select>
               </Field>
-              <Field label="No. Kontrol Kamera" span={2}>
+              <Field label="No. Kontrol Kamera (opsional jika hanya pinjam USB/Smart Device)" span={2}>
                 <select
                   value={cameraControlNo}
                   onChange={(e) => setCameraControlNo(e.target.value)}
-                  required
                   className={inputClass}
                   disabled={!deptPicKameraId}
                 >
-                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Pilih no. kontrol kamera...'}</option>
+                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Kamera (Hanya Pinjam USB / Smart Device)'}</option>
                   {availableCameras.map((cam) => (
                     <option key={cam.id} value={cam.code}>{cam.code}</option>
                   ))}
                 </select>
                 {deptPicKameraId && availableCameras.length === 0 && (
-                  <p className="mt-1 text-[11px] text-destructive">Belum ada kamera terdaftar untuk departemen ini — hubungi Admin ISMS.</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Belum ada kamera terdaftar untuk departemen ini (opsional jika hanya meminjam Flashdisk/Smart Device).</p>
                 )}
               </Field>
-              <Field label="No. ID Photography" span={2}>
+              <Field label="No. ID Photography (opsional jika tidak pinjam kamera)" span={2}>
                 <select
                   value={photoIdNo}
                   onChange={(e) => setPhotoIdNo(e.target.value)}
-                  required
                   className={inputClass}
                   disabled={!deptPicKameraId}
                 >
-                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Pilih no. ID Photography...'}</option>
+                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Kartu ID Photography (Opsional)'}</option>
                   {availablePhotoIds.map((p) => (
                     <option key={p.id} value={p.code}>{p.code}</option>
                   ))}
                 </select>
                 {deptPicKameraId && availablePhotoIds.length === 0 && (
-                  <p className="mt-1 text-[11px] text-destructive">Belum ada ID Photography terdaftar untuk departemen ini — hubungi Admin ISMS.</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Belum ada ID Photography terdaftar untuk departemen ini (opsional jika hanya meminjam Flashdisk/Smart Device).</p>
                 )}
               </Field>
               <Field label="No. Kontrol USB (opsional)" span={2}>
@@ -592,7 +608,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                     <option key={u.id} value={u.code}>{u.code}</option>
                   ))}
                 </select>
-                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol USB hanya jika Anda meminjam media penyimpanan Flashdisk/USB bersama kamera.</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — dapat dipinjam secara fleksibel (bersama kamera atau berdiri sendiri tanpa kamera).</p>
               </Field>
               <Field label="No. Kontrol Smart Device (opsional)" span={2}>
                 <select
@@ -606,7 +622,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                     <option key={s.id} value={s.code}>{s.code}</option>
                   ))}
                 </select>
-                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol Smart Device jika Anda meminjam Tablet / HP khusus bersama kamera.</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol Smart Device jika Anda meminjam Tablet / HP khusus (bisa bersama kamera atau tanpa kamera).</p>
               </Field>
             </>
           )}

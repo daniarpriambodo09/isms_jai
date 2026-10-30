@@ -1534,6 +1534,8 @@ export type PhotoRequestSummary = {
   picApprove: string | null
   cameraControlNo: string | null
   photoIdNo: string | null
+  usbControlNo?: string | null
+  smartDeviceControlNo?: string | null
   approverName?: string | null
   approverSalutation?: string | null
   approverTitle?: string | null

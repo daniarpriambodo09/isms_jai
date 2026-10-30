@@ -232,7 +232,7 @@ function FormContent() {
       const res = await fetch(`${API_BASE_PATH}/api/it-equipment-requests?token=${encodeURIComponent(searchInput.trim())}`)
       const data = await res.json()
       if (!res.ok || !data.request) {
-        throw new Error('Pengajuan dengan token tersebut tidak ditemukan.')
+        throw new Error('Pengajuan dengan nomor atau token tersebut tidak ditemukan. Pastikan nomor pengajuan Anda sudah benar.')
       }
       setSubmittedReq(data.request)
       setSearchOpen(false)
@@ -975,7 +975,7 @@ function FormContent() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Masukkan Token Rahasia atau Link Status Anda..."
+              placeholder="Masukkan Nomor Pengajuan (contoh: IT-OUT-20261030-003) atau Token Tracking..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className={inputClass}

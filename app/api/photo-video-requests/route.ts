@@ -141,6 +141,8 @@ export async function POST(request: NextRequest) {
     let cameraSerialNo: string | null = null
     let deptPicKamera: string | null = null
     let cameraControlNo: string | null = null
+    let usbControlNo: string | null = null
+    let smartDeviceControlNo: string | null = null
     let picJai: string | null = null
     let photoIdNo: string | null = null
     let picApproveId = 0
@@ -151,34 +153,37 @@ export async function POST(request: NextRequest) {
       if (!deptPicKamera) return NextResponse.json({ message: 'Dept. PIC Kamera wajib dipilih.' }, { status: 400 })
       const deptPicKameraSection = typeof body.deptPicKameraSection === 'string' && body.deptPicKameraSection.trim() ? body.deptPicKameraSection.trim() : null
 
-      cameraControlNo = typeof body.cameraControlNo === 'string' ? body.cameraControlNo.trim() : ''
-      if (!cameraControlNo) return NextResponse.json({ message: 'No. Kontrol Kamera wajib dipilih.' }, { status: 400 })
-      // Cross-check against the roster (rather than trusting the client's
-      // string outright) — must actually exist and belong to the chosen
-      // Dept./Seksi PIC Kamera, or be one of the department-/section-agnostic
-      // entries (NULL on either column applies to everything under it).
-      const cameraCheck = await query<{ id: number }>(
-        `SELECT ce.id FROM camera_equipment ce
-         LEFT JOIN departments d ON d.id = ce.department_id
-         LEFT JOIN sections s ON s.id = ce.section_id
-         WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2) AND (ce.section_id IS NULL OR s.name = $3)`,
-        [cameraControlNo, deptPicKamera, deptPicKameraSection]
-      )
-      if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen/section ini.' }, { status: 400 })
+      cameraControlNo = typeof body.cameraControlNo === 'string' && body.cameraControlNo.trim() ? body.cameraControlNo.trim() : null
+      usbControlNo = typeof body.usbControlNo === 'string' && body.usbControlNo.trim() ? body.usbControlNo.trim() : null
+      smartDeviceControlNo = typeof body.smartDeviceControlNo === 'string' && body.smartDeviceControlNo.trim() ? body.smartDeviceControlNo.trim() : null
 
-      photoIdNo = typeof body.photoIdNo === 'string' ? body.photoIdNo.trim() : ''
-      if (!photoIdNo) return NextResponse.json({ message: 'No. ID Photography wajib dipilih.' }, { status: 400 })
-      const photoIdCheck = await query<{ id: number }>(
-        `SELECT p.id FROM photo_id_equipment p
-         LEFT JOIN departments d ON d.id = p.department_id
-         LEFT JOIN sections s ON s.id = p.section_id
-         WHERE p.code = $1 AND (p.department_id IS NULL OR d.name = $2) AND (p.section_id IS NULL OR s.name = $3)`,
-        [photoIdNo, deptPicKamera, deptPicKameraSection]
-      )
-      if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen/section ini.' }, { status: 400 })
+      if (!cameraControlNo && !usbControlNo && !smartDeviceControlNo) {
+        return NextResponse.json({ message: 'Pilih minimal 1 perangkat yang dipinjam (Kamera, USB Flashdisk, atau Smart Device).' }, { status: 400 })
+      }
 
-      // Optional USB equipment check
-      const usbControlNo = typeof body.usbControlNo === 'string' && body.usbControlNo.trim() ? body.usbControlNo.trim() : null
+      if (cameraControlNo) {
+        const cameraCheck = await query<{ id: number }>(
+          `SELECT ce.id FROM camera_equipment ce
+           LEFT JOIN departments d ON d.id = ce.department_id
+           LEFT JOIN sections s ON s.id = ce.section_id
+           WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2) AND (ce.section_id IS NULL OR s.name = $3)`,
+          [cameraControlNo, deptPicKamera, deptPicKameraSection]
+        )
+        if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen/section ini.' }, { status: 400 })
+      }
+
+      photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? body.photoIdNo.trim() : null
+      if (photoIdNo) {
+        const photoIdCheck = await query<{ id: number }>(
+          `SELECT p.id FROM photo_id_equipment p
+           LEFT JOIN departments d ON d.id = p.department_id
+           LEFT JOIN sections s ON s.id = p.section_id
+           WHERE p.code = $1 AND (p.department_id IS NULL OR d.name = $2) AND (p.section_id IS NULL OR s.name = $3)`,
+          [photoIdNo, deptPicKamera, deptPicKameraSection]
+        )
+        if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen/section ini.' }, { status: 400 })
+      }
+
       if (usbControlNo) {
         const usbCheck = await query<{ id: number }>(
           `SELECT u.id FROM usb_equipment u
@@ -188,6 +193,17 @@ export async function POST(request: NextRequest) {
           [usbControlNo, deptPicKamera, deptPicKameraSection]
         )
         if (usbCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol USB tidak valid untuk departemen/section ini.' }, { status: 400 })
+      }
+
+      if (smartDeviceControlNo) {
+        const sdCheck = await query<{ id: number }>(
+          `SELECT sde.id FROM smart_device_equipment sde
+           LEFT JOIN departments d ON d.id = sde.department_id
+           LEFT JOIN sections s ON s.id = sde.section_id
+           WHERE sde.code = $1 AND (sde.department_id IS NULL OR d.name = $2) AND (sde.section_id IS NULL OR s.name = $3)`,
+          [smartDeviceControlNo, deptPicKamera, deptPicKameraSection]
+        )
+        if (sdCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Smart Device tidak valid untuk departemen/section ini.' }, { status: 400 })
       }
 
       const rawPicId = Number(body.picApproveId)
@@ -247,8 +263,10 @@ export async function POST(request: NextRequest) {
     // people's pending requests just by counting.
     const refToken = randomBytes(5).toString('hex').toUpperCase()
 
-    const usbControlNo = requestType === 'internal' && typeof body.usbControlNo === 'string' && body.usbControlNo.trim() ? body.usbControlNo.trim() : null
-    const smartDeviceControlNo = requestType === 'internal' && typeof body.smartDeviceControlNo === 'string' && body.smartDeviceControlNo.trim() ? body.smartDeviceControlNo.trim() : null
+    if (requestType !== 'internal') {
+      usbControlNo = null
+      smartDeviceControlNo = null
+    }
 
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests

@@ -39,6 +39,8 @@ type RequestRow = {
   decision_note: string | null
   camera_control_no: string | null
   photo_id_no: string | null
+  usb_control_no?: string | null
+  smart_device_control_no?: string | null
   ref_token: string | null
   verification_code: string | null
   requester_email: string | null
@@ -53,7 +55,7 @@ type RequestRow = {
 async function getRow(id: number) {
   return (await query<RequestRow>(
     `SELECT r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.location, r.objective, r.from_at, r.to_at, r.status,
-            r.decided_by, r.decision_note, r.camera_control_no, r.photo_id_no, r.ref_token, r.verification_code,
+            r.decided_by, r.decision_note, r.camera_control_no, r.photo_id_no, r.usb_control_no, r.smart_device_control_no, r.ref_token, r.verification_code,
             r.requester_email, r.result_mailed_at, r.approval_token,
             COALESCE(pic.full_name, pic.name, def.full_name, def.name) AS pic_name,
             COALESCE(pic.email, def.email) AS approver_email,
@@ -105,7 +107,7 @@ export async function notifyNewPhotoRequest(id: number) {
     const pendingCount = Number((await query<{ n: number }>("SELECT count(*)::int AS n FROM photo_video_requests WHERE status = 'pending' AND request_type = 'internal'")).rows[0]?.n ?? 1)
     const { subject, html } = buildPhotoRequestAdminEmail({
       requesterName: row.requester_name, nik: row.nik, deptOrCompany: row.dept_or_company, location: row.location, objective: row.objective,
-      fromAt: row.from_at, toAt: row.to_at, picApprove: row.pic_name, cameraControlNo: row.camera_control_no, photoIdNo: row.photo_id_no,
+      fromAt: row.from_at, toAt: row.to_at, picApprove: row.pic_name, cameraControlNo: row.camera_control_no, photoIdNo: row.photo_id_no, usbControlNo: row.usb_control_no, smartDeviceControlNo: row.smart_device_control_no,
       approverName: row.pic_name,
       approverSalutation: row.approver_salutation,
       approverTitle: row.approver_title,

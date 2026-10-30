@@ -359,8 +359,8 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
       const deptOrCompany = isInternal
         ? `${selectedDept?.name ?? ''}${section ? ` - ${section.name}` : ''}`
         : companyName
-      const escort = isStaff ? escortFromChoice(escortChoice, escorts, { name: escortName, dept: escortDept }) : null
-      if (isStaff && escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping JAI, atau kosongkan pilihannya.'); return }
+      const escort = (!isInternal && isStaff) ? escortFromChoice(escortChoice, escorts, { name: escortName, dept: escortDept }) : null
+      if (!isInternal && isStaff && escortChoice === ESCORT_OTHER && !escort) { setError('Tulis nama PIC pendamping JAI, atau kosongkan pilihannya.'); return }
       if (isInternal) {
         if (!picApproveId) {
           setError('Pilih PIC Approve yang akan menyetujui permohonan foto/video.')
@@ -398,7 +398,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               picApproveId,
             }
           : { dept, cameraSerialNo, photoIdNo }),
-        ...(isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
+        ...(!isInternal && isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
       }
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, {
         method: 'POST',
@@ -681,7 +681,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               </p>
             </Field>
           )}
-          {isStaff && (
+          {!isInternal && isStaff && (
             <Field label="PIC Pendamping JAI (opsional)" span={2}>
               <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={inputClass}>
                 <option value="">Belum ditentukan — bisa dipilih nanti di rekap</option>

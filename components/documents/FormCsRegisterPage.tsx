@@ -415,10 +415,10 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
 
                 <div>
                   <h4 className="font-display text-base font-semibold text-foreground">
-                    Izin Foto &amp; Video
+                    Izin Foto, Video &amp; Peminjaman USB
                   </h4>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Permohonan izin pengambilan dokumentasi visual di area perusahaan bagi karyawan internal maupun tamu.
+                    Permohonan izin pengambilan dokumentasi visual serta peminjaman kamera / USB di area perusahaan bagi karyawan internal maupun tamu.
                   </p>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                   href="/ijin-foto-video"
                   className="group/btn flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/70 px-3.5 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary"
                 >
-                  <span>Buka Form Foto/Video</span>
+                  <span>Buka Form Foto, Video &amp; USB</span>
                   <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </Link>
               </div>

@@ -461,9 +461,9 @@ export function ViewfinderHero({ action, adminSlot }: WithAction & { adminSlot?:
         <span className="absolute left-1/2 top-1/2 h-px w-3 -translate-x-1/2 -translate-y-1/2 bg-accent" />
       </div>
       <div className="relative mt-8 max-w-xl">
-        <p className="flex items-center gap-2 font-mono-label text-[10px] text-accent"><Camera className="size-3.5" /> Izin dokumentasi</p>
-        <h2 className="mt-3 font-display text-[clamp(2.3rem,4.8vw,3.9rem)] font-semibold leading-[0.95]">Ijin Foto &amp; Video</h2>
-        <p className="mt-3 text-sm leading-6 text-primary-foreground/70">Setiap pengambilan foto/video di area perusahaan wajib mendapat izin terlebih dahulu — untuk karyawan internal maupun tamu.</p>
+        <p className="flex items-center gap-2 font-mono-label text-[10px] text-accent"><Camera className="size-3.5" /> Izin dokumentasi &amp; peminjaman device</p>
+        <h2 className="mt-3 font-display text-[clamp(2.3rem,4.8vw,3.9rem)] font-semibold leading-[0.95]">Izin Foto, Video &amp; Peminjaman USB</h2>
+        <p className="mt-3 text-sm leading-6 text-primary-foreground/70">Setiap pengambilan foto/video serta peminjaman kamera &amp; USB di area perusahaan wajib mendapat izin terlebih dahulu — untuk karyawan internal maupun tamu.</p>
         {action && <div className="mt-6">{action}</div>}
       </div>
 

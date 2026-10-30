@@ -78,9 +78,9 @@ export function getAdminGroupsForRole(role?: string): AdminGroup[] {
       ],
     },
     {
-      title: 'Izin Foto/Video & Special Area',
+      title: 'Izin Foto, Video, USB & Special Area',
       items: [
-        { href: '/kelola-permintaan-foto-video', label: 'Izin Foto & Video', hint: 'Tinjau izin membawa kamera & pengembalian device', icon: Camera },
+        { href: '/kelola-permintaan-foto-video', label: 'Izin Foto, Video & Peminjaman USB', hint: 'Tinjau izin membawa kamera, USB & pengembalian device', icon: Camera },
         { href: '/kelola-kamera', label: 'Master Kamera, USB & Device', hint: 'Database unit kamera, USB memory & smart device', icon: Aperture },
         { href: '/kelola-pic-approve', label: 'PIC Approver Foto/Video', hint: 'Penyetuju internal & default visitor pengajuan foto', icon: UserCheck },
         { href: '/kelola-izin-area-special', label: 'Special Area Access', hint: 'Izin masuk, master area server & escort', icon: ShieldAlert },

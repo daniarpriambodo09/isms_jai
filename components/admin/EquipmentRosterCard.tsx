@@ -85,6 +85,8 @@ export function EquipmentRosterCard({
 
   useEffect(() => { load() }, [load])
 
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('all')
+
   const grouped = useMemo(() => {
     const map = new Map<string, Item[]>()
     for (const item of items) {
@@ -96,6 +98,11 @@ export function EquipmentRosterCard({
     entries.sort(([a], [b]) => (a === ALL_DEPARTMENTS_GROUP ? -1 : b === ALL_DEPARTMENTS_GROUP ? 1 : a.localeCompare(b)))
     return entries
   }, [items])
+
+  const displayedGroups = useMemo(() => {
+    if (selectedDeptFilter === 'all') return grouped
+    return grouped.filter(([deptName]) => deptName === selectedDeptFilter)
+  }, [grouped, selectedDeptFilter])
 
   const submitAdd = async () => {
     if (!newCode.trim()) return
@@ -210,8 +217,53 @@ export function EquipmentRosterCard({
         <div className="rounded-3xl border border-dashed border-border bg-secondary/40 p-10 text-center text-sm text-muted-foreground">Belum ada {codeLabel.toLowerCase()}.</div>
       ) : (
         <div className="flex flex-col gap-4">
-          {grouped.map(([deptName, groupItems]) => (
-            <div key={deptName} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          {/* Horizontal Department Filter Tabs (Menyamping) */}
+          {grouped.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setSelectedDeptFilter('all')}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                  selectedDeptFilter === 'all'
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
+                    : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`}
+              >
+                <span>Semua Departemen</span>
+                <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-mono ${selectedDeptFilter === 'all' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-foreground'}`}>
+                  {items.length}
+                </span>
+              </button>
+              {grouped.map(([deptName, groupItems]) => {
+                const isSelected = selectedDeptFilter === deptName
+                return (
+                  <button
+                    key={deptName}
+                    type="button"
+                    onClick={() => setSelectedDeptFilter(deptName)}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-primary text-primary-foreground shadow-2xs'
+                        : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    }`}
+                  >
+                    <span>{deptName}</span>
+                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-mono ${isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background text-foreground'}`}>
+                      {groupItems.length}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {displayedGroups.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-8 text-center text-xs text-muted-foreground">
+              Tidak ada data untuk departemen {selectedDeptFilter}.
+            </div>
+          ) : (
+            displayedGroups.map(([deptName, groupItems]) => (
+              <div key={deptName} className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               <div className="border-b border-border bg-secondary/30 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                 {deptName} <span className="ml-1 font-normal normal-case text-muted-foreground/70">({groupItems.length})</span>
               </div>
@@ -255,7 +307,8 @@ export function EquipmentRosterCard({
                 ))}
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
       )}
 

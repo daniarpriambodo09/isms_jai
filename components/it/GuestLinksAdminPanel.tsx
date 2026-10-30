@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { copyText } from '@/lib/clipboard'
+import { downloadExcel } from '@/lib/excel-export'
 import {
   buildSuggestedNetworkConfig,
   type ItGuestAccessLink,
@@ -39,6 +40,21 @@ interface GuestLinksAdminPanelProps {
   defaultApproverName?: string
   onDataChanged?: () => void
 }
+
+const MONTH_NAMES = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+]
 
 const inputClass =
   'h-10 w-full rounded-xl border border-input bg-card px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-ring focus:ring-4 focus:ring-ring/15'
@@ -56,6 +72,8 @@ export function GuestLinksAdminPanel({
   })
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedYear, setSelectedYear] = useState<string>('all')
+  const [selectedMonth, setSelectedMonth] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -324,9 +342,116 @@ export function GuestLinksAdminPanel({
     }
   }
 
-  const countWaitingGuest = links.filter((l) => l.status === 'link_created').length
-  const countWaitingApproval = links.filter((l) => l.status === 'submitted').length
-  const countApproved = links.filter((l) => l.status === 'approved').length
+  const availableYears = React.useMemo(() => {
+    const years = new Set<number>()
+    years.add(new Date().getFullYear())
+    links.forEach((l) => {
+      if (l.seq_year) years.add(l.seq_year)
+    })
+    return Array.from(years).sort((a, b) => b - a)
+  }, [links])
+
+  const filteredLinks = React.useMemo(() => {
+    return links.filter((item) => {
+      if (selectedYear !== 'all' && item.seq_year !== Number(selectedYear)) return false
+      if (selectedMonth !== 'all' && item.seq_month !== Number(selectedMonth)) return false
+      return true
+    })
+  }, [links, selectedYear, selectedMonth])
+
+  const countWaitingGuest = filteredLinks.filter((l) => l.status === 'link_created').length
+  const countWaitingApproval = filteredLinks.filter((l) => l.status === 'submitted').length
+  const countApproved = filteredLinks.filter((l) => l.status === 'approved').length
+
+  const handleExportGuestLinksExcel = () => {
+    if (filteredLinks.length === 0) return
+    const monthLabel = selectedMonth !== 'all' ? `_${MONTH_NAMES[Number(selectedMonth) - 1]}` : ''
+    const yearLabel = selectedYear !== 'all' ? `_${selectedYear}` : ''
+    const filename = `Rekap_Link_Tamu_IT_PT_JAI${yearLabel}${monthLabel}_${new Date().toISOString().slice(0, 10)}`
+
+    const headers = [
+      'No',
+      'No. Urut Bulanan',
+      'Kode Link Unik',
+      'Nama Tamu',
+      'Perusahaan / Instansi',
+      'Departemen Dituju',
+      'Tanggal Kunjungan',
+      'Tgl Rencana Kembali',
+      'Tipe Tamu',
+      'Status Akses',
+      'Status Form 1 (Alat IT)',
+      'No. Dokumen Form 1',
+      'Status Form 2 (Network)',
+      'No. Dokumen Form 2',
+      'SSID Wi-Fi',
+      'IP Address Resmi',
+      'Mode IP',
+      'Subnet Mask',
+      'Default Gateway',
+      'DNS Primary',
+      'DNS Secondary',
+      'Username Login',
+      'Password Login',
+      'MAC Address Perangkat',
+      'Disetujui Oleh',
+      'Waktu Approval',
+      'Catatan Approval / Penolakan',
+      'Link Portal Tamu',
+    ]
+
+    const rows = filteredLinks.map((item, idx) => {
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const guestUrl = `${origin}${API_BASE_PATH}/tamu-it/${item.link_code}`
+      const statusLabel =
+        item.status === 'approved'
+          ? 'DISETUJUI (AKTIF)'
+          : item.status === 'submitted'
+          ? 'MENUNGGU APPROVAL IT'
+          : item.status === 'rejected'
+          ? 'DITOLAK'
+          : 'MENUNGGU DIISI TAMU'
+
+      const form1Doc = item.equipment_request?.request_no || '-'
+      const form1Status = item.equipment_request?.status || (item.equipment_request_id ? 'terisi' : 'belum diisi')
+      const form2Doc = item.network_submission?.request_no || '-'
+      const form2Status = item.network_submission?.status || (item.network_submission_id ? 'terisi' : 'belum diisi')
+      const macAddress = (item.network_submission?.form_data as any)?.mac_address || '-'
+
+      return [
+        idx + 1,
+        `#${String(item.seq_no).padStart(3, '0')}`,
+        item.link_code,
+        item.guest_name,
+        item.company_name || '-',
+        item.department || '-',
+        item.visit_date || '-',
+        item.visit_end_date || '-',
+        item.is_walk_in ? 'Walk-in (Dadakan)' : 'Terjadwal',
+        statusLabel,
+        form1Status,
+        form1Doc,
+        form2Status,
+        form2Doc,
+        item.network_ssid || 'JAI-CORP-GUEST',
+        item.assigned_ip || '-',
+        item.ip_mode || 'dhcp',
+        item.subnet_mask || '255.255.255.0',
+        item.gateway || '192.168.50.1',
+        item.dns_primary || '192.168.1.10',
+        item.dns_secondary || '8.8.8.8',
+        item.network_username || '-',
+        item.network_password || '-',
+        macAddress,
+        item.approved_by || '-',
+        item.approved_at || '-',
+        item.approval_notes || item.rejection_reason || '-',
+        guestUrl,
+      ]
+    })
+
+    downloadExcel(filename, headers, rows, 'Rekap Link Tamu IT')
+  }
 
   return (
     <div className="space-y-5">
@@ -406,8 +531,8 @@ export function GuestLinksAdminPanel({
         {/* Ringkasan Statistik */}
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="rounded-xl border border-border bg-muted/20 p-3.5">
-            <p className="text-[11px] font-semibold text-muted-foreground">Total Link Tamu</p>
-            <p className="mt-1 text-xl font-bold text-foreground">{links.length}</p>
+            <p className="text-[11px] font-semibold text-muted-foreground">Total Link Tamu (Terfilter)</p>
+            <p className="mt-1 text-xl font-bold text-foreground">{filteredLinks.length}</p>
           </div>
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3.5">
             <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
@@ -437,53 +562,117 @@ export function GuestLinksAdminPanel({
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {[
-            { id: 'all', label: 'Semua Link' },
-            { id: 'submitted', label: 'Menunggu Approval IT' },
-            { id: 'link_created', label: 'Menunggu Diisi Tamu' },
-            { id: 'approved', label: 'Disetujui (Aktif)' },
-            { id: 'rejected', label: 'Ditolak' },
-          ].map((tab) => (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Status Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: 'all', label: 'Semua Link' },
+              { id: 'submitted', label: 'Menunggu Approval IT' },
+              { id: 'link_created', label: 'Menunggu Diisi Tamu' },
+              { id: 'approved', label: 'Disetujui (Aktif)' },
+              { id: 'rejected', label: 'Ditolak' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setStatusFilter(tab.id)}
+                className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                  statusFilter === tab.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'border border-border bg-card text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Export to Excel Button */}
+          <div className="flex items-center gap-2">
             <button
-              key={tab.id}
               type="button"
-              onClick={() => setStatusFilter(tab.id)}
-              className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
-                statusFilter === tab.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'border border-border bg-card text-muted-foreground hover:text-foreground'
-              }`}
+              onClick={handleExportGuestLinksExcel}
+              disabled={filteredLinks.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white transition shadow-xs disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              title="Ekspor rekap link tamu & jaringan ke file Excel (.xlsx)"
             >
-              {tab.label}
+              <Download className="size-3.5" />
+              <span>Ekspor Rekap Excel ({filteredLinks.length})</span>
             </button>
-          ))}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative w-full sm:w-64">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama, kode link, username, IP..."
-              className="h-10 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-xs text-foreground outline-none focus:border-ring"
-            />
+        {/* Second Row: Month/Year Dropdown & Search & Refresh */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">Filter Periode:</span>
+            {/* Year Selector */}
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="h-9 rounded-xl border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none focus:border-ring cursor-pointer"
+            >
+              <option value="all">Semua Tahun</option>
+              {availableYears.map((yr) => (
+                <option key={yr} value={yr}>
+                  Tahun {yr}
+                </option>
+              ))}
+            </select>
+
+            {/* Month Selector */}
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="h-9 rounded-xl border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none focus:border-ring cursor-pointer"
+            >
+              <option value="all">Semua Bulan</option>
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={idx + 1} value={idx + 1}>
+                  Bulan {String(idx + 1).padStart(2, '0')} - {name}
+                </option>
+              ))}
+            </select>
+
+            {(selectedYear !== 'all' || selectedMonth !== 'all') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedYear('all')
+                  setSelectedMonth('all')
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground underline ml-1 cursor-pointer"
+              >
+                Reset Periode
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={fetchGuestLinks}
-            aria-label="Muat ulang daftar link tamu"
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-muted"
-          >
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            Refresh
-          </button>
+
+          <div className="flex items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama, kode link, IP..."
+                className="h-9 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-xs text-foreground outline-none focus:border-ring"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={fetchGuestLinks}
+              aria-label="Muat ulang daftar link tamu"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-muted cursor-pointer"
+            >
+              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -507,15 +696,14 @@ export function GuestLinksAdminPanel({
                     Memuat daftar link akses tamu...
                   </td>
                 </tr>
-              ) : links.length === 0 ? (
+              ) : filteredLinks.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    Belum ada link tamu yang dibuat. Klik tombol{' '}
-                    <strong>&quot;Generate Link Tamu (Per Orang)&quot;</strong> di atas untuk membuat link baru.
+                    Tidak ada link tamu yang cocok dengan filter atau belum ada link yang dibuat.
                   </td>
                 </tr>
               ) : (
-                links.map((item) => {
+                filteredLinks.map((item) => {
                   const fullUrl = buildGuestUrl(item.link_code)
                   return (
                     <tr key={item.id} className="hover:bg-muted/20 transition">
@@ -742,20 +930,20 @@ export function GuestLinksAdminPanel({
                       </td>
 
                       {/* Kolom 5: Tombol Aksi Bertahap (Tahap 1 -> Tahap 2A -> Tahap 2B) */}
-                      <td className="px-4 py-3.5 align-top text-right whitespace-nowrap min-w-[280px]">
-                        <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                      <td className="px-4 py-3.5 align-top text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
                           {/* TAHAP 1A: Persetujuan IAA / Manager Departemen pada Form 1 (Masuk/Keluar) terlebih dahulu! */}
                           {item.equipment_request && item.equipment_request.status === 'pending' && (
                             <button
                               type="button"
                               disabled={processingForm1Id === item.id}
                               onClick={() => handleQuickApproveForm1Manager(item)}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50 transition"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50 transition cursor-pointer"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                               {processingForm1Id === item.id
                                 ? 'Menyetujui...'
-                                : '1A. Approve IAA / Mgr Dept (Form 1)'}
+                                : '1A. ACC Mgr (Form 1)'}
                             </button>
                           )}
 
@@ -765,12 +953,12 @@ export function GuestLinksAdminPanel({
                               type="button"
                               disabled={processingForm1Id === item.id}
                               onClick={() => handleQuickApproveForm1(item)}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition cursor-pointer"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                               {processingForm1Id === item.id
                                 ? 'Memverifikasi...'
-                                : '1B. Approve Check IT (Form 1)'}
+                                : '1B. ACC IT (Form 1)'}
                             </button>
                           )}
 
@@ -779,7 +967,7 @@ export function GuestLinksAdminPanel({
                             <button
                               type="button"
                               onClick={() => openApprovalModal(item, 'approve')}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition cursor-pointer"
                             >
                               <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
                               {item.status === 'approved'
@@ -801,10 +989,10 @@ export function GuestLinksAdminPanel({
                                 type="button"
                                 disabled={processingIaaId === item.id}
                                 onClick={() => handleQuickApproveIaa(item)}
-                                className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50 transition"
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50 transition cursor-pointer"
                               >
                                 <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                                {processingIaaId === item.id ? 'Menyimpan...' : '3. Approve IAA (Pak Tsu)'}
+                                {processingIaaId === item.id ? '...' : '3. ACC IAA'}
                               </button>
                             )}
 
@@ -812,7 +1000,7 @@ export function GuestLinksAdminPanel({
                             <button
                               type="button"
                               onClick={() => openApprovalModal(item, 'reject')}
-                              className="inline-flex items-center gap-1 rounded-xl border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/20 transition"
+                              className="inline-flex items-center gap-1 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive hover:bg-destructive/20 transition cursor-pointer"
                             >
                               <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
                               Tolak
@@ -824,7 +1012,7 @@ export function GuestLinksAdminPanel({
                             disabled={deletingId === item.id}
                             onClick={() => handleDeleteLink(item)}
                             title="Hapus Link Tamu"
-                            className="inline-flex items-center gap-1 rounded-xl border border-destructive/40 bg-card px-2.5 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 transition"
+                            className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 bg-card px-2.5 py-1 text-xs font-semibold text-destructive hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 transition cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                             Hapus

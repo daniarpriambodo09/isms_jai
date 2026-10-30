@@ -508,80 +508,125 @@ export default function GuestItCombinedFormPage() {
             </div>
 
             {/* 3-Step Visual Progress Tracker */}
-            <div className="grid grid-cols-1 gap-2.5 border-t border-border pt-4 sm:grid-cols-3">
-              <div
-                className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 ${
-                  guestLink.status === 'link_created'
-                    ? 'border-primary bg-primary/8 text-foreground'
-                    : 'border-emerald-500/30 bg-emerald-500/5 text-foreground'
-                }`}
-              >
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    guestLink.status === 'link_created'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-emerald-600 text-white'
-                  }`}
-                >
-                  {guestLink.status === 'link_created' ? '1' : '✓'}
+            <div className="border-t border-border pt-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Alur Registrasi Akses Tamu Terpadu
                 </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold truncate">1. Pengisian 2 Formulir</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    Form Alat IT (001) &amp; Network (003)
-                  </p>
-                </div>
+                <span className="text-[11px] font-semibold text-primary">
+                  {guestLink.status === 'approved'
+                    ? 'Tahap 3 dari 3 • Akses Jaringan Aktif'
+                    : guestLink.network_submission
+                    ? 'Tahap 2 dari 3 • Menunggu Approval IT'
+                    : 'Tahap 1 dari 3 • Pengisian Data Alat & Jaringan'}
+                </span>
               </div>
 
-              <div
-                className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 ${
-                  guestLink.status === 'submitted'
-                    ? 'border-blue-500/40 bg-blue-500/10 text-foreground'
-                    : guestLink.status === 'approved'
-                    ? 'border-emerald-500/30 bg-emerald-500/5 text-foreground'
-                    : 'border-border bg-muted/20 text-muted-foreground'
-                }`}
-              >
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    guestLink.status === 'submitted'
-                      ? 'bg-blue-600 text-white'
-                      : guestLink.status === 'approved'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-muted text-muted-foreground'
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                {/* Step 1 */}
+                <div
+                  className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                    guestLink.equipment_request
+                      ? 'border-emerald-500/40 bg-emerald-500/5'
+                      : 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary/20'
                   }`}
                 >
-                  {guestLink.status === 'approved' ? '✓' : '2'}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold truncate">2. Cek IT &amp; Alokasi IP</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    Verifikasi Admin IT &amp; Approval IAA
-                  </p>
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      guestLink.equipment_request
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-primary text-primary-foreground'
+                    }`}
+                  >
+                    {guestLink.equipment_request ? '✓' : '1'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-bold truncate text-foreground">1. Izin Alat IT</p>
+                      {guestLink.equipment_request ? (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Selesai</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-primary">Langkah 1</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      Form 001/002: Masuk / Keluar Alat
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div
-                className={`flex items-center gap-3 rounded-xl border px-3.5 py-2.5 ${
-                  guestLink.status === 'approved'
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-foreground'
-                    : 'border-border bg-muted/20 text-muted-foreground'
-                }`}
-              >
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                {/* Step 2 */}
+                <div
+                  className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                    guestLink.network_submission
+                      ? 'border-emerald-500/40 bg-emerald-500/5'
+                      : guestLink.equipment_request
+                      ? 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary/20'
+                      : 'border-border bg-muted/20 text-muted-foreground'
+                  }`}
+                >
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      guestLink.network_submission
+                        ? 'bg-emerald-600 text-white'
+                        : guestLink.equipment_request
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {guestLink.network_submission ? '✓' : '2'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-bold truncate text-foreground">2. Akses Network</p>
+                      {guestLink.network_submission ? (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Selesai</span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-muted-foreground">Form 003</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      Form 003: Permohonan Koneksi
+                    </p>
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div
+                  className={`flex items-center gap-3 rounded-xl border p-3 transition ${
                     guestLink.status === 'approved'
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-muted text-muted-foreground'
+                      ? 'border-emerald-500/50 bg-emerald-500/10 shadow-xs'
+                      : guestLink.status === 'submitted' || guestLink.network_submission
+                      ? 'border-blue-500/40 bg-blue-500/5'
+                      : 'border-border bg-muted/20 text-muted-foreground'
                   }`}
                 >
-                  {guestLink.status === 'approved' ? '✓' : '3'}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold truncate">3. Kredensial Jaringan</p>
-                  <p className="text-[11px] text-muted-foreground truncate">
-                    Username, Password, IP &amp; DNS Aktif
-                  </p>
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      guestLink.status === 'approved'
+                        ? 'bg-emerald-600 text-white'
+                        : guestLink.status === 'submitted' || guestLink.network_submission
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {guestLink.status === 'approved' ? '✓' : '3'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-bold truncate text-foreground">3. Slip &amp; Wi-Fi</p>
+                      {guestLink.status === 'approved' ? (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Aktif</span>
+                      ) : guestLink.network_submission ? (
+                        <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">Verifikasi</span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-muted-foreground">Slip Digital</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      Kredensial IP &amp; QR Wi-Fi
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1318,20 +1363,33 @@ export default function GuestItCombinedFormPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="mac-address" className={labelClass}>
-                    MAC Address Perangkat (Wi-Fi / LAN) <span className="text-destructive">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="mac-address" className="text-xs font-semibold text-foreground">
+                      MAC Address Perangkat (Wi-Fi / LAN) <span className="text-destructive">*</span>
+                    </label>
+                    <span className="text-[10px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md">
+                      Format Otomatis (XX:XX:XX:XX:XX:XX)
+                    </span>
+                  </div>
                   <input
                     id="mac-address"
                     name="mac_address"
                     type="text"
                     required
+                    maxLength={17}
                     enterKeyHint="next"
                     value={macAddress}
-                    onChange={(e) => setMacAddress(e.target.value)}
-                    placeholder="Contoh: 00:1A:2B:3C:4D:5E"
-                    className={`${inputClass} font-mono`}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^a-fA-F0-9]/g, '').toUpperCase().slice(0, 12)
+                      const parts = raw.match(/.{1,2}/g)
+                      setMacAddress(parts ? parts.join(':') : raw)
+                    }}
+                    placeholder="Contoh: A1:B2:C3:D4:E5:F6"
+                    className={`${inputClass} font-mono tracking-wider font-semibold`}
                   />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Ketik angka/huruf tanpa perlu mengetik titik dua (otomatis dirapikan). Contoh panduan cari MAC: Buka <em>Settings &gt; Wi-Fi &gt; Hardware Properties</em> laptop Anda.
+                  </p>
                 </div>
 
                 <div>

@@ -98,7 +98,7 @@ export default function KelolaIzinAlatItPage() {
     }
   }
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'returned' | 'rejected'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'approved' | 'returned' | 'rejected' | 'overdue'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const [itSearchQuery, setItSearchQuery] = useState('')
@@ -248,9 +248,29 @@ export default function KelolaIzinAlatItPage() {
     }
   }, [username])
 
+  const isRequestOverdue = (req: ItEquipmentRequest): boolean => {
+    if (req.form_type !== 'out') return false
+    if (req.status === 'returned' || req.status === 'rejected') return false
+    if (!req.date_out_plan) return false
+    const todayStr = new Date().toISOString().slice(0, 10)
+    return req.date_out_plan < todayStr
+  }
+
+  const getOverdueDays = (dateOutPlan?: string | null): number => {
+    if (!dateOutPlan) return 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const plan = new Date(dateOutPlan)
+    plan.setHours(0, 0, 0, 0)
+    const diffTime = today.getTime() - plan.getTime()
+    return Math.max(1, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
+  }
+
   const filteredRequests = useMemo(() => {
     return requests.filter((r) => {
-      if (activeTab === 'pending') {
+      if (activeTab === 'overdue') {
+        if (!isRequestOverdue(r)) return false
+      } else if (activeTab === 'pending') {
         if (r.status !== 'pending' && r.status !== 'approved_manager') return false
       } else if (activeTab !== 'all' && r.status !== activeTab) {
         return false
@@ -274,6 +294,7 @@ export default function KelolaIzinAlatItPage() {
       approved: requests.filter((r) => r.status === 'approved').length,
       returned: requests.filter((r) => r.status === 'returned').length,
       rejected: requests.filter((r) => r.status === 'rejected').length,
+      overdue: requests.filter((r) => isRequestOverdue(r)).length,
     }
   }, [requests])
 
@@ -498,14 +519,19 @@ export default function KelolaIzinAlatItPage() {
         )
         .join('; ')
 
+      const isOverdue = isRequestOverdue(req)
       const statusLabel =
-        req.status === 'approved'
+        isOverdue
+          ? `TERLAMBAT KEMBALI (${getOverdueDays(req.date_out_plan)} hari - Rencana: ${req.date_out_plan})`
+          : req.status === 'approved'
           ? 'Disetujui (Aktif)'
           : req.status === 'returned'
           ? 'Dikembalikan'
           : req.status === 'rejected'
           ? 'Ditolak'
-          : 'Menunggu ACC'
+          : req.status === 'approved_manager'
+          ? 'Menunggu Check IT (ACC Mgr)'
+          : 'Menunggu ACC IAA/Mgr'
 
       return [
         idx + 1,
@@ -710,7 +736,7 @@ export default function KelolaIzinAlatItPage() {
 
         {/* Metric KPI Cards for Equipment */}
         {mainSection === 'equipment' && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 bg-white/5 backdrop-blur-sm p-3 rounded-xl shadow-md">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4 bg-white/5 backdrop-blur-sm p-3 rounded-xl shadow-md">
             <div
               onClick={() => setActiveTab('all')}
               className={`p-3.5 rounded-xl border cursor-pointer transition ${
@@ -749,6 +775,24 @@ export default function KelolaIzinAlatItPage() {
                 <CheckCircle2 className="size-3" /> Di-ACC (Aktif)
               </div>
               <div className="text-2xl font-bold text-[#1a6e3a] mt-1">{stats.approved}</div>
+            </div>
+
+            <div
+              onClick={() => setActiveTab('overdue')}
+              className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                activeTab === 'overdue'
+                  ? 'bg-red-500/20 border-red-500 ring-2 ring-red-500/30'
+                  : stats.overdue > 0
+                  ? 'bg-red-500/10 border-red-500/40 hover:bg-red-500/15'
+                  : 'bg-card border-border hover:bg-secondary/30'
+              }`}
+            >
+              <div className={`text-[11px] font-semibold flex items-center gap-1 ${stats.overdue > 0 ? 'text-red-700 dark:text-red-400 font-bold' : 'text-muted-foreground'}`}>
+                <AlertTriangle className={`size-3 ${stats.overdue > 0 ? 'text-red-600 animate-pulse' : 'text-muted-foreground'}`} /> Terlambat Kembali
+              </div>
+              <div className={`text-2xl font-bold mt-1 ${stats.overdue > 0 ? 'text-red-700 dark:text-red-400' : 'text-foreground'}`}>
+                {stats.overdue}
+              </div>
             </div>
 
             <div
@@ -867,26 +911,32 @@ export default function KelolaIzinAlatItPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold text-muted-foreground">
-              {(['all', 'pending', 'approved', 'returned', 'rejected'] as const).map((tab) => (
+              {(['all', 'pending', 'approved', 'overdue', 'returned', 'rejected'] as const).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-1.5 rounded-xl capitalize whitespace-nowrap transition ${
+                  className={`px-3 py-1.5 rounded-xl capitalize whitespace-nowrap transition cursor-pointer ${
                     activeTab === tab
-                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      ? tab === 'overdue'
+                        ? 'bg-red-600 text-white shadow-xs font-bold'
+                        : 'bg-primary text-primary-foreground shadow-xs'
+                      : tab === 'overdue' && stats.overdue > 0
+                      ? 'border border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300 font-bold'
                       : 'hover:bg-secondary text-foreground'
                   }`}
                 >
                   {tab === 'all'
-                    ? 'Semua'
+                    ? `Semua (${stats.total})`
                     : tab === 'pending'
-                    ? 'Menunggu ACC'
+                    ? `Menunggu ACC (${stats.pending})`
                     : tab === 'approved'
-                    ? 'Disetujui'
+                    ? `Disetujui (${stats.approved})`
+                    : tab === 'overdue'
+                    ? `⚠️ Terlambat (${stats.overdue})`
                     : tab === 'returned'
-                    ? 'Dikembalikan'
-                    : 'Ditolak'}
+                    ? `Dikembalikan (${stats.returned})`
+                    : `Ditolak (${stats.rejected})`}
                 </button>
               ))}
             </div>
@@ -940,6 +990,8 @@ export default function KelolaIzinAlatItPage() {
                     const isApproved = req.status === 'approved'
                     const isReturned = req.status === 'returned'
                     const isRejected = req.status === 'rejected'
+                    const isOverdue = isRequestOverdue(req)
+                    const overdueDays = isOverdue ? getOverdueDays(req.date_out_plan) : 0
 
                     return (
                       <tr key={req.id} className="hover:bg-secondary/30 transition">
@@ -964,7 +1016,9 @@ export default function KelolaIzinAlatItPage() {
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <div className="text-foreground font-medium">{req.date_in}</div>
-                          <div className="text-muted-foreground text-[10px]">s/d {req.date_out_plan}</div>
+                          <div className={`text-[10px] ${isOverdue ? 'text-red-600 font-bold' : 'text-muted-foreground'}`}>
+                            s/d {req.date_out_plan} {isOverdue && '(Lewat Batas)'}
+                          </div>
                         </td>
                         <td className="py-3 px-4 max-w-xs">
                           <div className="flex flex-wrap gap-1">
@@ -990,14 +1044,18 @@ export default function KelolaIzinAlatItPage() {
                               <Clock className="size-3" /> 2. ACC Mgr/IAA · Tunggu Check IT
                             </span>
                           )}
-                          {isApproved && (
+                          {isOverdue ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/15 text-red-700 dark:text-red-400 border border-red-500/30 text-[11px] font-bold animate-pulse">
+                              <AlertTriangle className="size-3 text-red-600" /> Terlambat Kembali ({overdueDays} hari)
+                            </span>
+                          ) : isApproved ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#dff5e6] text-[#1a6e3a] text-[11px] font-semibold">
                               <CheckCircle2 className="size-3" />{' '}
                               {req.form_type === 'out'
                                 ? 'Izin Aktif · Sedang Dibawa Keluar (Belum Closed)'
                                 : 'Di-ACC Lengkap (Masuk)'}
                             </span>
-                          )}
+                          ) : null}
                           {isReturned && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/15 text-primary text-[11px] font-semibold">
                               <CheckCircle2 className="size-3" /> Selesai (Closed / Sudah Kembali)
@@ -1387,6 +1445,20 @@ export default function KelolaIzinAlatItPage() {
               {actionSuccess && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs flex items-center gap-2">
                   <CheckCircle2 className="size-4 shrink-0" /> {actionSuccess}
+                </div>
+              )}
+
+              {isRequestOverdue(selectedReq) && (
+                <div className="p-4 bg-red-500/10 border-2 border-red-500/40 rounded-xl text-red-800 dark:text-red-300 flex items-start gap-3 shadow-xs">
+                  <AlertTriangle className="size-5 text-red-600 shrink-0 mt-0.5 animate-pulse" />
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-xs uppercase tracking-wide block text-red-700 dark:text-red-400">
+                      ⚠️ PERINGATAN: PERANGKAT TELAH TERLAMBAT KEMBALI ({getOverdueDays(selectedReq.date_out_plan)} HARI)
+                    </span>
+                    <p className="text-[11px] leading-relaxed text-red-800/90 dark:text-red-300">
+                      Batas tanggal rencana pengembalian adalah <strong>{selectedReq.date_out_plan}</strong>. Mohon segera hubungi pemohon ({selectedReq.applicant_name} / {selectedReq.applicant_phone || selectedReq.department}) atau klik <strong>&quot;Pengecekan Pengembalian (Return Check)&quot;</strong> setelah barang fisik diterima kembali oleh Divisi IT.
+                    </p>
+                  </div>
                 </div>
               )}
 

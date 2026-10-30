@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import QRCode from 'qrcode'
 import {
   Wifi,
   Server,
@@ -16,6 +17,7 @@ import {
   Calendar,
   User,
   Building,
+  QrCode,
   ExternalLink,
   X,
 } from 'lucide-react'
@@ -110,6 +112,27 @@ export function NetworkPassCard({
 }: NetworkPassCardProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [wifiQrUrl, setWifiQrUrl] = useState<string>('')
+
+  useEffect(() => {
+    const ssid = data.ssid || 'JAI-CORP-GUEST'
+    const password = data.networkPassword || ''
+    const escapeWifi = (s: string) => s.replace(/([\\;,":])/g, '\\$1')
+    const payload = password
+      ? `WIFI:S:${escapeWifi(ssid)};T:WPA;P:${escapeWifi(password)};;`
+      : `WIFI:S:${escapeWifi(ssid)};T:nopass;;`
+
+    QRCode.toDataURL(payload, {
+      margin: 1,
+      width: 240,
+      color: {
+        dark: '#064e3b',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => setWifiQrUrl(url))
+      .catch((err) => console.error('Failed to generate Wi-Fi QR:', err))
+  }, [data.ssid, data.networkPassword])
 
   const handleCopy = async (field: string, text: string) => {
     const ok = await copyText(text)
@@ -215,6 +238,30 @@ export function NetworkPassCard({
                   <div class="value">${data.companyOrDept || '-'}</div>
                 </div>
               </div>
+
+              ${
+                wifiQrUrl
+                  ? `
+              <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 16px; background: #ecfdf5; border: 1.5px solid #10b981; border-radius: 10px; padding: 12px;">
+                <div style="background: #ffffff; padding: 4px; border-radius: 8px; border: 1px solid #a7f3d0; text-align: center; flex-shrink: 0;">
+                  <img src="${wifiQrUrl}" width="100" height="100" style="display: block;" alt="Wi-Fi QR Code" />
+                  <div style="font-size: 8px; font-weight: 800; color: #047857; margin-top: 3px; letter-spacing: 0.5px;">SCAN WI-FI CEPAT</div>
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-size: 11px; font-weight: 800; color: #047857; text-transform: uppercase;">
+                    Akses Wi-Fi Cepat via Kamera HP / Tablet
+                  </div>
+                  <div style="font-size: 11px; color: #065f46; margin-top: 3px; line-height: 1.4;">
+                    Pindai QR Code di samping menggunakan kamera smartphone (iOS / Android) untuk langsung terhubung otomatis ke jaringan Wi-Fi <strong>${data.ssid || 'JAI-CORP-GUEST'}</strong>.
+                  </div>
+                  <div style="margin-top: 6px; font-size: 11px; color: #1e293b; background: #ffffff; padding: 4px 8px; border-radius: 6px; border: 1px solid #cbd5e1; display: inline-block;">
+                    SSID: <strong>${data.ssid || 'JAI-CORP-GUEST'}</strong> ${data.networkPassword ? `&bull; Password: <strong>${data.networkPassword}</strong>` : ''}
+                  </div>
+                </div>
+              </div>
+              `
+                  : ''
+              }
 
               <div class="box-highlight" style="margin-bottom: 12px; text-align: center;">
                 <div class="label" style="color: #047857;">Alokasi IP Address Resmi (IPv4)</div>
@@ -352,6 +399,80 @@ export function NetworkPassCard({
               </span>
             </div>
           </div>
+        </div>
+
+        {/* QR CODE WI-FI SCANNER SECTION */}
+        {wifiQrUrl && (
+          <div className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-card to-teal-500/10 p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 shadow-xs">
+            <div className="shrink-0 flex flex-col items-center">
+              <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-emerald-300">
+                <img
+                  src={wifiQrUrl}
+                  alt={`QR Code Wi-Fi ${data.ssid || 'JAI-CORP-GUEST'}`}
+                  className="size-32 sm:size-36 object-contain rounded-lg"
+                />
+              </div>
+              <span className="text-[10px] font-extrabold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider mt-1.5 flex items-center gap-1">
+                <QrCode className="size-3" /> Scan Kamera HP
+              </span>
+            </div>
+
+            <div className="flex-1 space-y-2 text-center sm:text-left">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-600/15 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                <Wifi className="size-3.5 text-emerald-700 dark:text-emerald-400" /> Konek Cepat Wi-Fi Tamu
+              </div>
+              <h3 className="text-sm font-bold text-foreground">
+                Pindai QR Code untuk Terhubung Otomatis
+              </h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Arahkan kamera smartphone (iPhone/Android) ke kode QR untuk langsung tersambung ke Wi-Fi{' '}
+                <strong className="text-foreground">{data.ssid || 'JAI-CORP-GUEST'}</strong> tanpa perlu mengetik kata sandi secara manual.
+              </p>
+              <div className="pt-1 flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs">
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border font-mono font-semibold text-foreground">
+                  <span>SSID: {data.ssid || 'JAI-CORP-GUEST'}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy('ssid', data.ssid || 'JAI-CORP-GUEST')}
+                    className="p-0.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title="Salin SSID"
+                  >
+                    {copiedField === 'ssid' ? (
+                      <Check className="size-3 text-emerald-600" />
+                    ) : (
+                      <Copy className="size-3" />
+                    )}
+                  </button>
+                </div>
+                {data.networkPassword && (
+                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border font-mono font-semibold text-emerald-700 dark:text-emerald-400">
+                    <span>Pass: {showPassword ? data.networkPassword : '••••••••••••'}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy('qr_pass', data.networkPassword || '')}
+                      className="p-0.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title="Salin Password"
+                    >
+                      {copiedField === 'qr_pass' ? (
+                        <Check className="size-3 text-emerald-600" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SECTION DIVIDER: PENGATURAN MANUAL */}
+        <div className="flex items-center gap-3 pt-1">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-2 bg-card rounded-md border border-border/60 py-0.5">
+            Atau Hubungkan Manual (Laptop / PC / Konfigurasi IP)
+          </span>
+          <div className="h-px flex-1 bg-border" />
         </div>
 
         {/* PROMINENT IP ADDRESS CARD */}

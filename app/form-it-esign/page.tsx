@@ -1350,7 +1350,7 @@ function FormItContent() {
             <div className="mt-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Alur Tanda Tangan Digital &amp; Otorisasi Pejabat
+                  Alur Tanda Tangan Digital &amp; Otorisasi Approver
                 </h3>
                 <span className="text-[11px] text-muted-foreground font-medium">
                   {submissionResult.signatures?.length || 0} Tingkat Persetujuan
@@ -1440,7 +1440,7 @@ function FormItContent() {
                           <div className="rounded-xl border border-border bg-secondary/40 p-3 text-xs">
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
-                                Otorisasi Pejabat
+                                Otorisasi Approver
                               </span>
                               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-accent-foreground bg-accent/20 border border-accent/40 rounded px-1.5 py-0.5">
                                 <span className="size-1 rounded-full bg-accent animate-pulse" />
@@ -1448,7 +1448,7 @@ function FormItContent() {
                               </span>
                             </div>
                             <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">
-                              Persetujuan digital dilakukan oleh pejabat bersangkutan melalui email dinas terverifikasi atau portal persetujuan resmi.
+                              Persetujuan digital dilakukan oleh approver bersangkutan melalui email dinas terverifikasi atau portal persetujuan resmi.
                             </p>
                             <div className="mt-2.5 pt-2 border-t border-border flex justify-end">
                               <Link
@@ -1670,7 +1670,7 @@ function FormItContent() {
 
               <div className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-[11px] font-mono font-semibold text-foreground self-start shrink-0">
                 <Users className="size-3.5 text-primary" />
-                <span>{currentMeta.approvalCount} Tingkat E-Sign</span>
+                <span>{approvers.length > 0 ? approvers.length : currentMeta.approvalCount} Tingkat E-Sign</span>
               </div>
             </div>
 
@@ -2920,10 +2920,10 @@ function FormItContent() {
                   </span>
                   <div>
                     <h3 className="text-sm font-bold text-foreground uppercase tracking-wide">
-                      Alur Pejabat Penyetuju Form Ini (Configured Approvers)
+                      Alur Approver Form Ini (Configured Approvers)
                     </h3>
                     <p className="text-[11px] text-muted-foreground font-medium">
-                      Daftar pejabat yang akan menerima berkas untuk tanda tangan elektronik digital secara berjenjang
+                      Daftar approver yang akan menerima berkas untuk tanda tangan elektronik digital secara berjenjang
                     </p>
                   </div>
                 </div>
@@ -2933,7 +2933,7 @@ function FormItContent() {
                     href="/kelola-approver-it"
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-foreground hover:text-primary bg-secondary hover:bg-secondary/80 border border-border px-3 py-1.5 rounded-lg transition"
                   >
-                    <span>Ubah Pejabat</span>
+                    <span>Kelola Approver</span>
                     <ExternalLink className="size-3.5" />
                   </Link>
                 )}
@@ -2976,7 +2976,7 @@ function FormItContent() {
                   {loadingApprovers && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
                       <Loader2 className="size-4 animate-spin text-primary" />
-                      <span>Memuat konfigurasi pejabat approver...</span>
+                      <span>Memuat konfigurasi approver...</span>
                     </div>
                   )}
                 </div>
@@ -2986,7 +2986,7 @@ function FormItContent() {
             {/* SUBMIT ACTION BAR */}
             <div className="border-t border-border pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="text-xs text-muted-foreground">
-                Dokumen <span className="font-mono font-bold text-foreground">{currentFormDef.code}</span> akan diteruskan ke <span className="font-bold text-foreground">{currentMeta.approvalCount} pejabat penyetuju</span> sesuai urutan di atas.
+                Dokumen <span className="font-mono font-bold text-foreground">{currentFormDef.code}</span> akan diteruskan ke <span className="font-bold text-foreground">{approvers.length > 0 ? approvers.length : currentMeta.approvalCount} approver</span> sesuai urutan di atas.
               </div>
 
               <button

@@ -57,11 +57,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ request: res.rows[0] })
     }
 
-    // Require admin session for general listing
+    // Allow transparent listing for portal users; redact network password if not admin
     const admin = await getAdminFromRequest(request)
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const isAdmin = !!admin
 
     const conditions: string[] = []
     const values: any[] = []
@@ -89,7 +87,12 @@ export async function GET(request: NextRequest) {
       values
     )
 
-    return NextResponse.json({ requests: res.rows })
+    const requests = res.rows.map((r) => ({
+      ...r,
+      network_password: isAdmin ? r.network_password : (r.network_password ? '••••••••' : null),
+    }))
+
+    return NextResponse.json({ requests })
   } catch (error: any) {
     console.error('Error fetching IT equipment requests:', error)
     return NextResponse.json({ error: 'Gagal memuat data pengajuan' }, { status: 500 })

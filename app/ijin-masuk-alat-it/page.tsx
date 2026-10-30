@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -32,6 +32,9 @@ import {
   RotateCcw,
   ShieldAlert,
   Link2,
+  RefreshCw,
+  Eye,
+  ExternalLink,
 } from 'lucide-react'
 import {
   EQUIPMENT_TYPES,
@@ -105,6 +108,69 @@ function FormContent() {
   const [searchError, setSearchError] = useState('')
   const [guestLinkModalOpen, setGuestLinkModalOpen] = useState(false)
   const [guestLinkCount, setGuestLinkCount] = useState<number>(1)
+
+  // ── History & Transparency State ──
+  const [activeTab, setActiveTab] = useState<'form' | 'history'>('form')
+  const [historyList, setHistoryList] = useState<ItEquipmentRequest[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyFilterType, setHistoryFilterType] = useState<'all' | 'in' | 'out'>('all')
+  const [historyFilterStatus, setHistoryFilterStatus] = useState<string>('all')
+  const [historySearch, setHistorySearch] = useState<string>('')
+  const [historyCopiedId, setHistoryCopiedId] = useState<number | null>(null)
+
+  const fetchHistory = useCallback(
+    async (
+      typeFilter = historyFilterType,
+      statusFilter = historyFilterStatus,
+      searchVal = historySearch
+    ) => {
+      setHistoryLoading(true)
+      try {
+        const params = new URLSearchParams()
+        if (typeFilter && typeFilter !== 'all') params.set('form_type', typeFilter)
+        if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+        if (searchVal && searchVal.trim()) params.set('q', searchVal.trim())
+
+        const res = await fetch(`${API_BASE_PATH}/api/it-equipment-requests?${params.toString()}`)
+        const data = await res.json()
+        if (data.requests) {
+          setHistoryList(data.requests)
+        }
+      } catch (err) {
+        console.error('Failed to load IT equipment history:', err)
+      } finally {
+        setHistoryLoading(false)
+      }
+    },
+    [historyFilterType, historyFilterStatus, historySearch]
+  )
+
+  // Initial load to populate counts
+  useEffect(() => {
+    fetchHistory('all', 'all', '')
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory()
+    }
+  }, [activeTab, fetchHistory])
+
+  const historyCounts = useMemo(() => {
+    const all = historyList.length
+    const pending = historyList.filter(
+      (r) => r.status === 'pending' || r.status === 'approved_manager'
+    ).length
+    const approved = historyList.filter((r) => r.status === 'approved').length
+    const returned = historyList.filter((r) => r.status === 'returned').length
+    const rejected = historyList.filter((r) => r.status === 'rejected').length
+    return { all, pending, approved, returned, rejected }
+  }, [historyList])
+
+  const handleViewRequestFromHistory = (req: ItEquipmentRequest) => {
+    setSubmittedReq(req)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   // Default date in to tomorrow (H-1)
   useEffect(() => {
@@ -183,10 +249,6 @@ function FormContent() {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/it-equipment-requests`)
       if (!res.ok) {
-        if (res.status === 401) {
-          alert('Silakan login sebagai Admin IT / Security untuk mengunduh rekap Excel izin barang masuk/keluar.')
-          return
-        }
         throw new Error('Gagal memuat data pengajuan.')
       }
       const data = await res.json()
@@ -704,18 +766,33 @@ function FormContent() {
           </section>
         )}
 
-        <div className="text-center pb-8">
+        <div className="flex flex-wrap items-center justify-center gap-4 pb-8 text-xs">
           <button
             type="button"
             onClick={() => {
               setSubmittedReq(null)
+              setActiveTab('history')
+              fetchHistory()
+              window.history.replaceState({}, '', '/ijin-masuk-alat-it')
+            }}
+            className="inline-flex items-center gap-1.5 font-bold text-foreground hover:text-primary transition cursor-pointer"
+          >
+            <Clock className="size-3.5" />
+            <span>← Kembali ke Riwayat Pengajuan</span>
+          </button>
+          <span className="text-muted-foreground">&bull;</span>
+          <button
+            type="button"
+            onClick={() => {
+              setSubmittedReq(null)
+              setActiveTab('form')
               setIsCustomDept(false)
               setCustomDeptText('')
               window.history.replaceState({}, '', '/ijin-masuk-alat-it')
             }}
-            className="text-xs text-primary hover:underline transition"
+            className="text-primary hover:underline transition font-semibold cursor-pointer"
           >
-            ← Isi formulir pengajuan baru untuk tamu lain
+            + Isi formulir pengajuan baru
           </button>
         </div>
       </div>
@@ -731,29 +808,17 @@ function FormContent() {
           href="/form-aplikasi"
           className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition font-medium"
         >
-          ← Kembali ke Form Aplikasi
+          &larr; Kembali ke Form Aplikasi
         </Link>
         <div className="flex flex-wrap items-center gap-2.5">
           {adminUser && (
-            <>
-              <button
-                type="button"
-                onClick={handleExportEquipmentExcel}
-                disabled={exportingExcel}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card hover:bg-secondary px-2.5 py-1.5 text-xs font-semibold text-foreground transition shadow-2xs disabled:opacity-50 cursor-pointer"
-                title="Export rekap data izin barang masuk/keluar ke Excel (.xlsx)"
-              >
-                <Download className="size-3.5 text-primary" />
-                <span>{exportingExcel ? 'Mengunduh...' : 'Export Excel'}</span>
-              </button>
-              <Link
-                href="/kelola-izin-alat-it"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground shadow-2xs"
-              >
-                <Laptop className="size-3.5" />
-                <span>Kelola Izin Alat IT (Admin)</span>
-              </Link>
-            </>
+            <Link
+              href="/kelola-izin-alat-it"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-primary-foreground shadow-2xs"
+            >
+              <Laptop className="size-3.5" />
+              <span>Kelola Izin Alat IT (Admin)</span>
+            </Link>
           )}
           <button
             type="button"
@@ -762,6 +827,72 @@ function FormContent() {
           >
             <Search className="size-3.5" /> Sudah pernah mengajukan? Cek Status di Sini
           </button>
+        </div>
+      </div>
+
+      {/* Navigation Tabs (Form vs History) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('form')}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
+              activeTab === 'form'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+            }`}
+          >
+            <FileText className="size-4" />
+            <span>Isi Formulir Izin Alat</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('history')
+              fetchHistory()
+            }}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition cursor-pointer ${
+              activeTab === 'history'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-card text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/80'
+            }`}
+          >
+            <Clock className="size-4" />
+            <span>Riwayat Pengajuan (History)</span>
+            <span
+              className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === 'history'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-secondary text-foreground'
+              }`}
+            >
+              {historyCounts.all}
+            </span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExportEquipmentExcel}
+            disabled={exportingExcel}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-foreground px-3.5 py-2 text-xs font-bold transition shadow-2xs cursor-pointer"
+            title="Download rekap data seluruh izin barang masuk/keluar ke Excel (.xlsx)"
+          >
+            <Download className="size-3.5 text-primary" />
+            <span>{exportingExcel ? 'Mengunduh...' : 'Export Excel'}</span>
+          </button>
+          {activeTab === 'history' && (
+            <button
+              type="button"
+              onClick={() => fetchHistory()}
+              disabled={historyLoading}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`size-3.5 ${historyLoading ? 'animate-spin text-primary' : ''}`} />
+              <span className="hidden sm:inline">Refresh Data</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -802,8 +933,10 @@ function FormContent() {
         </form>
       )}
 
-      {/* Main Card Header */}
-      <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
+      {activeTab === 'form' && (
+        <>
+          {/* Main Card Header */}
+          <section className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-xs">
         <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-primary" />
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -1484,6 +1617,317 @@ function FormContent() {
           </button>
         </div>
       </form>
+      </>
+      )}
+
+      {/* ── Riwayat Pengajuan (History) View ── */}
+      {activeTab === 'history' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 sm:gap-4">
+            <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Total Izin Alat
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-foreground">{historyCounts.all}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                Menunggu ACC
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-amber-700 dark:text-amber-400">
+                {historyCounts.pending}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                Disetujui (Aktif)
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                {historyCounts.approved}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4 shadow-2xs">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-800 dark:text-blue-300">
+                Dikembalikan
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-blue-700 dark:text-blue-400">
+                {historyCounts.returned}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 shadow-2xs col-span-2 sm:col-span-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-red-800 dark:text-red-300">
+                Ditolak
+              </span>
+              <p className="mt-1.5 font-display text-2xl font-bold text-red-700 dark:text-red-400">
+                {historyCounts.rejected}
+              </p>
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-2xs sm:flex-row sm:items-center sm:justify-between">
+            {/* Tipe Izin Switcher */}
+            <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-secondary/40 p-1">
+              {[
+                { key: 'all', label: 'Semua Izin' },
+                { key: 'in', label: 'Izin Masuk (001)' },
+                { key: 'out', label: 'Izin Keluar (002)' },
+              ].map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => {
+                    setHistoryFilterType(t.key as any)
+                    fetchHistory(t.key as any, historyFilterStatus, historySearch)
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                    historyFilterType === t.key
+                      ? 'bg-primary text-primary-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Status Filter */}
+              <select
+                value={historyFilterStatus}
+                onChange={(e) => {
+                  setHistoryFilterStatus(e.target.value)
+                  fetchHistory(historyFilterType, e.target.value, historySearch)
+                }}
+                className="h-9 rounded-xl border border-input bg-card px-3 text-xs font-semibold text-foreground outline-none transition focus:border-ring"
+              >
+                <option value="all">Semua Status</option>
+                <option value="pending">Menunggu ACC</option>
+                <option value="approved">Disetujui (Aktif)</option>
+                <option value="returned">Sudah Keluar / Dikembalikan</option>
+                <option value="rejected">Ditolak</option>
+              </select>
+
+              {/* Search input */}
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Cari No. Form, Pembawa, Dept, S/N..."
+                  value={historySearch}
+                  onChange={(e) => {
+                    setHistorySearch(e.target.value)
+                    fetchHistory(historyFilterType, historyFilterStatus, e.target.value)
+                  }}
+                  className="h-9 w-full rounded-xl border border-input bg-card pl-8.5 pr-8 text-xs text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring"
+                />
+                {historySearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHistorySearch('')
+                      fetchHistory(historyFilterType, historyFilterStatus, '')
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-secondary/50 font-bold uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3.5">No. Pengajuan</th>
+                    <th className="px-4 py-3.5">Jenis Form</th>
+                    <th className="px-4 py-3.5">Pembawa / Instansi</th>
+                    <th className="px-4 py-3.5">Departemen &amp; Lokasi</th>
+                    <th className="px-4 py-3.5">Jadwal (Masuk &ndash; Keluar)</th>
+                    <th className="px-4 py-3.5">Perangkat IT</th>
+                    <th className="px-4 py-3.5">Status</th>
+                    <th className="px-4 py-3.5 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border font-medium">
+                  {historyLoading ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                        <div className="inline-flex items-center gap-2">
+                          <RefreshCw className="size-4 animate-spin text-primary" />
+                          <span>Memuat riwayat permohonan alat IT...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : historyList.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                        <div className="mx-auto flex max-w-xs flex-col items-center gap-2">
+                          <Laptop className="size-8 text-muted-foreground/50" />
+                          <p className="font-semibold text-foreground">Tidak Ada Riwayat Permohonan</p>
+                          <p className="text-[11px]">
+                            {historySearch || historyFilterStatus !== 'all' || historyFilterType !== 'all'
+                              ? 'Tidak ada permohonan yang sesuai dengan filter pencarian Anda.'
+                              : 'Belum ada permohonan izin membawa masuk atau keluar alat IT yang diajukan.'}
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    historyList.map((req) => {
+                      const isApproved = req.status === 'approved'
+                      const isReturned = req.status === 'returned'
+                      const isRejected = req.status === 'rejected'
+                      const isPending = req.status === 'pending' || req.status === 'approved_manager'
+                      const isFormIn = req.form_type === 'in'
+
+                      return (
+                        <tr key={req.id} className="hover:bg-secondary/30 transition-colors">
+                          <td className="px-4 py-3.5 font-mono font-bold text-foreground whitespace-nowrap">
+                            <span className="rounded-md border border-border bg-secondary/60 px-2 py-1">
+                              {req.request_no}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                                isFormIn
+                                  ? 'bg-primary/10 text-primary border border-primary/20'
+                                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+                              }`}
+                            >
+                              <Laptop className="size-3" />
+                              <span>{isFormIn ? '001 Masuk' : '002 Keluar'}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="font-bold text-foreground">{req.applicant_name}</div>
+                            <div className="text-[11px] text-muted-foreground truncate max-w-[180px]">
+                              {req.company_name}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="font-semibold text-foreground">{req.department}</div>
+                            <div className="text-[11px] text-muted-foreground truncate max-w-[160px]">
+                              {req.location}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap text-[11px]">
+                            <div className="text-foreground font-semibold">{req.date_in}</div>
+                            <div className="text-muted-foreground">s/d {req.date_out_plan}</div>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="font-bold text-foreground">
+                              {(req.items || []).length} Unit
+                            </div>
+                            <div
+                              className="text-[11px] text-muted-foreground truncate max-w-[180px]"
+                              title={(req.items || [])
+                                .map((it) => `${it.equipment_type} ${it.brand} (S/N: ${it.serial_no})`)
+                                .join(', ')}
+                            >
+                              {(req.items || [])
+                                .map((it) => (it.brand ? `${it.brand} ${it.model || ''}` : it.equipment_type))
+                                .slice(0, 2)
+                                .join(', ')}
+                              {(req.items || []).length > 2 ? ' ...' : ''}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3.5 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                                isApproved
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+                                  : isReturned
+                                  ? 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20'
+                                  : isRejected
+                                  ? 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'
+                                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+                              }`}
+                            >
+                              <span
+                                className={`size-1.5 rounded-full ${
+                                  isApproved
+                                    ? 'bg-emerald-500'
+                                    : isReturned
+                                    ? 'bg-blue-500'
+                                    : isRejected
+                                    ? 'bg-red-500'
+                                    : 'bg-amber-500 animate-pulse'
+                                }`}
+                              />
+                              <span>
+                                {isApproved
+                                  ? 'Disetujui (Aktif)'
+                                  : isReturned
+                                  ? 'Dikembalikan'
+                                  : isRejected
+                                  ? 'Ditolak'
+                                  : 'Menunggu ACC'}
+                              </span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleViewRequestFromHistory(req)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-secondary px-2.5 py-1.5 text-[11px] font-bold text-foreground transition shadow-2xs cursor-pointer"
+                                title="Lihat rincian status dan tracking permohonan"
+                              >
+                                <Eye className="size-3 text-primary" />
+                                <span>Lihat Detail</span>
+                              </button>
+                              {isApproved && (
+                                <a
+                                  href={`${API_BASE_PATH}/api/it-equipment-requests/${req.id}/pdf?token=${req.token}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-primary/20 bg-primary/10 hover:bg-primary hover:text-primary-foreground px-2 py-1.5 text-[11px] font-bold text-primary transition shadow-2xs"
+                                  title="Unduh Form Izin PDF Resmi Ber-QR E-Sign"
+                                >
+                                  <Download className="size-3" />
+                                  <span className="hidden lg:inline">PDF</span>
+                                </a>
+                              )}
+                              {req.token && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const url = `${window.location.origin}/ijin-masuk-alat-it?token=${req.token}`
+                                    const ok = await copyText(url)
+                                    if (ok) {
+                                      setHistoryCopiedId(req.id)
+                                      setTimeout(() => setHistoryCopiedId(null), 2000)
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-border bg-card hover:bg-secondary px-2 py-1.5 text-[11px] font-semibold text-muted-foreground transition shadow-2xs cursor-pointer"
+                                  title="Salin Tautan Status Tracking"
+                                >
+                                  {historyCopiedId === req.id ? (
+                                    <Check className="size-3 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="size-3" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       <GuestLinkGeneratorModal
         open={guestLinkModalOpen}

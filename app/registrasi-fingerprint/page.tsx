@@ -1121,7 +1121,7 @@ function FingerprintPageInner() {
             </div>
             </section>
 
-            {/* Section 3: Pejabat Penyetuju (E-Sign Approver) */}
+            {/* Section 3: Approver Penyetuju (E-Sign) */}
             <section className="space-y-4">
               <div className="flex items-center gap-3 pb-3 border-b border-border">
                 <span className="grid size-7 place-items-center rounded-lg font-mono text-xs font-bold bg-primary text-primary-foreground">
@@ -1132,7 +1132,7 @@ function FingerprintPageInner() {
                     Alur Pengesahan Resmi (E-Sign Flow)
                   </h3>
                   <p className="text-[11px] text-muted-foreground font-medium">
-                    Pejabat yang berwenang memberikan verifikasi &amp; stempel tanda tangan digital ber-QR Code
+                    Approver yang berwenang memberikan verifikasi &amp; stempel tanda tangan digital ber-QR Code
                   </p>
                 </div>
               </div>

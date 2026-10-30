@@ -80,7 +80,7 @@ function RoleForm({ draft, setDraft, withCode, kind }: { draft: Draft; setDraft:
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={labelClass}>Nama</span>
-        <input value={draft.personName} onChange={(e) => setDraft({ ...draft, personName: e.target.value })} placeholder="Nama pejabat" className={inputClass} />
+        <input value={draft.personName} onChange={(e) => setDraft({ ...draft, personName: e.target.value })} placeholder="Nama approver" className={inputClass} />
       </label>
       <label className="flex flex-col gap-1.5">
         <span className={labelClass} title="Huruf yang tercetak di bawah kotak tanda tangan (mis. TWC). Kosongkan untuk memakai 3 huruf pertama nama.">Inisial</span>

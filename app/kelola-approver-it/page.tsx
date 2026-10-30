@@ -161,7 +161,7 @@ export default function KelolaApproverItPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!roleTitle.trim() || !personName.trim()) {
-      setModalError('Jabatan Approver dan Nama Pejabat wajib diisi.')
+      setModalError('Jabatan Approver dan Nama Approver wajib diisi.')
       return
     }
 
@@ -188,7 +188,7 @@ export default function KelolaApproverItPage() {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Gagal menyimpan perubahan.')
-        setSuccessMsg(`Berhasil memperbarui data pejabat: ${personName}`)
+        setSuccessMsg(`Berhasil memperbarui data approver: ${personName}`)
       } else {
         // Add
         const res = await fetch(`${API_BASE_PATH}/api/it-form-approvers`, {
@@ -284,7 +284,7 @@ export default function KelolaApproverItPage() {
                 </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                Atur pejabat penandatangan digital (E-Sign) untuk formulir Layanan IT dan Global &amp; Special Security Area (Fingerprint).
+                Atur approver penandatangan digital (E-Sign) untuk formulir Layanan IT dan Global &amp; Special Security Area (Fingerprint).
               </p>
             </div>
           </div>
@@ -567,7 +567,7 @@ export default function KelolaApproverItPage() {
                   <th className="px-4 py-3 font-semibold">Slot / Urutan</th>
                   <th className="px-4 py-3 font-semibold">Label Slot</th>
                   <th className="px-4 py-3 font-semibold">Unit Kerja / Jabatan</th>
-                  <th className="px-4 py-3 font-semibold">Nama Pejabat (Approver)</th>
+                  <th className="px-4 py-3 font-semibold">Nama Approver Penandatangan</th>
                   <th className="px-4 py-3 font-semibold">Email Notifikasi</th>
                   <th className="px-4 py-3 font-semibold">Departemen</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
@@ -727,12 +727,12 @@ export default function KelolaApproverItPage() {
                     </select>
                   </div>
                   <div className="col-span-2">
-                    <label className={labelClass}>Nama Lengkap Pejabat (Approver)</label>
+                    <label className={labelClass}>Nama Lengkap Approver Penandatangan</label>
                     <input
                       type="text"
                       value={personName}
                       onChange={(e) => setPersonName(e.target.value)}
-                      placeholder="Nama lengkap pejabat yang bertanda tangan"
+                      placeholder="Nama lengkap approver yang bertanda tangan"
                       className={inputClass}
                       required
                     />
@@ -820,7 +820,7 @@ export default function KelolaApproverItPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="nama.pejabat@jai.co.id"
+                    placeholder="approver@jai.co.id"
                     className={inputClass}
                   />
                   <p className="mt-1 text-[11px] text-muted-foreground">

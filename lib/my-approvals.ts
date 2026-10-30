@@ -230,7 +230,7 @@ export async function listMyApprovals(email: string): Promise<{ pending: MyAppro
         effDate: row.submitted_at,
         approverName: row.approver_name,
         category: 'it_form',
-        actionUrl: `${API_BASE_PATH}${row.form_code === 'ISMS-F-02-00-002' ? '/registrasi-fingerprint' : '/form-it-esign'}?token=${row.token}`,
+        actionUrl: `${API_BASE_PATH}${row.form_code === 'ISMS-F-02-00-002' ? '/registrasi-fingerprint' : (row.form_code === 'ISMS-F-03-00-001' || row.form_code === 'ISMS-F-03-00-002') ? '/ijin-masuk-alat-it' : '/form-it-esign'}?token=${row.token}`,
         applicantName: row.applicant_name,
         department: row.company_name && row.company_name !== 'PT. Jatim Autocomp Indonesia' ? `${row.company_name} • ${row.department}` : row.department,
         verificationCode: row.verification_code,
@@ -470,7 +470,7 @@ export async function listMyApprovalMessages(email: string): Promise<ApprovalMes
         code: null,
         locked: false,
         category: 'it_form',
-        actionUrl: r.form_code === 'ISMS-F-02-00-002' ? `/registrasi-fingerprint?token=${r.token}` : `/form-it-esign?token=${r.token}`,
+        actionUrl: r.form_code === 'ISMS-F-02-00-002' ? `/registrasi-fingerprint?token=${r.token}` : (r.form_code === 'ISMS-F-03-00-001' || r.form_code === 'ISMS-F-03-00-002') ? `/ijin-masuk-alat-it?token=${r.token}` : `/form-it-esign?token=${r.token}`,
         applicantName: r.applicant_name,
         department: r.department,
       })
@@ -664,7 +664,7 @@ export async function listMyHistory(email: string, opts: { q?: string; page?: nu
         token: r.token,
         qrPending: false,
         category: 'it_form',
-        actionUrl: r.form_code === 'ISMS-F-02-00-002' ? `/registrasi-fingerprint?token=${r.token}` : `/form-it-esign?token=${r.token}`,
+        actionUrl: r.form_code === 'ISMS-F-02-00-002' ? `/registrasi-fingerprint?token=${r.token}` : (r.form_code === 'ISMS-F-03-00-001' || r.form_code === 'ISMS-F-03-00-002') ? `/ijin-masuk-alat-it?token=${r.token}` : `/form-it-esign?token=${r.token}`,
         applicantName: r.applicant_name,
       })
     }

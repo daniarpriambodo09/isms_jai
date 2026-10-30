@@ -57,6 +57,7 @@ export type ItEquipmentRequest = {
   dns_primary?: string | null
   dns_secondary?: string | null
   link_code?: string | null
+  it_form_submission_id?: number | null
   created_at: string
   updated_at: string
 }

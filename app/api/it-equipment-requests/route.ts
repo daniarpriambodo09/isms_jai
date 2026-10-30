@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import { query } from '@/lib/db'
 import { getAdminFromRequest } from '@/lib/auth'
 import type { ItEquipmentItem, ItEquipmentRequest } from '@/lib/it-equipment-shared'
+import { createItFormSubmission } from '@/lib/it-form-service'
 
 let schemaChecked = false
 async function ensureEquipmentRequestColumns() {
@@ -14,11 +15,78 @@ async function ensureEquipmentRequestColumns() {
       ADD COLUMN IF NOT EXISTS it_checked_by VARCHAR(150),
       ADD COLUMN IF NOT EXISTS it_checked_title VARCHAR(150),
       ADD COLUMN IF NOT EXISTS it_checked_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS it_check_notes TEXT;
+      ADD COLUMN IF NOT EXISTS it_check_notes TEXT,
+      ADD COLUMN IF NOT EXISTS it_form_submission_id INT;
     `)
     schemaChecked = true
+    await syncPendingEquipmentToSubmissions()
   } catch {
     // Ignore if table not created yet or restricted
+  }
+}
+
+/**
+ * Backfills it_form_submissions for any pending it_equipment_requests that lack one,
+ * ensuring they immediately enter the approver's queue and Persetujuan Saya dashboard.
+ */
+async function syncPendingEquipmentToSubmissions() {
+  try {
+    const unlinked = await query<ItEquipmentRequest>(
+      `SELECT * FROM it_equipment_requests
+       WHERE status IN ('pending', 'approved_manager')
+         AND (it_form_submission_id IS NULL OR it_form_submission_id = 0)
+       ORDER BY id ASC
+       LIMIT 20`
+    )
+
+    for (const req of unlinked.rows) {
+      try {
+        const formCode = req.form_type === 'out' ? 'ISMS-F-03-00-002' : 'ISMS-F-03-00-001'
+        const rawItems = typeof req.items === 'string' ? JSON.parse(req.items) : (req.items || [])
+        const cleanItems: ItEquipmentItem[] = Array.isArray(rawItems)
+          ? rawItems.map((it: any, idx: number) => ({
+              id: String(idx + 1),
+              equipment_type: it.equipment_type || 'PC / Laptop',
+              id_no: it.id_no || '',
+              brand: it.brand || '',
+              model: it.model || '',
+              serial_no: it.serial_no || '',
+            }))
+          : []
+
+        const sub = await createItFormSubmission({
+          form_code: formCode,
+          applicant_name: req.applicant_name,
+          applicant_nik: req.applicant_nik || undefined,
+          department: req.department,
+          company_name: req.company_name,
+          purpose: req.purpose,
+          form_data: {
+            request_no: req.request_no,
+            form_type: req.form_type,
+            section: req.section || '',
+            location: req.location || '',
+            date_in: req.date_in,
+            date_out_plan: req.date_out_plan,
+            applicant_phone: req.applicant_phone || '',
+            applicant_email: req.applicant_email || '',
+            items: cleanItems,
+            equipment_request_id: req.id,
+            equipment_request_token: req.token,
+          },
+          notes: `Pengajuan Izin Alat IT ${req.form_type === 'out' ? 'Keluar (002)' : 'Masuk (001)'} - ${req.request_no}`,
+        })
+
+        await query(
+          `UPDATE it_equipment_requests SET it_form_submission_id = $1 WHERE id = $2`,
+          [sub.id, req.id]
+        )
+      } catch (innerErr) {
+        console.error('[it-equipment-requests] Backfill failed for ID:', req.id, innerErr)
+      }
+    }
+  } catch (err) {
+    // Non-fatal if table not ready
   }
 }
 
@@ -29,9 +97,9 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const formType = searchParams.get('form_type')
     const search = searchParams.get('q')?.trim()
-    const token = searchParams.get('token')
+    const token = searchParams.get('token')?.trim()
 
-    // If querying by visitor public tracking token
+    // If querying by visitor public tracking token OR request number (e.g. IT-OUT-20261030-003)
     if (token) {
       const res = await query<ItEquipmentRequest>(
         `SELECT er.*,
@@ -48,11 +116,13 @@ export async function GET(request: NextRequest) {
          FROM it_equipment_requests er
          LEFT JOIN guest_it_access_links gl ON gl.equipment_request_id = er.id
          WHERE er.token = $1
+            OR er.request_no = $1
+            OR UPPER(TRIM(er.request_no)) = UPPER(TRIM($1))
          LIMIT 1`,
         [token]
       )
       if (res.rowCount === 0) {
-        return NextResponse.json({ error: 'Pengajuan tidak ditemukan' }, { status: 404 })
+        return NextResponse.json({ error: 'Pengajuan dengan nomor atau token tersebut tidak ditemukan' }, { status: 404 })
       }
       return NextResponse.json({ request: res.rows[0] })
     }
@@ -101,6 +171,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureEquipmentRequestColumns()
     const body = await request.json()
     const {
       form_type = 'in',
@@ -208,9 +279,48 @@ export async function POST(request: NextRequest) {
       ]
     )
 
+    const createdReq = insertRes.rows[0]
+
+    // Automatically create the official IT Form Submission (ISMS-F-03-00-001 or ISMS-F-03-00-002)
+    // and route it to the designated approver (Step 1: Dept Manager / IAA -> Step 2: IT Security Admin)
+    try {
+      const formCode = form_type === 'out' ? 'ISMS-F-03-00-002' : 'ISMS-F-03-00-001'
+      const submission = await createItFormSubmission({
+        form_code: formCode,
+        applicant_name: applicant_name.trim(),
+        applicant_nik: applicant_nik?.trim() || undefined,
+        department: department.trim(),
+        company_name: finalCompany,
+        purpose: purpose.trim(),
+        form_data: {
+          request_no,
+          form_type,
+          section: section.trim(),
+          location: location.trim(),
+          date_in,
+          date_out_plan,
+          applicant_phone: applicant_phone?.trim() || '',
+          applicant_email: applicant_email?.trim() || '',
+          items: cleanItems,
+          equipment_request_id: createdReq.id,
+          equipment_request_token: token,
+        },
+        notes: `Pengajuan Izin Alat IT ${form_type === 'out' ? 'Keluar (002)' : 'Masuk (001)'} - ${request_no}`,
+      })
+
+      await query(
+        `UPDATE it_equipment_requests SET it_form_submission_id = $1 WHERE id = $2`,
+        [submission.id, createdReq.id]
+      )
+
+      createdReq.it_form_submission_id = submission.id
+    } catch (routeErr) {
+      console.error('[it-equipment-requests] Error linking submission to approvers:', routeErr)
+    }
+
     return NextResponse.json({
       success: true,
-      request: insertRes.rows[0],
+      request: createdReq,
     })
   } catch (error: any) {
     console.error('Error creating IT equipment request:', error)
@@ -238,17 +348,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID pengajuan tidak valid' }, { status: 400 })
     }
 
-    const delRes = await query(`DELETE FROM it_equipment_requests WHERE id = $1`, [Number(idParam)])
-    if ((delRes.rowCount ?? 0) === 0) {
-      return NextResponse.json({ error: 'Data pengajuan tidak ditemukan' }, { status: 404 })
-    }
+    const id = Number(idParam)
+    await query(`DELETE FROM it_equipment_requests WHERE id = $1`, [id])
 
-    return NextResponse.json({
-      success: true,
-      message: 'Data pengajuan izin alat IT berhasil dihapus.',
-    })
+    return NextResponse.json({ success: true, message: 'Data pengajuan berhasil dihapus.' })
   } catch (error: any) {
     console.error('Error deleting IT equipment request:', error)
-    return NextResponse.json({ error: 'Gagal menghapus data pengajuan' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal menghapus pengajuan' }, { status: 500 })
   }
 }

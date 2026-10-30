@@ -146,10 +146,13 @@ export async function createItGuestAccessLinks(input: {
   const createdLinks: ItGuestAccessLink[] = []
 
   for (const guest of input.guests) {
-    const cleanName = guest.guest_name?.trim()
-    if (!cleanName) continue
-
+    const rawName = guest.guest_name?.trim() || ''
     const seqNo = nextSeq++
+    const cleanName =
+      !rawName || /^guest(\s*#?\d*|$)/i.test(rawName)
+        ? `Guest #${String(seqNo).padStart(3, '0')}`
+        : rawName
+
     let linkCode = formatGuestLinkCode(cleanName, seqYear, seqNo, seqMonth)
 
     // Pastikan tidak bentrok jika ada kode identik
@@ -245,7 +248,7 @@ export async function getItGuestAccessLinks(filters?: {
   params.push(limitVal)
 
   const res = await query<ItGuestAccessLink>(
-    `SELECT * FROM it_guest_access_links ${whereSql} ORDER BY created_at DESC LIMIT $${params.length}`,
+    `SELECT * FROM it_guest_access_links ${whereSql} ORDER BY seq_year DESC, seq_month DESC, seq_no DESC, id DESC LIMIT $${params.length}`,
     params
   )
 
@@ -551,7 +554,27 @@ export async function submitItGuestForm2Network(
     [netSubmission.id, linkId]
   )
 
-  return hydrateGuestLink(updRes.rows[0])
+  // Otomatisasi: Langsung approve IT Check & alokasikan IP sesuai nomor urut bulanan
+  try {
+    const suggested = buildSuggestedNetworkConfig(existing)
+    const autoApproved = await approveOrRejectItGuestLink(linkId, {
+      action: 'approve',
+      approver_name: 'System Security Administrator (IT)',
+      assigned_ip: existing.assigned_ip || suggested.assigned_ip,
+      network_username: existing.network_username || suggested.network_username,
+      network_password: existing.network_password || suggested.network_password,
+      network_ssid: existing.network_ssid || suggested.network_ssid,
+      subnet_mask: existing.subnet_mask || suggested.subnet_mask,
+      gateway: existing.gateway || suggested.gateway,
+      dns_primary: existing.dns_primary || suggested.dns_primary,
+      dns_secondary: existing.dns_secondary || suggested.dns_secondary,
+      approval_notes: `Otomatis Disetujui sesuai No. Urut #${String(existing.seq_no).padStart(3, '0')}. IP: ${suggested.assigned_ip}`,
+    })
+    return autoApproved
+  } catch (autoErr) {
+    console.warn('[submitItGuestForm2Network] Auto-approve fallback to submitted:', autoErr)
+    return hydrateGuestLink(updRes.rows[0])
+  }
 }
 
 /**
@@ -735,7 +758,27 @@ export async function submitItGuestCombinedForms(
     ]
   )
 
-  return hydrateGuestLink(updRes.rows[0])
+  // Otomatisasi: Langsung approve IT Check & alokasikan IP sesuai nomor urut bulanan
+  try {
+    const suggested = buildSuggestedNetworkConfig(existing)
+    const autoApproved = await approveOrRejectItGuestLink(linkId, {
+      action: 'approve',
+      approver_name: 'System Security Administrator (IT)',
+      assigned_ip: existing.assigned_ip || suggested.assigned_ip,
+      network_username: existing.network_username || suggested.network_username,
+      network_password: existing.network_password || suggested.network_password,
+      network_ssid: existing.network_ssid || suggested.network_ssid,
+      subnet_mask: existing.subnet_mask || suggested.subnet_mask,
+      gateway: existing.gateway || suggested.gateway,
+      dns_primary: existing.dns_primary || suggested.dns_primary,
+      dns_secondary: existing.dns_secondary || suggested.dns_secondary,
+      approval_notes: `Otomatis Disetujui sesuai No. Urut #${String(existing.seq_no).padStart(3, '0')}. IP: ${suggested.assigned_ip}`,
+    })
+    return autoApproved
+  } catch (autoErr) {
+    console.warn('[submitItGuestCombinedForms] Auto-approve fallback to submitted:', autoErr)
+    return hydrateGuestLink(updRes.rows[0])
+  }
 }
 
 /**
@@ -944,11 +987,8 @@ export async function approveOrRejectItGuestLink(
   }
 
   // TAHAP 2A: Action === 'approve' (IT Section Check & Alokasi Username + IP Address pada Form 2 ISMS-F-03-00-003)
-  // WAJIB: Form 1 (Izin Alat IT) harus sudah di-approve terlebih dahulu!
-  if (!existing.equipment_request || existing.equipment_request.status !== 'approved') {
-    throw new Error(
-      'Alur Bertahap: Formulir 1 (Izin Membawa Masuk/Keluar Alat IT) harus di-Approve terlebih dahulu sebelum dapat menyetujui Formulir 2 (Penyambungan Jaringan & Alokasi IP).'
-    )
+  if (existing.equipment_request && existing.equipment_request.status === 'rejected') {
+    throw new Error('Formulir 1 (Izin Membawa Masuk/Keluar Alat IT) ditolak.')
   }
   if (!existing.network_submission_id) {
     throw new Error(

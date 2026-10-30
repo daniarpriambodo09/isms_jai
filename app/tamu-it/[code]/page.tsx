@@ -33,6 +33,7 @@ import {
   ArrowLeft,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { copyText } from '@/lib/clipboard'
 import { NetworkPassCard, type NetworkPassData } from '@/components/it/NetworkPassCard'
 import {
   EQUIPMENT_TYPES,
@@ -146,7 +147,9 @@ export default function GuestItCombinedFormPage() {
         // Populate initial form values only on first load
         if (!silent) {
           const todayStr = new Date().toISOString().slice(0, 10)
-          setGuestName(link.guest_name || '')
+          const isPlaceholder =
+            !link.guest_name || /^guest(\s*#?\d*|$)/i.test(link.guest_name.trim())
+          setGuestName(isPlaceholder ? '' : link.guest_name)
           setCompanyName(link.company_name || '')
           setDepartment(link.department || '')
           setDateIn(link.visit_date ? String(link.visit_date).slice(0, 10) : todayStr)
@@ -182,11 +185,13 @@ export default function GuestItCombinedFormPage() {
     return () => clearInterval(timer)
   }, [guestLink, fetchLinkData])
 
-  const handleCopy = (label: string, value: string) => {
+  const handleCopy = async (label: string, value: string) => {
     if (!value) return
-    navigator.clipboard.writeText(value)
-    setCopiedField(label)
-    setTimeout(() => setCopiedField(null), 2000)
+    const ok = await copyText(value)
+    if (ok) {
+      setCopiedField(label)
+      setTimeout(() => setCopiedField(null), 2000)
+    }
   }
 
   const handleAddItem = () => {
@@ -836,9 +841,14 @@ export default function GuestItCombinedFormPage() {
                     enterKeyHint="next"
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="Contoh: Budi Santoso"
+                    placeholder="Contoh: Budi Santoso (Ketik nama lengkap Anda)"
                     className={inputClass}
                   />
+                  {guestLink?.guest_name && /^guest(\s*#?\d*|$)/i.test(guestLink.guest_name.trim()) && (
+                    <p className="mt-1 text-[11px] text-muted-foreground font-medium">
+                      Silakan ketik nama lengkap Anda pada kolom di atas (sebelumnya tercatat sebagai: {guestLink.guest_name}).
+                    </p>
+                  )}
                 </div>
 
                 <div>

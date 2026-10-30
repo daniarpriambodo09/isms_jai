@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { copyText } from '@/lib/clipboard'
 
 export interface NetworkPassData {
   title?: string
@@ -111,12 +112,10 @@ export function NetworkPassCard({
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const handleCopy = async (field: string, text: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
+    const ok = await copyText(text)
+    if (ok) {
       setCopiedField(field)
       setTimeout(() => setCopiedField(null), 2000)
-    } catch {
-      // fallback
     }
   }
 

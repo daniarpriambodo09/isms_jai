@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
     if (Array.isArray(body.guests) && body.guests.length > 0) {
       guestEntries = body.guests.map((g: any, idx: number) => ({
-        guest_name: String(g.guest_name || g.name || '').trim() || `GUEST-${idx + 1}`,
+        guest_name: String(g.guest_name || g.name || '').trim() || `Guest ${idx + 1}`,
         company_name: String(g.company_name ?? companyName).trim(),
         department: String(g.department ?? department).trim(),
         visit_date: g.visit_date || visitDate,
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       for (let i = 0; i < targetLen; i++) {
         const rawName = String(body.guest_names[i] || '').trim()
         guestEntries.push({
-          guest_name: rawName || 'GUEST',
+          guest_name: rawName || (targetLen === 1 ? 'Guest' : `Guest ${i + 1}`),
           company_name: companyName,
           department,
           visit_date: visitDate,
@@ -96,10 +96,10 @@ export async function POST(request: NextRequest) {
         })
       }
     } else if (requestedCount > 0) {
-      const baseName = typeof body.guest_name === 'string' && body.guest_name.trim() ? body.guest_name.trim() : 'GUEST'
+      const baseName = typeof body.guest_name === 'string' && body.guest_name.trim() ? body.guest_name.trim() : 'Guest'
       for (let i = 0; i < requestedCount; i++) {
         guestEntries.push({
-          guest_name: requestedCount === 1 ? baseName : `${baseName}`,
+          guest_name: requestedCount === 1 ? baseName : `${baseName} ${i + 1}`,
           company_name: companyName,
           department,
           visit_date: visitDate,
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     if (guestEntries.length === 0) {
       guestEntries = [
         {
-          guest_name: 'GUEST',
+          guest_name: 'Guest',
           company_name: companyName,
           department,
           visit_date: visitDate,

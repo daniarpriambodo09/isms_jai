@@ -14,6 +14,7 @@ import {
   UserPlus,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { copyText } from '@/lib/clipboard'
 import { DEFAULT_DEPARTMENTS } from '@/lib/it-equipment-shared'
 import {
   formatGuestLinkCode,
@@ -65,13 +66,12 @@ export function GuestLinkGeneratorModal({
   }, [defaultWalkIn])
 
   useEffect(() => {
+    if (!open) return
+    setGeneratedLinks([])
+    setErrorMsg('')
     const safeCount = Math.min(Math.max(Number(initialCount) || 1, 1), 50)
     setLinkCount(safeCount)
-    setGuestNames((prev) => {
-      const next = [...prev]
-      while (next.length < safeCount) next.push('')
-      return next.slice(0, safeCount)
-    })
+    setGuestNames(Array.from({ length: safeCount }, () => ''))
   }, [initialCount, open])
 
   useEffect(() => {
@@ -117,22 +117,26 @@ export function GuestLinkGeneratorModal({
     return `${origin}${API_BASE_PATH}/tamu-it/${encodeURIComponent(linkCode)}`
   }
 
-  const handleCopyUrl = (key: string, text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedId(key)
-    setTimeout(() => setCopiedId(null), 2000)
+  const handleCopyUrl = async (key: string, text: string) => {
+    const ok = await copyText(text)
+    if (ok) {
+      setCopiedId(key)
+      setTimeout(() => setCopiedId(null), 2000)
+    }
   }
 
-  const handleCopyAllUrls = () => {
+  const handleCopyAllUrls = async () => {
     const allText = generatedLinks
       .map(
         (lnk, idx) =>
           `${idx + 1}. ${lnk.guest_name} (${lnk.link_code}): ${buildFullUrl(lnk.link_code)}`
       )
       .join('\n')
-    navigator.clipboard.writeText(allText)
-    setCopiedId('all')
-    setTimeout(() => setCopiedId(null), 2000)
+    const ok = await copyText(allText)
+    if (ok) {
+      setCopiedId('all')
+      setTimeout(() => setCopiedId(null), 2000)
+    }
   }
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -141,7 +145,8 @@ export function GuestLinkGeneratorModal({
 
     const preparedNames = Array.from({ length: linkCount }, (_, i) => {
       const n = (guestNames[i] || '').trim()
-      return n || 'GUEST'
+      const seq = periodInfo.next_seq + i
+      return n || `Guest #${String(seq).padStart(3, '0')}`
     })
 
     setSubmitting(true)
@@ -443,8 +448,9 @@ export function GuestLinkGeneratorModal({
 
                 {guestNames.map((name, idx) => {
                   const previewSeq = periodInfo.next_seq + idx
+                  const defaultGuestLabel = `Guest #${String(previewSeq).padStart(3, '0')}`
                   const previewCode = formatGuestLinkCode(
-                    name.trim() || 'GUEST',
+                    name.trim() || defaultGuestLabel,
                     periodInfo.year,
                     previewSeq,
                     periodInfo.month
@@ -455,7 +461,7 @@ export function GuestLinkGeneratorModal({
                       className="rounded-xl border border-border bg-muted/15 p-3 space-y-1.5"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs font-bold text-primary">
+                        <span className="flex h-8 w-14 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-xs font-bold text-primary">
                           #{String(previewSeq).padStart(3, '0')}
                         </span>
                         <input
@@ -466,7 +472,7 @@ export function GuestLinkGeneratorModal({
                           enterKeyHint="next"
                           value={name}
                           onChange={(e) => handleNameChange(idx, e.target.value)}
-                          placeholder={`Nama Tamu Link ke-${idx + 1} (kosongkan jika tamu dadakan)`}
+                          placeholder={`${defaultGuestLabel} (otomatis, tamu isi nama saat buka link)`}
                           className={inputClass}
                         />
                         {guestNames.length > 1 && (
@@ -480,7 +486,7 @@ export function GuestLinkGeneratorModal({
                           </button>
                         )}
                       </div>
-                      <p className="pl-14 font-mono text-[11px] text-muted-foreground">
+                      <p className="pl-16 font-mono text-[11px] text-muted-foreground">
                         Kode Link #{idx + 1}:{' '}
                         <strong className="text-foreground">{previewCode}</strong>
                       </p>

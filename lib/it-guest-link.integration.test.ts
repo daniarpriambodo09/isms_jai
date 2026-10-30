@@ -22,6 +22,9 @@ describe('IT Guest Access Link & Network Credentials (Unit)', () => {
   it('formats link code with Guest Name + Year + Month + 3-digit Monthly Sequence', () => {
     expect(formatGuestLinkCode('Budi Santoso', 2026, 1, 10)).toBe('BUDI-SANTOSO-2026-10-001')
     expect(formatGuestLinkCode('Andi Wijaya', 2027, 15, 3)).toBe('ANDI-WIJAYA-2027-03-015')
+    expect(formatGuestLinkCode('Guest #001', 2026, 1, 10)).toBe('GUEST-001-2026-10-001')
+    expect(formatGuestLinkCode('Guest #002', 2026, 2, 10)).toBe('GUEST-002-2026-10-002')
+    expect(formatGuestLinkCode('Guest #003', 2026, 3, 10)).toBe('GUEST-003-2026-10-003')
   })
 
   it('builds suggested network credentials (username, password, SSID, IP, subnet, gateway, DNS)', () => {

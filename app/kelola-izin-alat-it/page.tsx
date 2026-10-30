@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
+import { copyText } from '@/lib/clipboard'
 import type { ItEquipmentRequest } from '@/lib/it-equipment-shared'
 import { IT_FORM_DEFINITIONS, type ItFormSubmission } from '@/lib/it-form-shared'
 import { downloadExcel } from '@/lib/excel-export'
@@ -403,11 +404,13 @@ export default function KelolaIzinAlatItPage() {
     }
   }
 
-  const copyGuestLink = (req: ItEquipmentRequest) => {
+  const copyGuestLink = async (req: ItEquipmentRequest) => {
     const url = `${window.location.origin}${API_BASE_PATH}/ijin-masuk-alat-it?token=${req.token}`
-    navigator.clipboard.writeText(url)
-    setCopiedId(req.id)
-    setTimeout(() => setCopiedId(null), 2500)
+    const ok = await copyText(url)
+    if (ok) {
+      setCopiedId(req.id)
+      setTimeout(() => setCopiedId(null), 2500)
+    }
   }
 
   const handleDeleteEquipmentRequest = async (req: ItEquipmentRequest) => {

@@ -27,6 +27,7 @@ import {
   Send,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
+import { copyText } from '@/lib/clipboard'
 import {
   buildSuggestedNetworkConfig,
   type ItGuestAccessLink,
@@ -142,10 +143,12 @@ export function GuestLinksAdminPanel({
     return `${origin}${API_BASE_PATH}/tamu-it/${encodeURIComponent(code)}`
   }
 
-  const handleCopy = (key: string, val: string) => {
-    navigator.clipboard.writeText(val)
-    setCopiedId(key)
-    setTimeout(() => setCopiedId(null), 2000)
+  const handleCopy = async (key: string, val: string) => {
+    const ok = await copyText(val)
+    if (ok) {
+      setCopiedId(key)
+      setTimeout(() => setCopiedId(null), 2000)
+    }
   }
 
   const openApprovalModal = (item: ItGuestAccessLink, mode: 'approve' | 'reject' = 'approve') => {
@@ -844,6 +847,8 @@ export function GuestLinksAdminPanel({
         defaultWalkIn={generatorWalkIn}
         initialCount={generatorCount}
         onGenerated={() => {
+          setStatusFilter('all')
+          setSearchQuery('')
           fetchGuestLinks()
           if (onDataChanged) onDataChanged()
         }}

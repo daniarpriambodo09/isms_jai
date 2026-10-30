@@ -40,6 +40,7 @@ import {
   type ItEquipmentRequest,
 } from '@/lib/it-equipment-shared'
 import { API_BASE_PATH } from '@/lib/config'
+import { copyText } from '@/lib/clipboard'
 import { downloadExcel } from '@/lib/excel-export'
 import { useAuth } from '@/context/AuthContext'
 import { GuestLinkGeneratorModal } from '@/components/it/GuestLinkGeneratorModal'
@@ -324,12 +325,14 @@ function FormContent() {
     }
   }
 
-  const copyTrackingLink = () => {
+  const copyTrackingLink = async () => {
     if (!submittedReq?.token) return
     const url = `${window.location.origin}/ijin-masuk-alat-it?token=${submittedReq.token}`
-    navigator.clipboard.writeText(url)
-    setCopiedLink(true)
-    setTimeout(() => setCopiedLink(false), 2500)
+    const ok = await copyText(url)
+    if (ok) {
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2500)
+    }
   }
 
   // ── Success / Status Tracking View ──

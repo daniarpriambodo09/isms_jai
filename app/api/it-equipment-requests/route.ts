@@ -116,8 +116,10 @@ export async function GET(request: NextRequest) {
          FROM it_equipment_requests er
          LEFT JOIN guest_it_access_links gl ON gl.equipment_request_id = er.id
          WHERE er.token = $1
-            OR er.request_no = $1
-            OR UPPER(TRIM(er.request_no)) = UPPER(TRIM($1))
+            OR UPPER(TRIM(COALESCE(er.token, ''))) = UPPER(TRIM($1))
+            OR UPPER(TRIM(COALESCE(er.request_no, ''))) = UPPER(TRIM($1))
+            OR er.request_no ILIKE '%' || TRIM($1) || '%'
+            OR er.id::text = TRIM($1)
          LIMIT 1`,
         [token]
       )

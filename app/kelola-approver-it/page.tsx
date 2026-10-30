@@ -36,6 +36,17 @@ const inputClass =
   'h-10 w-full min-w-0 rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const labelClass = 'text-xs font-semibold text-foreground mb-1 block'
 
+interface RawSection {
+  id: number
+  name: string
+}
+
+interface RawDept {
+  id: number
+  name: string
+  sections?: RawSection[]
+}
+
 export default function KelolaApproverItPage() {
   const { isLoggedIn, adminUser } = useAuth()
   const [approvers, setApprovers] = useState<ItFormApprover[]>([])
@@ -49,13 +60,16 @@ export default function KelolaApproverItPage() {
   // Form Fields for Add/Edit
   const [formCode, setFormCode] = useState('ISMS-F-010-006')
   const [slotNumber, setSlotNumber] = useState(1)
-  const [slotLabel, setSlotLabel] = useState('CHECK')
+  const [slotLabel, setSlotLabel] = useState('APPROVAL')
   const [roleTitle, setRoleTitle] = useState('')
   const [personName, setPersonName] = useState('')
   const [salutation, setSalutation] = useState('Bapak')
   const [initials, setInitials] = useState('')
   const [email, setEmail] = useState('')
   const [department, setDepartment] = useState('')
+  const [selectedSections, setSelectedSections] = useState<string[]>([])
+  const [applyAllForms, setApplyAllForms] = useState(true)
+  const [rawDepartments, setRawDepartments] = useState<RawDept[]>([])
   const [availableDepts, setAvailableDepts] = useState<string[]>([])
   const [customDeptMode, setCustomDeptMode] = useState(false)
   const [filterDept, setFilterDept] = useState<string>('all')
@@ -66,6 +80,7 @@ export default function KelolaApproverItPage() {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data.departments)) {
+          setRawDepartments(data.departments)
           setAvailableDepts(data.departments.map((d: any) => d.name))
         }
       })
@@ -87,7 +102,7 @@ export default function KelolaApproverItPage() {
   const loadApprovers = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/it-form-approvers`, { cache: 'no-store' })
+      const res = await fetch(`${API_BASE_PATH}/api/it-form-approvers?all=true`, { cache: 'no-store' })
       const data = await res.json()
       if (res.ok && data.approvers) {
         setApprovers(data.approvers)
@@ -121,16 +136,26 @@ export default function KelolaApproverItPage() {
   const openAddModal = () => {
     setEditingApprover(null)
     setFormCode(selectedFormCode)
-    const nextSlot = filteredApprovers.length + 1
-    setSlotNumber(nextSlot)
-    setSlotLabel(nextSlot === 1 ? 'CHECK' : nextSlot === 2 ? 'MENGETAHUI' : 'MENYETUJUI')
-    setRoleTitle('')
+    // Default slot to 1 (Step 1: Departemen Manager)
+    setSlotNumber(1)
+    setSlotLabel('APPROVAL')
+    setRoleTitle(
+      selectedFormCode === 'ISMS-F-02-00-002'
+        ? 'Information Assets Administrator (IAA)'
+        : 'Departemen MANAGER / J. MANAGER'
+    )
     setPersonName('')
     setSalutation('Bapak')
     setInitials('')
     setEmail('')
     setCustomDeptMode(false)
-    setDepartment(selectedFormCode === 'ISMS-F-02-00-002' ? 'Information Assets Administrator' : 'IT Section')
+    setDepartment(
+      selectedFormCode === 'ISMS-F-02-00-002'
+        ? 'Information Assets Administrator'
+        : availableDepts[0] || 'PP - NYS'
+    )
+    setSelectedSections([])
+    setApplyAllForms(true)
     setIsActive(true)
     setModalError('')
     setIsModalOpen(true)
@@ -148,6 +173,8 @@ export default function KelolaApproverItPage() {
     setEmail(item.email || '')
     const deptVal = item.department || ''
     setDepartment(deptVal)
+    setSelectedSections(Array.isArray(item.sections) ? item.sections : [])
+    setApplyAllForms(false)
     const isStandard =
       !deptVal ||
       ['Departemen Pemohon', 'IT Section', 'Information Assets Administrator'].includes(deptVal) ||
@@ -182,6 +209,7 @@ export default function KelolaApproverItPage() {
             initials: initials.trim().toUpperCase(),
             email: email.trim() || null,
             department: department.trim() || null,
+            sections: selectedSections,
             is_active: isActive,
             sort_order: slotNumber,
           }),
@@ -204,13 +232,19 @@ export default function KelolaApproverItPage() {
             initials: initials.trim().toUpperCase(),
             email: email.trim() || null,
             department: department.trim() || null,
+            sections: selectedSections,
+            apply_all_forms: applyAllForms,
             is_active: isActive,
             sort_order: slotNumber,
           }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Gagal menambahkan approver baru.')
-        setSuccessMsg(`Berhasil menambahkan approver baru: ${personName}`)
+        setSuccessMsg(
+          applyAllForms
+            ? `Berhasil menambahkan approver ${personName} ke semua formulir IT!`
+            : `Berhasil menambahkan approver baru: ${personName}`
+        )
       }
 
       setIsModalOpen(false)
@@ -498,62 +532,86 @@ export default function KelolaApproverItPage() {
             )}
           </div>
 
-          {/* Visual Approval Chain Flow */}
+          {/* Visual Approval Chain Flow (Canonical Sequence) */}
           <div className="my-6">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Alur Pengesahan Digital (E-Sign Sequence)
-            </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {filteredApprovers.map((a, idx) => (
-                <div
-                  key={a.id}
-                  className={`relative flex flex-col justify-between rounded-xl border p-4 transition ${
-                    a.is_active
-                      ? 'border-border bg-card shadow-xs'
-                      : 'border-dashed border-border bg-secondary/20 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-blue-600/10 px-2 py-0.5 font-mono text-[10px] font-bold text-blue-600">
-                      STEP {idx + 1} &bull; {a.slot_label}
-                    </span>
-                    <span
-                      className={`size-2.5 rounded-full ${
-                        a.is_active ? 'bg-emerald-500' : 'bg-muted-foreground'
-                      }`}
-                      title={a.is_active ? 'Aktif' : 'Nonaktif'}
-                    />
-                  </div>
-
-                  <div className="mt-3">
-                    <p className="text-xs font-bold text-foreground">{a.person_name}</p>
-                    <p className="line-clamp-2 text-[11px] text-muted-foreground">{a.role_title}</p>
-                    {a.email && (
-                      <p className="mt-1 flex items-center gap-1 text-[11px] text-blue-600 font-mono">
-                        <Mail className="size-3" />
-                        <span className="truncate">{a.email}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3">
-                    <span className="text-[10px] text-muted-foreground">
-                      Dept: {a.department || '-'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => openEditModal(a)}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
-                    >
-                      <Pencil className="size-3" />
-                      Ganti Orang
-                    </button>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Alur Pengesahan Digital (E-Sign Sequence &bull; {currentFormDef.code})
+              </p>
+              <span className="text-[11px] text-muted-foreground font-medium">
+                Alur standar form ini terdiri dari{' '}
+                <strong className="text-foreground">
+                  {['ISMS-F-010-006', 'ISMS-F-010-007'].includes(selectedFormCode) ? '3' : '2'} Tahap / Approver
+                </strong>
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Step 1: Departemen Manager */}
+              <div className="relative flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-600/10 px-2 py-0.5 font-mono text-[10px] font-bold text-blue-600">
+                    STEP 1 &bull; APPROVAL
+                  </span>
+                  <span className="rounded-full bg-emerald-500/10 text-emerald-700 px-2 py-0.5 text-[10px] font-bold">
+                    {approvers.filter((a) => a.form_code === selectedFormCode && a.slot_number === 1).length} Manager Terdaftar
+                  </span>
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-bold text-foreground">Departemen Manager (Pemohon)</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Otomatis memilih Manager sesuai Departemen &amp; Seksi pemohon
+                  </p>
+                  <div className="mt-2 text-[10px] bg-secondary/60 rounded-lg p-2 text-muted-foreground">
+                    Menambahkan manager pada form ini akan memperbanyak pilihan manager per seksi/dept tanpa menambah urutan step dokumen.
                   </div>
                 </div>
-              ))}
-              {filteredApprovers.length === 0 && (
-                <div className="col-span-full rounded-xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
-                  Belum ada approver yang didaftarkan untuk formulir ini. Klik &quot;Tambah Approver&quot; atau &quot;Reset Standar&quot;.
+              </div>
+
+              {/* Step 2: IT Security Admin */}
+              <div className="relative flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-xs">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-md bg-blue-600/10 px-2 py-0.5 font-mono text-[10px] font-bold text-blue-600">
+                    STEP 2 &bull; CHECK
+                  </span>
+                  <span className="rounded-full bg-blue-500/10 text-blue-700 px-2 py-0.5 text-[10px] font-bold">
+                    IT Section
+                  </span>
+                </div>
+                <div className="mt-3">
+                  <p className="text-xs font-bold text-foreground">
+                    {approvers.find((a) => a.form_code === selectedFormCode && a.slot_number === 2)?.person_name || 'Alfan / Staff IT'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {approvers.find((a) => a.form_code === selectedFormCode && a.slot_number === 2)?.role_title || 'IT Section / IT Security Admin'}
+                  </p>
+                  <div className="mt-2 text-[10px] bg-secondary/60 rounded-lg p-2 text-muted-foreground">
+                    Memeriksa kesesuaian teknis &amp; eksekusi pembuatan/perubahan izin.
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: IT Supervisor (Only for Account Forms) */}
+              {['ISMS-F-010-006', 'ISMS-F-010-007'].includes(selectedFormCode) && (
+                <div className="relative flex flex-col justify-between rounded-xl border border-border bg-card p-4 shadow-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-blue-600/10 px-2 py-0.5 font-mono text-[10px] font-bold text-blue-600">
+                      STEP 3 &bull; APPROVAL
+                    </span>
+                    <span className="rounded-full bg-purple-500/10 text-purple-700 px-2 py-0.5 text-[10px] font-bold">
+                      IT SPV
+                    </span>
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-xs font-bold text-foreground">
+                      {approvers.find((a) => a.form_code === selectedFormCode && a.slot_number === 3)?.person_name || 'Teguh Sunjoyo'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {approvers.find((a) => a.form_code === selectedFormCode && a.slot_number === 3)?.role_title || 'IT SPV / System Security Administrator'}
+                    </p>
+                    <div className="mt-2 text-[10px] bg-secondary/60 rounded-lg p-2 text-muted-foreground">
+                      Persetujuan akhir hak akses sistem informasi &amp; aplikasi.
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -564,12 +622,13 @@ export default function KelolaApproverItPage() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-border bg-secondary/40 text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Slot / Urutan</th>
-                  <th className="px-4 py-3 font-semibold">Label Slot</th>
+                  <th className="px-4 py-3 font-semibold">Slot / Tahap</th>
+                  <th className="px-4 py-3 font-semibold">Label</th>
                   <th className="px-4 py-3 font-semibold">Unit Kerja / Jabatan</th>
                   <th className="px-4 py-3 font-semibold">Nama Approver Penandatangan</th>
-                  <th className="px-4 py-3 font-semibold">Email Notifikasi</th>
                   <th className="px-4 py-3 font-semibold">Departemen</th>
+                  <th className="px-4 py-3 font-semibold">Seksi / Cakupan</th>
+                  <th className="px-4 py-3 font-semibold">Email Notifikasi</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Aksi</th>
                 </tr>
@@ -578,7 +637,7 @@ export default function KelolaApproverItPage() {
                 {filteredApprovers.map((item) => (
                   <tr key={item.id} className="transition hover:bg-secondary/20">
                     <td className="px-4 py-3 font-mono font-semibold text-foreground">
-                      #{item.slot_number}
+                      Step #{item.slot_number}
                     </td>
                     <td className="px-4 py-3">
                       <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-[11px] font-bold text-foreground">
@@ -597,10 +656,28 @@ export default function KelolaApproverItPage() {
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 font-semibold text-foreground">
+                      {item.department || <span className="text-muted-foreground italic">Semua Dept</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {Array.isArray(item.sections) && item.sections.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          {item.sections.map((sec, sIdx) => (
+                            <span
+                              key={sIdx}
+                              className="rounded bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                            >
+                              {sec}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground italic">Semua Seksi</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-mono text-muted-foreground">
                       {item.email || <span className="text-muted-foreground/50">-</span>}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.department || '-'}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
@@ -642,7 +719,7 @@ export default function KelolaApproverItPage() {
         {/* Add / Edit Approver Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-            <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-border pb-4">
                 <div className="flex items-center gap-2">
                   <span className="grid size-8 place-items-center rounded-xl bg-blue-600/10 text-blue-600">
@@ -674,16 +751,32 @@ export default function KelolaApproverItPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className={labelClass}>Urutan / Slot #</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={10}
+                    <label className={labelClass}>Tahap / Slot Approval</label>
+                    <select
                       value={slotNumber}
-                      onChange={(e) => setSlotNumber(Number(e.target.value))}
+                      onChange={(e) => {
+                        const num = Number(e.target.value)
+                        setSlotNumber(num)
+                        if (num === 1) {
+                          setSlotLabel('APPROVAL')
+                          setRoleTitle('Departemen MANAGER / J. MANAGER')
+                        } else if (num === 2) {
+                          setSlotLabel('CHECK')
+                          setRoleTitle('IT Section / IT Security Admin')
+                        } else if (num === 3) {
+                          setSlotLabel('APPROVAL')
+                          setRoleTitle('IT SPV / System Security Administrator')
+                        }
+                      }}
                       className={inputClass}
                       required
-                    />
+                    >
+                      <option value={1}>Step 1: Departemen Manager (Slot 1)</option>
+                      <option value={2}>Step 2: IT Security Admin (Slot 2)</option>
+                      {['ISMS-F-010-006', 'ISMS-F-010-007'].includes(selectedFormCode) && (
+                        <option value={3}>Step 3: IT Supervisor (Slot 3)</option>
+                      )}
+                    </select>
                   </div>
                   <div>
                     <label className={labelClass}>Label Kotak Slot</label>
@@ -691,7 +784,7 @@ export default function KelolaApproverItPage() {
                       type="text"
                       value={slotLabel}
                       onChange={(e) => setSlotLabel(e.target.value)}
-                      placeholder="e.g. CHECK, MENGETAHUI, MENYETUJUI, APPROVAL"
+                      placeholder="e.g. CHECK, MENGETAHUI, APPROVAL"
                       className={`${inputClass} uppercase font-mono`}
                       required
                     />
@@ -704,7 +797,7 @@ export default function KelolaApproverItPage() {
                     type="text"
                     value={roleTitle}
                     onChange={(e) => setRoleTitle(e.target.value)}
-                    placeholder="e.g. IT SPV / System Security Administrator"
+                    placeholder="e.g. Departemen MANAGER / J. MANAGER"
                     className={inputClass}
                     required
                   />
@@ -781,6 +874,7 @@ export default function KelolaApproverItPage() {
                         } else {
                           setCustomDeptMode(false)
                           setDepartment(val)
+                          setSelectedSections([])
                         }
                       }}
                       className={inputClass}
@@ -814,6 +908,91 @@ export default function KelolaApproverItPage() {
                   </div>
                 </div>
 
+                {/* Section Checkboxes for Selected Department (Multi-Select) */}
+                {(() => {
+                  const currentDeptObj = rawDepartments.find((d) => d.name === department)
+                  const sections = currentDeptObj?.sections || []
+                  if (sections.length === 0) return null
+                  const allSelected = sections.every((s) => selectedSections.includes(s.name))
+                  return (
+                    <div className="rounded-xl border border-border bg-secondary/30 p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-foreground">
+                          Seksi / Bagian yang Dipegang ({selectedSections.length}/{sections.length})
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (allSelected) {
+                              setSelectedSections([])
+                            } else {
+                              setSelectedSections(sections.map((s) => s.name))
+                            }
+                          }}
+                          className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
+                        >
+                          {allSelected ? 'Hapus Semua' : 'Pilih Semua Seksi'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 max-h-36 overflow-y-auto pr-1">
+                        {sections.map((sec) => {
+                          const checked = selectedSections.includes(sec.name)
+                          return (
+                            <label
+                              key={sec.id}
+                              className={`flex items-center gap-2 rounded-lg border p-2 text-xs font-medium cursor-pointer transition ${
+                                checked
+                                  ? 'border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950/40 dark:text-blue-200'
+                                  : 'border-border bg-card text-foreground hover:bg-secondary'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedSections([...selectedSections, sec.name])
+                                  } else {
+                                    setSelectedSections(selectedSections.filter((s) => s !== sec.name))
+                                  }
+                                }}
+                                className="size-3.5 rounded accent-blue-600"
+                              />
+                              <span className="truncate">{sec.name}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Jika tidak ada seksi yang dicentang, manager ini akan menangani semua seksi dalam departemen {department}.
+                      </p>
+                    </div>
+                  )
+                })()}
+
+                {/* Auto Apply to All IT Forms Checkbox */}
+                {!editingApprover &&
+                  ['ISMS-F-010-001', 'ISMS-F-010-003', 'ISMS-F-010-006', 'ISMS-F-010-007'].includes(
+                    selectedFormCode
+                  ) && (
+                    <label className="flex items-start gap-2 rounded-xl border border-blue-500/30 bg-blue-50/50 dark:bg-blue-950/20 p-3 text-xs text-foreground cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyAllForms}
+                        onChange={(e) => setApplyAllForms(e.target.checked)}
+                        className="size-4 mt-0.5 rounded accent-blue-600"
+                      />
+                      <div>
+                        <span className="font-bold text-blue-700 dark:text-blue-300">
+                          Terapkan juga ke semua Formulir Layanan IT (F-010-001 s/d 007)
+                        </span>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Otomatis menduplikasi konfigurasi approver departemen ini ke form IT lainnya tanpa perlu input ulang satu per satu.
+                        </p>
+                      </div>
+                    </label>
+                  )}
+
                 <div>
                   <label className={labelClass}>Email Notifikasi Persetujuan</label>
                   <input
@@ -824,7 +1003,7 @@ export default function KelolaApproverItPage() {
                     className={inputClass}
                   />
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Link verifikasi & approval E-Sign akan dapat diakses oleh pemilik email ini.
+                    Link verifikasi &amp; approval E-Sign akan dapat diakses oleh pemilik email ini.
                   </p>
                 </div>
 

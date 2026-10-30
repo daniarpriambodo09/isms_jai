@@ -51,7 +51,8 @@ export async function ensureItFormTables() {
       );
     `)
 
-    await query(`CREATE INDEX IF NOT EXISTS idx_it_form_approvers_form_code ON it_form_approvers (form_code, sort_order);`)
+    await query(`CREATE INDEX IF NOT EXISTS idx_it_form_approvers_form_code ON it_form_approvers (form_code, sort_order);`)
+    await query(`ALTER TABLE it_form_approvers ADD COLUMN IF NOT EXISTS sections JSONB NOT NULL DEFAULT '[]'::jsonb;`)
 
     await query(`
       CREATE TABLE IF NOT EXISTS it_form_submissions (
@@ -436,65 +437,88 @@ export async function seedDefaultApprovers() {
   }
 }
 
-export async function getItApprovers(formCode?: string, department?: string): Promise<ItFormApprover[]> {
-  await ensureItFormTables()
-
-  if (department && formCode) {
-    const res = await query<ItFormApprover>(
-      `SELECT * FROM it_form_approvers
-       WHERE form_code = $1 AND is_active = true
-       ORDER BY slot_number ASC,
-         (CASE
-            WHEN lower(trim(COALESCE(department, ''))) = lower(trim($2)) THEN 0
-            WHEN lower(trim(COALESCE(department, ''))) = 'departemen pemohon' THEN 1
-            ELSE 2
-          END) ASC,
-         sort_order ASC`,
-      [formCode, department]
-    )
-
-    // Deduplicate by slot_number (prioritizing the best matched department per slot)
-    const slotMap = new Map<number, ItFormApprover>()
-    for (const app of res.rows) {
-      if (!slotMap.has(app.slot_number)) {
-        slotMap.set(app.slot_number, app)
-      }
-    }
-    const deduplicated = Array.from(slotMap.values()).sort((a, b) => a.slot_number - b.slot_number)
-
-    if (deduplicated.length === 0 && formCode === 'ISMS-F-02-00-002') {
-      deduplicated.push({
-        id: 0,
-        form_code: 'ISMS-F-02-00-002',
-        form_name: 'Pengajuan Registrasi Finger Print Special Security Area',
-        slot_number: 1,
-        slot_label: 'MENYETUJUI / APPROVAL',
-        role_title: 'Information Assets Administrator (IAA)',
-        person_name: 'Teguh Sunjoyo',
-        salutation: 'Bapak',
-        initials: 'IAA',
-        email: 'teguh.sunjoyo@jai.co.id',
-        department: 'Information Assets Administrator',
-        is_active: true,
-        sort_order: 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-    }
-    return deduplicated
-  }
-
-  let sql = 'SELECT * FROM it_form_approvers'
-  const params: any[] = []
-  if (formCode) {
-    sql += ' WHERE form_code = $1'
-    params.push(formCode)
-  }
-  sql += ' ORDER BY form_code ASC, sort_order ASC, slot_number ASC, id ASC'
-  const res = await query<ItFormApprover>(sql, params)
-  return res.rows
-}
-
+export async function getItApprovers(
+  formCode?: string,
+  department?: string,
+  section?: string,
+  all?: boolean
+): Promise<ItFormApprover[]> {
+  await ensureItFormTables()
+
+  // When all=true (called by Admin management page kelola-approver-it),
+  // return all approver records so they can be viewed and managed.
+  if (all) {
+    let sql = 'SELECT * FROM it_form_approvers'
+    const params: any[] = []
+    if (formCode) {
+      sql += ' WHERE form_code = $1'
+      params.push(formCode)
+    }
+    sql += ' ORDER BY form_code ASC, sort_order ASC, slot_number ASC, id ASC'
+    const res = await query<ItFormApprover>(sql, params)
+    return res.rows
+  }
+
+  // When resolving the actual approval chain pipeline for a form
+  if (formCode) {
+    const cleanDept = department ? department.trim() : ''
+    const cleanSection = section ? section.trim().toLowerCase() : ''
+
+    const res = await query<ItFormApprover>(
+      `SELECT * FROM it_form_approvers
+       WHERE form_code = $1 AND is_active = true
+       ORDER BY slot_number ASC,
+         (CASE
+            -- Exact department AND section matches one of manager's assigned sections
+            WHEN $2 <> '' AND lower(trim(COALESCE(department, ''))) = lower(trim($2))
+                 AND $3 <> '' AND (sections::text ILIKE '%' || $3 || '%') THEN 0
+            -- Exact department match (manager oversees all sections or department in general)
+            WHEN $2 <> '' AND lower(trim(COALESCE(department, ''))) = lower(trim($2)) THEN 1
+            -- Generic department placeholder
+            WHEN lower(trim(COALESCE(department, ''))) = 'departemen pemohon' THEN 2
+            ELSE 3
+          END) ASC,
+         sort_order ASC, id ASC`,
+      [formCode, cleanDept, cleanSection]
+    )
+
+    // Deduplicate by slot_number: exactly 1 approver per slot_number stage
+    const slotMap = new Map<number, ItFormApprover>()
+    for (const app of res.rows) {
+      if (!slotMap.has(app.slot_number)) {
+        slotMap.set(app.slot_number, app)
+      }
+    }
+    const deduplicated = Array.from(slotMap.values()).sort((a, b) => a.slot_number - b.slot_number)
+
+    if (deduplicated.length === 0 && formCode === 'ISMS-F-02-00-002') {
+      deduplicated.push({
+        id: 0,
+        form_code: 'ISMS-F-02-00-002',
+        form_name: 'Pengajuan Registrasi Finger Print Special Security Area',
+        slot_number: 1,
+        slot_label: 'MENYETUJUI / APPROVAL',
+        role_title: 'Information Assets Administrator (IAA)',
+        person_name: 'Teguh Sunjoyo',
+        salutation: 'Bapak',
+        initials: 'IAA',
+        email: 'teguh.sunjoyo@jai.co.id',
+        department: 'Information Assets Administrator',
+        sections: [],
+        is_active: true,
+        sort_order: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+    }
+    return deduplicated
+  }
+
+  // Fallback: list all
+  const res = await query<ItFormApprover>('SELECT * FROM it_form_approvers ORDER BY form_code ASC, slot_number ASC, id ASC')
+  return res.rows
+}
+
 export async function addItApprover(data: {
   form_code: string
   form_name?: string
@@ -505,7 +529,8 @@ export async function addItApprover(data: {
   salutation?: string
   initials?: string
   email?: string | null
-  department?: string | null
+  department?: string | null
+  sections?: string[] | null
   is_active?: boolean
   sort_order?: number
 }): Promise<ItFormApprover> {
@@ -516,8 +541,8 @@ export async function addItApprover(data: {
   const res = await query<ItFormApprover>(
     `INSERT INTO it_form_approvers (
        form_code, form_name, slot_number, slot_label, role_title, person_name,
-       salutation, initials, email, department, is_active, sort_order
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       salutation, initials, email, department, sections, is_active, sort_order
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      RETURNING *`,
     [
       data.form_code,
@@ -529,7 +554,8 @@ export async function addItApprover(data: {
       data.salutation || 'Bapak',
       data.initials || '',
       data.email || null,
-      data.department || null,
+      data.department || null,
+      JSON.stringify(Array.isArray(data.sections) ? data.sections : []),
       data.is_active !== false,
       data.sort_order || data.slot_number || 1,
     ]
@@ -547,7 +573,8 @@ export async function updateItApprover(
     salutation: string
     initials: string
     email: string | null
-    department: string | null
+    department: string | null
+    sections?: string[] | null
     is_active: boolean
     sort_order: number
   }>
@@ -589,6 +616,10 @@ export async function updateItApprover(
     fields.push(`department = $${idx++}`)
     values.push(data.department)
   }
+  if (data.sections !== undefined) {
+    fields.push(`sections = ${idx++}`)
+    values.push(JSON.stringify(Array.isArray(data.sections) ? data.sections : []))
+  }
   if (data.is_active !== undefined) {
     fields.push(`is_active = $${idx++}`)
     values.push(data.is_active)

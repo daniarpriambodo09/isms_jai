@@ -579,12 +579,23 @@ function FormItContent() {
     setPeriodTo(`${y2}-${m2}-${d2}`)
   }, [])
 
-  // Load configured approvers when formCode or applicant's department changes
+  const effectiveSection = useMemo(() => {
+    if (sectionChoice === '__custom__') {
+      return customSection.trim()
+    }
+    if (sectionChoice) {
+      return sectionChoice.trim()
+    }
+    return customSection.trim()
+  }, [sectionChoice, customSection])
+
+  // Load configured approvers when formCode or applicant's department/section changes
   useEffect(() => {
     let cancelled = false
     setLoadingApprovers(true)
     const deptParam = department ? `&department=${encodeURIComponent(department)}` : ''
-    fetch(`${API_BASE_PATH}/api/it-form-approvers?form_code=${encodeURIComponent(selectedFormCode)}${deptParam}`)
+    const secParam = effectiveSection ? `&section=${encodeURIComponent(effectiveSection)}` : ''
+    fetch(`${API_BASE_PATH}/api/it-form-approvers?form_code=${encodeURIComponent(selectedFormCode)}${deptParam}${secParam}`)
       .then((res) => res.json())
       .then((data) => {
         if (!cancelled && data.approvers) {
@@ -598,7 +609,7 @@ function FormItContent() {
     return () => {
       cancelled = true
     }
-  }, [selectedFormCode, department])
+  }, [selectedFormCode, department, effectiveSection])
 
   // Load departments dynamically from database (synced with portal DEPARTMENTS menu)
   useEffect(() => {
@@ -639,16 +650,6 @@ function FormItContent() {
     }
     setCustomSection('')
   }, [department, availableSections])
-
-  const effectiveSection = useMemo(() => {
-    if (sectionChoice === '__custom__') {
-      return customSection.trim()
-    }
-    if (sectionChoice) {
-      return sectionChoice.trim()
-    }
-    return customSection.trim()
-  }, [sectionChoice, customSection])
 
   // If token is provided in URL, load submission details
   const fetchSubmissionByToken = async (tok: string) => {
@@ -1784,37 +1785,41 @@ function FormItContent() {
                   </div>
                 )}
 
-                {/* Departemen & Seksi / Bagian (Input Bebas / Mengisi Manual) */}
+                {/* Departemen & Seksi / Bagian (Input Bebas / Mengisi Manual Sesuai Keinginan User) */}
                 <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 shadow-xs">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Departemen */}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-bold text-foreground">
-                          Departemen (所属部署) <span className="text-destructive">*</span>
-                        </label>
-                      </div>
+                      <label className="block text-xs font-bold text-foreground mb-1.5">
+                        Departemen (所属部署) <span className="text-destructive">*</span>
+                      </label>
                       <div className="relative">
                         <Building className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                           type="text"
+                          list="dept-list-it-esign"
                           value={department}
                           onChange={(e) => setDepartment(e.target.value)}
-                          placeholder="Ketik nama departemen (contoh: PP - NYS, HR, PGA, Produksi...)"
+                          placeholder="Ketik nama departemen (contoh: PGA, PP - NYS, QA, IT...)"
                           className="h-11 w-full rounded-xl border border-input bg-card pl-10 pr-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
+                          required
                         />
+                        <datalist id="dept-list-it-esign">
+                          {rawDepartments.map((d) => (
+                            <option key={d.id} value={d.name} />
+                          ))}
+                        </datalist>
                       </div>
                     </div>
 
                     {/* Seksi / Bagian */}
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="block text-xs font-bold text-foreground">
-                          Seksi / Bagian (課・係)
-                        </label>
-                      </div>
+                      <label className="block text-xs font-bold text-foreground mb-1.5">
+                        Seksi / Bagian (課・係)
+                      </label>
                       <input
                         type="text"
+                        list="section-list-it-esign"
                         value={customSection || sectionChoice}
                         onChange={(e) => {
                           setCustomSection(e.target.value)
@@ -1823,13 +1828,28 @@ function FormItContent() {
                         placeholder="Ketik nama seksi / bagian (contoh: IT, Accounting, QA...)"
                         className="h-11 w-full rounded-xl border border-input bg-card px-3 text-xs sm:text-sm font-semibold text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-2xs"
                       />
+                      <datalist id="section-list-it-esign">
+                        {(() => {
+                          const matchingDept = rawDepartments.find(
+                            (d) => d.name.toLowerCase().trim() === department.toLowerCase().trim()
+                          )
+                          const secList = matchingDept?.sections || rawDepartments.flatMap((d) => d.sections || [])
+                          return secList.map((sec, idx) => (
+                            <option key={`${sec.id}-${idx}`} value={sec.name} />
+                          ))
+                        })()}
+                      </datalist>
                     </div>
                   </div>
 
                   <p className="mt-2.5 text-[11px] text-muted-foreground flex items-center gap-1.5 font-medium">
                     <Info className="size-3.5 text-muted-foreground shrink-0" />
                     <span>
-                      Departemen &amp; Seksi di atas akan dicetak pada dokumen resmi PDF: <code className="font-mono text-foreground font-bold bg-secondary px-1.5 py-0.5 rounded border border-border">{department || '—'}{effectiveSection ? ` / ${effectiveSection}` : ''}</code>
+                      Departemen &amp; Seksi di atas akan dicetak pada dokumen resmi PDF:{' '}
+                      <code className="font-mono text-foreground font-bold bg-secondary px-1.5 py-0.5 rounded border border-border">
+                        {department || '—'}
+                        {effectiveSection ? ` / ${effectiveSection}` : ''}
+                      </code>
                     </span>
                   </p>
                 </div>

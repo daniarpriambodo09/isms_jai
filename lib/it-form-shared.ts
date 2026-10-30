@@ -12,6 +12,7 @@ export interface ItFormApprover {
   initials: string
   email: string | null
   department: string | null
+  sections?: string[] | null
   is_active: boolean
   sort_order: number
   created_at: string

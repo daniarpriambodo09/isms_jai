@@ -1932,9 +1932,9 @@ export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subje
                   <td align="center" style="padding:6px 20px 8px;">
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 auto;max-width:380px;">
                       <tr>
-                        <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:6px;padding:12px 24px;text-align:center;">
-                          <a href="${data.actionUrl}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;display:block;text-align:center;">
-                            <font color="#ffffff" style="color:#ffffff;">&#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)</font>
+                        <td align="center" bgcolor="#047857" style="background-color:#047857 !important;background:#047857 !important;border:2px solid #047857;border-radius:8px;padding:0;text-align:center;">
+                          <a href="${data.actionUrl}" target="_blank" style="display:block;padding:14px 24px;background-color:#047857 !important;background:#047857 !important;color:#ffffff !important;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;border-radius:6px;">
+                            <span style="color:#ffffff !important;font-weight:bold;">&#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)</span>
                           </a>
                         </td>
                       </tr>
@@ -1946,9 +1946,9 @@ export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subje
                   <td align="center" style="padding:6px 20px 16px;">
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 auto;max-width:380px;">
                       <tr>
-                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:6px;padding:12px 24px;text-align:center;">
-                          <a href="${dashUrl}" target="_blank" style="color:#ffffff;text-decoration:none;font-weight:bold;font-size:13px;font-family:Arial,Helvetica,sans-serif;display:block;text-align:center;">
-                            <font color="#ffffff" style="color:#ffffff;">&#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)</font>
+                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b !important;background:#1e293b !important;border:2px solid #1e293b;border-radius:8px;padding:0;text-align:center;">
+                          <a href="${dashUrl}" target="_blank" style="display:block;padding:12px 24px;background-color:#1e293b !important;background:#1e293b !important;color:#ffffff !important;text-decoration:none;font-weight:bold;font-size:13px;font-family:Arial,Helvetica,sans-serif;text-align:center;border-radius:6px;">
+                            <span style="color:#ffffff !important;font-weight:bold;">&#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)</span>
                           </a>
                         </td>
                       </tr>

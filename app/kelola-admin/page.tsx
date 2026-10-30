@@ -96,6 +96,7 @@ export default function KelolaAdminPage() {
   const [createEmail, setCreateEmail] = useState('')
   const [createPassword, setCreatePassword] = useState('')
   const [createRole, setCreateRole] = useState<AdminRole>('lobby')
+  const [showCreatePass, setShowCreatePass] = useState(false)
   const [createError, setCreateError] = useState('')
   const [creating, setCreating] = useState(false)
 
@@ -108,6 +109,7 @@ export default function KelolaAdminPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editRole, setEditRole] = useState<AdminRole>('lobby')
   const [editPassword, setEditPassword] = useState('')
+  const [showEditPass, setShowEditPass] = useState(false)
   const [editEmail, setEditEmail] = useState('')
   const [editError, setEditError] = useState('')
   const [editSaving, setEditSaving] = useState(false)
@@ -428,8 +430,34 @@ export default function KelolaAdminPage() {
                   <input value={createEmail} onChange={(e) => setCreateEmail(e.target.value)} className={inputClass} placeholder="email@jai.co.id" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs text-muted-foreground">Password</label>
-                  <input type="password" value={createPassword} onChange={(e) => setCreatePassword(e.target.value)} className={inputClass} placeholder="minimal 6 karakter" />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs text-muted-foreground">Password</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatePass(!showCreatePass)}
+                      className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      {showCreatePass ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                      <span>{showCreatePass ? 'Sembunyikan' : 'Lihat'}</span>
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showCreatePass ? 'text' : 'password'}
+                      value={createPassword}
+                      onChange={(e) => setCreatePassword(e.target.value)}
+                      className={`${inputClass} pr-9`}
+                      placeholder="minimal 6 karakter"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatePass(!showCreatePass)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                      title={showCreatePass ? 'Sembunyikan password' : 'Lihat password'}
+                    >
+                      {showCreatePass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-muted-foreground">Role</label>
@@ -572,8 +600,38 @@ export default function KelolaAdminPage() {
                                 </select>
                               </div>
                               <div>
-                                <label className="mb-1 block text-xs text-muted-foreground">Reset password (opsional)</label>
-                                <input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} className={inputClass} placeholder="kosongkan jika tidak diubah" />
+                                <div className="flex items-center justify-between mb-1">
+                                  <label className="block text-xs text-muted-foreground">Reset password (opsional)</label>
+                                  {editPassword && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowEditPass(!showEditPass)}
+                                      className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                                    >
+                                      {showEditPass ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                                      <span>{showEditPass ? 'Sembunyikan' : 'Lihat'}</span>
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="relative">
+                                  <input
+                                    type={showEditPass ? 'text' : 'password'}
+                                    value={editPassword}
+                                    onChange={(e) => setEditPassword(e.target.value)}
+                                    className={`${inputClass} pr-9`}
+                                    placeholder="kosongkan jika tidak diubah"
+                                  />
+                                  {editPassword && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowEditPass(!showEditPass)}
+                                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                                      title={showEditPass ? 'Sembunyikan password' : 'Lihat password'}
+                                    >
+                                      {showEditPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             </>
                           )}

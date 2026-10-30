@@ -93,3 +93,50 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await logActivity({ sub: link.account.id, username: link.account.username, role: link.account.role }, 'update', 'admin', link.account.id, `Mengatur ulang password akun "${link.account.username}" lewat link email (Lupa password)`)
   return { ok: true, username: link.account.username }
 }
+
+/**
+ * Mengganti password akun secara langsung berdasarkan email yang terdaftar di Manage Akun (atau username).
+ * Memastikan password baru langsung tersambung ke akun di database.
+ */
+export async function resetPasswordByIdentifier(
+  identifier: string,
+  newPassword: string
+): Promise<{ ok: true; username: string; email: string | null } | { ok: false; message: string }> {
+  const value = identifier.trim()
+  if (!value) {
+    return { ok: false, message: 'Harap masukkan email atau username akun yang terdaftar.' }
+  }
+  if (newPassword.length < 6) {
+    return { ok: false, message: 'Password baru minimal 6 karakter.' }
+  }
+
+  const account = (
+    await query<Account>(
+      `SELECT id, username, email, role FROM admins
+       WHERE lower(email) = lower($1) OR lower(username) = lower($1)
+       ORDER BY (lower(email) = lower($1)) DESC, (lower(username) = lower($1)) DESC
+       LIMIT 1`,
+      [value]
+    )
+  ).rows[0]
+
+  if (!account) {
+    return {
+      ok: false,
+      message: `Akun dengan email/username "${value}" tidak ditemukan di Kelola Akun (Manage Akun). Pastikan email sudah sesuai dengan yang didaftarkan di sistem.`,
+    }
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10)
+  await query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hashedPassword, account.id])
+  await query('UPDATE password_resets SET used_at = now() WHERE admin_id = $1 AND used_at IS NULL', [account.id])
+  await logActivity(
+    { sub: account.id, username: account.username, role: account.role },
+    'update',
+    'admin',
+    account.id,
+    `Mengatur ulang password akun "${account.username}" (email: ${account.email || '-'}) lewat form Lupa Password`
+  )
+
+  return { ok: true, username: account.username, email: account.email }
+}

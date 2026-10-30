@@ -865,49 +865,55 @@ function FormContent() {
               </button>
             </div>
 
-            {/* Kontrol Generate Link Tamu (Bisa Mengatur Jumlah Link) */}
-            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 rounded-xl border border-primary/25 bg-primary/5 p-1.5 pl-3">
-              <label htmlFor="header-guest-link-count" className="text-[11px] font-bold text-foreground whitespace-nowrap">
-                Jumlah Link:
-              </label>
-              <div className="inline-flex items-center rounded-lg border border-border bg-card">
+            {/* Kontrol Generate Link Tamu (HANYA untuk Membawa Masuk 001 Tamu / Afiliasi) */}
+            {formType === 'in' ? (
+              <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 rounded-xl border border-primary/25 bg-primary/5 p-1.5 pl-3">
+                <label htmlFor="header-guest-link-count" className="text-[11px] font-bold text-foreground whitespace-nowrap">
+                  Jumlah Link:
+                </label>
+                <div className="inline-flex items-center rounded-lg border border-border bg-card">
+                  <button
+                    type="button"
+                    onClick={() => setGuestLinkCount((c) => Math.max(1, c - 1))}
+                    aria-label="Kurangi jumlah link"
+                    className="px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <Minus className="size-3" aria-hidden="true" />
+                  </button>
+                  <input
+                    id="header-guest-link-count"
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={guestLinkCount}
+                    onChange={(e) =>
+                      setGuestLinkCount(Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 1)))
+                    }
+                    className="w-10 bg-transparent text-center font-mono text-xs font-bold text-foreground outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setGuestLinkCount((c) => Math.min(50, c + 1))}
+                    aria-label="Tambah jumlah link"
+                    className="px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <Plus className="size-3" aria-hidden="true" />
+                  </button>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setGuestLinkCount((c) => Math.max(1, c - 1))}
-                  aria-label="Kurangi jumlah link"
-                  className="px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"
+                  onClick={() => setGuestLinkModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-2xs transition hover:bg-primary/90 cursor-pointer"
                 >
-                  <Minus className="size-3" aria-hidden="true" />
-                </button>
-                <input
-                  id="header-guest-link-count"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={guestLinkCount}
-                  onChange={(e) =>
-                    setGuestLinkCount(Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 1)))
-                  }
-                  className="w-10 bg-transparent text-center font-mono text-xs font-bold text-foreground outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setGuestLinkCount((c) => Math.min(50, c + 1))}
-                  aria-label="Tambah jumlah link"
-                  className="px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <Plus className="size-3" aria-hidden="true" />
+                  <Link2 className="size-3.5" aria-hidden="true" />
+                  <span>Generate {guestLinkCount} Link Tamu (Alat IT + Network)</span>
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setGuestLinkModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-2xs transition hover:bg-primary/90 cursor-pointer"
-              >
-                <Link2 className="size-3.5" aria-hidden="true" />
-                <span>Generate {guestLinkCount} Link Tamu (Alat IT + Network)</span>
-              </button>
-            </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/40 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground self-stretch sm:self-auto justify-center">
+                <span>Formulir Khusus Internal Karyawan PT. JAI (Pengajuan langsung tanpa link tamu)</span>
+              </div>
+            )}
           </div>
         </div>
       </section>

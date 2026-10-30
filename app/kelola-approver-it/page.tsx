@@ -332,7 +332,13 @@ export default function KelolaApproverItPage() {
               Kelola Permohonan IT
             </Link>
             <Link
-              href={selectedFormCode === 'ISMS-F-02-00-002' ? '/registrasi-fingerprint' : `/form-it-esign?form=${selectedFormCode}`}
+              href={
+                selectedFormCode === 'ISMS-F-02-00-002'
+                  ? '/registrasi-fingerprint'
+                  : selectedFormCode === 'ISMS-F-03-00-001' || selectedFormCode === 'ISMS-F-03-00-002'
+                  ? '/ijin-masuk-alat-it'
+                  : `/form-it-esign?form=${selectedFormCode}`
+              }
               target="_blank"
               className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-95"
             >
@@ -359,9 +365,11 @@ export default function KelolaApproverItPage() {
                 <Laptop className="size-3.5 text-blue-600" />
                 Formulir Layanan IT (E-Sign)
               </span>
-              <span className="text-[11px] text-muted-foreground">5 Formulir Aktif</span>
+              <span className="text-[11px] text-muted-foreground font-semibold">
+                {IT_FORM_DEFINITIONS.filter((d) => d.code !== 'ISMS-F-02-00-002').length} Formulir Aktif
+              </span>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-6">
               {IT_FORM_DEFINITIONS.filter((d) => d.code !== 'ISMS-F-02-00-002').map((def) => {
                 const isSelected = selectedFormCode === def.code
                 const count = approvers.filter((a) => a.form_code === def.code).length

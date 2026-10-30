@@ -10,8 +10,8 @@ import type { ItEquipmentRequest } from './it-equipment-shared'
 import type { ItFormSubmission } from './it-form-service'
 
 describe('IT Forms and E-Sign System Verification', () => {
-  it('has all 7 IT form definitions configured', () => {
-    expect(IT_FORM_DEFINITIONS.length).toBe(7)
+  it('has all 8 IT form definitions configured', () => {
+    expect(IT_FORM_DEFINITIONS.length).toBe(8)
     const codes = IT_FORM_DEFINITIONS.map(d => d.code)
     expect(codes).toContain('ISMS-F-010-001')
     expect(codes).toContain('ISMS-F-010-003')
@@ -19,6 +19,7 @@ describe('IT Forms and E-Sign System Verification', () => {
     expect(codes).toContain('ISMS-F-010-007')
     expect(codes).toContain('ISMS-F-03-00-003')
     expect(codes).toContain('ISMS-F-03-00-001')
+    expect(codes).toContain('ISMS-F-03-00-002')
     expect(codes).toContain('ISMS-F-02-00-002')
   })
 

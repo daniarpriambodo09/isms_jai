@@ -60,6 +60,7 @@ import {
   Filter,
   X,
   Link2,
+  HelpCircle,
 } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { IT_FORM_DEFINITIONS, type ItFormApprover, type ItFormSubmission } from '@/lib/it-form-shared'
@@ -537,6 +538,7 @@ function FormItContent() {
   const [purposeEmail, setPurposeEmail] = useState(true)
   const [purposeWeb, setPurposeWeb] = useState(false)
   const [purposeFtp, setPurposeFtp] = useState(false)
+  const [purposeOtherEnabled, setPurposeOtherEnabled] = useState(false)
   const [purposeOthers, setPurposeOthers] = useState('')
   const [antivirusInstalled, setAntivirusInstalled] = useState(true)
   const [antivirusName, setAntivirusName] = useState('Windows Defender / Endpoint Protection')
@@ -762,7 +764,7 @@ function FormItContent() {
         formDataPayload.purpose_email = purposeEmail
         formDataPayload.purpose_web = purposeWeb
         formDataPayload.purpose_ftp = purposeFtp
-        formDataPayload.purpose_others = purposeOthers.trim()
+        formDataPayload.purpose_others = purposeOtherEnabled ? purposeOthers.trim() : ''
         formDataPayload.antivirus_installed = antivirusInstalled
         formDataPayload.antivirus_name = antivirusName.trim()
         formDataPayload.antivirus_version = antivirusVersion.trim()
@@ -791,7 +793,18 @@ function FormItContent() {
             selectedFormCode === 'ISMS-F-03-00-003'
               ? companyName.trim() || 'PT. Jatim Autocomp Indonesia'
               : 'PT. Jatim Autocomp Indonesia',
-          purpose: purpose.trim() || null,
+          purpose:
+            selectedFormCode === 'ISMS-F-03-00-003'
+              ? [
+                  purposeInternet ? 'Internet Browsing' : null,
+                  purposeEmail ? 'Mail Client' : null,
+                  purposeWeb ? 'Internal Web Apps' : null,
+                  purposeFtp ? 'FTP & File Server' : null,
+                  purposeOtherEnabled && purposeOthers.trim() ? `Other: ${purposeOthers.trim()}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ') || 'Koneksi Jaringan Internal'
+              : purpose.trim() || null,
           form_data: formDataPayload,
           notes: notes.trim() || null,
         }),
@@ -2670,7 +2683,7 @@ function FormItContent() {
                   <label className="mb-2 block text-xs font-bold text-foreground">
                     Tujuan Penggunaan Jaringan (使用目的)
                   </label>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                     <button
                       type="button"
                       aria-pressed={purposeInternet}
@@ -2726,7 +2739,41 @@ function FormItContent() {
                       <HardDrive className={`size-4 shrink-0 ${purposeFtp ? 'text-primary' : 'text-muted-foreground'}`} />
                       <span className="text-xs">FTP &amp; File Server</span>
                     </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={purposeOtherEnabled}
+                      onClick={() => {
+                        const next = !purposeOtherEnabled
+                        setPurposeOtherEnabled(next)
+                        if (!next) setPurposeOthers('')
+                      }}
+                      className={`flex items-center gap-3 rounded-xl border p-3.5 text-left cursor-pointer transition ${
+                        purposeOtherEnabled
+                          ? 'border-2 border-primary bg-primary/[0.05] text-primary font-bold ring-2 ring-primary/20 shadow-sm'
+                          : 'border border-border bg-card text-muted-foreground hover:border-primary/40 hover:bg-secondary/40'
+                      }`}
+                    >
+                      <HelpCircle className={`size-4 shrink-0 ${purposeOtherEnabled ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span className="text-xs">Other (Lainnya)</span>
+                    </button>
                   </div>
+
+                  {purposeOtherEnabled && (
+                    <div className="mt-3">
+                      <label className="mb-1 block text-xs font-bold text-foreground">
+                        Keterangan Tujuan Lainnya (Other Purpose) <span className="text-destructive">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={purposeOthers}
+                        onChange={(e) => setPurposeOthers(e.target.value)}
+                        placeholder="Ketik tujuan penggunaan jaringan lainnya (misal: Maintenance PLC, Vendor Audit, Remote Server)..."
+                        className="h-11 w-full rounded-xl border border-input bg-card px-3.5 text-xs sm:text-sm font-medium text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15 shadow-xs"
+                        required={purposeOtherEnabled}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* IT Security & Antivirus Verification Box */}

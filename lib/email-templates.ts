@@ -156,7 +156,7 @@ export function buildVisitorApprovalEmail(data: VisitorApprovalEmailData): { sub
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
                         <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:8px;">
-                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
                           </a>
                         </td>
@@ -172,7 +172,7 @@ export function buildVisitorApprovalEmail(data: VisitorApprovalEmailData): { sub
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                             <tr>
                               <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 2px 8px rgba(4,120,87,0.3);">
-                                <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                                <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                                   &#10003;&nbsp; Menyetujui (Auto-Login)
                                 </a>
                               </td>
@@ -183,7 +183,7 @@ export function buildVisitorApprovalEmail(data: VisitorApprovalEmailData): { sub
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                             <tr>
                               <td align="center" bgcolor="#dc2626" style="background-color:#dc2626;border-radius:8px;box-shadow:0 2px 8px rgba(220,38,38,0.3);">
-                                <a href="${data.rejectUrl}" target="_blank" style="display:inline-block;min-width:130px;padding:13px 24px;background-color:#dc2626;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                                <a href="${data.rejectUrl}" target="_blank" style="display:inline-block;min-width:130px;padding:13px 24px;background-color:#dc2626;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                                   &#10007;&nbsp; Tolak
                                 </a>
                               </td>
@@ -1345,7 +1345,7 @@ export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
                         <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:6px;">
-                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
                           </a>
                         </td>
@@ -1361,7 +1361,7 @@ export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData
                           <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                             <tr>
                               <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:6px;box-shadow:0 2px 8px rgba(4,120,87,0.3);">
-                                <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff !important;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                                <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                                   &#10003;&nbsp; Menyetujui (Auto-Login)
                                 </a>
                               </td>
@@ -1520,7 +1520,7 @@ function photoDetailRows(rows: [string, string][]) {
 }
 
 function photoButton(href: string, label: string, color = NAVY) {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${color}" style="background-color:${color};border-radius:8px;"><a href="${href}" target="_blank" style="display:inline-block;padding:13px 28px;background-color:${color};color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">${label}</a></td></tr></table>`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${color}" style="background-color:${color};border-radius:8px;"><a href="${href}" target="_blank" style="display:inline-block;padding:13px 28px;background-color:${color};color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">${label}</a></td></tr></table>`
 }
 
 export type PhotoRequestSummary = {
@@ -1586,7 +1586,7 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                 <tr>
                   <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:8px;">
-                    <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                    <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                       &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
                     </a>
                   </td>
@@ -1602,7 +1602,7 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 2px 8px rgba(4,120,87,0.3);">
-                          <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             &#10003;&nbsp; Menyetujui (Auto-Login)
                           </a>
                         </td>
@@ -1613,7 +1613,7 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td align="center" bgcolor="#dc2626" style="background-color:#dc2626;border-radius:8px;box-shadow:0 2px 8px rgba(220,38,38,0.3);">
-                          <a href="${data.rejectUrl}" target="_blank" style="display:inline-block;min-width:130px;padding:13px 24px;background-color:#dc2626;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.rejectUrl}" target="_blank" style="display:inline-block;min-width:130px;padding:13px 24px;background-color:#dc2626;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             &#10007;&nbsp; Tolak
                           </a>
                         </td>
@@ -1932,9 +1932,9 @@ export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subje
                   <td align="center" style="padding:6px 20px 8px;">
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 auto;max-width:380px;">
                       <tr>
-                        <td align="center" bgcolor="#047857" style="background-color:#047857 !important;background:#047857 !important;border:2px solid #047857;border-radius:8px;padding:0;text-align:center;">
-                          <a href="${data.actionUrl}" target="_blank" style="display:block;padding:14px 24px;background-color:#047857 !important;background:#047857 !important;color:#ffffff !important;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;border-radius:6px;">
-                            <span style="color:#ffffff !important;font-weight:bold;">&#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)</span>
+                        <td align="center" bgcolor="#047857" style="background-color:#047857;background:#047857;border:2px solid #047857;border-radius:8px;padding:0;text-align:center;">
+                          <a href="${data.actionUrl}" target="_blank" style="display:block;padding:14px 24px;background-color:#047857;background:#047857;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;border-radius:6px;">
+                            <font color="#ffffff" style="color:#ffffff;font-weight:bold;font-size:14px;">&#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)</font>
                           </a>
                         </td>
                       </tr>
@@ -1946,9 +1946,9 @@ export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subje
                   <td align="center" style="padding:6px 20px 16px;">
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 auto;max-width:380px;">
                       <tr>
-                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b !important;background:#1e293b !important;border:2px solid #1e293b;border-radius:8px;padding:0;text-align:center;">
-                          <a href="${dashUrl}" target="_blank" style="display:block;padding:12px 24px;background-color:#1e293b !important;background:#1e293b !important;color:#ffffff !important;text-decoration:none;font-weight:bold;font-size:13px;font-family:Arial,Helvetica,sans-serif;text-align:center;border-radius:6px;">
-                            <span style="color:#ffffff !important;font-weight:bold;">&#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)</span>
+                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;background:#1e293b;border:2px solid #1e293b;border-radius:8px;padding:0;text-align:center;">
+                          <a href="${dashUrl}" target="_blank" style="display:block;padding:12px 24px;background-color:#1e293b;background:#1e293b;color:#ffffff;text-decoration:none;font-weight:bold;font-size:13px;font-family:Arial,Helvetica,sans-serif;text-align:center;border-radius:6px;">
+                            <font color="#ffffff" style="color:#ffffff;font-weight:bold;font-size:13px;">&#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)</font>
                           </a>
                         </td>
                       </tr>
@@ -2141,7 +2141,7 @@ export function buildItFormCompletedEmail(data: ItFormCompletedEmailData): { sub
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
                         <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 3px 10px rgba(4,120,87,0.35);">
-                          <a href="${data.pdfUrl || data.actionUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:14px 32px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.pdfUrl || data.actionUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:14px 32px;background-color:#047857;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             &#128196;&nbsp; Buka / Unduh Dokumen PDF Resmi
                           </a>
                         </td>
@@ -2297,7 +2297,7 @@ export function buildItFormRejectedEmail(data: ItFormRejectedEmailData): { subje
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
                         <td align="center" bgcolor="#dc2626" style="background-color:#dc2626;border-radius:8px;box-shadow:0 3px 10px rgba(220,38,38,0.35);">
-                          <a href="${data.actionUrl}" target="_blank" style="display:inline-block;min-width:240px;padding:14px 32px;background-color:#dc2626;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.actionUrl}" target="_blank" style="display:inline-block;min-width:240px;padding:14px 32px;background-color:#dc2626;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             Lihat Rincian Permohonan
                           </a>
                         </td>
@@ -2446,7 +2446,7 @@ export function buildAccountCreatedEmail(data: AccountCreatedEmailData): { subje
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
                         <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 3px 10px rgba(4,120,87,0.35);">
-                          <a href="${data.loginUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:14px 32px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.loginUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:14px 32px;background-color:#047857;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             &#128640;&nbsp; Masuk ke Portal ISMS Sekarang
                           </a>
                         </td>
@@ -2460,7 +2460,7 @@ export function buildAccountCreatedEmail(data: AccountCreatedEmailData): { subje
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
                         <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:8px;">
-                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 32px;background-color:#1e293b;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 32px;background-color:#1e293b;color:#ffffff;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
                             &#128203;&nbsp; Buka Dashboard Persetujuan Saya
                           </a>
                         </td>

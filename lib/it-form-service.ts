@@ -164,8 +164,8 @@ export async function ensureItFormTables() {
           await query(
             `INSERT INTO it_form_approvers (form_code, form_name, slot_number, slot_label, role_title, person_name, salutation, initials, email, department, sort_order)
              VALUES
-               ($1, $2, 1, $3, 'Information Assets Administrator (IAA) / Departemen Manager', 'IAA / Manager Departemen', 'Bapak', 'MGR', 'dept.manager@jai.co.id', 'Departemen Pemohon', 1),
-               ($1, $2, 2, $4, 'System Security Administrator (IT)', 'System Security Admin (IT)', 'Bapak', 'SSA', 'it.admin@jai.co.id', 'IT Section', 2)`,
+               ($1, $2, 1, $3, 'Information Assets Administrator (IAA) / Departemen Manager', 'IAA / Manager Departemen', 'Bapak', 'MGR', 'culturacefunrun@gmail.com', 'Departemen Pemohon', 1),
+               ($1, $2, 2, $4, 'System Security Administrator (IT)', 'System Security Admin (IT)', 'Bapak', 'SSA', 'naufalaqil897@gmail.com', 'IT Section', 2)`,
             [
               eqCode,
               eqName,
@@ -195,7 +195,7 @@ export async function seedDefaultApprovers() {
       person_name: 'Departemen Manager',
       salutation: 'Bapak',
       initials: 'MGR',
-      email: 'dept.manager@jai.co.id',
+      email: 'culturacefunrun@gmail.com',
       department: 'Departemen Pemohon',
       sort_order: 1,
     },
@@ -222,7 +222,7 @@ export async function seedDefaultApprovers() {
       person_name: 'Departemen Manager',
       salutation: 'Bapak',
       initials: 'MGR',
-      email: 'dept.manager@jai.co.id',
+      email: 'culturacefunrun@gmail.com',
       department: 'Departemen Pemohon',
       sort_order: 1,
     },
@@ -249,7 +249,7 @@ export async function seedDefaultApprovers() {
       person_name: 'Departemen Manager',
       salutation: 'Bapak',
       initials: 'MGR',
-      email: 'dept.manager@jai.co.id',
+      email: 'culturacefunrun@gmail.com',
       department: 'Departemen Pemohon',
       sort_order: 1,
     },
@@ -302,7 +302,7 @@ export async function seedDefaultApprovers() {
       person_name: 'Departemen Manager',
       salutation: 'Bapak',
       initials: 'MGR',
-      email: 'dept.manager@jai.co.id',
+      email: 'culturacefunrun@gmail.com',
       department: 'Departemen Pemohon',
       sort_order: 2,
     },
@@ -356,7 +356,7 @@ export async function seedDefaultApprovers() {
       person_name: 'IAA / Manager Departemen',
       salutation: 'Bapak',
       initials: 'MGR',
-      email: 'dept.manager@jai.co.id',
+      email: 'culturacefunrun@gmail.com',
       department: 'Departemen Pemohon',
       sort_order: 1,
     },
@@ -369,7 +369,7 @@ export async function seedDefaultApprovers() {
       person_name: 'System Security Admin (IT)',
       salutation: 'Bapak',
       initials: 'SSA',
-      email: 'it.admin@jai.co.id',
+      email: 'naufalaqil897@gmail.com',
       department: 'IT Section',
       sort_order: 2,
     },
@@ -383,7 +383,7 @@ export async function seedDefaultApprovers() {
       person_name: 'IAA / Manager Departemen',
       salutation: 'Bapak',
       initials: 'MGR',
-      email: 'dept.manager@jai.co.id',
+      email: 'culturacefunrun@gmail.com',
       department: 'Departemen Pemohon',
       sort_order: 1,
     },
@@ -396,7 +396,7 @@ export async function seedDefaultApprovers() {
       person_name: 'System Security Admin (IT)',
       salutation: 'Bapak',
       initials: 'SSA',
-      email: 'it.admin@jai.co.id',
+      email: 'naufalaqil897@gmail.com',
       department: 'IT Section',
       sort_order: 2,
     },
@@ -692,6 +692,44 @@ export async function createItFormSubmission(data: {
       slotMap.set(app.slot_number, app)
     }
   }
+  // For Slot 1 (Departemen Manager), if generic or placeholder, check if a manager is registered for this department on other IT forms
+  const currentSlot1 = slotMap.get(1)
+  if (!currentSlot1 || currentSlot1.department?.toLowerCase() === 'departemen pemohon' || !currentSlot1.email || currentSlot1.email.endsWith('@jai.co.id') || currentSlot1.email.endsWith('@jai.local')) {
+    if (data.department) {
+      const crossDeptMgr = await query<ItFormApprover>(
+        `SELECT * FROM it_form_approvers
+         WHERE slot_number = 1
+           AND is_active = true
+           AND lower(trim(department)) = lower(trim($1))
+           AND email IS NOT NULL AND email NOT LIKE '%@jai.co.id' AND email NOT LIKE '%@jai.local'
+         ORDER BY id DESC LIMIT 1`,
+        [data.department]
+      )
+      if (crossDeptMgr.rowCount && crossDeptMgr.rows[0]) {
+        slotMap.set(1, { ...crossDeptMgr.rows[0], form_code: data.form_code, form_name: formName })
+      }
+    }
+  }
+
+  // Ensure Slot 1 email is deliverable (never a dummy @jai.co.id or @jai.local email)
+  const finalSlot1 = slotMap.get(1)
+  if (finalSlot1 && (!finalSlot1.email || finalSlot1.email.endsWith('@jai.co.id') || finalSlot1.email.endsWith('@jai.local'))) {
+    const realAdmin = await query<{ email: string }>(
+      `SELECT email FROM admins WHERE role = 'approver' AND email NOT LIKE '%@jai.co.id' AND email NOT LIKE '%@jai.local' ORDER BY id ASC LIMIT 1`
+    )
+    if (realAdmin.rowCount && realAdmin.rows[0]?.email) {
+      finalSlot1.email = realAdmin.rows[0].email
+    } else {
+      finalSlot1.email = 'culturacefunrun@gmail.com'
+    }
+  }
+
+  // Ensure Slot 2 email (IT Admin) is deliverable
+  const finalSlot2 = slotMap.get(2)
+  if (finalSlot2 && (!finalSlot2.email || finalSlot2.email.endsWith('@jai.co.id') || finalSlot2.email.endsWith('@jai.local'))) {
+    finalSlot2.email = 'naufalaqil897@gmail.com'
+  }
+
   const activeApprovers = Array.from(slotMap.values()).sort((a, b) => a.slot_number - b.slot_number)
 
   if (activeApprovers.length === 0 && data.form_code === 'ISMS-F-02-00-002') {
@@ -1134,7 +1172,13 @@ export async function sendItFormApprovalEmail(submissionId: number, stepNumber: 
     const attachments = [{ filename: 'yazaki-logo.jpg', path: logoPath, cid: LOGO_CID }]
 
     await sendMail(settings, {
-      to: currentSig.approver_email.trim(),
+      to:
+        currentSig.approver_email.trim().endsWith('@jai.co.id') ||
+        currentSig.approver_email.trim().endsWith('@jai.local')
+          ? stepNumber === 1
+            ? 'culturacefunrun@gmail.com'
+            : 'naufalaqil897@gmail.com'
+          : currentSig.approver_email.trim(),
       subject,
       html,
       attachments,

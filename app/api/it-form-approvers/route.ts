@@ -55,11 +55,15 @@ export async function POST(request: NextRequest) {
       sort_order: Number(body.sort_order) || Number(body.slot_number) || 1,
     })
 
-    // If apply_all_forms is checked, also duplicate this manager to other standard IT forms (001, 003, 006, 007)
+    // If apply_all_forms is checked, also duplicate this manager to other standard IT forms (001, 003, 006, 007, and 03-00-002)
     if (body.apply_all_forms) {
-      const otherForms = ['ISMS-F-010-001', 'ISMS-F-010-003', 'ISMS-F-010-006', 'ISMS-F-010-007'].filter(
-        (code) => code !== body.form_code
-      )
+      const otherForms = [
+        'ISMS-F-010-001',
+        'ISMS-F-010-003',
+        'ISMS-F-010-006',
+        'ISMS-F-010-007',
+        'ISMS-F-03-00-002',
+      ].filter((code) => code !== body.form_code)
       for (const fCode of otherForms) {
         await addItApprover({
           form_code: fCode,

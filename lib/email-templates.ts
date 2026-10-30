@@ -146,27 +146,49 @@ export function buildVisitorApprovalEmail(data: VisitorApprovalEmailData): { sub
           <!-- CTA -->
           <tr>
             <td style="padding:26px 32px 8px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid ${BORDER};border-radius:16px;">
                 <tr>
-                  <td style="padding:20px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
+                  <td style="padding:20px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
                 </tr>
                 ${data.dashboardUrl ? `
                 <tr>
-                  <td align="center" style="padding:8px 20px 6px;">
-                    <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 28px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
-                      &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
-                    </a>
+                  <td align="center" style="padding:6px 20px 10px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:8px;">
+                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>` : ''}
                 <tr>
-                  <td align="center" style="padding:10px 20px 14px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
+                  <td align="center" style="padding:6px 20px 14px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
-                        <td style="padding-right:10px;">
-                          <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:13px 28px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.25);">&#10003;&nbsp; Menyetujui (Auto-Login)</a>
+                        <td style="padding-right:12px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 2px 8px rgba(4,120,87,0.3);">
+                                <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                                  &#10003;&nbsp; Menyetujui (Auto-Login)
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
                         </td>
                         <td>
-                          <a href="${data.rejectUrl}" style="display:inline-block;min-width:140px;text-align:center;padding:13px 26px;background:linear-gradient(135deg, #d8342b 0%, ${RED} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(199,22,30,0.25);">&#10007;&nbsp; Tolak</a>
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td align="center" bgcolor="#dc2626" style="background-color:#dc2626;border-radius:8px;box-shadow:0 2px 8px rgba(220,38,38,0.3);">
+                                <a href="${data.rejectUrl}" target="_blank" style="display:inline-block;min-width:130px;padding:13px 24px;background-color:#dc2626;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                                  &#10007;&nbsp; Tolak
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
                         </td>
                       </tr>
                     </table>
@@ -1315,25 +1337,47 @@ export function buildSpecialAreaApprovalEmail(data: SpecialAreaApprovalEmailData
             <td style="padding:26px 32px 8px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${SA_TINT};border:1px dashed ${SA_RED};border-radius:10px;">
                 <tr>
-                  <td style="padding:20px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
+                  <td style="padding:20px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
                 </tr>
                 ${data.dashboardUrl ? `
                 <tr>
-                  <td align="center" style="padding:8px 20px 6px;">
-                    <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 28px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
-                      &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
-                    </a>
+                  <td align="center" style="padding:6px 20px 10px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:6px;">
+                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>` : ''}
                 <tr>
-                  <td align="center" style="padding:10px 20px 14px;">
-                    <table role="presentation" cellpadding="0" cellspacing="0">
+                  <td align="center" style="padding:6px 20px 14px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                       <tr>
-                        <td style="padding-right:10px;">
-                          <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:13px 28px;background:${GREEN};color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;">&#10003;&nbsp; Menyetujui (Auto-Login)</a>
+                        <td style="padding-right:12px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:6px;box-shadow:0 2px 8px rgba(4,120,87,0.3);">
+                                <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff !important;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                                  &#10003;&nbsp; Menyetujui (Auto-Login)
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
                         </td>
                         <td>
-                          <a href="${data.rejectUrl}" style="display:inline-block;min-width:140px;text-align:center;padding:11px 24px;background:#ffffff;color:${SA_RED};border:2px solid ${SA_RED};border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;">&#10007;&nbsp; Tolak</a>
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td align="center" bgcolor="#ffffff" style="background-color:#ffffff;border:2px solid ${SA_RED};border-radius:6px;">
+                                <a href="${data.rejectUrl}" target="_blank" style="display:inline-block;min-width:130px;padding:11px 24px;background-color:#ffffff;color:${SA_RED} !important;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                                  &#10007;&nbsp; Tolak
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
                         </td>
                       </tr>
                     </table>
@@ -1476,7 +1520,7 @@ function photoDetailRows(rows: [string, string][]) {
 }
 
 function photoButton(href: string, label: string, color = NAVY) {
-  return `<a href="${href}" style="display:inline-block;padding:13px 28px;background:${color};color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;">${label}</a>`
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;"><tr><td align="center" bgcolor="${color}" style="background-color:${color};border-radius:8px;"><a href="${href}" target="_blank" style="display:inline-block;padding:13px 28px;background-color:${color};color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">${label}</a></td></tr></table>`
 }
 
 export type PhotoRequestSummary = {
@@ -1530,27 +1574,49 @@ export function buildPhotoRequestAdminEmail(data: PhotoRequestSummary & {
     ${hasAutoLogin ? `
     <tr>
       <td style="padding:24px 32px 8px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid ${BORDER};border-radius:16px;">
           <tr>
-            <td style="padding:18px 20px 4px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
+            <td style="padding:18px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">Pilih salah satu metode di bawah &mdash; Keduanya otomatis login:</td>
           </tr>
           ${data.dashboardUrl ? `
           <tr>
-            <td align="center" style="padding:8px 20px 6px;">
-              <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 28px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
-                &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
-              </a>
+            <td align="center" style="padding:6px 20px 10px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                <tr>
+                  <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:8px;">
+                    <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                      &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+                    </a>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>` : ''}
           <tr>
-            <td align="center" style="padding:10px 20px 14px;">
-              <table role="presentation" cellpadding="0" cellspacing="0">
+            <td align="center" style="padding:6px 20px 14px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
                 <tr>
-                  <td style="padding-right:10px;">
-                    <a href="${data.approveUrl}" style="display:inline-block;min-width:150px;text-align:center;padding:13px 28px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.25);">&#10003;&nbsp; Menyetujui (Auto-Login)</a>
+                  <td style="padding-right:12px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 2px 8px rgba(4,120,87,0.3);">
+                          <a href="${data.approveUrl}" target="_blank" style="display:inline-block;min-width:160px;padding:13px 26px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#10003;&nbsp; Menyetujui (Auto-Login)
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                   <td>
-                    <a href="${data.rejectUrl}" style="display:inline-block;min-width:140px;text-align:center;padding:13px 26px;background:linear-gradient(135deg, #d8342b 0%, ${RED} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(199,22,30,0.25);">&#10007;&nbsp; Tolak</a>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td align="center" bgcolor="#dc2626" style="background-color:#dc2626;border-radius:8px;box-shadow:0 2px 8px rgba(220,38,38,0.3);">
+                          <a href="${data.rejectUrl}" target="_blank" style="display:inline-block;min-width:130px;padding:13px 24px;background-color:#dc2626;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#10007;&nbsp; Tolak
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -1846,29 +1912,57 @@ export function buildItFormApprovalEmail(data: ItFormApprovalEmailData): { subje
           <!-- Action Button CTA -->
           <tr>
             <td style="padding:24px 32px 8px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;border:2px solid #0f766e;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(15,118,110,0.14);">
                 <tr>
-                  <td style="padding:20px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};font-weight:600;">
-                    Pilih salah satu metode di bawah untuk memeriksa dan memberikan persetujuan (E-Sign) — Keduanya otomatis login:
+                  <td bgcolor="#0f766e" style="background-color:#0f766e;padding:12px 20px;text-align:center;">
+                    <p style="margin:0;color:#ffffff;font-size:12.5px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;">
+                      &#9889;&nbsp; Tindakan Diperlukan &middot; Persetujuan Tanda Tangan Digital (E-Sign)
+                    </p>
                   </td>
                 </tr>
+                <tr>
+                  <td style="padding:18px 24px 10px;text-align:center;font-size:13px;color:#334155;line-height:1.5;">
+                    Pilih salah satu metode di bawah untuk memeriksa dan memberikan persetujuan (E-Sign) &mdash; Keduanya otomatis login:
+                  </td>
+                </tr>
+                <!-- Tombol Utama: Buka & Tanda Tangani di Halaman Formulir -->
                 <tr>
                   <td align="center" style="padding:6px 20px 8px;">
-                    <a href="${dashUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:13px 32px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(18,40,58,0.22);">
-                      &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
-                    </a>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 3px 10px rgba(4,120,87,0.35);">
+                          <a href="${data.actionUrl}" target="_blank" style="display:inline-block;min-width:320px;padding:15px 32px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;line-height:1.3;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
+                <!-- Tombol Kedua: Dashboard Persetujuan -->
                 <tr>
-                  <td align="center" style="padding:6px 20px 14px;">
-                    <a href="${data.actionUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.22);">
-                      &#9998;&nbsp; Buka &amp; Tanda Tangani di Halaman Formulir (Auto-Login)
-                    </a>
+                  <td align="center" style="padding:6px 20px 16px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:8px;box-shadow:0 2px 6px rgba(30,41,59,0.25);">
+                          <a href="${dashUrl}" target="_blank" style="display:inline-block;min-width:320px;padding:12px 28px;background-color:#1e293b;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13px;line-height:1.3;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#128203;&nbsp; Buka di Dashboard Persetujuan Saya (Auto-Login)
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
+                <!-- Security Note -->
                 <tr>
-                  <td style="padding:0 24px 18px;text-align:center;font-size:11.5px;color:${MUTED};line-height:1.5;">
-                    <em>Catatan: Kedua pilihan tombol di atas akan otomatis mengautentikasi (Auto-Login) akun Anda ke Portal ISMS tanpa perlu memasukkan password manual.</em>
+                  <td style="padding:0 24px 16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                      <tr>
+                        <td style="padding:10px 16px;text-align:center;font-size:11.5px;color:#64748b;line-height:1.5;">
+                          &#128274;&nbsp; <em>Catatan: Kedua pilihan tombol di atas akan otomatis mengautentikasi (Auto-Login) akun Anda ke Portal ISMS tanpa perlu memasukkan password manual.</em>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -2032,22 +2126,34 @@ export function buildItFormCompletedEmail(data: ItFormCompletedEmailData): { sub
             <td style="padding:24px 32px 8px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4fbf7;border:1px solid ${BORDER};border-radius:16px;">
                 <tr>
-                  <td style="padding:20px 20px 6px;text-align:center;font-size:12.5px;color:${MUTED};">
+                  <td style="padding:20px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};">
                     Dokumen resmi lengkap dengan kode verifikasi E-Sign dapat dilihat atau diunduh di portal:
                   </td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding:10px 20px 8px;">
-                    <a href="${data.pdfUrl || data.actionUrl}" style="display:inline-block;min-width:240px;text-align:center;padding:13px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 6px 14px rgba(26,110,58,0.28);">
-                      &#128196;&nbsp; Buka / Unduh Dokumen PDF Resmi
-                    </a>
+                  <td align="center" style="padding:6px 20px 10px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 3px 10px rgba(4,120,87,0.35);">
+                          <a href="${data.pdfUrl || data.actionUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:14px 32px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#128196;&nbsp; Buka / Unduh Dokumen PDF Resmi
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding:4px 20px 18px;">
-                    <a href="${data.actionUrl}" style="display:inline-block;padding:9px 24px;background:#ffffff;color:${NAVY};border:1px solid #cbd5e1;border-radius:999px;text-decoration:none;font-weight:bold;font-size:12.5px;box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                      &#128065;&nbsp; Lihat Rincian Pengajuan di Portal
-                    </a>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#ffffff" style="background-color:#ffffff;border:1px solid #cbd5e1;border-radius:8px;">
+                          <a href="${data.actionUrl}" target="_blank" style="display:inline-block;padding:9px 24px;background-color:#ffffff;color:${NAVY} !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:12.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#128065;&nbsp; Lihat Rincian Pengajuan di Portal
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -2176,15 +2282,21 @@ export function buildItFormRejectedEmail(data: ItFormRejectedEmailData): { subje
             <td style="padding:24px 32px 8px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fef2f2;border:1px solid ${BORDER};border-radius:16px;">
                 <tr>
-                  <td style="padding:20px 20px 6px;text-align:center;font-size:12.5px;color:${MUTED};">
+                  <td style="padding:20px 20px 8px;text-align:center;font-size:12.5px;color:${MUTED};">
                     Silakan periksa catatan revisi dan ajukan kembali permohonan melalui portal:
                   </td>
                 </tr>
                 <tr>
-                  <td align="center" style="padding:10px 20px 18px;">
-                    <a href="${data.actionUrl}" style="display:inline-block;min-width:220px;text-align:center;padding:14px 32px;background:linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;box-shadow:0 6px 14px rgba(185,28,28,0.28);">
-                      Lihat Rincian Permohonan
-                    </a>
+                  <td align="center" style="padding:6px 20px 18px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#dc2626" style="background-color:#dc2626;border-radius:8px;box-shadow:0 3px 10px rgba(220,38,38,0.35);">
+                          <a href="${data.actionUrl}" target="_blank" style="display:inline-block;min-width:240px;padding:14px 32px;background-color:#dc2626;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            Lihat Rincian Permohonan
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
@@ -2317,7 +2429,7 @@ export function buildAccountCreatedEmail(data: AccountCreatedEmailData): { subje
           <!-- Action Button CTA -->
           <tr>
             <td style="padding:26px 32px 10px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${TEAL_TINT};border:1px solid ${BORDER};border-radius:16px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid ${BORDER};border-radius:16px;">
                 <tr>
                   <td style="padding:20px 20px 8px;text-align:center;font-size:13px;color:${NAVY};font-weight:bold;">
                     Silakan gunakan kredensial di atas untuk masuk ke sistem:
@@ -2325,17 +2437,29 @@ export function buildAccountCreatedEmail(data: AccountCreatedEmailData): { subje
                 </tr>
                 <tr>
                   <td align="center" style="padding:8px 20px 8px;">
-                    <a href="${data.loginUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:14px 32px;background:linear-gradient(135deg, ${NAVY} 0%, ${NAVY_MID} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:14px;box-shadow:0 6px 14px rgba(18,40,58,0.25);">
-                      &#128640;&nbsp; Masuk ke Portal ISMS Sekarang
-                    </a>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#047857" style="background-color:#047857;border-radius:8px;box-shadow:0 3px 10px rgba(4,120,87,0.35);">
+                          <a href="${data.loginUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:14px 32px;background-color:#047857;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#128640;&nbsp; Masuk ke Portal ISMS Sekarang
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
                 ${data.dashboardUrl ? `
                 <tr>
                   <td align="center" style="padding:6px 20px 14px;">
-                    <a href="${data.dashboardUrl}" style="display:inline-block;min-width:280px;text-align:center;padding:12px 32px;background:linear-gradient(135deg, #1f8a4c 0%, ${GREEN} 100%);color:#ffffff;border-radius:999px;text-decoration:none;font-weight:bold;font-size:13.5px;box-shadow:0 4px 12px rgba(26,110,58,0.22);">
-                      &#128203;&nbsp; Buka Dashboard Persetujuan Saya
-                    </a>
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#1e293b" style="background-color:#1e293b;border-radius:8px;">
+                          <a href="${data.dashboardUrl}" target="_blank" style="display:inline-block;min-width:280px;padding:12px 32px;background-color:#1e293b;color:#ffffff !important;border-radius:8px;text-decoration:none;font-weight:bold;font-size:13.5px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+                            &#128203;&nbsp; Buka Dashboard Persetujuan Saya
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>` : ''}
               </table>

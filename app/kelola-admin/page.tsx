@@ -33,7 +33,7 @@ import { Pagination } from '@/components/pagination'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
-type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
+type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string; current_password?: string | null }
 type CreatedAccountInfo = {
   id?: number
   username: string
@@ -98,6 +98,11 @@ export default function KelolaAdminPage() {
   const [createRole, setCreateRole] = useState<AdminRole>('lobby')
   const [showCreatePass, setShowCreatePass] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<number, boolean>>({})
+
+  const toggleRevealPassword = (id: number) => {
+    setRevealedPasswords((prev) => ({ ...prev, [id]: !prev[id] }))
+  }
   const [creating, setCreating] = useState(false)
 
   // Celebratory account created modal state
@@ -533,7 +538,39 @@ export default function KelolaAdminPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Tombol & Tampilan Sandi / Password */}
+                        <div className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/50 px-2.5 py-1 text-xs shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Sandi:</span>
+                          <span className="font-mono font-bold text-foreground min-w-[70px]">
+                            {revealedPasswords[admin.id]
+                              ? (admin.current_password || '(Terenkripsi)')
+                              : '••••••••'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleRevealPassword(admin.id)}
+                            className="p-1 text-muted-foreground hover:text-foreground cursor-pointer transition rounded hover:bg-secondary"
+                            title={revealedPasswords[admin.id] ? 'Sembunyikan sandi' : 'Lihat sandi akun ini'}
+                          >
+                            {revealedPasswords[admin.id] ? <EyeOff className="size-3.5 text-amber-600" /> : <Eye className="size-3.5 text-primary" />}
+                          </button>
+                          {admin.current_password && (
+                            <button
+                              type="button"
+                              onClick={() => copyText(admin.current_password!, `pass-${admin.id}`)}
+                              className="p-1 text-muted-foreground hover:text-foreground cursor-pointer transition rounded hover:bg-secondary"
+                              title="Salin sandi akun ini"
+                            >
+                              {copiedField === `pass-${admin.id}` ? (
+                                <Check className="size-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="size-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+
                         <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${ROLE_TONE[admin.role]}`}>{ROLE_LABEL[admin.role]}</span>
                         {!isSelf && !isEditing && (
                           <>

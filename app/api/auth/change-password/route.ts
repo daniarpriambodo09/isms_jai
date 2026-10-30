@@ -25,7 +25,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 10)
-    await query('UPDATE admins SET password_hash = $1 WHERE id = $2', [passwordHash, session.sub])
+    await query('UPDATE admins SET password_hash = $1, current_password = $2 WHERE id = $3', [passwordHash, newPassword, session.sub])
     await logActivity(session, 'update', 'admin', session.sub, 'Mengubah password sendiri')
 
     return NextResponse.json({ success: true })

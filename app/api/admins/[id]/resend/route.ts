@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       : `JAI@${crypto.randomBytes(3).toString('hex').toUpperCase()}`
 
     const newHash = await bcrypt.hash(temporaryPassword, 10)
-    await query('UPDATE admins SET password_hash = $1 WHERE id = $2', [newHash, id])
+    await query('UPDATE admins SET password_hash = $1, current_password = $2 WHERE id = $3', [newHash, temporaryPassword, id])
 
     const settings = await getSmtpSettings()
     if (!settings?.host || !settings.port || !settings.senderEmail) {

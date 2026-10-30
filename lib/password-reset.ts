@@ -88,7 +88,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
   // single use: only the request that marks the link gets to change the password
   const claimed = await query('UPDATE password_resets SET used_at = now() WHERE id = $1 AND used_at IS NULL RETURNING id', [link.resetId])
   if (claimed.rows.length === 0) return { ok: false, message: 'Link reset sudah dipakai. Minta link baru lewat "Lupa password".' }
-  await query('UPDATE admins SET password_hash = $1 WHERE id = $2', [await bcrypt.hash(newPassword, 10), link.account.id])
+  await query('UPDATE admins SET password_hash = $1, current_password = $2 WHERE id = $3', [await bcrypt.hash(newPassword, 10), newPassword, link.account.id])
   await query('UPDATE password_resets SET used_at = now() WHERE admin_id = $1 AND used_at IS NULL', [link.account.id])
   await logActivity({ sub: link.account.id, username: link.account.username, role: link.account.role }, 'update', 'admin', link.account.id, `Mengatur ulang password akun "${link.account.username}" lewat link email (Lupa password)`)
   return { ok: true, username: link.account.username }
@@ -128,7 +128,7 @@ export async function resetPasswordByIdentifier(
   }
 
   const hashedPassword = await bcrypt.hash(newPassword, 10)
-  await query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hashedPassword, account.id])
+  await query('UPDATE admins SET password_hash = $1, current_password = $2 WHERE id = $3', [hashedPassword, newPassword, account.id])
   await query('UPDATE password_resets SET used_at = now() WHERE admin_id = $1 AND used_at IS NULL', [account.id])
   await logActivity(
     { sub: account.id, username: account.username, role: account.role },

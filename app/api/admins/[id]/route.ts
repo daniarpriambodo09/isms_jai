@@ -6,7 +6,7 @@ import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { EMAIL_HINT, isDeliverableEmail } from '@/lib/email-address'
 
-type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string }
+type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string; current_password?: string | null }
 const ROLES: AdminRole[] = ['ism_admin', 'lobby', 'security', 'approver', 'it']
 
 // Role and password of YOUR OWN account can't be changed here (self-service
@@ -53,11 +53,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body.newPassword !== undefined) {
       if (body.newPassword.length < 6) return NextResponse.json({ message: 'Password minimal 6 karakter.' }, { status: 400 })
       const passwordHash = await bcrypt.hash(body.newPassword, 10)
-      await query('UPDATE admins SET password_hash = $1 WHERE id = $2', [passwordHash, id])
+      await query('UPDATE admins SET password_hash = $1, current_password = $2 WHERE id = $3', [passwordHash, body.newPassword, id])
       await logActivity(session, 'update', 'admin', id, `Mereset password akun "${target.username}"`)
     }
 
-    const updated = await query<AdminRow>('SELECT id, username, email, role, created_at FROM admins WHERE id = $1', [id])
+    const updated = await query<AdminRow>('SELECT id, username, email, role, created_at, current_password FROM admins WHERE id = $1', [id])
     return NextResponse.json({ admin: updated.rows[0] })
   } catch (error) {
     console.error('[admins/[id]/PUT]', error)

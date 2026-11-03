@@ -7,7 +7,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowDownUp, Camera, Download, Eye, Loader2, Search, Send, Sparkles, Trash2, Users } from 'lucide-react'
+import { ArrowDownUp, Camera, Check, Download, Eye, Loader2, Search, Send, Sparkles, Trash2, Users } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -237,7 +237,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     } else {
       downloadExcel(
         `rekap-foto-video-visitor-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'VIRUS CHECK *)', 'DELETE / FORMAT **)', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.requester_name,
@@ -260,7 +260,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   }
 
   const visitorActions = canViewPdf || canDelete || !!adminUser
-  const internalColCount = canDelete ? 20 : 19
+  const internalColCount = canDelete ? 22 : 21
   const visitorColCount = visitorActions ? 16 : 15
 
   return (
@@ -309,7 +309,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
             <table className="w-full min-w-[1800px] text-sm">
               <thead className="table-head-gradient">
                 <tr>
-                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'No. Kontrol Smart Device', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
+                  {['No', 'Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'No. Kontrol Smart Device', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'VIRUS CHECK *)', 'DELETE / FORMAT **)', 'Lokasi', 'Tujuan', 'Status', ...(canDelete ? ['Aksi'] : [])].map((head) => (
                     <th key={head} className="whitespace-nowrap px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{head}</th>
                   ))}
                 </tr>

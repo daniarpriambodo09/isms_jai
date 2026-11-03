@@ -20,6 +20,7 @@ export type AdminUser = {
   username: string
   email: string | null
   role: AdminRole
+  department?: string | null
 }
 
 type LoginResult = { success: true; user: AdminUser } | { success: false; message: string }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
-import { getIsmsAdminFromRequest, getKioskAdminFromRequest, getItAdminFromRequest } from '@/lib/auth'
+import { getIsmsAdminFromRequest, getKioskAdminFromRequest, getItAdminFromRequest, getAnyAdminOrApproverFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 import { notifyPhotoDecision } from '@/lib/photo-notify'
@@ -148,8 +148,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const action = body?.action
 
   if (action === 'mark-taken') {
-    const admin = getItAdminFromRequest(request)
-    if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+    const session = getAnyAdminOrApproverFromRequest(request)
+    if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const updated = await query<{ id: number }>(
       `UPDATE photo_video_requests SET taken_at = now(), taken_ack_at = NULL WHERE id = $1 AND status = 'approved' RETURNING id`,
@@ -161,14 +161,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await recordNotification({
       kind: 'photo_taken', category: 'photo', historyOnly: true,
       title: `Foto/video sudah diambil — ${result.rows[0]?.requester_name ?? ''}`,
-      body: `${result.rows[0]?.location ?? ''} · ditandai oleh ${admin.username}`, href: '/kelola-permintaan-foto-video',
+      body: `${result.rows[0]?.location ?? ''} · ditandai oleh ${session.username}`, href: '/kelola-permintaan-foto-video',
     })
     return NextResponse.json({ request: result.rows[0] })
   }
 
   if (action === 'unmark-taken') {
-    const admin = getItAdminFromRequest(request)
-    if (!admin) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+    const session = getAnyAdminOrApproverFromRequest(request)
+    if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const updated = await query<{ id: number }>(
       `UPDATE photo_video_requests SET taken_at = NULL, taken_ack_at = NULL WHERE id = $1 RETURNING id`,
@@ -211,13 +211,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   // Mark camera/USB returned — stamps actual return timestamp and updates to_at officially
   if (action === 'mark-returned') {
-    const staff = getKioskAdminFromRequest(request)
-    if (!staff) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+    const session = getAnyAdminOrApproverFromRequest(request)
+    if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const returnTime = body?.returnTime && !Number.isNaN(Date.parse(body.returnTime))
       ? new Date(body.returnTime)
       : new Date()
     const returnNotes = typeof body?.returnNotes === 'string' && body.returnNotes.trim() ? body.returnNotes.trim() : null
+    const returnedBy = typeof body?.returnedBy === 'string' && body.returnedBy.trim() ? body.returnedBy.trim() : session.username
 
     const updated = await query<{ id: number; requester_name: string }>(
       `UPDATE photo_video_requests
@@ -227,19 +228,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
            return_notes = $4
        WHERE id = $1 AND status = 'approved'
        RETURNING id, requester_name`,
-      [id, returnTime, staff.username, returnNotes]
+      [id, returnTime, returnedBy, returnNotes]
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan atau belum disetujui.' }, { status: 404 })
 
-    await logActivity(staff, 'update', 'photo_video_request', id, `Mencatat pengembalian kamera/USB "${updated.rows[0].requester_name}"`)
+    await logActivity(session, 'update', 'photo_video_request', id, `Mencatat pengembalian kamera/USB "${updated.rows[0].requester_name}" oleh ${returnedBy}`)
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     return NextResponse.json({ request: result.rows[0] })
   }
 
   // Revert camera/USB return
   if (action === 'unmark-returned') {
-    const staff = getKioskAdminFromRequest(request)
-    if (!staff) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+    const session = getAnyAdminOrApproverFromRequest(request)
+    if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const updated = await query<{ id: number; requester_name: string }>(
       `UPDATE photo_video_requests
@@ -252,7 +253,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan.' }, { status: 404 })
 
-    await logActivity(staff, 'update', 'photo_video_request', id, `Membatalkan tanda pengembalian kamera/USB "${updated.rows[0].requester_name}"`)
+    await logActivity(session, 'update', 'photo_video_request', id, `Membatalkan tanda pengembalian kamera/USB "${updated.rows[0].requester_name}"`)
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     return NextResponse.json({ request: result.rows[0] })
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
 import path from 'path'
-import { getKioskAdminFromRequest } from '@/lib/auth'
+import { getKioskAdminFromRequest, getAnyAdminOrApproverFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { getSmtpSettings, sendMail } from '@/lib/smtp'
 import { buildVisitorApprovalEmail, LOGO_CID } from '@/lib/email-templates'
@@ -67,18 +67,20 @@ const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.i
 // so those pages/the notification bell can show a view-only copy of the
 // requests — deciding (PUT below) stays ism_admin-only via getIsmsAdminFromRequest.
 export async function GET(request: NextRequest) {
-  if (!getKioskAdminFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
+  if (!getAnyAdminOrApproverFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
     const typeParam = request.nextUrl.searchParams.get('type')
     const statusParam = request.nextUrl.searchParams.get('status')
     const awaitingAck = request.nextUrl.searchParams.get('awaitingAck') === '1'
+    const deptParam = request.nextUrl.searchParams.get('dept')?.trim()
     const conditions: string[] = []
     const values: string[] = []
 
     if (typeParam && isRequestType(typeParam)) { values.push(typeParam); conditions.push(`r.request_type = $${values.length}`) }
     if (statusParam && isStatus(statusParam)) { values.push(statusParam); conditions.push(`r.status = $${values.length}`) }
     if (awaitingAck) conditions.push(`r.taken_at IS NOT NULL AND r.taken_ack_at IS NULL`)
+    if (deptParam && deptParam !== 'all') { values.push(deptParam); conditions.push(`r.dept_pic_kamera = $${values.length}`) }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
     const result = await query<PhotoVideoRequestRow>(

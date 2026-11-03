@@ -92,3 +92,12 @@ export function getItAdminFromRequest(request: NextRequest): SessionPayload | nu
   if (!session) return null
   return session.role === 'it' || session.role === 'ism_admin' ? session : null
 }
+
+/**
+ * Access for any authenticated admin or approver account (ISM Admin, IT, Lobby, Security, Approver).
+ * Used for department-level inspection, pickup, and return of equipment.
+ */
+export function getAnyAdminOrApproverFromRequest(request: NextRequest): SessionPayload | null {
+  const session = getSessionFromRequest(request)
+  return session || null
+}

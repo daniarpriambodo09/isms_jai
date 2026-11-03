@@ -130,4 +130,65 @@ describe('Photo Video USB and Return Time Logic', () => {
     expect(noneSelected.valid).toBe(false)
     expect(noneSelected.error).toContain('minimal 1 perangkat')
   })
+
+  it('formats and parses structured equipment return checklist correctly', () => {
+    function formatReturnNotes(checklist: {
+      devicesChecked: string[]
+      isComplete: boolean
+      dataSanitized: boolean
+      notes?: string
+    }): string {
+      const parts: string[] = []
+      if (checklist.devicesChecked.length > 0) {
+        parts.push(`[Fisik: ${checklist.devicesChecked.join(', ')}]`)
+      }
+      parts.push(checklist.isComplete ? '[Kondisi: Baik & Lengkap]' : '[Kondisi: Ada Kendala / Kerusakan]')
+      if (checklist.dataSanitized) {
+        parts.push('[Data Sanitasi SOP ISMS: Selesai]')
+      }
+      if (checklist.notes?.trim()) {
+        parts.push(checklist.notes.trim())
+      }
+      return parts.join(' - ')
+    }
+
+    const testReturn = formatReturnNotes({
+      devicesChecked: ['Kamera (CAM-01)', 'USB (FD-IT-EXT01)'],
+      isComplete: true,
+      dataSanitized: true,
+      notes: 'Peralatan dikembalikan tepat waktu dan bersih.',
+    })
+
+    expect(testReturn).toContain('[Fisik: Kamera (CAM-01), USB (FD-IT-EXT01)]')
+    expect(testReturn).toContain('[Kondisi: Baik & Lengkap]')
+    expect(testReturn).toContain('[Data Sanitasi SOP ISMS: Selesai]')
+    expect(testReturn).toContain('Peralatan dikembalikan tepat waktu dan bersih.')
+  })
+
+  it('correctly filters permissions based on department owner', () => {
+    function canManageEquipmentReturn(
+      userRole: string,
+      userDepartment: string | null | undefined,
+      requestDeptPic: string | null | undefined
+    ) {
+      if (['ism_admin', 'it'].includes(userRole)) return true
+      if (userRole === 'approver') {
+        if (!userDepartment) return true // Approver general
+        return userDepartment.trim().toUpperCase() === (requestDeptPic || '').trim().toUpperCase()
+      }
+      return false
+    }
+
+    // ISM Admin & IT can manage any department's equipment
+    expect(canManageEquipmentReturn('ism_admin', 'IT', 'PP - NYS')).toBe(true)
+    expect(canManageEquipmentReturn('it', 'IT', 'FATP - EXIM')).toBe(true)
+
+    // Approver of PP - NYS can manage PP - NYS
+    expect(canManageEquipmentReturn('approver', 'PP - NYS', 'PP - NYS')).toBe(true)
+    // Approver of PP - NYS CANNOT manage FATP - EXIM
+    expect(canManageEquipmentReturn('approver', 'PP - NYS', 'FATP - EXIM')).toBe(false)
+    // Approver of PGA can manage PGA
+    expect(canManageEquipmentReturn('approver', 'PGA', 'PGA')).toBe(true)
+    expect(canManageEquipmentReturn('approver', 'PGA', 'IT')).toBe(false)
+  })
 })

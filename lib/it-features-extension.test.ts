@@ -120,3 +120,61 @@ describe('Fitur 4: Overdue Detection for Form 002 (Bawa Keluar)', () => {
   })
 })
 
+describe('Fitur 5: Tracking by Token, Request Number, or ID', () => {
+  const sampleRequests = [
+    {
+      id: 12,
+      request_no: 'IT-OUT-20261030-003',
+      token: 'a1b2c3d4e5f6789012345678901234567890123456789012',
+      applicant_name: 'Budi Santoso',
+    },
+    {
+      id: 15,
+      request_no: 'IT-IN-20261030-001',
+      token: 'b2c3d4e5f6a1789012345678901234567890123456789012',
+      applicant_name: 'Ahmad Dahlan',
+    },
+  ]
+
+  function findRequestBySearchTerm(term: string) {
+    const cleanTerm = term.trim().toUpperCase()
+    return sampleRequests.find(
+      (r) =>
+        r.token.toUpperCase() === cleanTerm ||
+        r.request_no.toUpperCase() === cleanTerm ||
+        r.request_no.toUpperCase().includes(cleanTerm) ||
+        r.id.toString() === cleanTerm
+    ) || null
+  }
+
+  it('finds request by exact request_no (e.g. IT-OUT-20261030-003)', () => {
+    const found = findRequestBySearchTerm('IT-OUT-20261030-003')
+    expect(found).not.toBeNull()
+    expect(found?.request_no).toBe('IT-OUT-20261030-003')
+    expect(found?.applicant_name).toBe('Budi Santoso')
+  })
+
+  it('finds request case-insensitively with whitespace', () => {
+    const found = findRequestBySearchTerm('  it-out-20261030-003  ')
+    expect(found).not.toBeNull()
+    expect(found?.request_no).toBe('IT-OUT-20261030-003')
+  })
+
+  it('finds request by full secret token', () => {
+    const found = findRequestBySearchTerm('a1b2c3d4e5f6789012345678901234567890123456789012')
+    expect(found).not.toBeNull()
+    expect(found?.id).toBe(12)
+  })
+
+  it('finds request by numeric ID', () => {
+    const found = findRequestBySearchTerm('12')
+    expect(found).not.toBeNull()
+    expect(found?.request_no).toBe('IT-OUT-20261030-003')
+  })
+
+  it('returns null for non-existent token or request number', () => {
+    const found = findRequestBySearchTerm('IT-OUT-99999999-999')
+    expect(found).toBeNull()
+  })
+})
+

@@ -45,6 +45,8 @@ type LedgerRequest = {
   returned_at: string | null
   returned_by: string | null
   return_notes: string | null
+  virus_check?: boolean | null
+  delete_or_format?: string | null
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -208,7 +210,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     if (locale === 'internal') {
       downloadExcel(
         `rekap-foto-video-internal-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'No. Kontrol Smart Device', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'NIK', 'Nama', 'Dept/Seksi', 'Dept. PIC Kamera', 'No. Kontrol Kamera', 'No. ID Photography', 'No. Kontrol USB', 'No. Kontrol Smart Device', 'PIC Approve', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'VIRUS CHECK *)', 'DELETE / FORMAT **)', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.nik ?? '',
@@ -224,6 +226,8 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
           formatDateTime(r.from_at),
           formatDateTime(r.to_at),
           r.returned_at ? formatDateTime(r.returned_at) : 'Belum Dikembalikan',
+          r.virus_check ? 'OK' : '—',
+          r.delete_or_format ? (r.delete_or_format === 'delete' ? 'Delete' : r.delete_or_format === 'format' ? 'Format' : 'Delete & Format') : '—',
           r.location,
           r.objective,
           STATUS_LABEL[r.status],
@@ -233,7 +237,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
     } else {
       downloadExcel(
         `rekap-foto-video-visitor-${new Date().toISOString().slice(0, 10)}.xlsx`,
-        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
+        ['Tanggal Daftar', 'Nama', 'Company / Organization', 'Department', 'PIC JAI', 'Serial No. Kamera', 'No ID Photography', 'PIC Pendamping JAI', 'Dari', 'Sampai', 'Waktu Dikembalikan', 'VIRUS CHECK *)', 'DELETE / FORMAT **)', 'Lokasi', 'Tujuan', 'Status', 'Tanggal Keputusan'],
         filteredRequests.map((r) => [
           formatDateTime(r.submitted_at),
           r.requester_name,
@@ -256,7 +260,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
   }
 
   const visitorActions = canViewPdf || canDelete || !!adminUser
-  const internalColCount = canDelete ? 18 : 17
+  const internalColCount = canDelete ? 20 : 19
   const visitorColCount = visitorActions ? 16 : 15
 
   return (

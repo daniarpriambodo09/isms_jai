@@ -15,6 +15,7 @@ const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
   r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no,
   r.usb_control_no, r.smart_device_control_no, r.returned_at, r.returned_by, r.return_notes,
+  r.virus_check, r.delete_or_format,
   r.escort_name, r.escort_dept, r.escort_set_by`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
@@ -219,20 +220,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       : new Date()
     const returnNotes = typeof body?.returnNotes === 'string' && body.returnNotes.trim() ? body.returnNotes.trim() : null
     const returnedBy = typeof body?.returnedBy === 'string' && body.returnedBy.trim() ? body.returnedBy.trim() : session.username
+    const virusCheck = Boolean(body?.virusCheck)
+    const deleteOrFormat = typeof body?.deleteOrFormat === 'string' && body.deleteOrFormat.trim() ? body.deleteOrFormat.trim() : null
 
     const updated = await query<{ id: number; requester_name: string }>(
       `UPDATE photo_video_requests
        SET returned_at = $2,
            to_at = $2,
            returned_by = $3,
-           return_notes = $4
+           return_notes = $4,
+           virus_check = $5,
+           delete_or_format = $6
        WHERE id = $1 AND status = 'approved'
        RETURNING id, requester_name`,
-      [id, returnTime, returnedBy, returnNotes]
+      [id, returnTime, returnedBy, returnNotes, virusCheck, deleteOrFormat]
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan atau belum disetujui.' }, { status: 404 })
 
-    await logActivity(session, 'update', 'photo_video_request', id, `Mencatat pengembalian kamera/USB "${updated.rows[0].requester_name}" oleh ${returnedBy}`)
+    await logActivity(session, 'update', 'photo_video_request', id, `Mencatat pengembalian kamera/USB "${updated.rows[0].requester_name}" oleh ${returnedBy} (Virus Check: ${virusCheck ? 'OK' : '-'}, Delete/Format: ${deleteOrFormat || '-'})`)
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     return NextResponse.json({ request: result.rows[0] })
   }
@@ -246,7 +251,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       `UPDATE photo_video_requests
        SET returned_at = NULL,
            returned_by = NULL,
-           return_notes = NULL
+           return_notes = NULL,
+           virus_check = FALSE,
+           delete_or_format = NULL
        WHERE id = $1
        RETURNING id, requester_name`,
       [id]

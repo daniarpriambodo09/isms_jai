@@ -93,6 +93,9 @@ function KelolaPermintaanFotoVideoContent() {
   const [usbChecked, setUsbChecked] = useState(true)
   const [smartChecked, setSmartChecked] = useState(true)
   const [dataWipedChecked, setDataWipedChecked] = useState(true)
+  const [virusCheck, setVirusCheck] = useState(true)
+  const [isDelete, setIsDelete] = useState(true)
+  const [isFormat, setIsFormat] = useState(false)
   const [returnedBy, setReturnedBy] = useState('')
   const [returnNotes, setReturnNotes] = useState('')
   const [returning, setReturning] = useState(false)
@@ -250,6 +253,9 @@ function KelolaPermintaanFotoVideoContent() {
     setUsbChecked(true)
     setSmartChecked(true)
     setDataWipedChecked(true)
+    setVirusCheck(true)
+    setIsDelete(true)
+    setIsFormat(false)
     setReturnedBy(sessionUser?.username || 'PIC Departemen')
     setReturnNotes('')
   }
@@ -264,6 +270,9 @@ function KelolaPermintaanFotoVideoContent() {
       if (pendingReturn.photo_id_no) itemsList.push(`ID (${pendingReturn.photo_id_no}): ${idChecked ? 'Kembali' : 'Belum Kembali'}`)
       if (pendingReturn.usb_control_no) itemsList.push(`USB (${pendingReturn.usb_control_no}): ${usbChecked ? 'Kembali/OK' : 'Bermasalah'}`)
       if (pendingReturn.smart_device_control_no) itemsList.push(`Smart (${pendingReturn.smart_device_control_no}): ${smartChecked ? 'Lengkap/OK' : 'Bermasalah'}`)
+      if (virusCheck) itemsList.push('Virus Check: OK')
+      const deleteOrFormat = isDelete && isFormat ? 'delete_format' : isDelete ? 'delete' : isFormat ? 'format' : null
+      if (deleteOrFormat) itemsList.push(`Sanitasi: ${deleteOrFormat.toUpperCase()}`)
       if (dataWipedChecked) itemsList.push('SOP ISMS: File Checked')
 
       const combinedNotes = `[${conditionSummary}] ${itemsList.join(' · ')}${returnNotes.trim() ? ` — Catatan: ${returnNotes.trim()}` : ''}`
@@ -275,6 +284,8 @@ function KelolaPermintaanFotoVideoContent() {
           action: 'mark-returned',
           returnedBy: returnedBy.trim() || sessionUser?.username || 'PIC Departemen',
           returnNotes: combinedNotes,
+          virusCheck,
+          deleteOrFormat,
         }),
       })
       if (!response.ok) {
@@ -665,6 +676,18 @@ function KelolaPermintaanFotoVideoContent() {
                               Penerima: <strong className="text-foreground">{req.returned_by}</strong>
                             </span>
                           )}
+                          <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                            {req.virus_check && (
+                              <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 px-1.5 py-0.5 font-mono text-[9px] font-bold border border-emerald-300">
+                                <Check className="size-2.5 text-emerald-600" /> Virus Check: OK
+                              </span>
+                            )}
+                            {req.delete_or_format && (
+                              <span className="inline-flex items-center rounded bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 px-1.5 py-0.5 font-mono text-[9px] font-semibold border border-sky-300">
+                                {req.delete_or_format === 'delete' ? 'Deleted' : req.delete_or_format === 'format' ? 'Formatted' : 'Del & Fmt'}
+                              </span>
+                            )}
+                          </div>
                           {req.return_notes && (
                             <span className="text-[9.5px] text-muted-foreground/85 italic max-w-[190px] truncate" title={req.return_notes}>
                               {req.return_notes}
@@ -933,6 +956,77 @@ function KelolaPermintaanFotoVideoContent() {
                   Data foto/video telah dipindahkan ke folder aman &amp; memori diperiksa sesuai SOP ISMS.
                 </span>
               </label>
+            </div>
+
+            {/* 2 TABEL TENGAH SOP: VIRUS CHECK *) & DELETE / FORMAT **) */}
+            <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4 space-y-3 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-primary/15 pb-2">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="size-4" /> Pemeriksaan Keamanan ISMS (Form Internal):
+                </span>
+              </div>
+
+              {/* VIRUS CHECK *) */}
+              <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 cursor-pointer hover:bg-secondary/40 transition">
+                <input
+                  type="checkbox"
+                  checked={virusCheck}
+                  onChange={(e) => setVirusCheck(e.target.checked)}
+                  className="mt-0.5 size-4 rounded text-emerald-600 accent-emerald-600"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-foreground">VIRUS CHECK *)</span>
+                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                      virusCheck ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-secondary text-muted-foreground border-border'
+                    }`}>
+                      {virusCheck ? '[✓] Passed / Aman' : '[ ] Belum Dicek'}
+                    </span>
+                  </div>
+                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                    Memori/USB telah dipindai antivirus &amp; dipastikan bersih sebelum data dipindahkan.
+                  </span>
+                </div>
+              </label>
+
+              {/* DELETE / FORMAT **) */}
+              <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-foreground">DELETE / FORMAT **)</span>
+                  <span className="font-mono text-[10px] text-sky-700 dark:text-sky-300 font-bold bg-sky-50 dark:bg-sky-950 px-1.5 py-0.5 rounded border border-sky-300">
+                    {isDelete ? '[✓]' : '[ ]'} DELETE / {isFormat ? '[✓]' : '[ ]'} FORMAT
+                  </span>
+                </div>
+                <span className="block text-[11px] text-muted-foreground">
+                  Pilih tindakan pembersihan media penyimpanan/kamera setelah dokumentasi disalin:
+                </span>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <label className="flex items-center gap-2.5 rounded-lg border border-border bg-secondary/30 p-2.5 cursor-pointer hover:bg-secondary/60 transition">
+                    <input
+                      type="checkbox"
+                      checked={isDelete}
+                      onChange={(e) => setIsDelete(e.target.checked)}
+                      className="size-4 rounded text-sky-600 accent-sky-600"
+                    />
+                    <div className="text-xs">
+                      <span className="font-bold text-foreground block">DELETE</span>
+                      <span className="text-[10px] text-muted-foreground block">Hapus file di memori</span>
+                    </div>
+                  </label>
+                  <label className="flex items-center gap-2.5 rounded-lg border border-border bg-secondary/30 p-2.5 cursor-pointer hover:bg-secondary/60 transition">
+                    <input
+                      type="checkbox"
+                      checked={isFormat}
+                      onChange={(e) => setIsFormat(e.target.checked)}
+                      className="size-4 rounded text-sky-600 accent-sky-600"
+                    />
+                    <div className="text-xs">
+                      <span className="font-bold text-foreground block">FORMAT</span>
+                      <span className="text-[10px] text-muted-foreground block">Format bersih total</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
 
             {/* STATUS KONDISI KESELURUHAN */}

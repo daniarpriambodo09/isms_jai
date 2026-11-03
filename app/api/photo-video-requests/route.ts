@@ -59,7 +59,7 @@ function isStatus(value: unknown): value is Status { return typeof value === 'st
 const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
   r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no, r.usb_control_no, r.smart_device_control_no,
-  r.returned_at, r.returned_by, r.return_notes, r.pic_jai,
+  r.returned_at, r.returned_by, r.return_notes, r.virus_check, r.delete_or_format, r.pic_jai,
   r.escort_name, r.escort_dept, r.escort_set_by`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 

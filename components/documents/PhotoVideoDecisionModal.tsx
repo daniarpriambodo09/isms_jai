@@ -33,6 +33,8 @@ export type PhotoVideoRequest = {
   returned_at?: string | null
   returned_by?: string | null
   return_notes?: string | null
+  virus_check?: boolean | null
+  delete_or_format?: string | null
   pic_jai: string | null
   escort_name?: string | null
   escort_dept?: string | null

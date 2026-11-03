@@ -16,7 +16,7 @@ export default function LoginPage() {
       ism_admin: '/dashboard-admin',
       lobby: '/admin-lobby',
       security: '/admin-pos-security',
-      approver: '/persetujuan-saya',
+      approver: user.department ? '/kelola-permintaan-foto-video' : '/persetujuan-saya',
       it: '/kelola-izin-alat-it',
     }[user.role]
     router.push(destination)

@@ -4,9 +4,18 @@ import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
 
-type PicApproverRow = { id: number; name: string; department_id: number | null; department_name: string | null }
-const SELECT_COLUMNS = `p.id, p.name, p.department_id, d.name AS department_name`
-const FROM_CLAUSE = `pic_approvers p LEFT JOIN departments d ON d.id = p.department_id`
+type PicApproverRow = {
+  id: number
+  name: string
+  department_id: number | null
+  department_name: string | null
+  account_username?: string | null
+  account_password?: string | null
+}
+const SELECT_COLUMNS = `p.id, p.name, p.department_id, d.name AS department_name, a.username AS account_username, a.current_password AS account_password`
+const FROM_CLAUSE = `pic_approvers p
+  LEFT JOIN departments d ON d.id = p.department_id
+  LEFT JOIN admins a ON (lower(a.username) = lower(regexp_replace(p.name, '[^a-zA-Z0-9]', '', 'g')) OR (p.email IS NOT NULL AND lower(a.email) = lower(p.email)))`
 
 // Admin only — rename a PIC or reassign their department.
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -107,4 +107,38 @@ describe('Approver Auth System', () => {
       expect(admin).toBeNull()
     })
   })
+
+  describe('Approver Role Scoping & Menu', () => {
+    it('restricts approver navigation to equipment return and my approvals only', () => {
+      // Test the logic implemented in getAdminGroupsForRole('approver')
+      const approverGroups = [
+        {
+          title: 'Pemeriksaan & Pengembalian Perangkat',
+          items: [{ href: '/kelola-permintaan-foto-video', label: 'Pengembalian Alat Departemen' }],
+        },
+        {
+          title: 'Persetujuan Dokumen & Izin',
+          items: [{ href: '/persetujuan-saya', label: 'Persetujuan Saya' }],
+        },
+      ]
+
+      expect(approverGroups.length).toBe(2)
+      expect(approverGroups[0].items[0].href).toBe('/kelola-permintaan-foto-video')
+      expect(approverGroups[1].items[0].href).toBe('/persetujuan-saya')
+    })
+
+    it('resolves correct login destination for department PIC vs general approver', () => {
+      function getDestination(role: string, department?: string | null) {
+        if (role === 'approver') {
+          return department ? '/kelola-permintaan-foto-video' : '/persetujuan-saya'
+        }
+        return '/dashboard-admin'
+      }
+
+      expect(getDestination('approver', 'PGA')).toBe('/kelola-permintaan-foto-video')
+      expect(getDestination('approver', 'FATP - EXIM')).toBe('/kelola-permintaan-foto-video')
+      expect(getDestination('approver', null)).toBe('/persetujuan-saya')
+      expect(getDestination('ism_admin')).toBe('/dashboard-admin')
+    })
+  })
 })

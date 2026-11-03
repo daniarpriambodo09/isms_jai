@@ -3,14 +3,21 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Check, Pencil, Plus, Settings, ShieldCheck, Trash2, Users, X } from 'lucide-react'
+import { Check, Copy, Eye, EyeOff, KeyRound, Pencil, Plus, Settings, ShieldCheck, Trash2, User, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 
 type Department = { id: number; name: string; slug: string }
-type Pic = { id: number; name: string; department_id: number | null; department_name: string | null }
+type Pic = {
+  id: number
+  name: string
+  department_id: number | null
+  department_name: string | null
+  account_username?: string | null
+  account_password?: string | null
+}
 
 const inputClass = 'h-10 min-w-0 flex-1 rounded-xl border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-4 focus:ring-ring/15'
 const iconButtonClass = 'grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30'
@@ -37,6 +44,8 @@ export default function KelolaPicApprovePage() {
   const [pendingDelete, setPendingDelete] = useState<Pic | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [listError, setListError] = useState('')
+  const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({})
+  const [copiedId, setCopiedId] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -180,6 +189,16 @@ export default function KelolaPicApprovePage() {
         </div>
       </div>
 
+      <div className="flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-xs text-foreground shadow-2xs">
+        <KeyRound className="size-4 text-primary shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <p className="font-semibold text-primary">Login Terpadu PIC Departemen (Opsi A Aktif)</p>
+          <p className="text-muted-foreground leading-relaxed">
+            Setiap PIC otomatis memiliki akun login di portal ISMS (Role: <strong>Approver & PIC Dept</strong>). PIC dapat menggunakan kredensial username & password di bawah untuk masuk di halaman <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-bold text-primary">/login</code> guna menyetujui izin serta memeriksa & mencatat pengembalian fisik kamera/USB milik departemennya.
+          </p>
+        </div>
+      </div>
+
       {listError && <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{listError}</p>}
 
       {addingOpen && (
@@ -276,7 +295,40 @@ export default function KelolaPicApprovePage() {
                       </div>
                     ) : (
                       <>
-                        <span className="text-sm font-medium text-foreground/85">{pic.name}</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">{pic.name}</span>
+                          {pic.account_username && (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-secondary/80 px-2 py-0.5 font-mono text-[11px] font-semibold text-foreground border border-border">
+                              <User className="size-3 text-primary" /> @{pic.account_username}
+                            </span>
+                          )}
+                          {pic.account_password && (
+                            <div className="inline-flex items-center gap-1.5 rounded-lg bg-secondary/50 px-2 py-0.5 font-mono text-[11px] text-muted-foreground border border-border">
+                              <KeyRound className="size-3 text-accent-foreground" />
+                              <span className="font-bold tracking-wider">{showPasswords[pic.id] ? pic.account_password : '••••••••'}</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowPasswords((prev) => ({ ...prev, [pic.id]: !prev[pic.id] }))}
+                                className="ml-0.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                                title={showPasswords[pic.id] ? 'Sembunyikan sandi' : 'Lihat sandi'}
+                              >
+                                {showPasswords[pic.id] ? <EyeOff className="size-3" /> : <Eye className="size-3" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(pic.account_password || '')
+                                  setCopiedId(pic.id)
+                                  setTimeout(() => setCopiedId(null), 2000)
+                                }}
+                                className="text-muted-foreground hover:text-primary cursor-pointer"
+                                title="Salin Sandi"
+                              >
+                                {copiedId === pic.id ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 focus-within:opacity-100">
                           <button onClick={() => startEdit(pic)} className={`${iconButtonClass} size-8`} aria-label={`Edit ${pic.name}`}><Pencil className="size-3.5" /></button>
                           <button onClick={() => setPendingDelete(pic)} className={`${iconButtonClass} size-8 hover:bg-destructive/10 hover:text-destructive`} aria-label={`Hapus ${pic.name}`} title="Hapus PIC"><Trash2 className="size-3.5" /></button>

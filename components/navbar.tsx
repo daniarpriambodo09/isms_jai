@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
-import { Aperture, ArrowRight, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, Laptop, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
+import { Aperture, ArrowRight, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, CheckCircle2, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, Laptop, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -60,6 +60,33 @@ export function getAdminGroupsForRole(role?: string): AdminGroup[] {
         title: 'Kiosk Pos Security',
         items: [
           { href: '/admin-pos-security', label: 'Pos Security', hint: 'Kiosk pos pendaftaran & kartu security', icon: ShieldCheck },
+        ],
+      },
+    ]
+  }
+
+  if (role === 'approver') {
+    return [
+      {
+        title: 'Pemeriksaan & Pengembalian Perangkat',
+        items: [
+          {
+            href: '/kelola-permintaan-foto-video',
+            label: 'Pengembalian Alat Departemen',
+            hint: 'Periksa fisik & catat pengembalian kamera, USB & smart device departemen',
+            icon: Camera,
+          },
+        ],
+      },
+      {
+        title: 'Persetujuan Dokumen & Izin',
+        items: [
+          {
+            href: '/persetujuan-saya',
+            label: 'Persetujuan Saya',
+            hint: 'Daftar permohonan izin atau dokumen yang menunggu persetujuan Anda',
+            icon: CheckCircle2,
+          },
         ],
       },
     ]
@@ -484,8 +511,17 @@ export function Navbar() {
                     isAdminSectionActive && navLinkActive,
                   )}
                 >
-                  <Settings className="size-4" />
-                  Admin Settings
+                  {adminUser?.role === 'approver' ? (
+                    <>
+                      <Camera className="size-4" />
+                      <span>PIC Departemen</span>
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="size-4" />
+                      <span>Admin Settings</span>
+                    </>
+                  )}
                   <ChevronDown className={cn('size-4 transition-transform duration-200', settingsMenuOpen && 'rotate-180')} />
                   {isAdminSectionActive && activeIndicator}
                 </button>
@@ -494,7 +530,7 @@ export function Navbar() {
                     {/* Mega-menu: the groups side by side filling all columns cleanly */}
                     <div
                       role="menu"
-                      aria-label="Admin Settings"
+                      aria-label={adminUser?.role === 'approver' ? 'Workspace PIC Departemen' : 'Admin Settings'}
                       className={cn(
                         'absolute left-1/2 top-[calc(100%+10px)] z-20 -translate-x-1/2 flex flex-col overflow-hidden rounded-[1.4rem] border border-border bg-popover text-popover-foreground shadow-2xl',
                         'max-h-[calc(100dvh-5rem)]',
@@ -513,9 +549,13 @@ export function Navbar() {
                       <div className="nav-dropdown-bar h-[2.5px] w-full flex-none relative z-10" />
                       <div className="relative z-10 flex-none flex items-center justify-between gap-4 border-b border-border bg-popover/95 px-5 py-3 backdrop-blur-md">
                         <div>
-                          <p className="portal-eyebrow">Admin Panel</p>
+                          <p className="portal-eyebrow">
+                            {adminUser?.role === 'approver' ? 'Workspace PIC Departemen' : 'Admin Panel'}
+                          </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {adminUser?.role === 'it'
+                            {adminUser?.role === 'approver'
+                              ? `Akses khusus PIC Departemen ${adminUser?.department || 'Terkait'}`
+                              : adminUser?.role === 'it'
                               ? 'Pengaturan khusus yang dikelola Divisi IT'
                               : adminUser?.role === 'lobby'
                               ? 'Kiosk Registrasi Tamu & Kartu Lobby'
@@ -525,7 +565,7 @@ export function Navbar() {
                           </p>
                         </div>
                         <span className="rounded-full bg-secondary px-2.5 py-1 font-mono-label text-[10px] text-muted-foreground">
-                          {adminUser?.username} ({adminUser?.role})
+                          {adminUser?.username} ({adminUser?.role === 'approver' ? `PIC ${adminUser?.department || ''}` : adminUser?.role})
                         </span>
                       </div>
                       <div

@@ -84,7 +84,7 @@ const ACCESS_OPTIONS: { role: AdminRole; label: string; shortLabel: string; desc
   { role: 'it', label: 'Admin IT', shortLabel: 'IT Ops', description: 'Izin Alat IT & E-Sign Services', code: 'IT-OPS', icon: Laptop },
   { role: 'lobby', label: 'Admin Lobby', shortLabel: 'Lobby', description: 'Pendaftaran & Kartu Tamu', code: 'LOBBY', icon: Building2 },
   { role: 'security', label: 'Admin Security', shortLabel: 'Security', description: 'Pos Security & Gatepass', code: 'GATE-SEC', icon: KeyRound },
-  { role: 'approver', label: 'Approver Dokumen', shortLabel: 'Approver', description: 'Verifikasi & Pengesahan Persetujuan', code: 'DOC-APPR', icon: FileCheck2 },
+  { role: 'approver', label: 'Approver & PIC Dept', shortLabel: 'PIC / Approver', description: 'PIC Departemen (Pengembalian Alat & Persetujuan)', code: 'DEPT-PIC', icon: FileCheck2 },
 ]
 
 const MESSAGES = [

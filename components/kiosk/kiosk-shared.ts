@@ -74,9 +74,10 @@ export function usePermitCards(): PermitCard[] {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, { cache: 'no-store', credentials: 'include' })
       if (res.ok) {
-        const data = await res.json() as { requests?: { id: number; requester_name: string; photo_id_no: string | null; status: string; taken_at: string | null; from_at: string; to_at: string }[] }
+        const data = await res.json() as { requests?: { id: number; requester_name: string; photo_id_no: string | null; status: string; taken_at: string | null; from_at: string; to_at: string; returned_at?: string | null }[] }
+        // out until it is scanned back in (Scan Kartu / Pengembalian Kartu ID) — not dropped by the clock
         setPhoto((data.requests ?? [])
-          .filter((r) => r.photo_id_no?.trim() && r.status !== 'rejected' && !r.taken_at && stillOut(r.to_at))
+          .filter((r) => r.photo_id_no?.trim() && r.status !== 'rejected' && !r.returned_at)
           .map((r) => ({ key: `foto-${r.id}`, type: 'photography' as const, name: r.requester_name, code: r.photo_id_no!.trim(), from: r.from_at, note: `izin foto${waiting(r.status)}` })))
       }
     } catch { /* keep what is shown */ }

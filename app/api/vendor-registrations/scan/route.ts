@@ -24,6 +24,7 @@ import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { LOBBY_CARD_LABEL, lobbyCardKind, normalizeCardNo } from '@/lib/card-ranges'
 import { returnSpecialAreaCard } from '@/lib/special-area'
+import { returnPhotographyCard } from '@/lib/photo-card'
 
 const clock = (at: string) => new Date(at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })
 
@@ -98,6 +99,11 @@ export async function POST(request: NextRequest) {
       if (areaReturn) {
         return NextResponse.json({ result: 'out', permit: areaReturn, message: `Scan out — kartu Special Area ${barcode} dari ${areaReturn.requester_name} dikembalikan. Jam keluar tercatat ${clock(areaReturn.to_at)}.` })
       }
+      // A Photography ID card coming back: the permit's exit time becomes now.
+      const photoReturn = await returnPhotographyCard(barcode, session.username)
+      if (photoReturn) {
+        return NextResponse.json({ result: 'out', photo: photoReturn, message: `Scan out — kartu Photography ${barcode} dari ${photoReturn.requester_name} dikembalikan. Jam selesai tercatat ${clock(photoReturn.to_at)}.` })
+      }
       // "Pengembalian Kartu ID": this window only takes cards back — it never hands one out.
       if (body.mode === 'return') {
         return NextResponse.json({ result: 'unknown', message: `Kartu ${barcode} tidak sedang dipakai tamu mana pun — tidak ada yang perlu dikembalikan.` })
@@ -154,6 +160,11 @@ export async function POST(request: NextRequest) {
     const areaReturn = await returnSpecialAreaCard(barcode, session.username)
     if (areaReturn) {
       return NextResponse.json({ result: 'out', permit: areaReturn, message: `Scan out — kartu Special Area ${barcode} dari ${areaReturn.requester_name} dikembalikan. Jam keluar tercatat ${clock(areaReturn.to_at)}.` })
+    }
+    // A Photography ID card coming back: the permit's exit time becomes now.
+    const photoReturn = await returnPhotographyCard(barcode, session.username)
+    if (photoReturn) {
+      return NextResponse.json({ result: 'out', photo: photoReturn, message: `Scan out — kartu Photography ${barcode} dari ${photoReturn.requester_name} dikembalikan. Jam selesai tercatat ${clock(photoReturn.to_at)}.` })
     }
     // "Pengembalian Kartu ID": this window only takes Lobby cards back — it never starts a swap.
     if (body.mode === 'return') {

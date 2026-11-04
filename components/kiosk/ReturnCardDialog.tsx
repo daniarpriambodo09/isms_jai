@@ -98,8 +98,8 @@ export function ReturnCardDialog({
     }
     if (station === 'lobby') {
       for (const card of permitCards) {
-        // a Special Area card is scanned back in here (its permit gets the exit time); a photo card is closed on its request
-        if (card.type === 'special_area' || card.type === 'photography') add(card.type, { key: card.key, code: card.code, since: card.from, name: card.name, note: card.note, returnable: card.type === 'special_area' })
+        // Special Area & Photography cards are scanned back in here (stamping exit/return time automatically)
+        if (card.type === 'special_area' || card.type === 'photography') add(card.type, { key: card.key, code: card.code, since: card.from, name: card.name, note: card.note, returnable: true })
       }
     }
     return (station === 'security' ? SECURITY_COLUMNS : LOBBY_COLUMNS).map((column) => ({ ...column, lines: (lines[column.key] ?? []).sort(byCode) }))
@@ -229,7 +229,7 @@ export function ReturnCardDialog({
             <p className="mt-2 text-[11px] text-muted-foreground">
               {station === 'security'
                 ? 'Tiap baris: nomor kartu Security ⟹ tanggal ⟹ kartu Lobby yang sedang dipegang tamu sebagai gantinya (kosong bila tidak ada). Tamu yang masih memegang kartu Lobby harus menukarnya kembali di Lobby dulu.'
-                : 'Kolom Security: nomor kartu Security ⟹ tanggal ⟹ kartu Lobby yang dipegang sebagai gantinya (kosong bila belum ditukar). Kartu Security dikembalikan di Pos Security. Kartu Special Area di-scan di sini — jam keluar di izinnya ikut tercatat; kartu Photography lewat izinnya.'}
+                : 'Kolom Security: nomor kartu Security ⟹ tanggal ⟹ kartu Lobby yang dipegang sebagai gantinya (kosong bila belum ditukar). Kartu Security dikembalikan di Pos Security. Kartu Special Area dan Photography di-scan di sini — jam pengembalian kartu di izinnya ikut tercatat otomatis.'}
             </p>
           </div>
         </div>

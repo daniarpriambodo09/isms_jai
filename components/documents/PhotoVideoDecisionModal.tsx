@@ -5,6 +5,13 @@ import { Camera, Check, Plus, ScanLine, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
+export type PhotoCompanion = {
+  name: string
+  nik?: string | null
+  photo_id_no?: string | null
+  returned_at?: string | null
+}
+
 export type PhotoVideoRequest = {
   id: number
   request_type: 'internal' | 'visitor'
@@ -38,6 +45,7 @@ export type PhotoVideoRequest = {
   pic_jai: string | null
   escort_name?: string | null
   escort_dept?: string | null
+  companions?: PhotoCompanion[] | null
 }
 
 type CameraItem = { id: number; code: string; department_id: number | null; department_name: string | null }
@@ -59,6 +67,9 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
   const [departments, setDepartments] = useState<Department[]>([])
   const [cameraControlNo, setCameraControlNo] = useState(request.camera_control_no ?? '')
   const [photoIdNo, setPhotoIdNo] = useState(request.photo_id_no ?? '')
+  const [companions, setCompanions] = useState<PhotoCompanion[]>(() => {
+    return Array.isArray(request.companions) ? request.companions : []
+  })
   const [usbControlNo, setUsbControlNo] = useState(request.usb_control_no ?? '')
   const [smartDeviceControlNo, setSmartDeviceControlNo] = useState(request.smart_device_control_no ?? '')
   const [submitting, setSubmitting] = useState(false)
@@ -140,6 +151,7 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
           decisionNote: note,
           cameraControlNo: status === 'approved' ? cameraControlNo : null,
           photoIdNo: status === 'approved' ? photoIdNo : null,
+          companions: status === 'approved' ? companions : null,
           usbControlNo: status === 'approved' ? (usbControlNo.trim() || null) : null,
           smartDeviceControlNo: status === 'approved' ? (smartDeviceControlNo.trim() || null) : null,
         }),
@@ -189,6 +201,29 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
             <dt className="text-muted-foreground">Lokasi</dt><dd className="text-foreground">{request.location}</dd>
             <dt className="text-muted-foreground">Tujuan</dt><dd className="text-foreground">{request.objective}</dd>
             <dt className="text-muted-foreground">Diajukan</dt><dd className="text-foreground">{formatDateTime(request.submitted_at)}</dd>
+            {companions.length > 0 && (
+              <>
+                <dt className="text-muted-foreground">Pengambil Foto Tambahan</dt>
+                <dd className="text-foreground">
+                  <ul className="space-y-1">
+                    {companions.map((c, i) => (
+                      <li key={i} className="text-xs">
+                        <span className="font-semibold">{c.name}</span>
+                        {c.nik && <span className="text-muted-foreground ml-1 font-mono">({c.nik})</span>}
+                        {c.photo_id_no ? (
+                          <span className="ml-2 inline-flex items-center gap-1 rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono font-semibold text-foreground">
+                            ID: {c.photo_id_no}
+                            {c.returned_at ? ' (Sudah kembali)' : ''}
+                          </span>
+                        ) : (
+                          <span className="ml-2 text-[10px] text-muted-foreground italic">Belum ada kartu ID</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              </>
+            )}
             {request.camera_control_no && (<><dt className="text-muted-foreground">Kontrol No. Kamera</dt><dd className="text-foreground">{request.camera_control_no}</dd></>)}
             {request.photo_id_no && (<><dt className="text-muted-foreground">No ID Photography</dt><dd className="text-foreground">{request.photo_id_no}</dd></>)}
             {request.usb_control_no && (<><dt className="text-muted-foreground">Kontrol No. USB</dt><dd className="text-foreground">{request.usb_control_no}</dd></>)}
@@ -260,12 +295,63 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
                     )}
                   </div>
                   <label className="flex flex-col gap-1.5">
-                    <span className="text-xs font-semibold text-muted-foreground">No ID Photography</span>
+                    <span className="text-xs font-semibold text-muted-foreground">No ID Photography (Pemohon Utama)</span>
                     <div className="relative">
                       <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                       <input value={photoIdNo} onChange={(e) => setPhotoIdNo(e.target.value)} placeholder="Scan atau ketik ID..." className={`${inputClass} pl-10`} />
                     </div>
                   </label>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">Kartu ID / Barcode Fotografer Tambahan</span>
+                      <button
+                        type="button"
+                        onClick={() => setCompanions([...companions, { name: '', photo_id_no: '' }])}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                      >
+                        <Plus className="size-3" /> Tambah Orang
+                      </button>
+                    </div>
+                    {companions.length > 0 && (
+                      <div className="space-y-2 rounded-lg border border-border bg-card/60 p-2.5">
+                        {companions.map((comp, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              value={comp.name}
+                              onChange={(e) => {
+                                const next = [...companions]
+                                next[i] = { ...next[i], name: e.target.value }
+                                setCompanions(next)
+                              }}
+                              placeholder={`Nama Orang #${i + 2}`}
+                              className={`${inputClass} flex-1`}
+                            />
+                            <div className="relative w-44">
+                              <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                              <input
+                                value={comp.photo_id_no || ''}
+                                onChange={(e) => {
+                                  const next = [...companions]
+                                  next[i] = { ...next[i], photo_id_no: e.target.value }
+                                  setCompanions(next)
+                                }}
+                                placeholder="Scan/Ketik Barcode"
+                                className={`${inputClass} pl-9`}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setCompanions(companions.filter((_, j) => j !== i))}
+                              aria-label={`Hapus ${comp.name || 'orang'}`}
+                              className="grid size-8 flex-shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <X className="size-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-semibold text-muted-foreground">Kontrol No. USB (opsional)</span>
                     <select

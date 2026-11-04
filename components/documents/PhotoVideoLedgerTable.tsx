@@ -47,6 +47,7 @@ type LedgerRequest = {
   return_notes: string | null
   virus_check?: boolean | null
   delete_or_format?: string | null
+  companions?: Array<{ name: string; nik?: string | null; photo_id_no?: string | null; returned_at?: string | null }> | null
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -326,11 +327,25 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{(page - 1) * pageSize + index + 1}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.submitted_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.nik ?? '—'}</td>
-                    <td className="min-w-[140px] px-4 py-3 font-medium text-foreground">{r.requester_name}</td>
+                    <td className="min-w-[140px] px-4 py-3 font-medium text-foreground">
+                      <div>{r.requester_name}</div>
+                      {(r.companions?.length ?? 0) > 0 && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground font-normal" title={r.companions?.map((c) => c.name).join(', ')}>
+                          + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.dept_or_company}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.dept_pic_kamera ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.camera_control_no ?? '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.photo_id_no ?? '—'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                      <div>{r.photo_id_no ?? '—'}</div>
+                      {r.companions?.filter((c) => c.photo_id_no).map((c, i) => (
+                        <div key={i} className="text-[11px] text-muted-foreground font-mono">
+                          {c.photo_id_no} ({c.name})
+                        </div>
+                      ))}
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs font-mono font-medium text-primary">{r.usb_control_no ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs font-mono font-medium text-indigo-600 dark:text-indigo-400">{r.smart_device_control_no ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_approve_name ?? '—'}</td>
@@ -374,12 +389,26 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                   <tr key={r.id} className={`table-row-glow ${index % 2 ? 'bg-secondary/20' : ''}`}>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{(page - 1) * pageSize + index + 1}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.submitted_at)}</td>
-                    <td className="min-w-[140px] px-4 py-3 font-medium text-foreground">{r.requester_name}</td>
+                    <td className="min-w-[140px] px-4 py-3 font-medium text-foreground">
+                      <div>{r.requester_name}</div>
+                      {(r.companions?.length ?? 0) > 0 && (
+                        <div className="mt-0.5 text-[11px] text-muted-foreground font-normal" title={r.companions?.map((c) => c.name).join(', ')}>
+                          + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.dept_or_company}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.dept ?? '—'}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai ?? '—'}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.camera_serial_no ?? '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{r.photo_id_no ?? '—'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                      <div>{r.photo_id_no ?? '—'}</div>
+                      {r.companions?.filter((c) => c.photo_id_no).map((c, i) => (
+                        <div key={i} className="text-[11px] text-muted-foreground font-mono">
+                          {c.photo_id_no} ({c.name})
+                        </div>
+                      ))}
+                    </td>
                     {escortCell(r)}
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.from_at)}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{formatDateTime(r.to_at)}</td>

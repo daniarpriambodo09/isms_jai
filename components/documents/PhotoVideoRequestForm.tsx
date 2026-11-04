@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent, Fragment } from 'react'
-import { CalendarDays, Camera, Check, CheckCircle2, Clock, Copy, History, MapPin, ScanLine, Search, Send } from 'lucide-react'
+import { CalendarDays, Camera, Check, CheckCircle2, Clock, Copy, History, MapPin, ScanLine, Search, Send, UserPlus, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { cardsChanged } from '@/components/kiosk/kiosk-shared'
@@ -235,6 +235,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const [sectionId, setSectionId] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [photoIdNo, setPhotoIdNo] = useState('')
+  const [companions, setCompanions] = useState<Array<{ name: string; nik?: string; photoIdNo?: string }>>([])
   const [dept, setDept] = useState('')
   const [cameraSerialNo, setCameraSerialNo] = useState('')
   const [deptPicKameraId, setDeptPicKameraId] = useState('')
@@ -344,7 +345,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const availableSmartDevices = smartDevices.filter(matchesCameraScope)
 
   const resetForm = () => {
-    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setUsbControlNo(''); setSmartDeviceControlNo(''); setPicApproveId('')
+    setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setCompanions([]); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setUsbControlNo(''); setSmartDeviceControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(hourAfter(nowTimeStr())); setLocation(''); setObjective('')
     setEscortChoice(''); setEscortName(''); setEscortDept('')
   }
@@ -398,6 +399,13 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
               picApproveId,
             }
           : { dept, cameraSerialNo, photoIdNo }),
+        companions: companions
+          .filter((c) => c.name.trim())
+          .map((c) => ({
+            name: c.name.trim(),
+            nik: c.nik?.trim() || null,
+            photoIdNo: c.photoIdNo?.trim() || null,
+          })),
         ...(!isInternal && isStaff ? { escortName: escort?.name ?? null, escortDept: escort?.dept ?? null } : {}),
       }
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, {
@@ -518,6 +526,85 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                   <p className="mt-1 text-[11px] text-muted-foreground">Isi bila ingin menerima hasil keputusan (disetujui/ditolak) lewat email.</p>
                 </Field>
               )}
+
+              {/* Multiple Photographers / Companions */}
+              <div className="col-span-1 sm:col-span-2 pt-2 border-t border-border/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className={labelClass}>Pengambil Foto Tambahan (opsional)</span>
+                    <p className="text-[11px] text-muted-foreground">
+                      {isInternal
+                        ? 'Tambah nama & nomor barcode kartu ID jika ada rekan yang ikut mengambil foto'
+                        : 'Tambah nama & nomor barcode kartu ID jika ada anggota tim/vendor lain yang ikut memotret'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCompanions([...companions, { name: '', nik: '', photoIdNo: '' }])}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                  >
+                    <UserPlus className="size-3.5 text-primary" />
+                    Tambah Orang
+                  </button>
+                </div>
+
+                {companions.length > 0 && (
+                  <div className="space-y-2.5 rounded-xl border border-border bg-secondary/20 p-3">
+                    {companions.map((comp, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <div className="flex-1 w-full sm:w-auto">
+                          <input
+                            value={comp.name}
+                            onChange={(e) => {
+                              const next = [...companions]
+                              next[idx] = { ...next[idx], name: e.target.value }
+                              setCompanions(next)
+                            }}
+                            placeholder={`Nama Orang #${idx + 2}`}
+                            className={inputClass}
+                            required
+                          />
+                        </div>
+                        {isInternal && (
+                          <div className="w-full sm:w-36">
+                            <input
+                              value={comp.nik || ''}
+                              onChange={(e) => {
+                                const next = [...companions]
+                                next[idx] = { ...next[idx], nik: e.target.value }
+                                setCompanions(next)
+                              }}
+                              placeholder="NIK (opsional)"
+                              className={`${inputClass} font-mono`}
+                            />
+                          </div>
+                        )}
+                        <div className="relative w-full sm:w-56">
+                          <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <input
+                            value={comp.photoIdNo || ''}
+                            onChange={(e) => {
+                              const next = [...companions]
+                              next[idx] = { ...next[idx], photoIdNo: e.target.value }
+                              setCompanions(next)
+                            }}
+                            placeholder="Scan / Barcode Kartu ID"
+                            className={`${inputClass} pl-9`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCompanions(companions.filter((_, j) => j !== idx))}
+                          aria-label={`Hapus orang #${idx + 2}`}
+                          className="grid size-11 flex-shrink-0 place-items-center rounded-xl text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

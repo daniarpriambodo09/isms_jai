@@ -48,6 +48,8 @@ type PhotoVideoRequestRow = {
   /** PIC Pendamping JAI: the JAI employee who goes along (set at the kiosk). */
   escort_name?: string | null
   escort_dept?: string | null
+  main_card_returned_at?: string | null
+  companions?: Array<{ name: string; nik?: string | null; photo_id_no?: string | null; returned_at?: string | null }> | null
 }
 
 const REQUEST_TYPES: RequestType[] = ['internal', 'visitor']
@@ -60,7 +62,8 @@ const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or
   r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at, r.decided_by, r.decision_note,
   r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no, r.usb_control_no, r.smart_device_control_no,
   r.returned_at, r.returned_by, r.return_notes, r.virus_check, r.delete_or_format, r.pic_jai,
-  r.escort_name, r.escort_dept, r.escort_set_by`
+  r.escort_name, r.escort_dept, r.escort_set_by,
+  r.main_card_returned_at, COALESCE(r.companions, '[]'::jsonb) AS companions`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
 // Read access is shared with the Lobby/Security kiosk roles (getKioskAdminFromRequest)
@@ -270,15 +273,27 @@ export async function POST(request: NextRequest) {
       smartDeviceControlNo = null
     }
 
+    const rawCompanions = Array.isArray(body.companions) ? body.companions : []
+    const companions = rawCompanions
+      .filter((c: unknown): c is Record<string, unknown> => typeof c === 'object' && c !== null && typeof (c as Record<string, unknown>).name === 'string' && ((c as Record<string, unknown>).name as string).trim().length > 0)
+      .map((c: Record<string, unknown>) => ({
+        name: String(c.name).trim().slice(0, 100),
+        nik: typeof c.nik === 'string' && c.nik.trim() ? c.nik.trim().slice(0, 50) : null,
+        photo_id_no: typeof c.photo_id_no === 'string' && c.photo_id_no.trim()
+          ? c.photo_id_no.trim().slice(0, 50)
+          : (typeof c.photoIdNo === 'string' && (c.photoIdNo as string).trim() ? (c.photoIdNo as string).trim().slice(0, 50) : null),
+        returned_at: null,
+      }))
+
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
          (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token, requester_email,
-          escort_name, escort_dept, escort_set_by, escort_set_at, usb_control_no, smart_device_control_no)
+          escort_name, escort_dept, escort_set_by, escort_set_at, usb_control_no, smart_device_control_no, companions)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-               $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END, $23, $24)
+               $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END, $23, $24, $25::jsonb)
        RETURNING id`,
       [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, resolvedToAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail,
-        escort.name, escort.dept, staff?.username ?? null, usbControlNo, smartDeviceControlNo]
+        escort.name, escort.dept, staff?.username ?? null, usbControlNo, smartDeviceControlNo, JSON.stringify(companions)]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,

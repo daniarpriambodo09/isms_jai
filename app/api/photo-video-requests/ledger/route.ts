@@ -34,6 +34,7 @@ type LedgerRow = {
   return_notes: string | null
   virus_check: boolean | null
   delete_or_format: string | null
+  companions?: Array<{ name: string; nik?: string | null; photo_id_no?: string | null; returned_at?: string | null }> | null
 }
 
 // Public, read-only — a company-wide ledger of every photo/video request
@@ -57,7 +58,8 @@ export async function GET(request: NextRequest) {
               pic.name AS pic_approve_name, r.camera_control_no, r.photo_id_no, r.camera_serial_no, r.pic_jai,
               r.escort_name, r.escort_dept, r.escort_set_by, r.taken_at,
               r.usb_control_no, r.smart_device_control_no, r.returned_at, r.returned_by, r.return_notes,
-              r.virus_check, r.delete_or_format
+              r.virus_check, r.delete_or_format,
+              COALESCE(r.companions, '[]'::jsonb) AS companions
        FROM photo_video_requests r
        LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id
        ORDER BY r.submitted_at ASC`

@@ -16,7 +16,8 @@ const SELECT_COLUMNS = `r.id, r.request_type, r.nik, r.requester_name, r.dept_or
   r.pic_approve_id, pic.name AS pic_approve_name, r.taken_at, r.taken_ack_at, r.camera_control_no, r.photo_id_no,
   r.usb_control_no, r.smart_device_control_no, r.returned_at, r.returned_by, r.return_notes,
   r.virus_check, r.delete_or_format,
-  r.escort_name, r.escort_dept, r.escort_set_by`
+  r.escort_name, r.escort_dept, r.escort_set_by,
+  r.main_card_returned_at, COALESCE(r.companions, '[]'::jsonb) AS companions`
 const FROM_CLAUSE = `photo_video_requests r LEFT JOIN pic_approvers pic ON pic.id = r.pic_approve_id`
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -101,6 +102,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       approverTitle = 'Information Assets Administrator'
     }
 
+    let companionsJson: string | null = null
+    if (Array.isArray(body.companions)) {
+      const companions = body.companions
+        .filter((c: unknown): c is Record<string, unknown> => typeof c === 'object' && c !== null && typeof (c as Record<string, unknown>).name === 'string' && ((c as Record<string, unknown>).name as string).trim().length > 0)
+        .map((c: Record<string, unknown>) => ({
+          name: String(c.name).trim().slice(0, 100),
+          nik: typeof c.nik === 'string' && c.nik.trim() ? c.nik.trim().slice(0, 50) : null,
+          photo_id_no: typeof c.photo_id_no === 'string' && c.photo_id_no.trim()
+            ? c.photo_id_no.trim().slice(0, 50)
+            : (typeof c.photoIdNo === 'string' && (c.photoIdNo as string).trim() ? (c.photoIdNo as string).trim().slice(0, 50) : null),
+          returned_at: typeof c.returned_at === 'string' && c.returned_at ? c.returned_at : null,
+        }))
+      companionsJson = JSON.stringify(companions)
+    }
+
     const verificationCode = `JAI-${id}-${randomBytes(4).toString('hex').toUpperCase()}`
     const updated = await query<{ id: number }>(
       `UPDATE photo_video_requests
@@ -109,10 +125,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
            photo_id_no = COALESCE($7, photo_id_no),
            usb_control_no = COALESCE($9, usb_control_no),
            smart_device_control_no = COALESCE($10, smart_device_control_no),
-           verification_code = CASE WHEN request_type = 'visitor' THEN $8 ELSE verification_code END
+           verification_code = CASE WHEN request_type = 'visitor' THEN $8 ELSE verification_code END,
+           companions = COALESCE($11::jsonb, companions)
        WHERE id = $5 AND status = 'pending'
        RETURNING id`,
-      [body.status, approverName, approverTitle, decisionNote, id, cameraControlNo, photoIdNo, verificationCode, usbControlNo, smartDeviceControlNo]
+      [body.status, approverName, approverTitle, decisionNote, id, cameraControlNo, photoIdNo, verificationCode, usbControlNo, smartDeviceControlNo, companionsJson]
     )
     if (updated.rows.length === 0) {
       const existing = await query<{ status: string }>('SELECT status FROM photo_video_requests WHERE id = $1', [id])
@@ -230,7 +247,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
            returned_by = $3,
            return_notes = $4,
            virus_check = $5,
-           delete_or_format = $6
+           delete_or_format = $6,
+           main_card_returned_at = $2,
+           companions = COALESCE(
+             (SELECT jsonb_agg(jsonb_set(c, '{returned_at}', to_jsonb($2::timestamptz)))
+              FROM jsonb_array_elements(COALESCE(photo_video_requests.companions, '[]'::jsonb)) c),
+             '[]'::jsonb
+           )
        WHERE id = $1 AND status = 'approved'
        RETURNING id, requester_name`,
       [id, returnTime, returnedBy, returnNotes, virusCheck, deleteOrFormat]
@@ -253,7 +276,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
            returned_by = NULL,
            return_notes = NULL,
            virus_check = FALSE,
-           delete_or_format = NULL
+           delete_or_format = NULL,
+           main_card_returned_at = NULL,
+           companions = COALESCE(
+             (SELECT jsonb_agg(c - 'returned_at' || '{"returned_at": null}'::jsonb)
+              FROM jsonb_array_elements(COALESCE(photo_video_requests.companions, '[]'::jsonb)) c),
+             '[]'::jsonb
+           )
        WHERE id = $1
        RETURNING id, requester_name`,
       [id]

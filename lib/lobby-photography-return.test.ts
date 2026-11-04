@@ -148,5 +148,91 @@ describe('Lobby Photography ID Card Return Flow', () => {
     expect(lines.special_area).toBeDefined()
     expect(lines.special_area[0].returnable).toBe(true)
   })
+
+  it('handles multiple photographers and individual companion card returns', () => {
+    type MockCompanion = {
+      name: string
+      nik?: string | null
+      photo_id_no?: string | null
+      returned_at?: string | null
+    }
+
+    type MockMultiRequest = {
+      id: number
+      requester_name: string
+      photo_id_no: string | null
+      main_card_returned_at: string | null
+      companions: MockCompanion[]
+      status: string
+      returned_at: string | null
+    }
+
+    const request: MockMultiRequest = {
+      id: 10,
+      requester_name: 'John Doe',
+      photo_id_no: 'L301',
+      main_card_returned_at: null,
+      companions: [
+        { name: 'Alice', photo_id_no: 'L302', returned_at: null },
+        { name: 'Bob', photo_id_no: 'L303', returned_at: null },
+      ],
+      status: 'approved',
+      returned_at: null,
+    }
+
+    function returnCard(cardNo: string) {
+      if (request.returned_at) return null
+
+      // Check main card
+      if (request.photo_id_no === cardNo && !request.main_card_returned_at) {
+        request.main_card_returned_at = new Date().toISOString()
+        const allCompanionsDone = request.companions.every((c) => !c.photo_id_no || Boolean(c.returned_at))
+        if (allCompanionsDone) {
+          request.returned_at = request.main_card_returned_at
+        }
+        return { card: cardNo, holder: request.requester_name, allReturned: Boolean(request.returned_at) }
+      }
+
+      // Check companions
+      const comp = request.companions.find((c) => c.photo_id_no === cardNo && !c.returned_at)
+      if (comp) {
+        comp.returned_at = new Date().toISOString()
+        const mainDone = !request.photo_id_no || Boolean(request.main_card_returned_at)
+        const allCompanionsDone = request.companions.every((c) => !c.photo_id_no || Boolean(c.returned_at))
+        if (mainDone && allCompanionsDone) {
+          request.returned_at = comp.returned_at
+        }
+        return { card: cardNo, holder: `${comp.name} (rombongan ${request.requester_name})`, allReturned: Boolean(request.returned_at) }
+      }
+
+      return null
+    }
+
+    // 1. Alice returns her card L302 first
+    const res1 = returnCard('L302')
+    expect(res1).not.toBeNull()
+    expect(res1?.holder).toBe('Alice (rombongan John Doe)')
+    expect(res1?.allReturned).toBe(false)
+    expect(request.returned_at).toBeNull()
+
+    // 2. John returns his main card L301
+    const res2 = returnCard('L301')
+    expect(res2).not.toBeNull()
+    expect(res2?.holder).toBe('John Doe')
+    expect(res2?.allReturned).toBe(false)
+    expect(request.returned_at).toBeNull()
+
+    // 3. Bob returns his card L303 -> now all cards returned, request completely returned
+    const res3 = returnCard('L303')
+    expect(res3).not.toBeNull()
+    expect(res3?.holder).toBe('Bob (rombongan John Doe)')
+    expect(res3?.allReturned).toBe(true)
+    expect(request.returned_at).not.toBeNull()
+
+    // 4. Any card scanned again returns null
+    expect(returnCard('L301')).toBeNull()
+    expect(returnCard('L302')).toBeNull()
+    expect(returnCard('L303')).toBeNull()
+  })
 })
 

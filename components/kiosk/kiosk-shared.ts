@@ -74,11 +74,54 @@ export function usePermitCards(): PermitCard[] {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/photo-video-requests`, { cache: 'no-store', credentials: 'include' })
       if (res.ok) {
-        const data = await res.json() as { requests?: { id: number; requester_name: string; photo_id_no: string | null; status: string; taken_at: string | null; from_at: string; to_at: string; returned_at?: string | null }[] }
+        const data = await res.json() as {
+          requests?: {
+            id: number
+            requester_name: string
+            photo_id_no: string | null
+            main_card_returned_at?: string | null
+            companions?: Array<{ name: string; photo_id_no?: string | null; returned_at?: string | null }> | null
+            status: string
+            taken_at: string | null
+            from_at: string
+            to_at: string
+            returned_at?: string | null
+          }[]
+        }
         // out until it is scanned back in (Scan Kartu / Pengembalian Kartu ID) — not dropped by the clock
-        setPhoto((data.requests ?? [])
-          .filter((r) => r.photo_id_no?.trim() && r.status !== 'rejected' && !r.returned_at)
-          .map((r) => ({ key: `foto-${r.id}`, type: 'photography' as const, name: r.requester_name, code: r.photo_id_no!.trim(), from: r.from_at, note: `izin foto${waiting(r.status)}` })))
+        const activePhoto: PermitCard[] = []
+        for (const r of data.requests ?? []) {
+          if (r.status === 'rejected' || r.returned_at) continue
+
+          // Main card
+          if (r.photo_id_no?.trim() && !r.main_card_returned_at) {
+            activePhoto.push({
+              key: `foto-${r.id}-main`,
+              type: 'photography' as const,
+              name: r.requester_name,
+              code: r.photo_id_no.trim(),
+              from: r.from_at,
+              note: `izin foto${waiting(r.status)}`,
+            })
+          }
+
+          // Companion cards
+          if (Array.isArray(r.companions)) {
+            r.companions.forEach((c, idx) => {
+              if (c.photo_id_no?.trim() && !c.returned_at) {
+                activePhoto.push({
+                  key: `foto-${r.id}-comp-${idx}`,
+                  type: 'photography' as const,
+                  name: `${c.name} (${r.requester_name})`,
+                  code: c.photo_id_no.trim(),
+                  from: r.from_at,
+                  note: `izin foto (anggota)${waiting(r.status)}`,
+                })
+              }
+            })
+          }
+        }
+        setPhoto(activePhoto)
       }
     } catch { /* keep what is shown */ }
     try {

@@ -611,6 +611,11 @@ function KelolaPermintaanFotoVideoContent() {
                     <td data-cell="title" className="min-w-[150px] px-4 py-3 font-medium text-foreground">
                       {req.requester_name}
                       {req.nik && <span className="block text-xs text-muted-foreground font-mono">NIK: {req.nik}</span>}
+                      {(req.companions?.length ?? 0) > 0 && (
+                        <span className="block text-[11px] text-muted-foreground font-normal" title={req.companions?.map((c) => c.name).join(', ')}>
+                          + {req.companions?.length} orang: {req.companions?.map((c) => c.name).join(', ')}
+                        </span>
+                      )}
                     </td>
                     <td data-label="Dept Pemohon" className="px-4 py-3 text-xs text-muted-foreground">{req.dept_or_company}</td>
                     
@@ -643,6 +648,11 @@ function KelolaPermintaanFotoVideoContent() {
                           💳 ID: {req.photo_id_no}
                         </span>
                       )}
+                      {req.companions?.filter((c) => c.photo_id_no).map((c, i) => (
+                        <span key={i} className="block font-mono text-[10px] text-muted-foreground">
+                          💳 ID {c.name}: {c.photo_id_no}
+                        </span>
+                      ))}
                       {req.smart_device_control_no && (
                         <span className="block font-mono text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
                           📱 Smart: {req.smart_device_control_no}

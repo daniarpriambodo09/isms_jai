@@ -1149,7 +1149,7 @@ function FingerprintPageInner() {
               ) : (
                 <>
                   <Send className="size-4" />
-                  <span>Ajukan Registrasi Fingerprint Special Security Area</span>
+                  <span>Ajukan Registrasi Fingerprint</span>
                 </>
               )}
             </button>

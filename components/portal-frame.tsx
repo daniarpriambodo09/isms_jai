@@ -86,7 +86,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/kelola-izin-alat-it': 'Kelola Izin Alat IT',
   '/kelola-approver-it': 'Pengaturan Approver Form & IT',
   '/form-it-esign': 'Form Layanan Digital & E-Sign',
-  '/registrasi-fingerprint': 'Registrasi Fingerprint Special Security Area',
+  '/registrasi-fingerprint': 'Registrasi Fingerprint',
 }
 
 // Menu pages that render their own themed hero (components/page-hero.tsx);

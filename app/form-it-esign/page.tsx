@@ -1596,7 +1596,7 @@ function FormItContent() {
                 className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground shadow-2xs transition hover:bg-secondary hover:border-primary/40 self-start sm:self-auto"
               >
                 <Fingerprint className="size-4 text-primary" />
-                <span>Form Registrasi Fingerprint Special Security Area &rarr;</span>
+                <span>Form Registrasi Fingerprint &rarr;</span>
               </Link>
             </div>
 

@@ -149,3 +149,4 @@ describe('Lobby Photography ID Card Return Flow', () => {
     expect(lines.special_area[0].returnable).toBe(true)
   })
 })
+

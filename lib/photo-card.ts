@@ -58,3 +58,4 @@ export async function returnPhotographyCard(
 
   return result.rows[0] ?? null
 }
+

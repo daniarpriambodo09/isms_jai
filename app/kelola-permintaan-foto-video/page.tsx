@@ -162,7 +162,7 @@ function KelolaPermintaanFotoVideoContent() {
       if (deptFilter && deptFilter !== 'all') params.set('dept', deptFilter)
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests?${params.toString()}`, { cache: 'no-store' })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.message)
+      if (!response.ok) throw new Error(data?.error ? `${data.message} (${data.error})` : (data?.message || 'Gagal memuat daftar pengajuan.'))
       setRequests(data.requests ?? [])
       setError(null)
     } catch (e) {

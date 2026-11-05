@@ -95,7 +95,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ requests: result.rows })
   } catch (error) {
     console.error('[photo-video-requests/GET]', error)
-    return NextResponse.json({ message: 'Gagal memuat daftar pengajuan.' }, { status: 500 })
+    return NextResponse.json({
+      message: 'Gagal memuat daftar pengajuan.',
+      error: error instanceof Error ? error.message : String(error),
+    }, { status: 500 })
   }
 }
 
@@ -174,7 +177,9 @@ export async function POST(request: NextRequest) {
           `SELECT ce.id FROM camera_equipment ce
            LEFT JOIN departments d ON d.id = ce.department_id
            LEFT JOIN sections s ON s.id = ce.section_id
-           WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2) AND (ce.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
+           WHERE LOWER(TRIM(ce.code)) = LOWER(TRIM($1))
+             AND (ce.department_id IS NULL OR LOWER(TRIM(d.name)) = LOWER(TRIM($2)))
+             AND (ce.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [cameraControlNo, deptPicKamera, deptPicKameraSection]
         )
         if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen/section ini.' }, { status: 400 })
@@ -186,7 +191,9 @@ export async function POST(request: NextRequest) {
           `SELECT p.id FROM photo_id_equipment p
            LEFT JOIN departments d ON d.id = p.department_id
            LEFT JOIN sections s ON s.id = p.section_id
-           WHERE p.code = $1 AND (p.department_id IS NULL OR d.name = $2) AND (p.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
+           WHERE LOWER(TRIM(p.code)) = LOWER(TRIM($1))
+             AND (p.department_id IS NULL OR LOWER(TRIM(d.name)) = LOWER(TRIM($2)))
+             AND (p.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [photoIdNo, deptPicKamera, deptPicKameraSection]
         )
         if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen/section ini.' }, { status: 400 })
@@ -197,7 +204,9 @@ export async function POST(request: NextRequest) {
           `SELECT u.id FROM usb_equipment u
            LEFT JOIN departments d ON d.id = u.department_id
            LEFT JOIN sections s ON s.id = u.section_id
-           WHERE u.code = $1 AND (u.department_id IS NULL OR d.name = $2) AND (u.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
+           WHERE LOWER(TRIM(u.code)) = LOWER(TRIM($1))
+             AND (u.department_id IS NULL OR LOWER(TRIM(d.name)) = LOWER(TRIM($2)))
+             AND (u.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [usbControlNo, deptPicKamera, deptPicKameraSection]
         )
         if (usbCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol USB tidak valid untuk departemen/section ini.' }, { status: 400 })
@@ -208,7 +217,9 @@ export async function POST(request: NextRequest) {
           `SELECT sde.id FROM smart_device_equipment sde
            LEFT JOIN departments d ON d.id = sde.department_id
            LEFT JOIN sections s ON s.id = sde.section_id
-           WHERE sde.code = $1 AND (sde.department_id IS NULL OR d.name = $2) AND (sde.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
+           WHERE LOWER(TRIM(sde.code)) = LOWER(TRIM($1))
+             AND (sde.department_id IS NULL OR LOWER(TRIM(d.name)) = LOWER(TRIM($2)))
+             AND (sde.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [smartDeviceControlNo, deptPicKamera, deptPicKameraSection]
         )
         if (sdCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Smart Device tidak valid untuk departemen/section ini.' }, { status: 400 })
@@ -223,33 +234,33 @@ export async function POST(request: NextRequest) {
       }
       if (!picApproveId) {
         const defaultPic = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`)
-        if (defaultPic.rows.length === 0) {
-          return NextResponse.json({ message: 'Approver izin foto/video belum diatur. Hubungi Admin ISMS.' }, { status: 400 })
+        if (defaultPic.rows.length > 0) {
+          picApproveId = defaultPic.rows[0].id
+        } else {
+          const anyPic = await query<{ id: number }>(`SELECT id FROM pic_approvers ORDER BY id ASC LIMIT 1`)
+          picApproveId = anyPic.rows[0]?.id ?? null
         }
-        picApproveId = defaultPic.rows[0].id
       }
     } else {
       dept = typeof body.dept === 'string' ? body.dept.trim() : ''
-      if (!dept) return NextResponse.json({ message: 'Department wajib diisi.' }, { status: 400 })
+      if (!dept) {
+        dept = deptOrCompany || 'Visitor'
+      }
       cameraSerialNo = typeof body.cameraSerialNo === 'string' && body.cameraSerialNo.trim() ? body.cameraSerialNo.trim() : null
 
-      // The form no longer asks for "PIC JAI" — the JAI employee who goes
-      // along is the PIC Pendamping JAI (escort) below. Kept when an older
-      // client still sends it.
       picJai = typeof body.picJai === 'string' && body.picJai.trim() ? body.picJai.trim() : null
       photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? normalizeCardNo(body.photoIdNo) : null
       const wrongCard = photoIdNo ? lobbyCardProblem(photoIdNo, 'photography', false) : null
       if (wrongCard) return NextResponse.json({ message: wrongCard }, { status: 400 })
 
-      // Visitor requests don't let the requester pick a PIC — they're always
-      // routed to whichever PIC an ISM Admin has marked as the Visitor
-      // default (see /api/pic-approvers/visitor-default), so the client's
-      // own picApproveId (if any) is ignored here.
+      // Visitor requests: routed to default approver or first PIC without blocking
       const visitorPic = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`)
-      if (visitorPic.rows.length === 0) {
-        return NextResponse.json({ message: 'Approver untuk pengajuan Visitor belum diatur. Hubungi Admin ISMS.' }, { status: 400 })
+      if (visitorPic.rows.length > 0) {
+        picApproveId = visitorPic.rows[0].id
+      } else {
+        const anyPic = await query<{ id: number }>(`SELECT id FROM pic_approvers ORDER BY id ASC LIMIT 1`)
+        picApproveId = anyPic.rows[0]?.id ?? null
       }
-      picApproveId = visitorPic.rows[0].id
     }
 
     // PIC Pendamping: only Lobby / Pos Security / the ISM Admin may name one
@@ -260,15 +271,18 @@ export async function POST(request: NextRequest) {
     // Both internal and visitor requests get a token — allows direct auto-login decision via email
     const approvalToken = randomBytes(24).toString('hex')
 
-    // Every request starts 'pending'. Internal ones are decided by an ISM
-    // Admin in /kelola-permintaan-foto-video (they used to be inserted
-    // already 'approved', which skipped the admin entirely); Visitor ones
-    // are decided via the emailed approve/reject link (or by the admin).
-    const status = 'pending'
+    // For Visitor: Physical Photography ID card is handed at Lobby with a barcode.
+    // It is directly active/approved so the visitor can take photos right away and
+    // exchange/return the card at the Lobby kiosk without waiting for Admin ISMS approval.
+    // Admin ISMS monitors the form in the dashboard.
+    const isVisitor = requestType === 'visitor'
+    const status = isVisitor ? 'approved' : 'pending'
+    const decidedAt = isVisitor ? new Date().toISOString() : null
+    const decidedBy = isVisitor ? 'Lobby / Auto-approved' : null
+    const decidedByTitle = isVisitor ? 'Lobby Reception' : null
+    const takenAt = isVisitor ? new Date().toISOString() : null
 
     // Secret half of the reference code shown to the requester ("42-A1B2C3D4E5")
-    // — the bare sequential id alone would let anyone look up or cancel other
-    // people's pending requests just by counting.
     const refToken = randomBytes(5).toString('hex').toUpperCase()
 
     if (requestType !== 'internal') {
@@ -291,28 +305,33 @@ export async function POST(request: NextRequest) {
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
          (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token, requester_email,
-          escort_name, escort_dept, escort_set_by, escort_set_at, usb_control_no, smart_device_control_no, companions)
+          escort_name, escort_dept, escort_set_by, escort_set_at, usb_control_no, smart_device_control_no, companions, decided_at, decided_by, decided_by_title, taken_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-               $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END, $23, $24, $25::jsonb)
+               $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END, $23, $24, $25::jsonb,
+               $26::timestamptz, $27::text, $28::text, $29::timestamptz)
        RETURNING id`,
       [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, resolvedToAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail,
-        escort.name, escort.dept, staff?.username ?? null, usbControlNo, smartDeviceControlNo, JSON.stringify(companions)]
+        escort.name, escort.dept, staff?.username ?? null, usbControlNo, smartDeviceControlNo, JSON.stringify(companions),
+        decidedAt, decidedBy, decidedByTitle, takenAt]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,
       [result.rows[0].id]
     )
 
-    if (requestType === 'visitor') {
+    if (requestType === 'visitor' && !isVisitor) {
       await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken })
     }
-    // Bell + (Internal) e-mail to the ISM Admins who decide it.
+    // Bell + (Internal) e-mail to the ISM Admins who decide it / monitor it.
     await notifyNewPhotoRequest(created.rows[0].id)
 
     return NextResponse.json({ request: created.rows[0], referenceCode: `${created.rows[0].id}-${refToken}` }, { status: 201 })
   } catch (error) {
     console.error('[photo-video-requests/POST]', error)
-    return NextResponse.json({ message: 'Gagal mengirim pengajuan.' }, { status: 500 })
+    return NextResponse.json({
+      message: 'Gagal mengirim pengajuan.',
+      error: error instanceof Error ? error.message : String(error),
+    }, { status: 500 })
   }
 }
 

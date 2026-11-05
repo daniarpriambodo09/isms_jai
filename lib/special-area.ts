@@ -200,11 +200,21 @@ export function ensureSpecialAreaSchema() {
   return ready
 }
 
+function cleanCardCode(str: string): string {
+  return str.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^l/, '')
+}
+
 function matchesCard(target: string | null | undefined, candidates: string[]): boolean {
   if (!target) return false
   const t = target.trim().toLowerCase()
   if (!t) return false
-  return candidates.some((c) => c.toLowerCase() === t)
+  const cleanT = cleanCardCode(t)
+  return candidates.some((c) => {
+    const cl = c.trim().toLowerCase()
+    if (cl === t) return true
+    const cleanC = cleanCardCode(cl)
+    return cleanC.length > 0 && cleanC === cleanT
+  })
 }
 
 /**
@@ -221,7 +231,8 @@ export async function returnSpecialAreaCard(cardNo: string, username: string): P
   const normalized = normalizeCardNo(raw)
   const withL = /^\d+$/.test(raw) ? `L${raw}` : raw
   const withoutL = /^L(\d+)$/i.exec(raw)?.[1] || raw
-  const candidates = Array.from(new Set([raw, normalized, withL, withoutL].filter(Boolean)))
+  const cleanOnly = cleanCardCode(raw)
+  const candidates = Array.from(new Set([raw, normalized, withL, withoutL, cleanOnly, `L${cleanOnly}`].filter(Boolean)))
 
   const candidateRes = await query<SpecialAreaRequest>(
     `SELECT ${SELECT_COLUMNS} FROM special_area_requests

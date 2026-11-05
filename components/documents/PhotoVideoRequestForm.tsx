@@ -414,7 +414,11 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         body: JSON.stringify(payload),
       })
       const data = await response.json().catch(() => null)
-      if (!response.ok) { setError(data?.message ?? 'Gagal mengirim pengajuan.'); return }
+      if (!response.ok) {
+        const errMsg = data?.error ? `${data.message ?? 'Gagal mengirim pengajuan.'} (${data.error})` : (data?.message ?? 'Gagal mengirim pengajuan.')
+        setError(errMsg)
+        return
+      }
       setSuccessInfo({ id: data?.request?.id, referenceCode: data?.referenceCode ?? `#${data?.request?.id}`, submittedAt: data?.request?.submitted_at ?? new Date().toISOString(), emailed: isInternal && !!requesterEmail.trim() })
       resetForm()
       cardsChanged()

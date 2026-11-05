@@ -32,8 +32,37 @@ export async function ensurePhotoVideoColumns(): Promise<void> {
           ADD COLUMN IF NOT EXISTS dept_pic_kamera VARCHAR(100),
           ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS returned_by VARCHAR(150),
-          ADD COLUMN IF NOT EXISTS return_notes TEXT;
+          ADD COLUMN IF NOT EXISTS return_notes TEXT,
+          ADD COLUMN IF NOT EXISTS requester_email VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS approval_token VARCHAR(64),
+          ADD COLUMN IF NOT EXISTS verification_code VARCHAR(40),
+          ADD COLUMN IF NOT EXISTS camera_serial_no VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS pic_jai VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS ref_token VARCHAR(16),
+          ADD COLUMN IF NOT EXISTS taken_at TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS taken_ack_at TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS pic_approve_id INTEGER,
+          ADD COLUMN IF NOT EXISTS result_mailed_at TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS decided_at TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS decided_by VARCHAR(150),
+          ADD COLUMN IF NOT EXISTS decided_by_title VARCHAR(150),
+          ADD COLUMN IF NOT EXISTS decision_note TEXT;
       `)
+
+      // Ensure at least one PIC approver has is_visitor_default = true
+      const defaultPic = await query<{ id: number }>('SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1')
+      if (defaultPic.rows.length === 0) {
+        const anyPic = await query<{ id: number }>('SELECT id FROM pic_approvers ORDER BY id ASC LIMIT 1')
+        if (anyPic.rows.length > 0) {
+          await query('UPDATE pic_approvers SET is_visitor_default = true WHERE id = $1', [anyPic.rows[0].id])
+        } else {
+          await query(`
+            INSERT INTO pic_approvers (name, full_name, title, email, is_visitor_default, salutation)
+            VALUES ('TSU', 'Teguh Sunjoyo', 'Information Assets Administrator', 'teguh@jai.co.id', true, 'Bpk.')
+          `)
+        }
+      }
+
       columnsEnsured = true
     } catch (error) {
       console.error('[photo-video-db] ensurePhotoVideoColumns error (non-fatal):', error)

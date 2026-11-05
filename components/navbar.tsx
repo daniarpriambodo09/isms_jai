@@ -4,12 +4,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Aperture, ArrowRight, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, CheckCircle2, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, Laptop, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
+import { DEPARTMENTS_CHANGED } from '@/lib/department-events'
 import { cn } from '@/lib/utils'
 import { LoginModal } from '@/components/login-modal'
 import { NotificationBell } from '@/components/documents/NotificationBell'
@@ -180,12 +181,18 @@ export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [approvalMessagesOpen, setApprovalMessagesOpen] = useState(false)
 
-  useEffect(() => {
+  const loadDepartments = useCallback(() => {
     fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { departments: [] }))
       .then((data: { departments: Department[] }) => setDepartments(data.departments ?? []))
       .catch(() => setDepartments([]))
   }, [])
+
+  useEffect(() => {
+    loadDepartments()
+    window.addEventListener(DEPARTMENTS_CHANGED, loadDepartments)
+    return () => window.removeEventListener(DEPARTMENTS_CHANGED, loadDepartments)
+  }, [loadDepartments])
 
   useEffect(() => {
     fetch(`${API_BASE_PATH}/api/nav-labels`, { cache: 'no-store' })

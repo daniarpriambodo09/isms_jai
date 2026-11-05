@@ -4,6 +4,7 @@ import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
+import { slugify } from '@/lib/slug'
 
 type SectionRow = { id: number; department_id: number; name: string; slug: string }
 
@@ -26,12 +27,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ message: 'Section tidak ditemukan.' }, { status: 404 })
   }
 
+  let newSlug = slugify(name)
+  if (!newSlug) newSlug = `sec-${id}`
+
+  const conflict = await query('SELECT id FROM sections WHERE department_id = $1 AND slug = $2 AND id <> $3', [existing.rows[0].department_id, newSlug, id])
+  if (conflict.rows.length > 0) {
+    newSlug = `${newSlug}-${id}`
+  }
+
   const result = await query<SectionRow>(
-    'UPDATE sections SET name = $1 WHERE id = $2 RETURNING id, department_id, name, slug',
-    [name.trim(), id]
+    'UPDATE sections SET name = $1, slug = $2 WHERE id = $3 RETURNING id, department_id, name, slug',
+    [name.trim(), newSlug, id]
   )
 
-  await logActivity(session, 'update', 'section', id, `Mengubah nama section dari "${existing.rows[0].name}" menjadi "${result.rows[0].name}"`)
+  await logActivity(session, 'update', 'section', id, `Mengubah nama section dari "${existing.rows[0].name}" (${existing.rows[0].slug}) menjadi "${result.rows[0].name}" (${result.rows[0].slug})`)
 
   return NextResponse.json({ section: result.rows[0] })
 }

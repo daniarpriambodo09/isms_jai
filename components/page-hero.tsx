@@ -413,7 +413,7 @@ export function FolderHero({ department, section, count, action }: WithAction & 
       <div aria-hidden className="absolute right-16 top-0 h-16 w-44 rotate-[4deg] rounded-md bg-card shadow-md ring-1 ring-border" />
       <div aria-hidden className="absolute right-28 top-1 h-16 w-40 -rotate-[3deg] rounded-md bg-muted shadow ring-1 ring-border" />
       <div className="relative inline-flex items-center gap-2 rounded-t-xl bg-[color:var(--p-850)] px-5 pb-2 pt-2.5 font-mono-label text-[10px] text-primary-foreground/80">
-        <Folder className="size-3.5 text-accent" /> Departemen
+        <Folder className="size-3.5 text-accent" /> {section ? 'Section' : 'Departemen'}
       </div>
       <div className="relative overflow-hidden rounded-b-2xl rounded-tr-2xl bg-[color:var(--p-850)] p-7 text-primary-foreground shadow-xl sm:p-9">
         <span aria-hidden className="pointer-events-none absolute -right-6 top-1/2 grid size-52 -translate-y-1/2 place-items-center rounded-full border-2 border-white/10 font-display text-7xl font-bold text-white/10 max-[640px]:hidden">
@@ -421,7 +421,7 @@ export function FolderHero({ department, section, count, action }: WithAction & 
         </span>
         <div className="relative max-w-2xl">
           <p className="font-mono-label text-[10px] text-primary-foreground/55">
-            {department.name}{section && <> <span className="mx-1 opacity-50">/</span> Section</>}
+            {department.name}{section && <> <span className="mx-1 opacity-50">/</span> {section.name}</>}
           </p>
           <h2 className="mt-3 font-display text-[clamp(2.2rem,4.5vw,3.6rem)] font-semibold leading-[0.95]">{name}</h2>
           <p className="mt-3 text-sm leading-6 text-primary-foreground/70">

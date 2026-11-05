@@ -3,16 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { logActivity } from '@/lib/activity-log'
+import { slugify } from '@/lib/slug'
 
 type SectionRow = { id: number; department_id: number; name: string; slug: string }
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '')
-}
 
 // Admin only — add a new section under a department.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -4,6 +4,7 @@ import { getItAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
 import { deleteDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
+import { slugify } from '@/lib/slug'
 
 type DepartmentRow = { id: number; name: string; slug: string }
 
@@ -26,12 +27,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ message: 'Departemen tidak ditemukan.' }, { status: 404 })
   }
 
+  let newSlug = slugify(name)
+  if (!newSlug) newSlug = `dept-${id}`
+
+  const conflict = await query('SELECT id FROM departments WHERE slug = $1 AND id <> $2', [newSlug, id])
+  if (conflict.rows.length > 0) {
+    newSlug = `${newSlug}-${id}`
+  }
+
   const result = await query<DepartmentRow>(
-    'UPDATE departments SET name = $1 WHERE id = $2 RETURNING id, name, slug',
-    [name.trim(), id]
+    'UPDATE departments SET name = $1, slug = $2 WHERE id = $3 RETURNING id, name, slug',
+    [name.trim(), newSlug, id]
   )
 
-  await logActivity(session, 'update', 'department', id, `Mengubah nama departemen dari "${existing.rows[0].name}" menjadi "${result.rows[0].name}"`)
+  await logActivity(session, 'update', 'department', id, `Mengubah nama departemen dari "${existing.rows[0].name}" (${existing.rows[0].slug}) menjadi "${result.rows[0].name}" (${result.rows[0].slug})`)
 
   return NextResponse.json({ department: result.rows[0] })
 }

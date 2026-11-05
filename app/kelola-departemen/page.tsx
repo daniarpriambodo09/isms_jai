@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { departmentsChanged } from '@/lib/department-events'
 
 type Section = { id: number; department_id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -64,12 +65,12 @@ export default function KelolaDepartemenPage() {
   const saveDepartmentName = async (id: number) => {
     if (!deptDraft.trim()) return
     await fetch(`${API_BASE_PATH}/api/departments/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: deptDraft.trim() }) })
-    setEditingDeptId(null); loadDepartments()
+    setEditingDeptId(null); await loadDepartments(); departmentsChanged()
   }
   const saveSectionName = async (id: number) => {
     if (!sectionDraft.trim()) return
     await fetch(`${API_BASE_PATH}/api/sections/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: sectionDraft.trim() }) })
-    setEditingSectionId(null); loadDepartments()
+    setEditingSectionId(null); await loadDepartments(); departmentsChanged()
   }
   const addDepartment = async () => {
     if (!newDeptName.trim()) return
@@ -82,6 +83,7 @@ export default function KelolaDepartemenPage() {
         setAddingDept(false); setNewDeptName('')
         await loadDepartments()
         setSelectedDeptId(data?.department?.id ?? null)
+        departmentsChanged()
       } else {
         setDeptError(data?.message ?? 'Gagal menambahkan departemen.')
       }
@@ -94,7 +96,7 @@ export default function KelolaDepartemenPage() {
   const addSection = async (departmentId: number) => {
     if (!newSectionName.trim()) return
     await fetch(`${API_BASE_PATH}/api/departments/${departmentId}/sections`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newSectionName.trim() }) })
-    setAddingSectionFor(null); setNewSectionName(''); loadDepartments()
+    setAddingSectionFor(null); setNewSectionName(''); await loadDepartments(); departmentsChanged()
   }
   const confirmDeleteDepartment = async () => {
     if (!pendingDeleteDept) return
@@ -103,6 +105,7 @@ export default function KelolaDepartemenPage() {
       if ((await fetch(`${API_BASE_PATH}/api/departments/${pendingDeleteDept.id}`, { method: 'DELETE' })).ok) {
         setSelectedDeptId(null)
         await loadDepartments()
+        departmentsChanged()
       }
     } finally {
       setDeletingDept(false)
@@ -115,6 +118,7 @@ export default function KelolaDepartemenPage() {
     try {
       if ((await fetch(`${API_BASE_PATH}/api/sections/${pendingDeleteSection.id}`, { method: 'DELETE' })).ok) {
         await loadDepartments()
+        departmentsChanged()
       }
     } finally {
       setDeletingSection(false)

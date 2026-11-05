@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronRight, LockKeyhole, FileText, ClipboardCheck, ClipboardList, BookOpen, Gauge, Shield, LayoutGrid, Home, BookMarked, Settings, Users } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
@@ -11,6 +11,12 @@ import { ScrollReveal } from '@/components/scroll-reveal'
 import { RouteCurtain } from '@/components/route-transition'
 import { titleFor } from '@/lib/portal-data'
 import { useAuth } from '@/context/AuthContext'
+import { API_BASE_PATH } from '@/lib/config'
+import { slugify } from '@/lib/slug'
+import { DEPARTMENTS_CHANGED } from '@/lib/department-events'
+
+type SectionItem = { id: number; name: string; slug: string }
+type DeptItem = { id: number; name: string; slug: string; sections: SectionItem[] }
 
 // These two routes are standalone kiosk pages (vendor gate management at
 // Lobby / Pos Security) — they render with none of the portal's chrome,
@@ -132,10 +138,40 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
   const isNotFound = !(pathname in PAGE_TITLES) && !DYNAMIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
   const hasOwnHero = isNotFound || OWN_HERO_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 
+  const [departments, setDepartments] = useState<DeptItem[]>([])
+
+  useEffect(() => {
+    const load = () => {
+      fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : { departments: [] }))
+        .then((data: { departments: DeptItem[] }) => setDepartments(data.departments ?? []))
+        .catch(() => {})
+    }
+    load()
+    window.addEventListener(DEPARTMENTS_CHANGED, load)
+    return () => window.removeEventListener(DEPARTMENTS_CHANGED, load)
+  }, [])
+
   const segments = pathname.split('/').filter(Boolean)
+  const isDeptPage = segments[0] === 'documents' && segments[1] === 'department' && segments.length === 3
   const isSectionPage = segments[0] === 'documents' && segments[1] === 'department' && segments.length === 4
+
+  let dynamicDepartmentTitle: string | null = null
+  if (isDeptPage) {
+    const deptSlug = segments[2]
+    const foundDept = departments.find((d) => d.slug === deptSlug || slugify(d.name) === deptSlug)
+    if (foundDept) dynamicDepartmentTitle = foundDept.name
+  } else if (isSectionPage) {
+    const deptSlug = segments[2]
+    const secSlug = segments[3]
+    const foundDept = departments.find((d) => d.slug === deptSlug || slugify(d.name) === deptSlug)
+    const foundSec = foundDept?.sections.find((s) => s.slug === secSlug || slugify(s.name) === secSlug)
+    if (foundSec) dynamicDepartmentTitle = foundSec.name
+  }
+
   const pageTitle =
     PAGE_TITLES[pathname]
+      ?? dynamicDepartmentTitle
       ?? (isNotFound ? PAGE_TITLES['/_not-found'] : isSectionPage
         ? decodeURIComponent(segments.at(-1) ?? '').replaceAll('-', ' ').toUpperCase()
         : titleFor(segments.at(-1) ?? 'Home'))

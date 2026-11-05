@@ -12,6 +12,7 @@ import { notifyNewPhotoRequest } from '@/lib/photo-notify'
 import { parseEscort } from '@/lib/special-area-shared'
 import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 import { API_BASE_PATH } from '@/lib/config'
+import { ensurePhotoVideoColumns } from '@/lib/photo-video-db'
 
 type RequestType = 'internal' | 'visitor'
 type Status = 'pending' | 'approved' | 'rejected'
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
   if (!getAnyAdminOrApproverFromRequest(request)) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
   try {
+    await ensurePhotoVideoColumns()
     const typeParam = request.nextUrl.searchParams.get('type')
     const statusParam = request.nextUrl.searchParams.get('status')
     const awaitingAck = request.nextUrl.searchParams.get('awaitingAck') === '1'
@@ -106,6 +108,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    await ensurePhotoVideoColumns()
     const body = await request.json()
     const requestType = body.requestType
     if (!isRequestType(requestType)) return NextResponse.json({ message: 'Tipe pengajuan tidak valid.' }, { status: 400 })
@@ -171,7 +174,7 @@ export async function POST(request: NextRequest) {
           `SELECT ce.id FROM camera_equipment ce
            LEFT JOIN departments d ON d.id = ce.department_id
            LEFT JOIN sections s ON s.id = ce.section_id
-           WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2) AND (ce.section_id IS NULL OR s.name = $3)`,
+           WHERE ce.code = $1 AND (ce.department_id IS NULL OR d.name = $2) AND (ce.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
           [cameraControlNo, deptPicKamera, deptPicKameraSection]
         )
         if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen/section ini.' }, { status: 400 })
@@ -183,7 +186,7 @@ export async function POST(request: NextRequest) {
           `SELECT p.id FROM photo_id_equipment p
            LEFT JOIN departments d ON d.id = p.department_id
            LEFT JOIN sections s ON s.id = p.section_id
-           WHERE p.code = $1 AND (p.department_id IS NULL OR d.name = $2) AND (p.section_id IS NULL OR s.name = $3)`,
+           WHERE p.code = $1 AND (p.department_id IS NULL OR d.name = $2) AND (p.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
           [photoIdNo, deptPicKamera, deptPicKameraSection]
         )
         if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen/section ini.' }, { status: 400 })
@@ -194,7 +197,7 @@ export async function POST(request: NextRequest) {
           `SELECT u.id FROM usb_equipment u
            LEFT JOIN departments d ON d.id = u.department_id
            LEFT JOIN sections s ON s.id = u.section_id
-           WHERE u.code = $1 AND (u.department_id IS NULL OR d.name = $2) AND (u.section_id IS NULL OR s.name = $3)`,
+           WHERE u.code = $1 AND (u.department_id IS NULL OR d.name = $2) AND (u.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
           [usbControlNo, deptPicKamera, deptPicKameraSection]
         )
         if (usbCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol USB tidak valid untuk departemen/section ini.' }, { status: 400 })
@@ -205,7 +208,7 @@ export async function POST(request: NextRequest) {
           `SELECT sde.id FROM smart_device_equipment sde
            LEFT JOIN departments d ON d.id = sde.department_id
            LEFT JOIN sections s ON s.id = sde.section_id
-           WHERE sde.code = $1 AND (sde.department_id IS NULL OR d.name = $2) AND (sde.section_id IS NULL OR s.name = $3)`,
+           WHERE sde.code = $1 AND (sde.department_id IS NULL OR d.name = $2) AND (sde.section_id IS NULL OR $3::text IS NULL OR s.name = $3)`,
           [smartDeviceControlNo, deptPicKamera, deptPicKameraSection]
         )
         if (sdCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Smart Device tidak valid untuk departemen/section ini.' }, { status: 400 })

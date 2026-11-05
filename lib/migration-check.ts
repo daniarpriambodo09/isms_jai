@@ -9,6 +9,7 @@ import fs from 'fs'
 import path from 'path'
 import { execFileSync } from 'child_process'
 import { query } from '@/lib/db'
+import { ensurePhotoVideoColumns } from '@/lib/photo-video-db'
 
 // Brings the database up to date before the first request: pending files in
 // db/migrations/ are applied by the same runner as `npm run migrate` (one
@@ -31,6 +32,9 @@ export async function migrateOnStartup() {
       console.error(`[migrations] ✗ automatic migration failed — the app starts anyway, but some pages may fail.\n${(e.stdout ?? '') + (e.stderr ?? '') || e.message}`)
     }
   }
+
+  // Fast self-healing: ensure essential columns exist in case migrate.mjs was skipped
+  await ensurePhotoVideoColumns().catch(() => {})
   // Still pending (failed above, or AUTO_MIGRATE=false)? Say so in the log.
   await Promise.race([
     warnPendingMigrations().catch(() => {}),

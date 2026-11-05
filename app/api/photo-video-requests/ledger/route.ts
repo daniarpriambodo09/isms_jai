@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query } from '@/lib/db'
+import { ensurePhotoVideoColumns } from '@/lib/photo-video-db'
 
 type LedgerRow = {
   id: number
@@ -52,6 +53,7 @@ function maskNik(nik: string | null): string | null {
 
 export async function GET(request: NextRequest) {
   try {
+    await ensurePhotoVideoColumns()
     const result = await query<LedgerRow>(
       `SELECT r.id, r.request_type, r.nik, r.requester_name, r.dept_or_company, r.dept, r.dept_pic_kamera,
               r.from_at, r.to_at, r.location, r.objective, r.status, r.submitted_at, r.decided_at,

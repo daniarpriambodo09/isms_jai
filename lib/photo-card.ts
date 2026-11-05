@@ -5,6 +5,7 @@
 
 import { query } from '@/lib/db'
 import { normalizeCardNo } from '@/lib/card-ranges'
+import { ensurePhotoVideoColumns } from '@/lib/photo-video-db'
 
 export type PhotoCompanion = {
   name: string
@@ -49,6 +50,8 @@ export async function returnPhotographyCard(
   const withL = /^\d+$/.test(raw) ? `L${raw}` : raw
   const withoutL = /^L(\d+)$/i.exec(raw)?.[1] || raw
   const candidates = Array.from(new Set([raw, normalized, withL, withoutL].filter(Boolean)))
+
+  await ensurePhotoVideoColumns()
 
   // Find candidate requests that are not rejected and not yet marked completely returned
   const candidateRes = await query<{

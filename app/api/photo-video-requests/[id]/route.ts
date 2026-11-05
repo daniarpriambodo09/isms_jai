@@ -6,6 +6,7 @@ import { logActivity } from '@/lib/activity-log'
 import { notifyPhotoDecision } from '@/lib/photo-notify'
 import { recordNotification } from '@/lib/admin-notifications'
 import { parseEscort } from '@/lib/special-area-shared'
+import { ensurePhotoVideoColumns } from '@/lib/photo-video-db'
 
 type Status = 'approved' | 'rejected'
 const DECISION_STATUSES: Status[] = ['approved', 'rejected']
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID pengajuan tidak valid.' }, { status: 400 })
 
   try {
+    await ensurePhotoVideoColumns()
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     if (result.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan.' }, { status: 404 })
     return NextResponse.json({ request: result.rows[0] })
@@ -45,6 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (!/^\d+$/.test(id)) return NextResponse.json({ message: 'ID pengajuan tidak valid.' }, { status: 400 })
 
   try {
+    await ensurePhotoVideoColumns()
     const body = await request.json()
     if (!isDecisionStatus(body.status)) return NextResponse.json({ message: 'Status keputusan tidak valid.' }, { status: 400 })
     const decisionNote = typeof body.decisionNote === 'string' && body.decisionNote.trim() ? body.decisionNote.trim() : null

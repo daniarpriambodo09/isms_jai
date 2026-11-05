@@ -5,7 +5,7 @@
 // admin page; submitting emails the IAA for approval.
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { CheckCircle2, Clock, Loader2, ScanLine, ShieldAlert, X } from 'lucide-react'
+import { CheckCircle2, Clock, Loader2, ScanLine, ShieldAlert, UserPlus, Trash2, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 import { SPECIAL_AREAS } from '@/lib/special-area-shared'
@@ -100,6 +100,7 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
   const [areaOther, setAreaOther] = useState('')
   const [purpose, setPurpose] = useState('')
   const [idCardNo, setIdCardNo] = useState('')
+  const [companions, setCompanions] = useState<Array<{ name: string; idCardNo: string }>>([])
   // PIC Pendamping JAI: who from JAI goes along — the approver reads it in the e-mail ("PIC JAI").
   const escorts = useEscortList()
   const [escortChoice, setEscortChoice] = useState('')
@@ -141,7 +142,14 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
           ...(fromManual ? { fromAt: from.toISOString() } : {}),
           toAt: to.toISOString(),
           area: areaChoice === OTHER ? areaOther : areaChoice,
-          purpose, idCardNo,
+          purpose,
+          idCardNo: idCardNo.trim() || null,
+          companions: companions
+            .filter((c) => c.name.trim())
+            .map((c) => ({
+              name: c.name.trim(),
+              idCardNo: c.idCardNo.trim() || null,
+            })),
           escortName: escort?.name ?? null, escortDept: escort?.dept ?? null,
         }),
       })
@@ -203,10 +211,118 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
           <form onSubmit={submit} className="flex flex-col flex-1 min-h-0">
             {/* Scrollable Form Body */}
             <div className="overflow-y-auto flex-1 p-6 grid gap-4 sm:grid-cols-2">
-              <label className="sm:col-span-2">
-                <span className={label}>Nama Lengkap</span>
+              <label>
+                <span className={label}>Nama Lengkap (Pemohon Utama)</span>
                 <input value={requesterName} onChange={(e) => setRequesterName(e.target.value)} autoComplete="name" required autoFocus className={input} />
               </label>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label htmlFor="sa-id-card" className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <ScanLine className="size-3.5 text-primary" />
+                    <span>ID Card No. / Barcode Kartu</span>
+                  </label>
+                  <span className="text-[10px] font-medium text-muted-foreground">Opsional</span>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <ScanLine className={`pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 ${scanning ? 'text-emerald-600 animate-pulse' : 'text-muted-foreground'}`} />
+                    <input
+                      id="sa-id-card"
+                      ref={idCardRef}
+                      value={idCardNo}
+                      onChange={(e) => { setIdCardNo(e.target.value); setScanned(false) }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); if (idCardNo.trim()) setScanned(true); setScanning(false) }
+                        if (e.key === 'Escape' && scanning) { e.stopPropagation(); setScanning(false) }
+                      }}
+                      onBlur={() => setScanning(false)}
+                      placeholder={scanning ? 'Arahkan scanner…' : 'Scan barcode / ketik nomor'}
+                      maxLength={100}
+                      autoComplete="off"
+                      className={`${input} pl-9 font-mono ${scanning ? 'border-emerald-500 ring-4 ring-emerald-500/20 bg-emerald-500/5' : ''}`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={startScan}
+                    aria-pressed={scanning}
+                    className={`inline-flex h-10 flex-none items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition cursor-pointer shadow-xs ${scanning ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-border bg-card text-foreground hover:bg-secondary'}`}
+                  >
+                    <ScanLine className={`size-3.5 ${scanning ? 'animate-pulse' : ''}`} />
+                    <span>{scanning ? 'Menunggu…' : idCardNo ? 'Scan Ulang' : 'Scan Barcode'}</span>
+                  </button>
+                </div>
+                {scanned && idCardNo && (
+                  <p className="mt-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 className="size-3" /> Kartu terbaca: {idCardNo}
+                  </p>
+                )}
+              </div>
+
+              {/* Multiple Visitors / Companions */}
+              <div className="sm:col-span-2 pt-2 pb-1 border-t border-b border-border/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <span className="text-xs font-semibold text-foreground">Pengunjung / Anggota Tambahan (opsional)</span>
+                    <p className="text-[11px] text-muted-foreground">
+                      Tambah nama &amp; barcode kartu ID jika ada anggota tim / vendor lain yang ikut masuk
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCompanions([...companions, { name: '', idCardNo: '' }])}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary cursor-pointer shadow-2xs"
+                  >
+                    <UserPlus className="size-3.5 text-primary" />
+                    Tambah Orang
+                  </button>
+                </div>
+
+                {companions.length > 0 && (
+                  <div className="space-y-2 rounded-xl border border-border bg-secondary/20 p-2.5">
+                    {companions.map((comp, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <div className="flex-1 w-full sm:w-auto">
+                          <input
+                            value={comp.name}
+                            onChange={(e) => {
+                              const next = [...companions]
+                              next[idx] = { ...next[idx], name: e.target.value }
+                              setCompanions(next)
+                            }}
+                            placeholder={`Nama Orang #${idx + 2}`}
+                            className={input}
+                            required
+                          />
+                        </div>
+                        <div className="relative w-full sm:w-60">
+                          <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <input
+                            value={comp.idCardNo}
+                            onChange={(e) => {
+                              const next = [...companions]
+                              next[idx] = { ...next[idx], idCardNo: e.target.value }
+                              setCompanions(next)
+                            }}
+                            placeholder="Scan / Barcode Kartu ID"
+                            className={`${input} pl-9 font-mono`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCompanions(companions.filter((_, j) => j !== idx))}
+                          aria-label={`Hapus orang #${idx + 2}`}
+                          className="grid size-10 flex-shrink-0 place-items-center rounded-xl text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <label>
                 <span className={label}>Nama Organisasi / Perusahaan</span>
                 <input value={orgCompany} onChange={(e) => setOrgCompany(e.target.value)} autoComplete="organization" required className={input} />
@@ -317,68 +433,6 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
                 )}
                 <span className="mt-1 block text-[11px] text-muted-foreground">Karyawan JAI yang mendampingi tamu di area. Tercantum di email ke approver sebagai “PIC JAI”.</span>
               </label>
-              <div className="sm:col-span-2 rounded-xl border border-border/70 bg-secondary/15 p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="sa-id-card" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <ScanLine className="size-3.5 text-primary" />
-                    <span>ID Card No. / Barcode Kartu</span>
-                  </label>
-                  <span className="text-[10.5px] font-medium text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-md">
-                    Opsional — bisa diisi nanti
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <div className="relative min-w-0 flex-1">
-                    <ScanLine className={`pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 ${scanning ? 'text-emerald-600 animate-pulse' : 'text-muted-foreground'}`} />
-                    <input
-                      id="sa-id-card"
-                      ref={idCardRef}
-                      value={idCardNo}
-                      onChange={(e) => { setIdCardNo(e.target.value); setScanned(false) }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') { e.preventDefault(); if (idCardNo.trim()) setScanned(true); setScanning(false) }
-                        if (e.key === 'Escape' && scanning) { e.stopPropagation(); setScanning(false) }
-                      }}
-                      onBlur={() => setScanning(false)}
-                      placeholder={scanning ? 'Arahkan scanner ke barcode kartu…' : 'Scan barcode atau ketik nomor kartu'}
-                      maxLength={100}
-                      autoComplete="off"
-                      className={`${input} pl-10 font-mono ${scanning ? 'border-emerald-500 ring-4 ring-emerald-500/20 bg-emerald-500/5' : ''}`}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={startScan}
-                    aria-pressed={scanning}
-                    className={`inline-flex h-10 flex-none items-center gap-1.5 rounded-xl px-4 text-xs font-bold transition cursor-pointer shadow-xs ${scanning ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-border bg-card text-foreground hover:bg-secondary'}`}
-                  >
-                    <ScanLine className={`size-3.5 ${scanning ? 'animate-pulse' : ''}`} />
-                    <span>{scanning ? 'Menunggu Scan…' : idCardNo ? 'Scan Ulang' : 'Scan Barcode'}</span>
-                  </button>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <p aria-live="polite">
-                    {scanning ? (
-                      <span className="font-semibold text-emerald-600 animate-pulse">Menunggu pemindai barcode kartu... (Tekan Esc untuk batal)</span>
-                    ) : scanned && idCardNo ? (
-                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="size-3.5" /> Kartu terbaca: {idCardNo}
-                      </span>
-                    ) : (
-                      'Tekan "Scan Barcode" lalu arahkan alat scanner ke kartu, atau ketik langsung nomornya.'
-                    )}
-                  </p>
-                  {idCardNo && (
-                    <button
-                      type="button"
-                      onClick={() => { setIdCardNo(''); setScanned(false) }}
-                      className="text-[10px] text-muted-foreground hover:text-destructive underline cursor-pointer"
-                    >
-                      Hapus
-                    </button>
-                  )}
-                </div>
-              </div>
 
               {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive sm:col-span-2">{error}</p>}
             </div>

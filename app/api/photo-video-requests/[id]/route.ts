@@ -173,7 +173,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const updated = await query<{ id: number }>(
-      `UPDATE photo_video_requests SET taken_at = now(), taken_ack_at = NULL WHERE id = $1 AND status = 'approved' RETURNING id`,
+      `UPDATE photo_video_requests SET taken_at = now(), taken_ack_at = NULL WHERE id = $1 AND status <> 'rejected' RETURNING id`,
       [id]
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan atau belum disetujui.' }, { status: 404 })
@@ -251,13 +251,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
            return_notes = $4,
            virus_check = $5,
            delete_or_format = $6,
+           status = CASE WHEN status = 'pending' THEN 'approved' ELSE status END,
+           decided_at = COALESCE(decided_at, $2),
+           decided_by = COALESCE(decided_by, $3),
            main_card_returned_at = $2,
            companions = COALESCE(
              (SELECT jsonb_agg(jsonb_set(c, '{returned_at}', to_jsonb($2::timestamptz)))
               FROM jsonb_array_elements(COALESCE(photo_video_requests.companions, '[]'::jsonb)) c),
              '[]'::jsonb
            )
-       WHERE id = $1 AND status = 'approved'
+       WHERE id = $1 AND status <> 'rejected'
        RETURNING id, requester_name`,
       [id, returnTime, returnedBy, returnNotes, virusCheck, deleteOrFormat]
     )

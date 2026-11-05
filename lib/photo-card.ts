@@ -97,6 +97,9 @@ export async function returnPhotographyCard(
                returned_at = now(),
                to_at = GREATEST(now(), from_at),
                returned_by = $2,
+               status = CASE WHEN status = 'pending' THEN 'approved' ELSE status END,
+               decided_at = COALESCE(decided_at, now()),
+               decided_by = COALESCE(decided_by, $2),
                return_notes = COALESCE(return_notes, 'Dikembalikan di Lobby via scan kartu ID')
            WHERE id = $1`,
           [r.id, username]
@@ -138,6 +141,9 @@ export async function returnPhotographyCard(
                returned_at = now(),
                to_at = GREATEST(now(), from_at),
                returned_by = $3,
+               status = CASE WHEN status = 'pending' THEN 'approved' ELSE status END,
+               decided_at = COALESCE(decided_at, now()),
+               decided_by = COALESCE(decided_by, $3),
                return_notes = COALESCE(return_notes, 'Dikembalikan di Lobby via scan kartu ID')
            WHERE id = $1`,
           [r.id, JSON.stringify(companions), username]

@@ -326,6 +326,7 @@ function KelolaPermintaanFotoVideoContent() {
   // Check if current user has permission to manage actions on a specific request
   const canManageRow = (req: PhotoVideoRequest) => {
     if (isApproverAdmin) return true
+    if (sessionUser?.role === 'lobby' || sessionUser?.role === 'security') return true
     if (isApprover) {
       if (!userDept) return true
       if (req.dept_pic_kamera && userDept.toLowerCase().trim() === req.dept_pic_kamera.toLowerCase().trim()) return true
@@ -744,8 +745,8 @@ function KelolaPermintaanFotoVideoContent() {
                           </button>
                         ) : <span className="hidden min-[760px]:block" />}
 
-                        {/* Pengembalian: Tombol "Catat Kembali" (Khusus Dept Pemilik / Admin) */}
-                        {canManage && req.status === 'approved' && req.taken_at && !req.returned_at ? (
+                        {/* Pengembalian: Tombol "Catat Kembali" (Khusus Dept Pemilik / Admin / Lobby) */}
+                        {canManage && req.status !== 'rejected' && ((req.status === 'approved' && req.taken_at) || req.request_type === 'visitor' || Boolean(req.photo_id_no)) && !req.returned_at ? (
                           <button
                             type="button"
                             onClick={() => openReturnModal(req)}
@@ -754,7 +755,7 @@ function KelolaPermintaanFotoVideoContent() {
                             <RotateCcw className="size-3" />
                             <span>Catat Kembali</span>
                           </button>
-                        ) : canManage && req.status === 'approved' && req.returned_at ? (
+                        ) : canManage && req.returned_at ? (
                           <button
                             type="button"
                             onClick={() => unmarkReturned(req)}

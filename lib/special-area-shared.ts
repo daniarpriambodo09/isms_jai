@@ -59,6 +59,8 @@ export type SpecialAreaRequest = {
   /** When the ID card was scanned back in (null while it is still out). */
   returned_at?: string | null
   returned_by?: string | null
+  main_card_returned_at?: string | null
+  companions?: Array<{ name: string; id_card_no?: string | null; returned_at?: string | null }> | null
   /** The exit time written on the request, kept once to_at took the actual return time. */
   planned_to_at?: string | null
   area: string

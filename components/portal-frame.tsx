@@ -159,13 +159,13 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
   let dynamicDepartmentTitle: string | null = null
   if (isDeptPage) {
     const deptSlug = segments[2]
-    const foundDept = departments.find((d) => d.slug === deptSlug || slugify(d.name) === deptSlug)
+    const foundDept = departments.find((d) => d.slug === deptSlug || slugify(d.name) === deptSlug || d.name.toLowerCase() === deptSlug.toLowerCase())
     if (foundDept) dynamicDepartmentTitle = foundDept.name
   } else if (isSectionPage) {
     const deptSlug = segments[2]
     const secSlug = segments[3]
-    const foundDept = departments.find((d) => d.slug === deptSlug || slugify(d.name) === deptSlug)
-    const foundSec = foundDept?.sections.find((s) => s.slug === secSlug || slugify(s.name) === secSlug)
+    const foundDept = departments.find((d) => d.slug === deptSlug || slugify(d.name) === deptSlug || d.name.toLowerCase() === deptSlug.toLowerCase())
+    const foundSec = foundDept?.sections.find((s) => s.slug === secSlug || slugify(s.name) === secSlug || s.name.toLowerCase() === secSlug.toLowerCase())
     if (foundSec) dynamicDepartmentTitle = foundSec.name
   }
 

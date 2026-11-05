@@ -208,15 +208,23 @@ export function ReturnCardDialog({
                             <button
                               type="button"
                               disabled={!line.returnable}
-                              onClick={() => { setBarcode(line.code); inputRef.current?.focus() }}
-                              title={line.returnable ? `${line.name} — klik untuk mengisi nomor ini ke kolom scan` : `${line.name}${line.note ? ` · ${line.note}` : ''}${station === 'security' ? ' — tukar kembali di Lobby dulu' : column.key === 'security' ? ' — dikembalikan di Pos Security' : ' — dikembalikan lewat izinnya'}`}
-                              className={`block w-full px-2 py-1 text-center ${line.returnable ? 'cursor-pointer hover:bg-primary/10' : 'cursor-default'}`}
+                              onClick={() => {
+                                if (!line.returnable || busyRef.current) return
+                                send(line.code)
+                              }}
+                              title={line.returnable ? `${line.name} — klik untuk langsung mengembalikan kartu ${line.code}` : `${line.name}${line.note ? ` · ${line.note}` : ''}${station === 'security' ? ' — tukar kembali di Lobby dulu' : column.key === 'security' ? ' — dikembalikan di Pos Security' : ' — dikembalikan lewat izinnya'}`}
+                              className={`block w-full px-2 py-1.5 text-center transition rounded-md ${line.returnable ? 'cursor-pointer hover:bg-primary/15 active:scale-[0.98]' : 'cursor-default opacity-60'}`}
                             >
-                              <span className="block break-words font-mono text-[12px] font-semibold tabular-nums text-foreground">
-                                {line.code}<span className="mx-0.5 font-sans text-muted-foreground">⟹</span>{cardDate(line.since)}
-                                {column.withPair && <><span className="mx-0.5 font-sans text-muted-foreground">⟹</span>{line.pair ?? ''}</>}
-                              </span>
-                              <span className="block truncate text-[10px] text-muted-foreground">{line.name}{station === 'security' && line.note ? ` · ${line.note}` : ''}</span>
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded bg-background/80 border border-border/80 shadow-2xs text-foreground">
+                                  <ScanLine className="size-2.5 text-primary" />
+                                  {line.code}
+                                </span>
+                                <span className="font-sans text-[10px] text-muted-foreground">⟹ {cardDate(line.since)}</span>
+                                {column.withPair && line.pair && <span className="font-sans text-[10px] text-muted-foreground">⟹ {line.pair}</span>}
+                              </div>
+                              <span className="mt-1 block truncate text-[11px] font-semibold text-foreground">{line.name}</span>
+                              {line.note && <span className="block truncate text-[9.5px] text-muted-foreground">{line.note}</span>}
                             </button>
                           </li>
                         ))}

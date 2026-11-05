@@ -100,26 +100,34 @@ export function ActiveCardsWidget({
               <div className="max-h-32 space-y-1.5 overflow-y-auto pr-1">
                 {items.length + permits.length === 0 && <p className="text-[11px] text-muted-foreground/60">Tidak ada</p>}
                 {permits.map((p) => (
-                  <div key={p.key} className="text-[11px]" title={`Dari pengajuan ${p.note}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-foreground">{p.name}</span>
-                      <span className="flex-shrink-0 text-muted-foreground">{formatShortDate(p.from)}</span>
+                  <div key={p.key} className="rounded-lg border border-border/50 bg-secondary/20 p-1.5 text-[11px]" title={`Dari pengajuan ${p.note}`}>
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="truncate font-semibold text-foreground">{p.name}</span>
+                      <span className="flex-shrink-0 text-[10px] text-muted-foreground">{formatShortDate(p.from)}</span>
                     </div>
-                    <span className="font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">{p.code}</span>
-                    <span className="ml-1.5 text-[10px] text-muted-foreground/80">· {p.note}</span>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                        <ScanLine className="size-2.5" />
+                        {p.code}
+                      </span>
+                      <span className="truncate text-[10px] text-muted-foreground/80">· {p.note}</span>
+                    </div>
                   </div>
                 ))}
                 {items.map((r) => (
-                  <div key={r.id} className="text-[11px]">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-foreground">{r.full_name}</span>
-                      <span className="flex-shrink-0 text-muted-foreground">{formatShortDate(r.entry_at)}</span>
+                  <div key={r.id} className="rounded-lg border border-border/50 bg-secondary/20 p-1.5 text-[11px]">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="truncate font-semibold text-foreground">{r.full_name}</span>
+                      <span className="flex-shrink-0 text-[10px] text-muted-foreground">{formatShortDate(r.entry_at)}</span>
                     </div>
-                    <span className="font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
-                      {r[CARD_BARCODE_FIELD[type]] ?? '—'}
-                    </span>
-                    {/* Security's cards and the Lobby's are two sets: say whose this one is. */}
-                    {r.entry_path && <span className="ml-1.5 text-[10px] text-muted-foreground/80">· {r.entry_path === 'security' && !r.at_work_area ? 'kartu Security' : 'kartu Lobby'}</span>}
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-primary/10 text-primary border border-primary/20">
+                        <ScanLine className="size-2.5" />
+                        {r[CARD_BARCODE_FIELD[type]] ?? '—'}
+                      </span>
+                      {/* Security's cards and the Lobby's are two sets: say whose this one is. */}
+                      {r.entry_path && <span className="truncate text-[10px] text-muted-foreground/80">· {r.entry_path === 'security' && !r.at_work_area ? 'Security' : 'Lobby'}</span>}
+                    </div>
                   </div>
                 ))}
               </div>

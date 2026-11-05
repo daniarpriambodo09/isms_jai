@@ -21,6 +21,7 @@ import { API_BASE_PATH } from '@/lib/config'
 import { ensureApprovalSchema } from '@/lib/procedure-approval'
 import { SPECIAL_AREAS, parseEscortList, type Escort, type SpecialAreaRequest } from '@/lib/special-area-shared'
 import { recordNotification } from '@/lib/admin-notifications'
+import { normalizeCardNo } from '@/lib/card-ranges'
 
 // ─── approver setting ───
 // Who approves special-area requests is its own setting (app_settings key
@@ -150,7 +151,7 @@ export async function resendAllPending() {
 export const SELECT_COLUMNS = `id, requester_name, org_company, department, from_at, to_at, area, purpose, id_card_no,
   status, submitted_at, submitted_by, approver_name, approver_title, notified_at, email_error,
   decided_at, decision_note, verification_code, escort_name, escort_dept, escort_set_by, escort_set_at,
-  returned_at, returned_by, planned_to_at`
+  returned_at, returned_by, planned_to_at, main_card_returned_at, COALESCE(companions, '[]'::jsonb) AS companions`
 
 let ready: Promise<void> | null = null
 
@@ -191,34 +192,120 @@ export function ensureSpecialAreaSchema() {
       // The ID card scanned back in (migration 0028).
       await query(`ALTER TABLE special_area_requests
         ADD COLUMN IF NOT EXISTS returned_at timestamptz, ADD COLUMN IF NOT EXISTS returned_by varchar(100),
-        ADD COLUMN IF NOT EXISTS planned_to_at timestamptz`)
+        ADD COLUMN IF NOT EXISTS planned_to_at timestamptz,
+        ADD COLUMN IF NOT EXISTS companions JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS main_card_returned_at timestamptz`)
     })().catch((error) => { ready = null; throw error })
   }
   return ready
 }
 
+function matchesCard(target: string | null | undefined, candidates: string[]): boolean {
+  if (!target) return false
+  const t = target.trim().toLowerCase()
+  if (!t) return false
+  return candidates.some((c) => c.toLowerCase() === t)
+}
+
 /**
  * The Special Area ID card `cardNo` is handed back: the request it went out
  * with gets its actual exit time (to_at — the time written on it is kept in
- * planned_to_at) and stops counting the card as out. null when no request
- * has that card out.
+ * planned_to_at) and stops counting the card as out.
+ * Supports both main applicant card and companion cards.
  */
 export async function returnSpecialAreaCard(cardNo: string, username: string): Promise<SpecialAreaRequest | null> {
   await ensureSpecialAreaSchema()
-  const result = await query<SpecialAreaRequest>(
-    `UPDATE special_area_requests
-     SET planned_to_at = COALESCE(planned_to_at, to_at),
-         to_at = GREATEST(now(), from_at),
-         returned_at = now(), returned_by = $2
-     WHERE id = (
-       SELECT id FROM special_area_requests
-       WHERE id_card_no = $1 AND returned_at IS NULL AND status <> 'rejected'
-       ORDER BY from_at DESC LIMIT 1
-     )
-     RETURNING ${SELECT_COLUMNS}`,
-    [cardNo, username]
+  const raw = cardNo.trim()
+  if (!raw) return null
+
+  const normalized = normalizeCardNo(raw)
+  const withL = /^\d+$/.test(raw) ? `L${raw}` : raw
+  const withoutL = /^L(\d+)$/i.exec(raw)?.[1] || raw
+  const candidates = Array.from(new Set([raw, normalized, withL, withoutL].filter(Boolean)))
+
+  const candidateRes = await query<SpecialAreaRequest>(
+    `SELECT ${SELECT_COLUMNS} FROM special_area_requests
+     WHERE returned_at IS NULL AND status <> 'rejected'
+     ORDER BY from_at DESC LIMIT 50`
   )
-  return result.rows[0] ?? null
+
+  for (const r of candidateRes.rows) {
+    const companions: Array<{ name: string; id_card_no?: string | null; returned_at?: string | null }> = Array.isArray(r.companions) ? r.companions : []
+
+    const mainCardActive = Boolean(r.id_card_no?.trim() && !r.main_card_returned_at)
+    const mainMatches = mainCardActive && matchesCard(r.id_card_no, candidates)
+
+    const matchingCompIndex = companions.findIndex(
+      (c) => c.id_card_no?.trim() && !c.returned_at && matchesCard(c.id_card_no, candidates)
+    )
+
+    if (mainMatches) {
+      const allCompanionsReturned = companions.every((c) => !c.id_card_no?.trim() || Boolean(c.returned_at))
+      if (allCompanionsReturned) {
+        const updated = await query<SpecialAreaRequest>(
+          `UPDATE special_area_requests
+           SET main_card_returned_at = now(),
+               returned_at = now(),
+               planned_to_at = COALESCE(planned_to_at, to_at),
+               to_at = GREATEST(now(), from_at),
+               returned_by = $2,
+               status = CASE WHEN status = 'pending' THEN 'approved' ELSE status END,
+               decided_at = COALESCE(decided_at, now())
+           WHERE id = $1
+           RETURNING ${SELECT_COLUMNS}`,
+          [r.id, username]
+        )
+        return updated.rows[0] ?? null
+      } else {
+        const updated = await query<SpecialAreaRequest>(
+          `UPDATE special_area_requests
+           SET main_card_returned_at = now(),
+               returned_by = COALESCE(returned_by, $2)
+           WHERE id = $1
+           RETURNING ${SELECT_COLUMNS}`,
+          [r.id, username]
+        )
+        return updated.rows[0] ?? null
+      }
+    }
+
+    if (matchingCompIndex !== -1) {
+      const nowIso = new Date().toISOString()
+      companions[matchingCompIndex] = { ...companions[matchingCompIndex], returned_at: nowIso }
+
+      const mainCardReturnedOrNone = !r.id_card_no?.trim() || Boolean(r.main_card_returned_at)
+      const allCompanionsReturned = companions.every((c) => !c.id_card_no?.trim() || Boolean(c.returned_at))
+
+      if (mainCardReturnedOrNone && allCompanionsReturned) {
+        const updated = await query<SpecialAreaRequest>(
+          `UPDATE special_area_requests
+           SET companions = $2::jsonb,
+               returned_at = now(),
+               planned_to_at = COALESCE(planned_to_at, to_at),
+               to_at = GREATEST(now(), from_at),
+               returned_by = $3,
+               status = CASE WHEN status = 'pending' THEN 'approved' ELSE status END,
+               decided_at = COALESCE(decided_at, now())
+           WHERE id = $1
+           RETURNING ${SELECT_COLUMNS}`,
+          [r.id, JSON.stringify(companions), username]
+        )
+        return updated.rows[0] ? { ...updated.rows[0], requester_name: `${companions[matchingCompIndex].name} (rombongan ${updated.rows[0].requester_name})` } : null
+      } else {
+        const updated = await query<SpecialAreaRequest>(
+          `UPDATE special_area_requests
+           SET companions = $2::jsonb,
+               returned_by = COALESCE(returned_by, $3)
+           WHERE id = $1
+           RETURNING ${SELECT_COLUMNS}`,
+          [r.id, JSON.stringify(companions), username]
+        )
+        return updated.rows[0] ? { ...updated.rows[0], requester_name: `${companions[matchingCompIndex].name} (rombongan ${updated.rows[0].requester_name})` } : null
+      }
+    }
+  }
+
+  return null
 }
 
 export async function getRequest(id: number) {

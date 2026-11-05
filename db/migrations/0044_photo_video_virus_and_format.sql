@@ -7,3 +7,4 @@ ALTER TABLE photo_video_requests
   ADD COLUMN IF NOT EXISTS delete_or_format VARCHAR(50),
   ADD COLUMN IF NOT EXISTS companions JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS main_card_returned_at TIMESTAMP WITH TIME ZONE;
+

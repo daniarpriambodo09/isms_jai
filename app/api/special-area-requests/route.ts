@@ -67,15 +67,38 @@ export async function POST(request: NextRequest) {
     if (!toAt || Number.isNaN(Date.parse(toAt))) return NextResponse.json({ message: 'Tanggal/jam keluar tidak valid.' }, { status: 400 })
     if (Date.parse(toAt) <= Date.parse(fromAt)) return NextResponse.json({ message: 'Waktu keluar harus setelah waktu masuk.' }, { status: 400 })
 
+    // Companions / Rombongan
+    const rawCompanions = Array.isArray(body.companions) ? body.companions : []
+    const companions = rawCompanions
+      .filter((c: unknown): c is Record<string, unknown> => typeof c === 'object' && c !== null && typeof (c as Record<string, unknown>).name === 'string' && ((c as Record<string, unknown>).name as string).trim().length > 0)
+      .map((c: Record<string, unknown>) => {
+        const rawCode = typeof c.id_card_no === 'string' && c.id_card_no.trim()
+          ? c.id_card_no.trim().slice(0, 50)
+          : (typeof c.idCardNo === 'string' && (c.idCardNo as string).trim() ? (c.idCardNo as string).trim().slice(0, 50) : null)
+        const compCard = rawCode ? normalizeCardNo(rawCode) : null
+        return {
+          name: String(c.name).trim().slice(0, 100),
+          id_card_no: compCard,
+          returned_at: null,
+        }
+      })
+
+    for (const c of companions) {
+      if (c.id_card_no) {
+        const compProblem = lobbyCardProblem(c.id_card_no, 'special_area', false)
+        if (compProblem) return NextResponse.json({ message: `Kartu ${c.id_card_no} (${c.name}): ${compProblem}` }, { status: 400 })
+      }
+    }
+
     // PIC Pendamping JAI, when it is already known at the kiosk (it can also be set later in the list).
     const escort = parseEscort(body)
     const submitterName = session?.username ?? 'Form Aplikasi'
     const inserted = await query<{ id: number }>(
       `INSERT INTO special_area_requests (requester_name, org_company, department, from_at, to_at, area, purpose, id_card_no, submitted_by,
-                                          escort_name, escort_dept, escort_set_by, escort_set_at)
+                                          escort_name, escort_dept, escort_set_by, escort_set_at, companions)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text, $10::text, $11::text,
-               CASE WHEN $10::text IS NULL THEN NULL ELSE $9::text END, CASE WHEN $10::text IS NULL THEN NULL ELSE now() END) RETURNING id`,
-      [requesterName, orgCompany, department, fromAt, toAt, area, purpose, idCardNo, submitterName, escort.name, escort.dept]
+               CASE WHEN $10::text IS NULL THEN NULL ELSE $9::text END, CASE WHEN $10::text IS NULL THEN NULL ELSE now() END, $12::jsonb) RETURNING id`,
+      [requesterName, orgCompany, department, fromAt, toAt, area, purpose, idCardNo, submitterName, escort.name, escort.dept, JSON.stringify(companions)]
     )
     const id = inserted.rows[0].id
     const emailError = await sendApprovalRequest(id)

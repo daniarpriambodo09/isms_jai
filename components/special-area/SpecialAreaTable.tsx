@@ -50,14 +50,33 @@ function IdCardCell({ req, onChanged }: { req: SpecialAreaRequest; onChanged: ()
     )
   }
   return (
-    <div className="flex items-center gap-1.5">
-      <button type="button" onClick={() => { setValue(req.id_card_no ?? ''); setEditing(true) }} className="group inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-foreground" title="Isi / ubah ID Card No.">
-        {req.id_card_no || <span className="font-sans text-muted-foreground">— isi</span>}
-        <Pencil className="size-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
-      </button>
-      <button type="button" onClick={startScan} aria-label={`Scan ID Card untuk ${req.requester_name}`} title="Scan barcode kartu dengan alat scanner" className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border px-1.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground">
-        <ScanLine className="size-3.5" /> Scan
-      </button>
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <button type="button" onClick={() => { setValue(req.id_card_no ?? ''); setEditing(true) }} className="group inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-xs text-foreground" title="Isi / ubah ID Card No.">
+          {req.id_card_no ? (
+            <span className={req.main_card_returned_at ? 'line-through opacity-60' : 'font-bold text-primary'}>{req.id_card_no}</span>
+          ) : (
+            <span className="font-sans text-muted-foreground">— isi</span>
+          )}
+          <Pencil className="size-3 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+        </button>
+        <button type="button" onClick={startScan} aria-label={`Scan ID Card untuk ${req.requester_name}`} title="Scan barcode kartu dengan alat scanner" className="inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border px-1.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+          <ScanLine className="size-3.5" /> Scan
+        </button>
+      </div>
+      {Array.isArray(req.companions) && req.companions.length > 0 && (
+        <div className="space-y-0.5 pt-0.5 border-t border-border/40">
+          {req.companions.map((c, i) => (
+            <div key={i} className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <span className="truncate max-w-[90px]">{c.name}:</span>
+              <span className={`font-mono ${c.returned_at ? 'line-through opacity-60' : 'font-semibold text-foreground'}`}>
+                {c.id_card_no || '—'}
+              </span>
+              {c.returned_at && <span className="text-[9px] text-emerald-600 font-bold">(kembali)</span>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -117,7 +136,17 @@ export function SpecialAreaTable({ requests, loading, canDelete, onChanged, onDe
               const badge = BADGE[r.status]
               return (
                 <tr key={r.id} className="align-top">
-                  <td data-cell="title" className="px-4 py-3"><p className="font-medium text-foreground">{r.requester_name}</p><p className="text-xs text-muted-foreground">{r.org_company}{r.department ? ` · ${r.department}` : ''}</p><p className="mt-0.5 max-w-[240px] text-xs text-muted-foreground">Tujuan: {r.purpose}</p><p className="mt-1 text-[11px] text-muted-foreground/80">Diajukan {fmt(r.submitted_at)}{r.submitted_by ? ` · ${r.submitted_by}` : ''}</p></td>
+                  <td data-cell="title" className="px-4 py-3">
+                    <p className="font-medium text-foreground">{r.requester_name}</p>
+                    {Array.isArray(r.companions) && r.companions.length > 0 && (
+                      <p className="mt-0.5 text-[11px] font-medium text-primary">
+                        + {r.companions.length} orang: {r.companions.map((c) => c.name).join(', ')}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">{r.org_company}{r.department ? ` · ${r.department}` : ''}</p>
+                    <p className="mt-0.5 max-w-[240px] text-xs text-muted-foreground">Tujuan: {r.purpose}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground/80">Diajukan {fmt(r.submitted_at)}{r.submitted_by ? ` · ${r.submitted_by}` : ''}</p>
+                  </td>
                   <td data-label="Area" className="px-4 py-3"><span className="inline-flex whitespace-nowrap rounded-md bg-red-600/10 px-2 py-0.5 text-xs font-semibold text-red-700">{r.area}</span></td>
                   <td data-label="Masuk – Keluar" className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                     {fmt(r.from_at)}<br />{fmt(r.to_at)}

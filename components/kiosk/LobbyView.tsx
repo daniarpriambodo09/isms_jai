@@ -1395,7 +1395,15 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                         <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)} onClick={(e) => e.stopPropagation()} aria-label={`Pilih ${r.full_name}`} className="mt-1 size-4 flex-shrink-0 rounded border-border" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="min-w-0 break-words font-semibold text-foreground">{r.full_name}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                              <p className="min-w-0 break-words font-semibold text-foreground">{r.full_name}</p>
+                              {r.current_card_type && r[CARD_BARCODE_FIELD[r.current_card_type]] && (
+                                <span className="inline-flex items-center gap-1 rounded bg-primary/10 border border-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
+                                  <ScanLine className="size-2.5" />
+                                  {r[CARD_BARCODE_FIELD[r.current_card_type]]}
+                                </span>
+                              )}
+                            </div>
                             <span className="flex-shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{stationOf(r) === 'security' ? 'Security' : 'Lobby'}</span>
                           </div>
                           {(r.companions?.length ?? 0) > 0 && (
@@ -1504,7 +1512,15 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                         )}
                       </td>
                       <td className="min-w-[160px] px-4 py-3 font-medium text-foreground">
-                        {r.full_name}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span>{r.full_name}</span>
+                          {r.current_card_type && r[CARD_BARCODE_FIELD[r.current_card_type]] && (
+                            <span className="inline-flex items-center gap-1 rounded bg-primary/10 border border-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
+                              <ScanLine className="size-2.5" />
+                              {r[CARD_BARCODE_FIELD[r.current_card_type]]}
+                            </span>
+                          )}
+                        </div>
                         {(r.companions?.length ?? 0) > 0 && (
                           <span className="mt-1 block text-[10px] font-normal text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
                             + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}

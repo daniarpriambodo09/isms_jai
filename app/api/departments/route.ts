@@ -16,6 +16,22 @@ export async function GET() {
       query<SectionRow>('SELECT id, department_id, name, slug FROM sections ORDER BY id'),
     ])
 
+    // Automatically sync slugs if they differ from the slugified name (e.g. if renamed in Manage Department)
+    for (const d of departmentsResult.rows) {
+      const properSlug = slugify(d.name) || `dept-${d.id}`
+      if (d.slug !== properSlug) {
+        d.slug = properSlug
+        query('UPDATE departments SET slug = $1 WHERE id = $2', [properSlug, d.id]).catch(() => {})
+      }
+    }
+    for (const s of sectionsResult.rows) {
+      const properSlug = slugify(s.name) || `sec-${s.id}`
+      if (s.slug !== properSlug) {
+        s.slug = properSlug
+        query('UPDATE sections SET slug = $1 WHERE id = $2', [properSlug, s.id]).catch(() => {})
+      }
+    }
+
     const departments = departmentsResult.rows.map((department) => ({
       ...department,
       sections: sectionsResult.rows.filter((section) => section.department_id === department.id),

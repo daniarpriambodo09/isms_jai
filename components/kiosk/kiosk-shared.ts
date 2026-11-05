@@ -127,11 +127,41 @@ export function usePermitCards(): PermitCard[] {
     try {
       const res = await fetch(`${API_BASE_PATH}/api/special-area-requests`, { cache: 'no-store', credentials: 'include' })
       if (res.ok) {
-        const data = await res.json() as { requests?: { id: number; requester_name: string; id_card_no: string | null; status: string; from_at: string; to_at: string; returned_at?: string | null }[] }
+        const data = await res.json() as { requests?: { id: number; requester_name: string; id_card_no: string | null; status: string; from_at: string; to_at: string; returned_at?: string | null; main_card_returned_at?: string | null; companions?: Array<{ name: string; id_card_no?: string | null; returned_at?: string | null }> | null }[] }
         // out until it is scanned back in (Scan Kartu / Pengembalian Kartu ID) — not dropped by the clock
-        setSpecial((data.requests ?? [])
-          .filter((r) => r.id_card_no?.trim() && r.status !== 'rejected' && !r.returned_at)
-          .map((r) => ({ key: `area-${r.id}`, type: 'special_area' as const, name: r.requester_name, code: r.id_card_no!.trim(), from: r.from_at, note: `izin area special${waiting(r.status)}` })))
+        const activeSpecial: PermitCard[] = []
+        for (const r of data.requests ?? []) {
+          if (r.status === 'rejected' || r.returned_at) continue
+
+          // Main card
+          if (r.id_card_no?.trim() && !r.main_card_returned_at) {
+            activeSpecial.push({
+              key: `area-${r.id}-main`,
+              type: 'special_area' as const,
+              name: r.requester_name,
+              code: r.id_card_no.trim(),
+              from: r.from_at,
+              note: `izin area special${waiting(r.status)}`,
+            })
+          }
+
+          // Companion cards
+          if (Array.isArray(r.companions)) {
+            r.companions.forEach((c, idx) => {
+              if (c.id_card_no?.trim() && !c.returned_at) {
+                activeSpecial.push({
+                  key: `area-${r.id}-comp-${idx}`,
+                  type: 'special_area' as const,
+                  name: `${c.name} (${r.requester_name})`,
+                  code: c.id_card_no.trim(),
+                  from: r.from_at,
+                  note: `izin area special (anggota)${waiting(r.status)}`,
+                })
+              }
+            })
+          }
+        }
+        setSpecial(activeSpecial)
       }
     } catch { /* keep what is shown */ }
   }, [])

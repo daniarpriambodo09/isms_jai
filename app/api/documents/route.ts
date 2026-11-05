@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
              FROM documents d
              JOIN departments dept ON dept.id = d.department_id
              JOIN sections sec ON sec.id = d.section_id
-             WHERE (dept.slug = $1 OR dept.id::text = $1) AND (sec.slug = $2 OR sec.id::text = $2)
+             WHERE (dept.slug = $1 OR dept.id::text = $1 OR lower(dept.name) = lower($1) OR replace(lower(dept.name), ' ', '-') = lower($1))
+               AND (sec.slug = $2 OR sec.id::text = $2 OR lower(sec.name) = lower($2) OR replace(lower(sec.name), ' ', '-') = lower($2))
              ORDER BY d.sort_order ASC NULLS LAST, d.uploaded_at DESC, d.id DESC`,
             [departmentSlug, sectionSlug]
           )
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
             `SELECT d.id, d.title, d.revision, d.file_path, d.uploaded_at
              FROM documents d
              JOIN departments dept ON dept.id = d.department_id
-             WHERE (dept.slug = $1 OR dept.id::text = $1) AND d.section_id IS NULL
+             WHERE (dept.slug = $1 OR dept.id::text = $1 OR lower(dept.name) = lower($1) OR replace(lower(dept.name), ' ', '-') = lower($1)) AND d.section_id IS NULL
              ORDER BY d.sort_order ASC NULLS LAST, d.uploaded_at DESC, d.id DESC`,
             [departmentSlug]
           )

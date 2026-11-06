@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ArrowDownUp, Ban, Briefcase, Camera, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldAlert, ShieldCheck, Trash2, Truck, Undo2, UserPlus, X } from 'lucide-react'
+import { ArrowDownUp, Ban, Briefcase, Camera, Check, Download, KeyRound, LogOut, Pencil, RotateCcw, ScanLine, ShieldAlert, ShieldCheck, Trash2, Truck, Undo2, UserPlus, Users, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
@@ -48,15 +48,17 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
   const [fullName, setFullName] = useState(editing?.full_name ?? '')
   const [mainIdType, setMainIdType] = useState<IdType>(() => detectIdType(editing?.id_card ?? ''))
   const [mainIdNo, setMainIdNo] = useState<string>(() => extractIdNumber(editing?.id_card ?? ''))
+  const [mainBarcode, setMainBarcode] = useState(editing?.security_card_barcode ?? '')
   const [picJai, setPicJai] = useState(editing?.pic_jai ?? '')
   const [purpose, setPurpose] = useState(editing?.purpose ?? '')
   const [companyRemark, setCompanyRemark] = useState(editing?.company_remark ?? '')
   const [visitDate, setVisitDate] = useState(editing?.visit_date ?? '')
-  const [companions, setCompanions] = useState<Array<{ name: string; idNo: string; idType: IdType }>>(() => {
+  const [companions, setCompanions] = useState<Array<{ name: string; idNo: string; idType: IdType; barcode?: string }>>(() => {
     return (editing?.companions ?? []).map((c) => ({
       name: c.name,
       idNo: extractIdNumber(c.id_no),
       idType: detectIdType(c.id_no),
+      barcode: c.card_barcode ?? '',
     }))
   })
   const [error, setError] = useState<string | null>(null)
@@ -227,6 +229,7 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
       const formattedCompanions = companions.map((c) => ({
         name: c.name.trim(),
         idNo: formatIdCardValue(c.idType, c.idNo),
+        cardBarcode: c.barcode?.trim() || null,
       }))
 
       const payload = {
@@ -238,6 +241,7 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
         visitDate,
         companions: formattedCompanions,
         securityCardType: cardType,
+        securityCardBarcode: mainBarcode.trim() || null,
       }
 
       const res = editing
@@ -434,6 +438,30 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
                     </div>
                   </label>
                 </div>
+
+                {/* Scan Barcode Kartu Security (Tamu Utama) */}
+                <div className="mt-2.5 pt-2.5 border-t border-border/50">
+                  <label className="block">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                        <ScanLine className="size-3.5 text-primary" />
+                        <span>Barcode Kartu Security (Tamu Utama)</span>
+                      </span>
+                      <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-md">
+                        Scan Barcode / Ketik
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        value={mainBarcode}
+                        onChange={(e) => setMainBarcode(e.target.value)}
+                        placeholder={`Scan barcode kartu ${SECURITY_CARD_LABEL[cardType]} (contoh: SEC-V-01, dll)...`}
+                        className={`${inputClass} pl-9 font-mono`}
+                      />
+                    </div>
+                  </label>
+                </div>
               </div>
 
               {/* Rombongan Tambahan (#2, #3, ...) */}
@@ -526,6 +554,36 @@ function RegisterModal({ cardType: initialCardType = 'visitor', editing, onClose
                           </div>
                         </label>
                       </div>
+
+                      {/* Scan Barcode Kartu Security per Anggota Rombongan */}
+                      <div className="mt-2.5 pt-2.5 border-t border-border/50">
+                        <label className="block">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                              <ScanLine className="size-3.5 text-primary" />
+                              <span>Barcode Kartu Security (Anggota #{i + 2})</span>
+                            </span>
+                            <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-md">
+                              Scan Barcode / Ketik
+                            </span>
+                          </div>
+                          <div className="relative">
+                            <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <input
+                              value={c.barcode || ''}
+                              onChange={(e) =>
+                                setCompanions(
+                                  companions.map((comp, idx) =>
+                                    idx === i ? { ...comp, barcode: e.target.value } : comp
+                                  )
+                                )
+                              }
+                              placeholder={`Scan / ketik barcode kartu untuk ${c.name || `Anggota #${i + 2}`}...`}
+                              className={`${inputClass} pl-9 font-mono`}
+                            />
+                          </div>
+                        </label>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -604,6 +662,8 @@ function ScanPrompt({
   description,
   submitLabel,
   expectedBarcode,
+  registration,
+  isApprove = false,
   onClose,
   onSubmit,
 }: {
@@ -611,27 +671,46 @@ function ScanPrompt({
   description: string
   submitLabel: string
   expectedBarcode?: string | null
+  registration?: Registration | null
+  isApprove?: boolean
   onClose: () => void
-  onSubmit: (barcode: string) => Promise<string | null>
+  onSubmit: (barcode: string, companions?: Array<{ name: string; idNo: string; cardBarcode: string }>) => Promise<string | null>
 }) {
-  const [barcode, setBarcode] = useState('')
+  const [barcode, setBarcode] = useState(registration?.security_card_barcode ?? '')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  // A second read of the same card while the first is on its way is dropped, not glued onto it.
   const submittingRef = useRef(false)
 
+  const [companionBarcodes, setCompanionBarcodes] = useState<Array<{ name: string; idNo: string; cardBarcode: string }>>(() => {
+    return (registration?.companions ?? []).map((c) => ({
+      name: c.name,
+      idNo: c.id_no,
+      cardBarcode: c.card_barcode ?? '',
+    }))
+  })
+
   useEscapeClose(true, onClose)
+
+  const hasCompanions = isApprove && companionBarcodes.length > 0
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     if (submittingRef.current) return
-    if (!barcode.trim()) { setError('Barcode wajib diisi.'); return }
+    if (!barcode.trim()) { setError('Barcode kartu Tamu Utama wajib diisi.'); return }
     setError(null)
     const code = barcode.trim()
     submittingRef.current = true
     setSubmitting(true)
-    setBarcode('')
-    const message = await onSubmit(code)
+
+    const formattedComp = hasCompanions
+      ? companionBarcodes.map((c) => ({
+          name: c.name,
+          idNo: c.idNo,
+          cardBarcode: c.cardBarcode.trim(),
+        }))
+      : undefined
+
+    const message = await onSubmit(code, formattedComp)
     submittingRef.current = false
     setSubmitting(false)
     if (message) setError(message)
@@ -642,14 +721,14 @@ function ScanPrompt({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div role="dialog" aria-modal="true" aria-label={title} className="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={title} className={`w-full overflow-hidden rounded-2xl border border-border bg-card shadow-2xl ${hasCompanions ? 'max-w-lg max-h-[92vh] flex flex-col' : 'max-w-sm'}`}>
         <div className="flex items-center justify-between bg-primary px-5 py-4 text-primary-foreground">
           <h2 className="text-sm font-bold">{title}</h2>
           <button type="button" onClick={onClose} aria-label="Tutup" className="grid size-7 place-items-center rounded-full text-primary-foreground/70 transition hover:bg-primary-foreground/15 hover:text-primary-foreground">
             <X className="size-4" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 p-5">
+        <form onSubmit={handleSubmit} className={`flex flex-col gap-3 p-5 ${hasCompanions ? 'overflow-y-auto flex-1' : ''}`}>
           <p className="text-xs text-muted-foreground">{description}</p>
           {expectedBarcode && (
             <div className="rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
@@ -657,19 +736,73 @@ function ScanPrompt({
               <p className="font-mono text-sm font-bold tracking-wide text-foreground">{expectedBarcode}</p>
             </div>
           )}
-          <div className="relative">
-            <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={barcode} onChange={(e) => { if (!submittingRef.current) setBarcode(e.target.value) }} autoFocus placeholder="Scan atau ketik barcode..." className={`${inputClass} pl-10`} />
+
+          {/* Tamu Utama Barcode Input */}
+          <div className="rounded-xl border border-border/80 bg-secondary/15 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground">
+                #1 {registration?.full_name ? `${registration.full_name} (Tamu Utama)` : 'Tamu Utama'}
+              </span>
+              <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                Tamu Utama
+              </span>
+            </div>
+            <div className="relative">
+              <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={barcode}
+                onChange={(e) => { if (!submittingRef.current) setBarcode(e.target.value) }}
+                autoFocus
+                placeholder="Scan atau ketik barcode kartu Tamu Utama..."
+                className={`${inputClass} pl-10 font-mono`}
+              />
+            </div>
+            {expectedBarcode && trimmed && (
+              matches
+                ? <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
+                : <p className="flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
+            )}
           </div>
-          {expectedBarcode && trimmed && (
-            matches
-              ? <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600"><Check className="size-3.5" />Nomor kartu cocok</p>
-              : <p className="flex items-center gap-1.5 text-xs font-semibold text-destructive"><X className="size-3.5" />Nomor kartu tidak cocok dengan yang terdaftar</p>
+
+          {/* Anggota Rombongan Barcode Inputs */}
+          {hasCompanions && (
+            <div className="space-y-2 pt-1">
+              <p className="text-[11px] font-bold text-foreground flex items-center gap-1.5">
+                <Users className="size-3.5 text-primary" />
+                <span>Barcode Kartu Anggota Rombongan ({companionBarcodes.length} orang):</span>
+              </p>
+              {companionBarcodes.map((comp, idx) => (
+                <div key={idx} className="rounded-xl border border-border/80 bg-card p-3 space-y-1.5 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">
+                      #{idx + 2} {comp.name}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                      {comp.idNo}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      value={comp.cardBarcode}
+                      onChange={(e) => {
+                        const next = [...companionBarcodes]
+                        next[idx] = { ...next[idx], cardBarcode: e.target.value }
+                        setCompanionBarcodes(next)
+                      }}
+                      placeholder={`Scan / ketik barcode kartu untuk ${comp.name}...`}
+                      className={`${inputClass} pl-9 font-mono text-xs`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
+
           {error && <p className="rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">{error}</p>}
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-border bg-card py-2 text-sm font-medium text-foreground transition hover:bg-secondary">Batal</button>
-            <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={submitting} className="flex-1 rounded-xl bg-primary py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60 shadow-xs">
               {submitting ? 'Memproses...' : submitLabel}
             </button>
           </div>
@@ -797,17 +930,29 @@ export function SecurityView() {
     )
   }
 
-  const handleScanSubmit = async (barcode: string): Promise<string | null> => {
+  const handleScanSubmit = async (
+    barcode: string,
+    companionList?: Array<{ name: string; idNo: string; cardBarcode: string }>
+  ): Promise<string | null> => {
     if (!scanTarget) return null
     const res = await fetch(`${API_BASE_PATH}/api/vendor-registrations/${scanTarget.registration.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ action: scanTarget.action, barcode }),
+      body: JSON.stringify({
+        action: scanTarget.action,
+        barcode,
+        ...(companionList ? { companions: companionList } : {}),
+      }),
     })
     const data = await res.json().catch(() => null)
     if (!res.ok) return data?.message ?? 'Gagal memproses.'
     markScanned(barcode)
+    if (companionList) {
+      companionList.forEach((c) => {
+        if (c.cardBarcode) markScanned(c.cardBarcode)
+      })
+    }
     setScanTarget(null)
     load()
     return null
@@ -970,11 +1115,36 @@ export function SecurityView() {
                           : <span className="text-xs text-muted-foreground">—</span>}
                       </td>
                       <td className="min-w-[160px] px-3 py-3 font-medium text-foreground">
-                        {r.full_name}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{r.full_name}</span>
+                          {r.security_card_barcode && (
+                            <span className="inline-flex items-center gap-1 font-mono text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/25">
+                              <ScanLine className="size-2.5" />
+                              {r.security_card_barcode}
+                            </span>
+                          )}
+                        </div>
                         {(r.companions?.length ?? 0) > 0 && (
-                          <span className="mt-1 block text-[10px] font-normal text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
-                            + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
-                          </span>
+                          <div className="mt-1 space-y-0.5">
+                            <span className="block text-[10px] font-normal text-muted-foreground">
+                              + {r.companions?.length} rombongan:
+                            </span>
+                            <div className="flex flex-col gap-0.5 pl-1.5 border-l border-border/80">
+                              {r.companions?.map((c, idx) => (
+                                <span key={idx} className="text-[10px] text-muted-foreground flex items-center gap-1 flex-wrap">
+                                  <span>&bull; {c.name}</span>
+                                  {c.card_barcode ? (
+                                    <span className="inline-flex items-center gap-0.5 font-mono text-[9px] font-bold text-foreground bg-secondary px-1 py-0.2 rounded border border-border">
+                                      <ScanLine className="size-2 text-primary" />
+                                      {c.card_barcode}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] text-muted-foreground/70">({c.id_no})</span>
+                                  )}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </td>
                       <td className="px-3 py-3 text-xs text-muted-foreground">
@@ -1003,10 +1173,19 @@ export function SecurityView() {
                       <td className="whitespace-nowrap px-3 py-3">
                         <span title={r.closed_note ?? undefined} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold ${STAGE_BADGE[status.key]}`}>{status.label}</span>
                         {r.closed_note && <span className="mt-1 block max-w-[220px] whitespace-normal text-[10px] text-muted-foreground">{r.closed_note}</span>}
-                        {r.current_card_type && (
+                        {r.security_card_barcode && (
                           <span className="mt-1 block font-mono text-[10px] font-semibold tracking-wide text-muted-foreground">
-                            {r[CARD_BARCODE_FIELD[r.current_card_type]] ?? '—'}
+                            {r.security_card_barcode}
                           </span>
+                        )}
+                        {(r.companions?.length ?? 0) > 0 && r.companions?.some((c) => c.card_barcode) && (
+                          <div className="mt-0.5 flex flex-wrap gap-1 font-mono text-[9px] text-muted-foreground">
+                            {r.companions.filter((c) => c.card_barcode).map((c, i) => (
+                              <span key={i} className="rounded bg-secondary/80 px-1 py-0.5" title={c.name}>
+                                {c.card_barcode}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </td>
                       <td className="px-3 py-3">
@@ -1086,17 +1265,23 @@ export function SecurityView() {
       />
       {scanTarget && (() => {
         const kind = SECURITY_CARD_LABEL[scanTarget.registration.security_card_type]
+        const isApprove = scanTarget.action === 'approve'
+        const compCount = scanTarget.registration.companions?.length ?? 0
         return (
-        <ScanPrompt
-          title={scanTarget.action === 'approve' ? `Approve — Scan Kartu ${kind}` : `Scan Kartu ${kind} yang Dikembalikan`}
-          description={scanTarget.action === 'approve'
-            ? `Scan barcode kartu ${kind.toUpperCase()} yang akan diberikan kepada ${scanTarget.registration.full_name}.`
-            : `Scan barcode kartu ${kind.toUpperCase()} yang dikembalikan oleh ${scanTarget.registration.full_name}.`}
-          submitLabel={scanTarget.action === 'approve' ? 'Approve' : 'Tutup Pendaftaran'}
-          expectedBarcode={scanTarget.action === 'close' ? scanTarget.registration.security_card_barcode : null}
-          onClose={() => setScanTarget(null)}
-          onSubmit={handleScanSubmit}
-        />
+          <ScanPrompt
+            title={isApprove ? `Approve — Scan Kartu ${kind}` : `Scan Kartu ${kind} yang Dikembalikan`}
+            description={isApprove
+              ? compCount > 0
+                ? `Scan barcode kartu ${kind.toUpperCase()} untuk masing-masing orang yang terdaftar:`
+                : `Scan barcode kartu ${kind.toUpperCase()} yang akan diberikan kepada ${scanTarget.registration.full_name}.`
+              : `Scan barcode kartu ${kind.toUpperCase()} yang dikembalikan oleh ${scanTarget.registration.full_name}.`}
+            submitLabel={isApprove ? 'Approve' : 'Tutup Pendaftaran'}
+            expectedBarcode={scanTarget.action === 'close' ? scanTarget.registration.security_card_barcode : null}
+            registration={scanTarget.registration}
+            isApprove={isApprove}
+            onClose={() => setScanTarget(null)}
+            onSubmit={handleScanSubmit}
+          />
         )
       })()}
     </div>

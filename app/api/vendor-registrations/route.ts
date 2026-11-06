@@ -23,6 +23,11 @@ const CARD_COLUMN: Record<LobbyCardType, 'visitor_card_barcode' | 'vendor_card_b
   special_area: 'special_area_card_barcode',
   photography: 'photography_card_barcode',
 }
+const SEC_CARD_COLUMN: Record<SecurityCardType, 'visitor_card_barcode' | 'vendor_card_barcode' | 'supplier_card_barcode'> = {
+  visitor: 'visitor_card_barcode',
+  vendor: 'vendor_card_barcode',
+  supplier: 'supplier_card_barcode',
+}
 const CARD_LABEL: Record<CardType, string> = {
   visitor: 'Visitor',
   vendor: 'Vendor',
@@ -147,7 +152,7 @@ export async function POST(request: NextRequest) {
   if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
-    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station' | 'securityCardType' | 'visitDate', string>> & { companions?: unknown }
+    const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station' | 'securityCardType' | 'visitDate' | 'securityCardBarcode', string>> & { companions?: unknown }
     // Where the guest is being registered ("Asal"): a kiosk account is its own
     // post; the ISM Admin works from whichever kiosk page they have open.
     const station = session.role === 'security' ? 'security' : session.role === 'lobby' ? 'lobby' : body.station === 'security' ? 'security' : 'lobby'
@@ -222,12 +227,24 @@ export async function POST(request: NextRequest) {
     if (visitDate === undefined) return NextResponse.json({ message: 'Tanggal kunjungan tidak valid.' }, { status: 400 })
     const companions = parseCompanions(body.companions)
     if (companions === undefined) return NextResponse.json({ message: 'Data orang tambahan tidak valid: nama dan nomor KTP wajib diisi keduanya (maks. 20 orang).' }, { status: 400 })
+
+    const securityCardBarcode = typeof body.securityCardBarcode === 'string' && body.securityCardBarcode.trim()
+      ? body.securityCardBarcode.trim()
+      : (typeof body.barcode === 'string' && body.barcode.trim() ? body.barcode.trim() : null)
+
+    const isDirectActive = Boolean(securityCardBarcode)
+    const stage = isDirectActive ? 'active' : 'pending_approval'
+    const column = SEC_CARD_COLUMN[securityCardType]
+
     const row = await withTransaction(async () => {
       const result = await query<VendorRegistrationRow>(
-        `INSERT INTO vendor_registrations (full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station, security_card_type, visit_date)
-         VALUES ($1, $2, $3, $4, $5, $6, 'security', $7, $8)
+        `INSERT INTO vendor_registrations (
+           full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station,
+           security_card_type, visit_date, security_card_barcode, ${column}, stage, entry_at, current_card_type
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, 'security', $7, $8, $9, $9, $10, CASE WHEN $10 = 'active' THEN now() ELSE NULL END, CASE WHEN $10 = 'active' THEN $7 ELSE NULL END)
          RETURNING ${SELECT_COLUMNS}`,
-        [fullName, idCard, picJai, purpose, companyRemark, session.username, securityCardType, visitDate]
+        [fullName, idCard, picJai, purpose, companyRemark, session.username, securityCardType, visitDate, securityCardBarcode, stage]
       )
       await replaceCompanions(result.rows[0].id, companions ?? [])
       return { ...result.rows[0], companions: companions ?? [] }

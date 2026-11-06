@@ -31,6 +31,7 @@ const clock = (at: string) => new Date(at).toLocaleTimeString('id-ID', { hour: '
 export const dynamic = 'force-dynamic'
 
 type CardType = 'visitor' | 'vendor' | 'supplier' | 'affiliate' | 'special_area' | 'photography'
+type SecurityCardType = 'visitor' | 'vendor' | 'supplier'
 type Row = {
   id: number
   full_name: string
@@ -93,6 +94,32 @@ export async function POST(request: NextRequest) {
            WHERE id = $1 AND stage = 'active' RETURNING ${SELECT_COLUMNS}`, [guest.id]
         )
         return NextResponse.json({ result: 'out', registration: closed.rows[0] ?? guest, message: `Scan out — ${guest.full_name} keluar, kartu ${CARD_LABEL[guest.security_card_type]} dikembalikan.` })
+      }
+      // A companion holding a Security card coming back
+      const compHolders = await query<{
+        comp_id: number
+        name: string
+        card_barcode: string
+        registration_id: number
+        full_name: string
+        security_card_type: SecurityCardType
+      }>(
+        `SELECT c.id AS comp_id, c.name, c.card_barcode, c.registration_id, vr.full_name, vr.security_card_type
+         FROM registration_ids c
+         JOIN vendor_registrations vr ON vr.id = c.registration_id
+         WHERE vr.stage = 'active' AND vr.entry_path = 'security'
+           AND LOWER(TRIM(c.card_barcode)) = LOWER(TRIM($1))
+           AND c.returned_at IS NULL
+         ORDER BY vr.entry_at DESC LIMIT 1`,
+        [barcode]
+      )
+      if (compHolders.rows.length > 0) {
+        const comp = compHolders.rows[0]
+        await query('UPDATE registration_ids SET returned_at = now() WHERE id = $1', [comp.comp_id])
+        return NextResponse.json({
+          result: 'out',
+          message: `Scan out — kartu Security ${barcode} dari anggota rombongan ${comp.name} (${comp.full_name}) dikembalikan.`
+        })
       }
       // A Special Area ID card coming back: the permit's exit time becomes now.
       const areaReturn = await returnSpecialAreaCard(barcode, session.username)

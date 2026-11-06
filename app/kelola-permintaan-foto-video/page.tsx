@@ -160,7 +160,7 @@ function KelolaPermintaanFotoVideoContent() {
       if (statusFilter) params.set('status', statusFilter)
       if (typeFilter) params.set('type', typeFilter)
       if (deptFilter && deptFilter !== 'all') params.set('dept', deptFilter)
-      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests?${params.toString()}`, { cache: 'no-store' })
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests?${params.toString()}`, { cache: 'no-store', credentials: 'include' })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error ? `${data.message} (${data.error})` : (data?.message || 'Gagal memuat daftar pengajuan.'))
       setRequests(data.requests ?? [])
@@ -184,7 +184,7 @@ function KelolaPermintaanFotoVideoContent() {
     if (!pendingDelete) return
     setDeleting(true)
     try {
-      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${pendingDelete.id}`, { method: 'DELETE' })
+      const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${pendingDelete.id}`, { method: 'DELETE', credentials: 'include' })
       if (!response.ok) {
         const data = await response.json().catch(() => null)
         setError(data?.message ?? 'Gagal menghapus pengajuan.')
@@ -207,6 +207,7 @@ function KelolaPermintaanFotoVideoContent() {
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${pendingMarkTaken.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ action: 'mark-taken' }),
       })
       if (!response.ok) {
@@ -230,6 +231,7 @@ function KelolaPermintaanFotoVideoContent() {
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${req.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ action: 'unmark-taken' }),
       })
       if (!response.ok) {
@@ -280,6 +282,7 @@ function KelolaPermintaanFotoVideoContent() {
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${pendingReturn.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           action: 'mark-returned',
           returnedBy: returnedBy.trim() || sessionUser?.username || 'PIC Departemen',
@@ -308,6 +311,7 @@ function KelolaPermintaanFotoVideoContent() {
       const response = await fetch(`${API_BASE_PATH}/api/photo-video-requests/${req.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ action: 'unmark-returned' }),
       })
       if (!response.ok) {

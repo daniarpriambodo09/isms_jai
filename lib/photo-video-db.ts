@@ -49,6 +49,13 @@ export async function ensurePhotoVideoColumns(): Promise<void> {
           ADD COLUMN IF NOT EXISTS decision_note TEXT;
       `)
 
+      // Ensure pic_approvers has required columns
+      await query(`
+        ALTER TABLE pic_approvers
+          ADD COLUMN IF NOT EXISTS is_visitor_default BOOLEAN DEFAULT false,
+          ADD COLUMN IF NOT EXISTS salutation VARCHAR(10);
+      `)
+
       // Ensure at least one PIC approver has is_visitor_default = true
       const defaultPic = await query<{ id: number }>('SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1')
       if (defaultPic.rows.length === 0) {

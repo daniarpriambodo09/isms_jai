@@ -1407,9 +1407,21 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                             <span className="flex-shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{stationOf(r) === 'security' ? 'Security' : 'Lobby'}</span>
                           </div>
                           {(r.companions?.length ?? 0) > 0 && (
-                            <p className="mt-0.5 text-[11px] text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
-                              + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
-                            </p>
+                            <div className="mt-0.5 space-y-0.5">
+                              <p className="text-[11px] text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
+                                + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
+                              </p>
+                              {r.companions?.some((c) => c.card_barcode) && (
+                                <div className="flex flex-wrap gap-1 font-mono text-[9px]">
+                                  {r.companions?.filter((c) => c.card_barcode).map((c, idx) => (
+                                    <span key={idx} className="inline-flex items-center gap-0.5 rounded bg-secondary px-1 py-0.5 text-foreground border border-border/70">
+                                      <span>{c.name}:</span>
+                                      <strong className="text-primary">{c.card_barcode}</strong>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                           <p className="mt-0.5 text-xs text-muted-foreground">
                             {formatDateTime(r.registered_at)}
@@ -1522,9 +1534,21 @@ export function LobbyView({ station = 'lobby' }: { station?: 'lobby' | 'security
                           )}
                         </div>
                         {(r.companions?.length ?? 0) > 0 && (
-                          <span className="mt-1 block text-[10px] font-normal text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
-                            + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
-                          </span>
+                          <div className="mt-1 space-y-0.5">
+                            <span className="block text-[10px] font-normal text-muted-foreground" title={r.companions?.map((c) => `${c.name} (${c.id_no})`).join(', ')}>
+                              + {r.companions?.length} orang: {r.companions?.map((c) => c.name).join(', ')}
+                            </span>
+                            {r.companions?.some((c) => c.card_barcode) && (
+                              <div className="flex flex-wrap gap-1 font-mono text-[9px]">
+                                {r.companions?.filter((c) => c.card_barcode).map((c, idx) => (
+                                  <span key={idx} className="inline-flex items-center gap-0.5 rounded bg-secondary px-1 py-0.5 text-foreground border border-border/70">
+                                    <span>{c.name}:</span>
+                                    <strong className="text-primary">{c.card_barcode}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{r.pic_jai}</td>

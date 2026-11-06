@@ -213,7 +213,7 @@ export type Registration = {
   id_verified_by?: string | null
   id_returned_at?: string | null
   /** Extra people registered together with this guest. */
-  companions?: { name: string; id_no: string }[]
+  companions?: { name: string; id_no: string; card_barcode?: string | null; returned_at?: string | null }[]
 }
 
 export type SecurityCardType = 'visitor' | 'vendor' | 'supplier'

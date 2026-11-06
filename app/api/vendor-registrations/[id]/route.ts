@@ -131,7 +131,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const body = await request.json() as {
-      action?: string; barcode?: string; cardType?: string; securityCardType?: string
+      action?: string; barcode?: string; cardType?: string; securityCardType?: string; securityCardBarcode?: string
       fullName?: string; idCard?: string; picJai?: string; purpose?: string; companyRemark?: string; reason?: string; visitDate?: string; companions?: unknown
     }
     if (!isAction(body.action)) return NextResponse.json({ message: 'Aksi tidak valid.' }, { status: 400 })
@@ -161,12 +161,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         if (visitDate === undefined) return NextResponse.json({ message: 'Tanggal kunjungan tidak valid.' }, { status: 400 })
         const companions = parseCompanions(body.companions)
         if (companions === undefined) return NextResponse.json({ message: 'Data orang tambahan tidak valid: nama dan nomor KTP wajib diisi keduanya (maks. 20 orang).' }, { status: 400 })
+        const securityCardBarcode = typeof body.securityCardBarcode === 'string' && body.securityCardBarcode.trim()
+          ? body.securityCardBarcode.trim()
+          : (typeof body.barcode === 'string' && body.barcode.trim() ? body.barcode.trim() : null)
         const updated = await withTransaction(async () => {
           const result = await query<VendorRegistrationRow>(
             `UPDATE vendor_registrations
-             SET full_name = $1, id_card = $2, pic_jai = $3, purpose = $4, company_remark = $5, security_card_type = $7, visit_date = $8
+             SET full_name = $1, id_card = $2, pic_jai = $3, purpose = $4, company_remark = $5, security_card_type = $7, visit_date = $8,
+                 security_card_barcode = COALESCE($9, security_card_barcode)
              WHERE id = $6 RETURNING ${SELECT_COLUMNS}`,
-            [fullName, idCard || '-', picJai || '-', purpose, companyRemark, id, securityCardType, visitDate]
+            [fullName, idCard || '-', picJai || '-', purpose, companyRemark, id, securityCardType, visitDate, securityCardBarcode]
           )
           // companions omitted = leave as is
           if (companions) await replaceCompanions(id, companions)
@@ -208,6 +212,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         const cardType = row.security_card_type
         if (await securityCardInUse(cardType, barcode, id)) {
           return NextResponse.json({ message: `Barcode kartu ${CARD_LABEL[cardType]} ini sedang digunakan oleh tamu lain.` }, { status: 409 })
+        }
+        if (Array.isArray(body.companions)) {
+          const parsedComp = parseCompanions(body.companions)
+          if (parsedComp) {
+            await replaceCompanions(id, parsedComp)
+          }
         }
         const result = await query<VendorRegistrationRow>(
           `UPDATE vendor_registrations

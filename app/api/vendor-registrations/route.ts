@@ -3,7 +3,7 @@ import { stationOffMessage } from '@/lib/kiosk-stations'
 import { getKioskAdminFromRequest } from '@/lib/auth'
 import { query, withTransaction } from '@/lib/db'
 import { parseVisitDate } from '@/lib/visit-date'
-import { COMPANIONS_SQL, parseCompanions, replaceCompanions, type Companion } from '@/lib/registration-companions'
+import { COMPANIONS_SQL, ensureRegistrationIdsColumns, parseCompanions, replaceCompanions, type Companion } from '@/lib/registration-companions'
 import { logActivity } from '@/lib/activity-log'
 import { lobbyCardProblem, normalizeCardNo } from '@/lib/card-ranges'
 
@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
   const session = getKioskAdminFromRequest(request)
 
   try {
+    await ensureRegistrationIdsColumns()
     const params = request.nextUrl.searchParams
     const stage = params.get('stage')
     const entryPath = params.get('entryPath')

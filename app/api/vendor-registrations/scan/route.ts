@@ -25,6 +25,7 @@ import { query } from '@/lib/db'
 import { LOBBY_CARD_LABEL, lobbyCardKind, normalizeCardNo } from '@/lib/card-ranges'
 import { returnSpecialAreaCard } from '@/lib/special-area'
 import { returnPhotographyCard } from '@/lib/photo-card'
+import { ensureRegistrationIdsColumns } from '@/lib/registration-companions'
 
 const clock = (at: string) => new Date(at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })
 
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
   if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
+    await ensureRegistrationIdsColumns()
     const body = await request.json().catch(() => ({})) as { barcode?: string; station?: string; id?: number; mode?: string }
     const barcode = normalizeCardNo(body.barcode)
     if (!barcode) return NextResponse.json({ message: 'Barcode wajib diisi.' }, { status: 400 })

@@ -31,6 +31,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { usePagination } from '@/hooks/usePagination'
 import { Pagination } from '@/components/pagination'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { copyText as copyToClipboard } from '@/lib/clipboard'
 
 type AdminRole = 'ism_admin' | 'lobby' | 'security' | 'approver' | 'it'
 type AdminRow = { id: number; username: string; email: string | null; role: AdminRole; created_at: string; current_password?: string | null }
@@ -192,9 +193,9 @@ export default function KelolaAdminPage() {
 
   const { page, setPage, totalPages, pageItems: logPageItems, pageSize } = usePagination(log, 20)
 
-  const copyText = (text: string, fieldName: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text)
+  const copyText = async (text: string, fieldName: string) => {
+    const success = await copyToClipboard(text)
+    if (success) {
       setCopiedField(fieldName)
       setTimeout(() => setCopiedField(null), 2500)
     }

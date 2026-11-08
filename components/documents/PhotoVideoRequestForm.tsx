@@ -6,6 +6,7 @@ import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { cardsChanged } from '@/components/kiosk/kiosk-shared'
 import { ESCORT_OTHER, EscortOptions, escortFromChoice, useEscortList } from '@/components/escort-picker'
+import { copyText } from '@/lib/clipboard'
 
 type Section = { id: number; name: string; slug: string }
 type Department = { id: number; name: string; slug: string; sections: Section[] }
@@ -865,7 +866,11 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                 // A link that opens this page with the status already checked — easy to keep or forward.
                 const statusLink = typeof window === 'undefined' ? '' : `${window.location.origin}${API_BASE_PATH}/ijin-foto-video?type=${locale}&ref=${encodeURIComponent(successInfo.referenceCode)}`
                 const copyLink = async () => {
-                  try { await navigator.clipboard.writeText(statusLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000) } catch { /* the link is selectable below */ }
+                  const ok = await copyText(statusLink)
+                  if (ok) {
+                    setLinkCopied(true)
+                    setTimeout(() => setLinkCopied(false), 2000)
+                  }
                 }
                 return (
                   <div className="mt-2 pl-6 text-xs">

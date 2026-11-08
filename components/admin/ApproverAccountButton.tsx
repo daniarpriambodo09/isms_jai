@@ -9,6 +9,7 @@ import { useState, type FormEvent } from 'react'
 import { Check, Copy, KeyRound, Loader2, UserCheck, UserPlus, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
+import { copyText } from '@/lib/clipboard'
 
 export type ApproverAccount = { username: string; role: string }
 
@@ -69,7 +70,8 @@ export function ApproverAccountButton({ name, email, account, onCreated }: { nam
     }
   }
   const copy = async () => {
-    try { await navigator.clipboard.writeText(`Portal ISMS — akun approver\nUsername: ${username.trim()}\nPassword: ${password}\nMasuk lewat tombol Admin Login, lalu buka Persetujuan Saya.`); setCopied(true) } catch { /* clipboard not available */ }
+    const ok = await copyText(`Portal ISMS — akun approver\nUsername: ${username.trim()}\nPassword: ${password}\nMasuk lewat tombol Admin Login, lalu buka Persetujuan Saya.`)
+    if (ok) setCopied(true)
   }
 
   return (

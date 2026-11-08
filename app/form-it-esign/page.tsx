@@ -68,6 +68,7 @@ import { downloadExcel } from '@/lib/excel-export'
 import { SignalGrid } from '@/components/backgrounds'
 import { useAuth } from '@/context/AuthContext'
 import { GuestLinkGeneratorModal } from '@/components/it/GuestLinkGeneratorModal'
+import { copyText } from '@/lib/clipboard'
 
 interface DepartmentItem {
   id: number
@@ -412,10 +413,10 @@ function FormItContent() {
     }
   }
 
-  const copyRowLink = (sub: ItFormSubmission) => {
+  const copyRowLink = async (sub: ItFormSubmission) => {
     const directActionPath = `${API_BASE_PATH}/form-it-esign?token=${encodeURIComponent(sub.token)}`
     const shareUrl = `${window.location.origin}${directActionPath}`
-    navigator.clipboard.writeText(shareUrl)
+    await copyText(shareUrl)
     setHistoryCopiedId(sub.id)
     setTimeout(() => setHistoryCopiedId(null), 2500)
   }
@@ -822,10 +823,10 @@ function FormItContent() {
     }
   }
 
-  const copyShareLink = () => {
+  const copyShareLink = async () => {
     if (!submissionResult) return
     const url = `${window.location.origin}/form-it-esign?token=${submissionResult.token}`
-    navigator.clipboard.writeText(url)
+    await copyText(url)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2500)
   }

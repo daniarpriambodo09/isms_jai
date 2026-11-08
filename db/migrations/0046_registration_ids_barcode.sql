@@ -2,3 +2,4 @@
 ALTER TABLE registration_ids
   ADD COLUMN IF NOT EXISTS card_barcode VARCHAR(100),
   ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ;
+

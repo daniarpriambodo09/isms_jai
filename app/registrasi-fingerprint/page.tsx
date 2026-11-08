@@ -56,6 +56,7 @@ import {
 import { SPECIAL_AREAS } from '@/lib/special-area-shared'
 import { downloadExcel } from '@/lib/excel-export'
 import { useAuth } from '@/context/AuthContext'
+import { copyText } from '@/lib/clipboard'
 
 interface DepartmentItem {
   id: number
@@ -368,17 +369,17 @@ function FingerprintPageInner() {
     }
   }
 
-  const copyVerifyLink = () => {
+  const copyVerifyLink = async () => {
     if (!submissionResult) return
     const url = `${window.location.origin}${API_BASE_PATH}/registrasi-fingerprint?token=${submissionResult.token}`
-    navigator.clipboard.writeText(url)
+    await copyText(url)
     setCopiedLink(true)
     setTimeout(() => setCopiedLink(false), 2500)
   }
 
-  const copyRowLink = (sub: ItFormSubmission) => {
+  const copyRowLink = async (sub: ItFormSubmission) => {
     const url = `${window.location.origin}${API_BASE_PATH}/registrasi-fingerprint?token=${sub.token}`
-    navigator.clipboard.writeText(url)
+    await copyText(url)
     setCopiedRowId(sub.id)
     setTimeout(() => setCopiedRowId(null), 2500)
   }

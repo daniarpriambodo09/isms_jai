@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext'
 import { API_BASE_PATH } from '@/lib/config'
 import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { copyText } from '@/lib/clipboard'
 
 type Department = { id: number; name: string; slug: string }
 type Pic = {
@@ -316,8 +317,8 @@ export default function KelolaPicApprovePage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(pic.account_password || '')
+                                onClick={async () => {
+                                  await copyText(pic.account_password || '')
                                   setCopiedId(pic.id)
                                   setTimeout(() => setCopiedId(null), 2000)
                                 }}

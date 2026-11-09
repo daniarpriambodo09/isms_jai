@@ -49,11 +49,52 @@ export async function ensurePhotoVideoColumns(): Promise<void> {
           ADD COLUMN IF NOT EXISTS decision_note TEXT;
       `)
 
+      // Ensure equipment tables and section_id columns exist
+      await query(`
+        CREATE TABLE IF NOT EXISTS camera_equipment (
+          id serial PRIMARY KEY,
+          code VARCHAR(50) NOT NULL,
+          department_id INTEGER,
+          section_id INTEGER,
+          created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
+        ALTER TABLE camera_equipment ADD COLUMN IF NOT EXISTS section_id INTEGER;
+
+        CREATE TABLE IF NOT EXISTS photo_id_equipment (
+          id serial PRIMARY KEY,
+          code VARCHAR(50) NOT NULL,
+          department_id INTEGER,
+          section_id INTEGER,
+          created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
+        ALTER TABLE photo_id_equipment ADD COLUMN IF NOT EXISTS section_id INTEGER;
+
+        CREATE TABLE IF NOT EXISTS usb_equipment (
+          id serial PRIMARY KEY,
+          code VARCHAR(50) NOT NULL,
+          department_id INTEGER,
+          section_id INTEGER,
+          created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
+        ALTER TABLE usb_equipment ADD COLUMN IF NOT EXISTS section_id INTEGER;
+
+        CREATE TABLE IF NOT EXISTS smart_device_equipment (
+          id serial PRIMARY KEY,
+          code VARCHAR(50) NOT NULL,
+          department_id INTEGER,
+          section_id INTEGER,
+          created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+        );
+        ALTER TABLE smart_device_equipment ADD COLUMN IF NOT EXISTS section_id INTEGER;
+      `)
+
       // Ensure pic_approvers has required columns
       await query(`
         ALTER TABLE pic_approvers
           ADD COLUMN IF NOT EXISTS is_visitor_default BOOLEAN DEFAULT false,
-          ADD COLUMN IF NOT EXISTS salutation VARCHAR(10);
+          ADD COLUMN IF NOT EXISTS salutation VARCHAR(10),
+          ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
+          ADD COLUMN IF NOT EXISTS title VARCHAR(255);
       `)
 
       // Ensure at least one PIC approver has is_visitor_default = true

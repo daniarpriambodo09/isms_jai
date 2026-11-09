@@ -153,8 +153,22 @@ export function SpecialAreaFormModal({ onClose, onSaved }: { onClose: () => void
           escortName: escort?.name ?? null, escortDept: escort?.dept ?? null,
         }),
       })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) { setError(data.message ?? 'Gagal mengirim pengajuan.'); return }
+      let data: any = null
+      let rawText = ''
+      try {
+        rawText = await res.text()
+        data = JSON.parse(rawText)
+      } catch {
+        data = null
+      }
+      if (!res.ok) {
+        const serverDetail = data?.error || (rawText && !rawText.trim().startsWith('<') ? rawText.trim().slice(0, 150) : null) || `Status ${res.status} ${res.statusText}`
+        const errMsg = data?.message && data?.error
+          ? `${data.message} (${data.error})`
+          : (data?.message ?? `Gagal mengirim pengajuan (${serverDetail})`)
+        setError(errMsg)
+        return
+      }
       setDone({ emailError: data.emailError ?? null })
       onSaved()
       cardsChanged()

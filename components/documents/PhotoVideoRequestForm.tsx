@@ -414,9 +414,19 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const data = await response.json().catch(() => null)
+      let data: any = null
+      let rawText = ''
+      try {
+        rawText = await response.text()
+        data = JSON.parse(rawText)
+      } catch {
+        data = null
+      }
       if (!response.ok) {
-        const errMsg = data?.error ? `${data.message ?? 'Gagal mengirim pengajuan.'} (${data.error})` : (data?.message ?? 'Gagal mengirim pengajuan.')
+        const serverDetail = data?.error || (rawText && !rawText.trim().startsWith('<') ? rawText.trim().slice(0, 150) : null) || `Status ${response.status} ${response.statusText}`
+        const errMsg = data?.message && data?.error
+          ? `${data.message} (${data.error})`
+          : (data?.message ?? `Gagal mengirim pengajuan (${serverDetail})`)
         setError(errMsg)
         return
       }

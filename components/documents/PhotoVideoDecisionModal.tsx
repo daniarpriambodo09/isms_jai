@@ -83,6 +83,14 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
 
   useEscapeClose(true, onClose)
 
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [])
+
   const loadCameras = () => {
     fetch(`${API_BASE_PATH}/api/camera-equipment`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : { cameras: [] }))
@@ -172,7 +180,7 @@ export function PhotoVideoDecisionModal({ request, onClose, onDecided, readOnly 
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div role="dialog" aria-modal="true" aria-label={`Keputusan pengajuan ${request.requester_name}`} className="w-full max-w-[520px] max-h-[90vh] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label={`Keputusan pengajuan ${request.requester_name}`} className="w-full max-w-[520px] max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card shadow-2xl">
         <div className="flex items-center justify-between bg-primary px-6 py-5 text-primary-foreground">
           <div className="flex items-center gap-3">
             <span className="grid size-9 flex-shrink-0 place-items-center rounded-lg bg-primary-foreground/15"><Camera className="size-4" /></span>

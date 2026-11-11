@@ -35,6 +35,7 @@ import { AdminGate } from '@/components/admin-gate'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Pagination } from '@/components/pagination'
 import { usePagination } from '@/hooks/usePagination'
+import { useEscapeClose } from '@/hooks/useEscapeClose'
 
 const STATUS_TABS: { value: string; label: string }[] = [
   { value: '', label: 'Semua Status' },
@@ -100,6 +101,18 @@ function KelolaPermintaanFotoVideoContent() {
   const [returnNotes, setReturnNotes] = useState('')
   const [returning, setReturning] = useState(false)
   const [unmarkingReturnId, setUnmarkingReturnId] = useState<number | null>(null)
+
+  useEscapeClose(Boolean(pendingReturn), () => setPendingReturn(null))
+
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    if (!pendingReturn) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [pendingReturn])
 
   const [resendingId, setResendingId] = useState<number | null>(null)
   const [resendNotice, setResendNotice] = useState<string | null>(null)
@@ -835,9 +848,17 @@ function KelolaPermintaanFotoVideoContent() {
 
       {/* MODAL CHECKLIST PEMERIKSAAN & PENGEMBALIAN BARANG (HANYA PEMILIK BARANG) */}
       {pendingReturn && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
-          <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 md:p-6 backdrop-blur-xs animate-in fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget) setPendingReturn(null) }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Pemeriksaan & Pengembalian Perangkat"
+            className="relative flex w-full max-w-lg max-h-[90vh] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200"
+          >
+            <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0 bg-card">
               <div>
                 <h3 className="font-bold text-base text-foreground flex items-center gap-2">
                   <RotateCcw className="size-4 text-emerald-600" />
@@ -850,14 +871,17 @@ function KelolaPermintaanFotoVideoContent() {
               <button
                 type="button"
                 onClick={() => setPendingReturn(null)}
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer"
+                aria-label="Tutup"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground cursor-pointer transition"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            {/* Info Singkat Pemohon */}
-            <div className="rounded-2xl border border-border bg-secondary/30 p-3.5 space-y-1.5 text-xs">
+            {/* Scrollable Content Container */}
+            <div className="overflow-y-auto px-5 py-5 sm:px-6 space-y-5 flex-1 overscroll-contain">
+              {/* Info Singkat Pemohon */}
+              <div className="rounded-2xl border border-border bg-secondary/30 p-3.5 space-y-1.5 text-xs">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Pemohon:</span>
                 <span className="font-bold text-foreground">{pendingReturn.requester_name} ({pendingReturn.dept_or_company})</span>
@@ -1107,8 +1131,10 @@ function KelolaPermintaanFotoVideoContent() {
               </div>
             </div>
 
-            {/* ACTION BUTTONS */}
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+            </div>
+
+            {/* ACTION BUTTONS (fixed at bottom of modal) */}
+            <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-border bg-card/90 backdrop-blur-xs shrink-0">
               <button
                 type="button"
                 onClick={() => setPendingReturn(null)}

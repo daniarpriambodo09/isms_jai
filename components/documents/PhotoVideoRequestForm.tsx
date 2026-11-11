@@ -390,15 +390,15 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         // picApproveId entirely for this type (see /api/photo-video-requests).
         ...(isInternal
           ? {
-              nik,
-              deptPicKamera: selectedCameraDept?.name ?? '',
-              deptPicKameraSection: selectedCameraSection?.name ?? null,
-              cameraControlNo: cameraControlNo.trim() || null,
-              photoIdNo: photoIdNo.trim() || null,
-              usbControlNo: usbControlNo.trim() || null,
-              smartDeviceControlNo: smartDeviceControlNo.trim() || null,
-              picApproveId,
-            }
+            nik,
+            deptPicKamera: selectedCameraDept?.name ?? '',
+            deptPicKameraSection: selectedCameraSection?.name ?? null,
+            cameraControlNo: cameraControlNo.trim() || null,
+            photoIdNo: photoIdNo.trim() || null,
+            usbControlNo: usbControlNo.trim() || null,
+            smartDeviceControlNo: smartDeviceControlNo.trim() || null,
+            picApproveId,
+          }
           : { dept, cameraSerialNo, photoIdNo }),
         companions: companions
           .filter((c) => c.name.trim())
@@ -637,285 +637,285 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                 </p>
               </div>
             </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {isInternal && (
-            <>
-              <Field label="Dept. PIC Kamera">
-                <select
-                  value={deptPicKameraId}
-                  onChange={(e) => { setDeptPicKameraId(e.target.value); setSectionPicKameraId(''); setCameraControlNo(''); setPhotoIdNo(''); setUsbControlNo(''); setSmartDeviceControlNo('') }}
-                  required
-                  className={inputClass}
-                >
-                  <option value="">Pilih Dept. kamera yang dipinjam...</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>{department.name}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Seksi PIC Kamera">
-                <select
-                  value={sectionPicKameraId}
-                  onChange={(e) => { setSectionPicKameraId(e.target.value); setCameraControlNo(''); setPhotoIdNo(''); setUsbControlNo(''); setSmartDeviceControlNo('') }}
-                  disabled={!selectedCameraDept || selectedCameraDept.sections.length === 0}
-                  className={inputClass}
-                >
-                  <option value="">{selectedCameraDept && selectedCameraDept.sections.length === 0 ? 'Tidak ada section' : 'Pilih section (opsional)...'}</option>
-                  {selectedCameraDept?.sections.map((section) => (
-                    <option key={section.id} value={section.id}>{section.name}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="No. Kontrol Kamera (opsional jika hanya pinjam USB/Smart Device)" span={2}>
-                <select
-                  value={cameraControlNo}
-                  onChange={(e) => setCameraControlNo(e.target.value)}
-                  className={inputClass}
-                  disabled={!deptPicKameraId}
-                >
-                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Kamera (Hanya Pinjam USB / Smart Device)'}</option>
-                  {availableCameras.map((cam) => (
-                    <option key={cam.id} value={cam.code}>{cam.code}</option>
-                  ))}
-                </select>
-                {deptPicKameraId && availableCameras.length === 0 && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">Belum ada kamera terdaftar untuk departemen ini (opsional jika hanya meminjam Flashdisk/Smart Device).</p>
-                )}
-              </Field>
-              <Field label="No. ID Photography (opsional jika tidak pinjam kamera)" span={2}>
-                <select
-                  value={photoIdNo}
-                  onChange={(e) => setPhotoIdNo(e.target.value)}
-                  className={inputClass}
-                  disabled={!deptPicKameraId}
-                >
-                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Kartu ID Photography (Opsional)'}</option>
-                  {availablePhotoIds.map((p) => (
-                    <option key={p.id} value={p.code}>{p.code}</option>
-                  ))}
-                </select>
-                {deptPicKameraId && availablePhotoIds.length === 0 && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">Belum ada ID Photography terdaftar untuk departemen ini (opsional jika hanya meminjam Flashdisk/Smart Device).</p>
-                )}
-              </Field>
-              <Field label="No. Kontrol USB (opsional)" span={2}>
-                <select
-                  value={usbControlNo}
-                  onChange={(e) => setUsbControlNo(e.target.value)}
-                  className={inputClass}
-                  disabled={!deptPicKameraId}
-                >
-                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Flashdisk / USB (Opsional)'}</option>
-                  {availableUsbs.map((u) => (
-                    <option key={u.id} value={u.code}>{u.code}</option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — dapat dipinjam secara fleksibel (bersama kamera atau berdiri sendiri tanpa kamera).</p>
-              </Field>
-              <Field label="No. Kontrol Smart Device (opsional)" span={2}>
-                <select
-                  value={smartDeviceControlNo}
-                  onChange={(e) => setSmartDeviceControlNo(e.target.value)}
-                  className={inputClass}
-                  disabled={!deptPicKameraId}
-                >
-                  <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Smart Device (Opsional)'}</option>
-                  {availableSmartDevices.map((s) => (
-                    <option key={s.id} value={s.code}>{s.code}</option>
-                  ))}
-                </select>
-                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol Smart Device jika Anda meminjam Tablet / HP khusus (bisa bersama kamera atau tanpa kamera).</p>
-              </Field>
-            </>
-          )}
-          {!isInternal && (
-            <>
-              <Field label="Serial No. Kamera / Smart Device" span={2}>
-                <input value={cameraSerialNo} onChange={(e) => setCameraSerialNo(e.target.value)} placeholder="Contoh: PRIBADI" className={inputClass} />
-                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — isi &quot;PRIBADI&quot; jika menggunakan kamera / HP / Smart Device milik sendiri.</p>
-              </Field>
-              <Field label="No ID Photography" span={2}>
-                <div className="relative">
-                  <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input value={photoIdNo} onChange={(e) => setPhotoIdNo(e.target.value)} placeholder="Scan atau ketik ID..." className={`${inputClass} pl-10`} />
-                </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">Opsional — scan kartu ID Photography atau ketik manual nomornya.</p>
-              </Field>
-            </>
-          )}
-          {isInternal ? (
-            <Field label="PIC Approve" span={2}>
-              <select
-                value={picApproveId}
-                onChange={(e) => setPicApproveId(e.target.value)}
-                required
-                className={inputClass}
-                disabled={!deptId}
-              >
-                <option value="">
-                  {!deptId ? 'Pilih Dept. terlebih dahulu...' : 'Pilih PIC yang akan menyetujui...'}
-                </option>
-                {displayedPics.map((pic) => (
-                  <option key={pic.id} value={pic.id}>
-                    {pic.name}
-                  </option>
-                ))}
-              </select>
-              {deptId && displayedPics.length === 0 && (
-                <p className="mt-1 text-[11px] text-destructive">
-                  Belum ada PIC Approve terdaftar untuk departemen ini — hubungi Admin ISMS.
-                </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {isInternal && (
+                <>
+                  <Field label="Dept. PIC Kamera">
+                    <select
+                      value={deptPicKameraId}
+                      onChange={(e) => { setDeptPicKameraId(e.target.value); setSectionPicKameraId(''); setCameraControlNo(''); setPhotoIdNo(''); setUsbControlNo(''); setSmartDeviceControlNo('') }}
+                      required
+                      className={inputClass}
+                    >
+                      <option value="">Pilih Dept. kamera yang dipinjam...</option>
+                      {departments.map((department) => (
+                        <option key={department.id} value={department.id}>{department.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Seksi PIC Kamera">
+                    <select
+                      value={sectionPicKameraId}
+                      onChange={(e) => { setSectionPicKameraId(e.target.value); setCameraControlNo(''); setPhotoIdNo(''); setUsbControlNo(''); setSmartDeviceControlNo('') }}
+                      disabled={!selectedCameraDept || selectedCameraDept.sections.length === 0}
+                      className={inputClass}
+                    >
+                      <option value="">{selectedCameraDept && selectedCameraDept.sections.length === 0 ? 'Tidak ada section' : 'Pilih section (opsional)...'}</option>
+                      {selectedCameraDept?.sections.map((section) => (
+                        <option key={section.id} value={section.id}>{section.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="No. Kontrol Kamera (opsional jika hanya pinjam USB/Smart Device)" span={2}>
+                    <select
+                      value={cameraControlNo}
+                      onChange={(e) => setCameraControlNo(e.target.value)}
+                      className={inputClass}
+                      disabled={!deptPicKameraId}
+                    >
+                      <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Kamera (Hanya Pinjam USB / Smart Device)'}</option>
+                      {availableCameras.map((cam) => (
+                        <option key={cam.id} value={cam.code}>{cam.code}</option>
+                      ))}
+                    </select>
+                    {deptPicKameraId && availableCameras.length === 0 && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">Belum ada kamera terdaftar untuk departemen ini (opsional jika hanya meminjam Flashdisk/Smart Device).</p>
+                    )}
+                  </Field>
+                  <Field label="No. ID Photography (opsional jika tidak pinjam kamera)" span={2}>
+                    <select
+                      value={photoIdNo}
+                      onChange={(e) => setPhotoIdNo(e.target.value)}
+                      className={inputClass}
+                      disabled={!deptPicKameraId}
+                    >
+                      <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Kartu ID Photography (Opsional)'}</option>
+                      {availablePhotoIds.map((p) => (
+                        <option key={p.id} value={p.code}>{p.code}</option>
+                      ))}
+                    </select>
+                    {deptPicKameraId && availablePhotoIds.length === 0 && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">Belum ada ID Photography terdaftar untuk departemen ini (opsional jika hanya meminjam Flashdisk/Smart Device).</p>
+                    )}
+                  </Field>
+                  <Field label="No. Kontrol USB (opsional)" span={2}>
+                    <select
+                      value={usbControlNo}
+                      onChange={(e) => setUsbControlNo(e.target.value)}
+                      className={inputClass}
+                      disabled={!deptPicKameraId}
+                    >
+                      <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Flashdisk / USB (Opsional)'}</option>
+                      {availableUsbs.map((u) => (
+                        <option key={u.id} value={u.code}>{u.code}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Opsional — dapat dipinjam secara fleksibel (bersama kamera atau berdiri sendiri tanpa kamera).</p>
+                  </Field>
+                  <Field label="No. Kontrol Smart Device (opsional)" span={2}>
+                    <select
+                      value={smartDeviceControlNo}
+                      onChange={(e) => setSmartDeviceControlNo(e.target.value)}
+                      className={inputClass}
+                      disabled={!deptPicKameraId}
+                    >
+                      <option value="">{!deptPicKameraId ? 'Pilih Dept. PIC Kamera terlebih dahulu...' : 'Tidak Meminjam Smart Device (Opsional)'}</option>
+                      {availableSmartDevices.map((s) => (
+                        <option key={s.id} value={s.code}>{s.code}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Opsional — pilih nomor kontrol Smart Device jika Anda meminjam Tablet / HP khusus (bisa bersama kamera atau tanpa kamera).</p>
+                  </Field>
+                </>
               )}
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Pilih PIC / Approver di departemen Anda yang berwenang menyetujui izin foto/video.
-              </p>
-            </Field>
-          ) : (
-            <Field label="Approver Izin Foto/Video" span={2}>
-              <div className={`${inputClass} flex items-center justify-between bg-muted/40 font-semibold text-foreground`}>
-                <span>{visitorApprover?.fullName || 'Teguh Sunjoyo'}</span>
-                <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                  {visitorApprover?.title || 'Information Assets Administrator'}
-                </span>
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Pengajuan izin pengambilan foto/video untuk Visitor otomatis diteruskan ke Approver di atas ({visitorApprover?.fullName || 'Bpk. Teguh Sunjoyo'}) — tidak perlu memilih.
-              </p>
-            </Field>
-          )}
-          {!isInternal && isStaff && (
-            <Field label="PIC Pendamping JAI (opsional)" span={2}>
-              <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={inputClass}>
-                <option value="">Belum ditentukan — bisa dipilih nanti di rekap</option>
-                <EscortOptions escorts={escorts} />
-                <option value={ESCORT_OTHER}>Lainnya (ketik nama)…</option>
-              </select>
-              {escortChoice === ESCORT_OTHER && (
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping JAI" maxLength={150} className={inputClass} />
-                  <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} className={inputClass} />
-                </div>
-              )}
-              <p className="mt-1 text-[11px] text-muted-foreground">Karyawan yang mendampingi selama pengambilan foto/video. Daftar namanya diatur Admin ISMS di Izin Area Special → Daftar PIC Pendamping JAI.</p>
-            </Field>
-          )}
-          <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>
-            <div className="relative">
-              <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} required className={`${inputClass} pl-10`} />
-            </div>
-          </Field>
-          <Field label={isInternal ? 'Sampai Tanggal' : 'To Date'}>
-            <div className="relative">
-              <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} required className={`${inputClass} pl-10`} />
-            </div>
-          </Field>
-          <Field label={isInternal ? 'Dari Jam' : 'From Time'}>
-            <div className="relative">
-              <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input type="time" value={fromTime} onChange={(e) => {
-                const next = e.target.value
-                setFromTime(next)
-                // On the same day the end can't come before the start: push it to an hour later.
-                if (fromDate === toDate && next && (!toTime || toTime <= next)) setToTime(hourAfter(next))
-              }} required className={`${inputClass} pl-10`} />
-            </div>
-          </Field>
-          <Field label={isInternal ? 'Sampai Jam' : 'To Time'}>
-            <div className="relative">
-              <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="time"
-                value={toTime}
-                onChange={(e) => setToTime(e.target.value)}
-                required
-                className={`${inputClass} pl-10`}
-              />
-            </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {isInternal
-                ? 'Catatan: Jam aktual pengembalian kamera / USB / Smart Device akan dicatat saat alat diserahkan kembali.'
-                : 'Expected return time.'}
-            </p>
-          </Field>
-          <Field label={isInternal ? 'Lokasi' : 'Location'}>
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={location} onChange={(e) => setLocation(e.target.value)} required className={`${inputClass} pl-10`} />
-            </div>
-          </Field>
-            <Field label={isInternal ? 'Tujuan' : 'Objective'}>
-              <input value={objective} onChange={(e) => setObjective(e.target.value)} required className={inputClass} />
-            </Field>
-          </div>
-        </div>
-
-        <div id="pv-step-3" className="scroll-mt-32 border-t border-border bg-secondary/25 px-6 py-4 sm:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">{noteText}</p>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-xs transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-            >
-              {submitting ? 'Mengirim...' : <><Send className="size-4" />{submitLabel}</>}
-            </button>
-          </div>
-
-          {error && (
-            <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
-          )}
-          {successInfo && (
-            <div className="mt-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
-              <p className="flex items-center gap-2 font-semibold text-primary">
-                <CheckCircle2 className="size-4 flex-none" />
-                {isInternal ? 'Pengajuan terkirim' : 'Registration submitted'} &middot; {new Date(successInfo.submittedAt).toLocaleString('id-ID')}
-              </p>
-              {successInfo.id != null && (() => {
-                // A link that opens this page with the status already checked — easy to keep or forward.
-                const statusLink = typeof window === 'undefined' ? '' : `${window.location.origin}${API_BASE_PATH}/ijin-foto-video?type=${locale}&ref=${encodeURIComponent(successInfo.referenceCode)}`
-                const copyLink = async () => {
-                  const ok = await copyText(statusLink)
-                  if (ok) {
-                    setLinkCopied(true)
-                    setTimeout(() => setLinkCopied(false), 2000)
-                  }
-                }
-                return (
-                  <div className="mt-2 pl-6 text-xs">
-                    <p>
-                      {isInternal ? 'Kode referensi: ' : 'Reference code: '}
-                      <strong className="font-mono text-sm select-all">{successInfo.referenceCode}</strong>
-                    </p>
-                    <p className="mt-1.5">{isInternal ? 'Link status pengajuan Anda — simpan atau bagikan:' : 'Your status link — keep or share it:'}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <a href={statusLink} className="min-w-0 break-all font-mono text-[11px] text-primary underline">{statusLink}</a>
-                      <button type="button" onClick={copyLink} className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer">
-                        {linkCopied ? (
-                          <>
-                            <Check className="size-3 text-emerald-600" />
-                            <span>{isInternal ? 'Tersalin' : 'Copied'}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="size-3 text-muted-foreground" />
-                            <span>{isInternal ? 'Salin link' : 'Copy link'}</span>
-                          </>
-                        )}
-                      </button>
+              {!isInternal && (
+                <>
+                  <Field label="Serial No. Kamera / Smart Device" span={2}>
+                    <input value={cameraSerialNo} onChange={(e) => setCameraSerialNo(e.target.value)} placeholder="Contoh: PRIBADI" className={inputClass} />
+                    <p className="mt-1 text-[11px] text-muted-foreground">Opsional — isi &quot;PRIBADI&quot; jika menggunakan kamera / HP / Smart Device milik sendiri.</p>
+                  </Field>
+                  <Field label="No ID Photography" span={2}>
+                    <div className="relative">
+                      <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <input value={photoIdNo} onChange={(e) => setPhotoIdNo(e.target.value)} placeholder="Scan atau ketik ID..." className={`${inputClass} pl-10`} />
                     </div>
-                    <p className="mt-1.5 text-muted-foreground">
-                      {successInfo.emailed
-                        ? (isInternal ? 'Hasil keputusan juga akan dikirim ke email Anda.' : 'The decision will also be sent to your email.')
-                        : (isInternal ? 'Buka link ini (atau "Cek status pengajuan saya" di atas) untuk melihat hasilnya atau membatalkan pengajuan.' : 'Open this link (or "Cek status pengajuan saya" above) to see the decision or cancel the request.')}
+                    <p className="mt-1 text-[11px] text-muted-foreground">Opsional — scan kartu ID Photography atau ketik manual nomornya.</p>
+                  </Field>
+                </>
+              )}
+              {isInternal ? (
+                <Field label="PIC Approve" span={2}>
+                  <select
+                    value={picApproveId}
+                    onChange={(e) => setPicApproveId(e.target.value)}
+                    required
+                    className={inputClass}
+                    disabled={!deptId}
+                  >
+                    <option value="">
+                      {!deptId ? 'Pilih Dept. terlebih dahulu...' : 'Pilih PIC yang akan menyetujui...'}
+                    </option>
+                    {displayedPics.map((pic) => (
+                      <option key={pic.id} value={pic.id}>
+                        {pic.name}
+                      </option>
+                    ))}
+                  </select>
+                  {deptId && displayedPics.length === 0 && (
+                    <p className="mt-1 text-[11px] text-destructive">
+                      Belum ada PIC Approve terdaftar untuk departemen ini — hubungi Admin ISMS.
                     </p>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Pilih PIC / Approver di departemen Anda yang berwenang menyetujui izin foto/video.
+                  </p>
+                </Field>
+              ) : (
+                <Field label="Approver Izin Foto/Video" span={2}>
+                  <div className={`${inputClass} flex items-center justify-between bg-muted/40 font-semibold text-foreground`}>
+                    <span>{visitorApprover?.fullName || 'Teguh Sunjoyo'}</span>
+                    <span className="rounded-md bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                      {visitorApprover?.title || 'Information Assets Administrator'}
+                    </span>
                   </div>
-                )
-              })()}
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Pengajuan izin pengambilan foto/video untuk Visitor otomatis diteruskan ke Approver di atas ({visitorApprover?.fullName || 'Bpk. Teguh Sunjoyo'}) — tidak perlu memilih.
+                  </p>
+                </Field>
+              )}
+              {!isInternal && isStaff && (
+                <Field label="PIC Pendamping JAI (opsional)" span={2}>
+                  <select value={escortChoice} onChange={(e) => setEscortChoice(e.target.value)} aria-label="PIC Pendamping JAI" className={inputClass}>
+                    <option value="">Belum ditentukan — bisa dipilih nanti di rekap</option>
+                    <EscortOptions escorts={escorts} />
+                    <option value={ESCORT_OTHER}>Lainnya (ketik nama)…</option>
+                  </select>
+                  {escortChoice === ESCORT_OTHER && (
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      <input value={escortName} onChange={(e) => setEscortName(e.target.value)} placeholder="Nama PIC pendamping JAI" maxLength={150} className={inputClass} />
+                      <input value={escortDept} onChange={(e) => setEscortDept(e.target.value)} placeholder="Dept./Seksi (opsional)" maxLength={150} className={inputClass} />
+                    </div>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">Karyawan yang mendampingi selama pengambilan foto/video. Daftar namanya diatur Admin ISMS di Izin Area Special → Daftar PIC Pendamping JAI.</p>
+                </Field>
+              )}
+              <Field label={isInternal ? 'Dari Tanggal' : 'From Date'}>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} required className={`${inputClass} pl-10`} />
+                </div>
+              </Field>
+              <Field label={isInternal ? 'Sampai Tanggal' : 'To Date'}>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} required className={`${inputClass} pl-10`} />
+                </div>
+              </Field>
+              <Field label={isInternal ? 'Dari Jam' : 'From Time'}>
+                <div className="relative">
+                  <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input type="time" value={fromTime} onChange={(e) => {
+                    const next = e.target.value
+                    setFromTime(next)
+                    // On the same day the end can't come before the start: push it to an hour later.
+                    if (fromDate === toDate && next && (!toTime || toTime <= next)) setToTime(hourAfter(next))
+                  }} required className={`${inputClass} pl-10`} />
+                </div>
+              </Field>
+              <Field label={isInternal ? 'Sampai Jam' : 'To Time'}>
+                <div className="relative">
+                  <Clock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="time"
+                    value={toTime}
+                    onChange={(e) => setToTime(e.target.value)}
+                    required
+                    className={`${inputClass} pl-10`}
+                  />
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {isInternal
+                    ? 'Catatan: Jam aktual pengembalian kamera / USB / Smart Device akan dicatat saat alat diserahkan kembali.'
+                    : 'Expected return time.'}
+                </p>
+              </Field>
+              <Field label={isInternal ? 'Lokasi' : 'Location'}>
+                <div className="relative">
+                  <MapPin className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input value={location} onChange={(e) => setLocation(e.target.value)} required className={`${inputClass} pl-10`} />
+                </div>
+              </Field>
+              <Field label={isInternal ? 'Tujuan' : 'Objective'}>
+                <input value={objective} onChange={(e) => setObjective(e.target.value)} required className={inputClass} />
+              </Field>
             </div>
-          )}
-        </div>
+          </div>
+
+          <div id="pv-step-3" className="scroll-mt-32 border-t border-border bg-secondary/25 px-6 py-4 sm:px-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-muted-foreground">{noteText}</p>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-xs transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+              >
+                {submitting ? 'Mengirim...' : <><Send className="size-4" />{submitLabel}</>}
+              </button>
+            </div>
+
+            {error && (
+              <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
+            )}
+            {successInfo && (
+              <div className="mt-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-foreground">
+                <p className="flex items-center gap-2 font-semibold text-primary">
+                  <CheckCircle2 className="size-4 flex-none" />
+                  {isInternal ? 'Pengajuan terkirim' : 'Registration submitted'} &middot; {new Date(successInfo.submittedAt).toLocaleString('id-ID')}
+                </p>
+                {successInfo.id != null && (() => {
+                  // A link that opens this page with the status already checked — easy to keep or forward.
+                  const statusLink = typeof window === 'undefined' ? '' : `${window.location.origin}${API_BASE_PATH}/ijin-foto-video?type=${locale}&ref=${encodeURIComponent(successInfo.referenceCode)}`
+                  const copyLink = async () => {
+                    const ok = await copyText(statusLink)
+                    if (ok) {
+                      setLinkCopied(true)
+                      setTimeout(() => setLinkCopied(false), 2000)
+                    }
+                  }
+                  return (
+                    <div className="mt-2 pl-6 text-xs">
+                      <p>
+                        {isInternal ? 'Kode referensi: ' : 'Reference code: '}
+                        <strong className="font-mono text-sm select-all">{successInfo.referenceCode}</strong>
+                      </p>
+                      <p className="mt-1.5">{isInternal ? 'Link status pengajuan Anda — simpan atau bagikan:' : 'Your status link — keep or share it:'}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <a href={statusLink} className="min-w-0 break-all font-mono text-[11px] text-primary underline">{statusLink}</a>
+                        <button type="button" onClick={copyLink} className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-semibold text-foreground transition hover:bg-secondary cursor-pointer">
+                          {linkCopied ? (
+                            <>
+                              <Check className="size-3 text-emerald-600" />
+                              <span>{isInternal ? 'Tersalin' : 'Copied'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3 text-muted-foreground" />
+                              <span>{isInternal ? 'Salin link' : 'Copy link'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <p className="mt-1.5 text-muted-foreground">
+                        {successInfo.emailed
+                          ? (isInternal ? 'Hasil keputusan juga akan dikirim ke email Anda.' : 'The decision will also be sent to your email.')
+                          : (isInternal ? 'Buka link ini (atau "Cek status pengajuan saya" di atas) untuk melihat hasilnya atau membatalkan pengajuan.' : 'Open this link (or "Cek status pengajuan saya" above) to see the decision or cancel the request.')}
+                      </p>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
         </div>
       </form>
     </div>

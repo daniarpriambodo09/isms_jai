@@ -1,6 +1,7 @@
 // components/confirm-dialog.tsx
 'use client'
 
+import { useEffect } from 'react'
 import { AlertTriangle, HelpCircle, Loader2 } from 'lucide-react'
 import { useEscapeClose } from '@/hooks/useEscapeClose'
 
@@ -31,6 +32,15 @@ export function ConfirmDialog({
   confirmDisabled?: boolean
 }) {
   useEscapeClose(open && !pending, onCancel)
+
+  useEffect(() => {
+    if (!open) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [open])
 
   if (!open) return null
 

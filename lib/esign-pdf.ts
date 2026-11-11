@@ -45,7 +45,9 @@ import QRCode from 'qrcode'
 
 export type EsignRequestData = {
   id: number
+  requestType?: 'internal' | 'visitor'
   requesterName: string
+  nik?: string | null
   deptOrCompany: string
   dept: string | null
   fromAt: string
@@ -61,6 +63,7 @@ export type EsignRequestData = {
   /** PIC Pendamping picked by Lobby / Pos Security ("Nama (Dept)"), if any. */
   escort?: string | null
   cameraSerialNo: string | null
+  cameraControlNo?: string | null
 }
 
 const TEXT = rgb(0.07, 0.07, 0.07)
@@ -126,7 +129,9 @@ function fitOneLine(font: PDFFont, value: string, maxWidth: number, startSize: n
 }
 
 export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): Promise<Uint8Array> {
-  const templateBytes = await readFile(path.join(process.cwd(), 'templates', 'isms-f-010-008-visitor.pdf'))
+  const isInternal = data.requestType === 'internal'
+  const templateFileName = isInternal ? 'isms-f-010-008-karyawan.pdf' : 'isms-f-010-008-visitor.pdf'
+  const templateBytes = await readFile(path.join(process.cwd(), 'templates', templateFileName))
   const templateDoc = await PDFDocument.load(templateBytes)
   const [templatePage] = templateDoc.getPages()
 
@@ -160,8 +165,13 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
 
   text(fmtFreeDate(data.submittedAt), VALUE_X, 678.4)                                   // TANGGAL (Tanggal Pengajuan)
   text(data.requesterName, VALUE_X, 647.5, { f: bold })                                 // NAMA
-  text(data.deptOrCompany, VALUE_X, 616.8, { f: bold })                                 // NAMA ORGANISASI/PERUSAHAAN
-  text(data.dept ?? '-', VALUE_X, 586.0, { f: bold })                                   // DEPARTEMEN
+  if (isInternal) {
+    text(data.nik || '-', VALUE_X, 616.8, { f: bold })                                  // N I K (従業員番号)
+    text(data.dept || data.deptOrCompany || '-', VALUE_X, 586.0, { f: bold })           // DEPARTEMEN (所属部署)
+  } else {
+    text(data.deptOrCompany, VALUE_X, 616.8, { f: bold })                               // NAMA ORGANISASI/PERUSAHAAN
+    text(data.dept ?? '-', VALUE_X, 586.0, { f: bold })                                 // DEPARTEMEN
+  }
 
   // TANGGAL PENGAMBILAN — segmented DD / MM /20 YY on both sides of "~".
   // The template prints "/" and "/20" here at size 12.8, measured directly
@@ -206,11 +216,12 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   const SIGN_CELL = { top: 559.8, bottom: 498.9 }     // blank cell for the signature (QR)
   const NAME_CELL = { top: 497.2, bottom: 453.7 }     // approver's name + title
 
-  // Serial No. Kamera — centered in its blank cell (no ruled line/colon on
-  // the template; the whole cell is the fill-in area).
-  const serial = data.cameraSerialNo || '-'
-  const serialWidth = bold.widthOfTextAtSize(serial, 9.5)
-  text(serial, RIGHT_COL_X + (RIGHT_COL_W - serialWidth) / 2, 647, { f: bold })
+  // Serial No. KAMERA (Visitor) / CTRL No. KAMERA (Karyawan) — centered in its blank cell
+  const camNumber = isInternal
+    ? (data.cameraControlNo || data.cameraSerialNo || '-')
+    : (data.cameraSerialNo || data.cameraControlNo || '-')
+  const serialWidth = bold.widthOfTextAtSize(camNumber, 9.5)
+  text(camNumber, RIGHT_COL_X + (RIGHT_COL_W - serialWidth) / 2, 647, { f: bold })
 
   // TANGGAL (persetujuan) — segmented DD / MM /20 YY. Template prints
   // "/" and "/20" here at size 11.2 (measured); matched below so "26"
@@ -247,43 +258,50 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
     page.drawImage(qrImage, { x: qrX, y: toLocal(qrTop) - qrSize, width: qrSize, height: qrSize })
   }
 
-  // "TEGUH SUNJOYO" and "(Information Assets Administrator)" are static
-  // ink naming the approver at the time this template was printed — cover
-  // and replace with whoever actually decided this request (see file
-  // header comment). The cover is the name cell's interior only, so the
-  // ruled line under the QR and the bottom border stay intact.
-  coverWhite(RIGHT_COL_X, NAME_CELL.top, RIGHT_COL_W, NAME_CELL.top - NAME_CELL.bottom)
-
   const centeredAt = (value: string, size: number, yAbs: number, f = font) => {
     const w = f.widthOfTextAtSize(value, size)
     text(value, RIGHT_COL_X + Math.max(2, (RIGHT_COL_W - w) / 2), yAbs, { f, size })
   }
 
-  // Name (up to 2 lines) and title (up to 2 lines, in parentheses like the
-  // template's own "(Information Assets Administrator)") form one block,
-  // centered vertically in the name cell however many lines it takes.
-  const NAME_SIZE = 8.5
-  const NAME_LEADING = 9.5
-  const TITLE_GAP = 3
-  const ASCENT = 0.74 // baseline sits this fraction of the font size below a line's top
-  const nameLines = wrapToWidth(bold, data.approverFullName, RIGHT_COL_W - 8, NAME_SIZE).slice(0, 2)
-  // A long title shrinks a little before it is ever cut off at two lines.
-  let TITLE_SIZE = 7.5
-  const wrapTitle = () => (data.approverTitle ? wrapToWidth(font, `(${data.approverTitle})`, RIGHT_COL_W - 8, TITLE_SIZE) : [])
-  while (TITLE_SIZE > 6 && wrapTitle().length > 2) TITLE_SIZE -= 0.5
-  const titleLines = wrapTitle().slice(0, 2)
-  const TITLE_LEADING = TITLE_SIZE + 1
-  const blockHeight = nameLines.length * NAME_LEADING + (titleLines.length ? TITLE_GAP + titleLines.length * TITLE_LEADING : 0)
+  if (isInternal) {
+    // Karyawan template already has static Japanese/English role "DEPT. PROMOTER / 促進担当者".
+    // Approver's name is placed neatly above it at y=489.
+    const appFit = fitOneLine(bold, data.approverFullName, RIGHT_COL_W - 8, 8.5)
+    centeredAt(appFit.text, appFit.size, 489, bold)
+  } else {
+    // "TEGUH SUNJOYO" and "(Information Assets Administrator)" are static
+    // ink naming the approver at the time this template was printed — cover
+    // and replace with whoever actually decided this request (see file
+    // header comment). The cover is the name cell's interior only, so the
+    // ruled line under the QR and the bottom border stay intact.
+    coverWhite(RIGHT_COL_X, NAME_CELL.top, RIGHT_COL_W, NAME_CELL.top - NAME_CELL.bottom)
 
-  let lineTop = (NAME_CELL.top + NAME_CELL.bottom) / 2 + blockHeight / 2
-  for (const line of nameLines) {
-    centeredAt(line, NAME_SIZE, lineTop - NAME_SIZE * ASCENT, bold)
-    lineTop -= NAME_LEADING
-  }
-  lineTop -= TITLE_GAP
-  for (const line of titleLines) {
-    centeredAt(line, TITLE_SIZE, lineTop - TITLE_SIZE * ASCENT)
-    lineTop -= TITLE_LEADING
+    // Name (up to 2 lines) and title (up to 2 lines, in parentheses like the
+    // template's own "(Information Assets Administrator)") form one block,
+    // centered vertically in the name cell however many lines it takes.
+    const NAME_SIZE = 8.5
+    const NAME_LEADING = 9.5
+    const TITLE_GAP = 3
+    const ASCENT = 0.74 // baseline sits this fraction of the font size below a line's top
+    const nameLines = wrapToWidth(bold, data.approverFullName, RIGHT_COL_W - 8, NAME_SIZE).slice(0, 2)
+    // A long title shrinks a little before it is ever cut off at two lines.
+    let TITLE_SIZE = 7.5
+    const wrapTitle = () => (data.approverTitle ? wrapToWidth(font, `(${data.approverTitle})`, RIGHT_COL_W - 8, TITLE_SIZE) : [])
+    while (TITLE_SIZE > 6 && wrapTitle().length > 2) TITLE_SIZE -= 0.5
+    const titleLines = wrapTitle().slice(0, 2)
+    const TITLE_LEADING = TITLE_SIZE + 1
+    const blockHeight = nameLines.length * NAME_LEADING + (titleLines.length ? TITLE_GAP + titleLines.length * TITLE_LEADING : 0)
+
+    let lineTop = (NAME_CELL.top + NAME_CELL.bottom) / 2 + blockHeight / 2
+    for (const line of nameLines) {
+      centeredAt(line, NAME_SIZE, lineTop - NAME_SIZE * ASCENT, bold)
+      lineTop -= NAME_LEADING
+    }
+    lineTop -= TITLE_GAP
+    for (const line of titleLines) {
+      centeredAt(line, TITLE_SIZE, lineTop - TITLE_SIZE * ASCENT)
+      lineTop -= TITLE_LEADING
+    }
   }
 
   // ---------- Verification footnote, printed in the margin below the form ----------

@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
            photo_id_no = COALESCE($7, photo_id_no),
            usb_control_no = COALESCE($9, usb_control_no),
            smart_device_control_no = COALESCE($10, smart_device_control_no),
-           verification_code = CASE WHEN request_type = 'visitor' THEN $8 ELSE verification_code END,
+           verification_code = COALESCE(verification_code, $8),
            companions = COALESCE($11::jsonb, companions)
        WHERE id = $5 AND status = 'pending'
        RETURNING id`,

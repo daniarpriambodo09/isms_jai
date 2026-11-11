@@ -64,7 +64,7 @@ describe('IT Form Notes Formatting & Ruled Underlines Stamping', () => {
     expect(pdfBytes.length).toBeGreaterThan(1000)
   })
 
-  it('renders neatly for ISMS-F-010-006 with dual copy (Top & Bottom)', async () => {
+  it('renders neatly for ISMS-F-010-006 with cropped single copy', async () => {
     const subEmail: ItFormSubmission = {
       ...baseSub,
       form_code: 'ISMS-F-010-006',

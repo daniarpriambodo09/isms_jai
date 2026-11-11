@@ -268,6 +268,11 @@ export async function POST(request: NextRequest) {
     const staff = getKioskAdminFromRequest(request)
     const escort = staff ? parseEscort(body) : { name: null, dept: null }
 
+    const virusCheck = body.virusCheck === true || body.virus_check === true
+    const deleteOrFormat = typeof body.deleteOrFormat === 'string' && body.deleteOrFormat.trim()
+      ? body.deleteOrFormat.trim().slice(0, 50)
+      : (typeof body.delete_or_format === 'string' && body.delete_or_format.trim() ? body.delete_or_format.trim().slice(0, 50) : null)
+
     // Both internal and visitor requests get a token — allows direct auto-login decision via email
     const approvalToken = randomBytes(24).toString('hex')
 
@@ -305,14 +310,14 @@ export async function POST(request: NextRequest) {
     const result = await query<PhotoVideoRequestRow>(
       `INSERT INTO photo_video_requests
          (request_type, nik, requester_name, dept_or_company, dept, dept_pic_kamera, from_at, to_at, location, objective, pic_approve_id, approval_token, camera_serial_no, camera_control_no, pic_jai, photo_id_no, status, ref_token, requester_email,
-          escort_name, escort_dept, escort_set_by, escort_set_at, usb_control_no, smart_device_control_no, companions, decided_at, decided_by, decided_by_title, taken_at)
+          escort_name, escort_dept, escort_set_by, escort_set_at, usb_control_no, smart_device_control_no, companions, decided_at, decided_by, decided_by_title, taken_at, virus_check, delete_or_format)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
                $20::text, $21::text, CASE WHEN $20::text IS NULL THEN NULL ELSE $22::text END, CASE WHEN $20::text IS NULL THEN NULL ELSE now() END, $23, $24, $25::jsonb,
-               $26::timestamptz, $27::text, $28::text, $29::timestamptz)
+               $26::timestamptz, $27::text, $28::text, $29::timestamptz, $30, $31)
        RETURNING id`,
       [requestType, nik, requesterName, deptOrCompany, dept, deptPicKamera, fromAt, resolvedToAt, location, objective, picApproveId, approvalToken, cameraSerialNo, cameraControlNo, picJai, photoIdNo, status, refToken, requesterEmail,
         escort.name, escort.dept, staff?.username ?? null, usbControlNo, smartDeviceControlNo, JSON.stringify(companions),
-        decidedAt, decidedBy, decidedByTitle, takenAt]
+        decidedAt, decidedBy, decidedByTitle, takenAt, virusCheck, deleteOrFormat]
     )
     const created = await query<PhotoVideoRequestRow>(
       `SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`,

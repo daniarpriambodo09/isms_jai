@@ -68,3 +68,4 @@ describe('Esign PDF Generator (Visitor & Internal Karyawan)', () => {
     expect(Math.round(height)).toBe(409)
   })
 })
+

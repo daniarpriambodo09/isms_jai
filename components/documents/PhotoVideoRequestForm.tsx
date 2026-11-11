@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent, Fragment } from 'react'
-import { CalendarDays, Camera, Check, CheckCircle2, Clock, Copy, History, MapPin, ScanLine, Search, Send, UserPlus, X } from 'lucide-react'
+import { CalendarDays, Camera, Check, CheckCircle2, Clock, Copy, History, MapPin, ScanLine, Search, Send, ShieldCheck, UserPlus, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { cardsChanged } from '@/components/kiosk/kiosk-shared'
@@ -249,6 +249,8 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const [toTime, setToTime] = useState(() => hourAfter(nowTimeStr()))
   const [location, setLocation] = useState('')
   const [objective, setObjective] = useState('')
+  const [virusCheck, setVirusCheck] = useState(true)
+  const [deleteOrFormat, setDeleteOrFormat] = useState<'delete' | 'format' | 'both'>('delete')
   const [departments, setDepartments] = useState<Department[]>([])
   const [pics, setPics] = useState<Pic[]>([])
   const [cameras, setCameras] = useState<CameraItem[]>([])
@@ -348,6 +350,7 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
   const resetForm = () => {
     setNik(''); setRequesterName(''); setRequesterEmail(''); setDeptId(''); setSectionId(''); setCompanyName(''); setPhotoIdNo(''); setCompanions([]); setDept(''); setCameraSerialNo(''); setDeptPicKameraId(''); setSectionPicKameraId(''); setCameraControlNo(''); setUsbControlNo(''); setSmartDeviceControlNo(''); setPicApproveId('')
     setFromDate(todayDateStr()); setFromTime(nowTimeStr()); setToDate(todayDateStr()); setToTime(hourAfter(nowTimeStr())); setLocation(''); setObjective('')
+    setVirusCheck(true); setDeleteOrFormat('delete')
     setEscortChoice(''); setEscortName(''); setEscortDept('')
   }
 
@@ -385,6 +388,8 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         toAt: toDate && toTime ? new Date(`${toDate}T${toTime}`).toISOString() : '',
         location,
         objective,
+        virusCheck: isInternal ? virusCheck : false,
+        deleteOrFormat: isInternal ? deleteOrFormat : null,
         // Visitor requests are always routed to whichever PIC is configured
         // as the Visitor default — the server resolves it and ignores
         // picApproveId entirely for this type (see /api/photo-video-requests).
@@ -849,6 +854,95 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
                 <input value={objective} onChange={(e) => setObjective(e.target.value)} required className={inputClass} />
               </Field>
             </div>
+
+            {isInternal && (
+              <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4 sm:p-5 space-y-4">
+                <div className="flex items-center gap-2 border-b border-primary/15 pb-2.5">
+                  <ShieldCheck className="size-5 text-primary shrink-0" />
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+                      Pemeriksaan Keamanan ISMS (Komitmen Dokumentasi)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Wajib mematuhi SOP keamanan informasi JAI terkait pemindaian virus dan pembersihan media penyimpanan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {/* VIRUS CHECK */}
+                  <label className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 cursor-pointer hover:bg-secondary/40 transition">
+                    <input
+                      type="checkbox"
+                      checked={virusCheck}
+                      onChange={(e) => setVirusCheck(e.target.checked)}
+                      className="mt-0.5 size-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-foreground">VIRUS CHECK *)</span>
+                        <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                          virusCheck ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-secondary text-muted-foreground border-border'
+                        }`}>
+                          {virusCheck ? '[✓] Passed / Aman' : '[ ] Belum Dicek'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Memori / USB dipastikan bebas malware &amp; telah dipindai antivirus sebelum/sesudah data dipindahkan.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* DELETE / FORMAT */}
+                  <div className="rounded-xl border border-border bg-card p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-foreground">DELETE / FORMAT **)</span>
+                      <span className="font-mono text-[10px] text-sky-700 dark:text-sky-300 font-bold bg-sky-50 dark:bg-sky-950 px-1.5 py-0.5 rounded border border-sky-300">
+                        {deleteOrFormat === 'delete' ? 'DELETE' : deleteOrFormat === 'format' ? 'FORMAT' : 'DELETE & FORMAT'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Pilihan tindakan pembersihan media penyimpanan setelah disalin:
+                    </p>
+                    <div className="grid grid-cols-3 gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setDeleteOrFormat('delete')}
+                        className={`rounded-lg border px-2 py-2 text-center text-xs transition cursor-pointer ${
+                          deleteOrFormat === 'delete'
+                            ? 'border-sky-500 bg-sky-500/15 font-bold text-sky-700 dark:text-sky-300'
+                            : 'border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60'
+                        }`}
+                      >
+                        DELETE
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteOrFormat('format')}
+                        className={`rounded-lg border px-2 py-2 text-center text-xs transition cursor-pointer ${
+                          deleteOrFormat === 'format'
+                            ? 'border-sky-500 bg-sky-500/15 font-bold text-sky-700 dark:text-sky-300'
+                            : 'border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60'
+                        }`}
+                      >
+                        FORMAT
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteOrFormat('both')}
+                        className={`rounded-lg border px-2 py-2 text-center text-xs transition cursor-pointer ${
+                          deleteOrFormat === 'both'
+                            ? 'border-sky-500 bg-sky-500/15 font-bold text-sky-700 dark:text-sky-300'
+                            : 'border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/60'
+                        }`}
+                      >
+                        KEDUANYA
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div id="pv-step-3" className="scroll-mt-32 border-t border-border bg-secondary/25 px-6 py-4 sm:px-8">

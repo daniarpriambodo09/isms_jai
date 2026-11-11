@@ -230,17 +230,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ request: result.rows[0] })
   }
 
-  // Mark camera/USB returned — stamps actual return timestamp and updates to_at officially
+  // Mark camera/USB returned — stamps actual return timestamp and updates to_at officially.
+  // Can be executed by authenticated admin/approver OR without login by the lending department PIC directly from the recap ledger.
   if (action === 'mark-returned') {
     const session = getAnyAdminOrApproverFromRequest(request)
-    if (!session) return NextResponse.json({ message: 'Unauthorized.' }, { status: 401 })
 
     const returnTime = body?.returnTime && !Number.isNaN(Date.parse(body.returnTime))
       ? new Date(body.returnTime)
       : new Date()
     const returnNotes = typeof body?.returnNotes === 'string' && body.returnNotes.trim() ? body.returnNotes.trim() : null
-    const returnedBy = typeof body?.returnedBy === 'string' && body.returnedBy.trim() ? body.returnedBy.trim() : session.username
-    const virusCheck = Boolean(body?.virusCheck)
+    const returnedBy = typeof body?.returnedBy === 'string' && body.returnedBy.trim()
+      ? body.returnedBy.trim().slice(0, 150)
+      : (session?.username || '')
+
+    if (!returnedBy) {
+      return NextResponse.json({ message: 'Nama penerima / PIC departemen pemilik barang wajib diisi.' }, { status: 400 })
+    }
+
+    const virusCheck = body?.virusCheck !== undefined ? Boolean(body.virusCheck) : true
     const deleteOrFormat = typeof body?.deleteOrFormat === 'string' && body.deleteOrFormat.trim() ? body.deleteOrFormat.trim() : null
 
     const updated = await query<{ id: number; requester_name: string }>(
@@ -249,8 +256,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
            to_at = $2,
            returned_by = $3,
            return_notes = $4,
-           virus_check = $5,
-           delete_or_format = $6,
+           virus_check = COALESCE($5, virus_check, FALSE),
+           delete_or_format = COALESCE($6, delete_or_format),
            status = CASE WHEN status = 'pending' THEN 'approved' ELSE status END,
            decided_at = COALESCE(decided_at, $2),
            decided_by = COALESCE(decided_by, $3),
@@ -266,7 +273,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     )
     if (updated.rows.length === 0) return NextResponse.json({ message: 'Pengajuan tidak ditemukan atau belum disetujui.' }, { status: 404 })
 
-    await logActivity(session, 'update', 'photo_video_request', id, `Mencatat pengembalian kamera/USB "${updated.rows[0].requester_name}" oleh ${returnedBy} (Virus Check: ${virusCheck ? 'OK' : '-'}, Delete/Format: ${deleteOrFormat || '-'})`)
+    if (session) {
+      await logActivity(session, 'update', 'photo_video_request', id, `Mencatat pengembalian kamera/USB "${updated.rows[0].requester_name}" oleh ${returnedBy} (Virus Check: ${virusCheck ? 'OK' : '-'}, Delete/Format: ${deleteOrFormat || '-'})`)
+    }
     const result = await query(`SELECT ${SELECT_COLUMNS} FROM ${FROM_CLAUSE} WHERE r.id = $1`, [id])
     return NextResponse.json({ request: result.rows[0] })
   }

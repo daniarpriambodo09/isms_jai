@@ -5,7 +5,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { Aperture, ArrowRight, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, CheckCircle2, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, Laptop, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
+import { Aperture, ArrowRight, ArrowUpRight, Building2, ConciergeBell, CalendarDays, Camera, CheckCircle2, ChevronDown, ClipboardCheck, FileSignature, Gauge, History, Images, KeyRound, Laptop, LayoutList, LogOut, Mail, MailOpen, Menu, MessageSquare, Palette, Search, Settings, ShieldAlert, ShieldCheck, UserCheck, Users, X } from 'lucide-react'
 import { mainNav } from '@/lib/portal-data'
 import { DEFAULT_NAV_LABELS } from '@/lib/nav-labels'
 import { useAuth } from '@/context/AuthContext'
@@ -128,13 +128,14 @@ export function getAdminGroupsForRole(role?: string): AdminGroup[] {
       items: [
         { href: '/kelola-departemen', label: 'Manage Departments', hint: 'Daftar departemen & seksi kerja PT. JAI', icon: Building2 },
         { href: '/kelola-admin', label: 'Manage Admin Accounts', hint: 'Kelola akun admin, role & audit log aktivitas', icon: Users },
+        { href: '/pengaturan#ganti-password', label: 'Ganti Password Akun', hint: 'Ubah password akun admin Anda saat ini', icon: KeyRound },
         { href: '/kelola-pengesahan', label: 'Approver Pengesahan Prosedur', hint: 'Matriks alur approval prosedur ISMS', icon: ClipboardCheck },
       ],
     },
     {
       title: 'Content & Master Data',
       items: [
-        { href: '/pengaturan', label: 'Manage Menu & Forms CS', hint: 'Pengaturan isi menu & register form CS Control', icon: LayoutList },
+        { href: '/pengaturan', label: 'Pengaturan Menu & Form CS', hint: 'Pengaturan isi menu navbar & register form CS Control', icon: LayoutList },
         { href: '/kelola-hero-slides', label: 'Manage Hero Slides', hint: 'Video & gambar carousel pada halaman utama', icon: Images },
         { href: '/kelola-jadwal', label: 'Manage Schedules', hint: 'Jadwal audit internal, eksternal & training ISMS', icon: CalendarDays },
       ],

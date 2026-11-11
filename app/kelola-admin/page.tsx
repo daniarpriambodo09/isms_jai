@@ -3,6 +3,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import {
   Check,
   Copy,
@@ -11,6 +12,7 @@ import {
   Eye,
   EyeOff,
   History,
+  KeyRound,
   Loader2,
   Mail,
   Plus,
@@ -605,14 +607,23 @@ export default function KelolaAdminPage() {
                           </>
                         )}
                         {isSelf && !isEditing && (
-                          <button
-                            type="button"
-                            onClick={() => startEdit(admin)}
-                            title="Password akun sendiri diubah lewat Pengaturan"
-                            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary"
-                          >
-                            Ubah email
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href="/pengaturan#ganti-password"
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground cursor-pointer shadow-2xs"
+                              title="Buka form ganti password akun Anda"
+                            >
+                              <KeyRound className="size-3.5" />
+                              <span>Ganti Password</span>
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => startEdit(admin)}
+                              className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-secondary cursor-pointer"
+                            >
+                              Ubah email
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -674,7 +685,24 @@ export default function KelolaAdminPage() {
                             </>
                           )}
                         </div>
-                        {isSelf && <p className="mt-2 text-[11px] text-muted-foreground">Password akun Anda sendiri diubah lewat halaman Pengaturan.</p>}
+                        {isSelf && (
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-3 text-xs">
+                            <div className="flex items-center gap-2">
+                              <KeyRound className="size-4 text-primary shrink-0" />
+                              <div>
+                                <span className="font-bold text-foreground">Password Akun Anda Sendiri</span>
+                                <p className="text-[11px] text-muted-foreground">Untuk keamanan, password akun Anda sendiri diubah lewat halaman Pengaturan Akun.</p>
+                              </div>
+                            </div>
+                            <Link
+                              href="/pengaturan#ganti-password"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-xs hover:opacity-90 transition cursor-pointer"
+                            >
+                              <KeyRound className="size-3.5" />
+                              <span>Buka Form Ganti Password</span>
+                            </Link>
+                          </div>
+                        )}
                         {editError && <p className="mt-3 text-sm text-destructive">{editError}</p>}
                         <div className="mt-4 flex justify-end gap-2">
                           <button type="button" onClick={() => setEditingId(null)} className="rounded-lg border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">Batal</button>

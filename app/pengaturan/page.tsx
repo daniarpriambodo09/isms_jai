@@ -59,6 +59,15 @@ export default function PengaturanPage() {
       .finally(() => setFetchLoading(false))
   }, [])
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#ganti-password') {
+      const el = document.getElementById('ganti-password')
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100)
+      }
+    }
+  }, [])
+
   const handleChangePassword = async () => {
     setPasswordError('')
     if (!currentPassword) { setPasswordError('Password saat ini wajib diisi.'); setPasswordStatus('error'); return }
@@ -215,11 +224,11 @@ export default function PengaturanPage() {
         )}
 
         {/* Change password */}
-        <div className="mt-8 rounded-2xl border border-border bg-card shadow-sm">
-          <div className="flex items-center gap-2 border-b border-border px-5 py-4">
-            <KeyRound className="size-4 text-muted-foreground" />
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Ganti Password
+        <div id="ganti-password" className="mt-8 rounded-2xl border border-primary/30 bg-card shadow-sm scroll-mt-24">
+          <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-primary/5">
+            <KeyRound className="size-4 text-primary" />
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">
+              Ganti Password Akun Anda
             </p>
           </div>
 

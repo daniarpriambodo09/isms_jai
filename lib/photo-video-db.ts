@@ -111,6 +111,15 @@ export async function ensurePhotoVideoColumns(): Promise<void> {
         }
       }
 
+      // Self-heal: Ensure visitor auto-approved requests show official approver (Teguh Sunjoyo / IAA)
+      await query(`
+        UPDATE photo_video_requests
+        SET decided_by = 'Teguh Sunjoyo',
+            decided_by_title = 'Information Assets Administrator'
+        WHERE (decided_by ILIKE '%lobby%' OR decided_by ILIKE '%auto-approved%')
+          AND request_type = 'visitor';
+      `).catch(() => {})
+
       columnsEnsured = true
     } catch (error) {
       console.error('[photo-video-db] ensurePhotoVideoColumns error (non-fatal):', error)

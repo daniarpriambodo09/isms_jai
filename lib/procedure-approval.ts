@@ -224,6 +224,18 @@ export function ensureApprovalSchema() {
           approval_id integer NOT NULL REFERENCES procedure_approvals(id) ON DELETE CASCADE,
           replaced_at timestamptz NOT NULL DEFAULT now()
         )`)
+      // Self-heal: balance elf_date with the last approval date for all approved procedures and standards
+      await query(`
+        UPDATE procedure_documents d
+        SET elf_date = sub.last_date
+        FROM (
+          SELECT document_id, MAX(decided_at)::date AS last_date
+          FROM procedure_approvals
+          WHERE state = 'approved' AND decided_at IS NOT NULL
+          GROUP BY document_id
+        ) sub
+        WHERE d.id = sub.document_id AND d.approval_status = 'approved' AND d.elf_date <> sub.last_date
+      `).catch(() => {})
     })().catch((error) => {
       schemaReady = null
       throw error
@@ -1147,13 +1159,25 @@ export async function decideByToken(
   }
   if (outcome === 'approved') {
     // The document takes effect the day its last approver signs: Eff Date
-    // follows that date. (A Form Review filled in on the portal keeps the
-    // date written in the form itself.)
+    // follows that date and must always balance with the latest approval date!
     await query(
-      `UPDATE procedure_documents d SET elf_date = (now() AT TIME ZONE 'Asia/Jakarta')::date
-       WHERE d.id = $1 AND NOT EXISTS (SELECT 1 FROM document_review_forms f WHERE f.document_id = d.id)`,
+      `UPDATE procedure_documents d
+       SET elf_date = COALESCE(
+         (SELECT MAX(decided_at)::date FROM procedure_approvals WHERE document_id = d.id AND state = 'approved'),
+         (now() AT TIME ZONE 'Asia/Jakarta')::date
+       )
+       WHERE d.id = $1`,
       [view.document.id]
     ).catch((error) => console.error('[procedure-approval/effDate]', (error as Error).message))
+
+    // Also balance effective_date in document_review_forms if any exists
+    await query(
+      `UPDATE document_review_forms f
+       SET effective_date = (SELECT elf_date FROM procedure_documents WHERE id = f.document_id)
+       WHERE f.document_id = $1`,
+      [view.document.id]
+    ).catch(() => {})
+
     await notifyAdmins(view.document.id, 'approved')
     return { ok: true, message: 'Terima kasih — dokumen telah disahkan oleh seluruh approver.' }
   }

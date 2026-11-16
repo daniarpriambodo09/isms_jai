@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
   if (off) return NextResponse.json({ message: off }, { status: 403 })
 
   try {
+    await ensureRegistrationIdsColumns()
     const body = await request.json() as Partial<Record<'fullName' | 'idCard' | 'picJai' | 'purpose' | 'companyRemark' | 'cardType' | 'barcode' | 'station' | 'securityCardType' | 'visitDate' | 'securityCardBarcode', string>> & { companions?: unknown }
     // Where the guest is being registered ("Asal"): a kiosk account is its own
     // post; the ISM Admin works from whichever kiosk page they have open.
@@ -201,8 +202,36 @@ export async function POST(request: NextRequest) {
 
       const directVisitDate = parseVisitDate(body.visitDate)
       if (directVisitDate === undefined) return NextResponse.json({ message: 'Tanggal kunjungan tidak valid.' }, { status: 400 })
-      const directCompanions = parseCompanions(body.companions)
-      if (directCompanions === undefined) return NextResponse.json({ message: 'Data orang tambahan tidak valid: nama dan nomor KTP wajib diisi keduanya (maks. 20 orang).' }, { status: 400 })
+      const directCompanions = parseCompanions(body.companions, { allowOmitId: isAffiliate })
+      if (directCompanions === undefined) return NextResponse.json({ message: 'Data orang tambahan tidak valid (maks. 20 orang).' }, { status: 400 })
+
+      // Check companion barcodes for direct issue (1 orang 1 kartu)
+      const allBarcodes = [barcode]
+      for (const comp of directCompanions ?? []) {
+        if (comp.card_barcode) {
+          const compCode = normalizeCardNo(comp.card_barcode)
+          if (station === 'lobby') {
+            const wrong = lobbyCardProblem(compCode, cardType)
+            if (wrong) return NextResponse.json({ message: `Anggota ${comp.name}: ${wrong}` }, { status: 400 })
+          }
+          if (allBarcodes.includes(compCode)) {
+            return NextResponse.json({ message: `Barcode kartu "${compCode}" duplikat dalam rombongan ini.` }, { status: 400 })
+          }
+          allBarcodes.push(compCode)
+
+          const compCollision = await query(
+            `SELECT 1 FROM vendor_registrations WHERE stage = 'active' AND current_card_type = $1 AND ${column} = $2
+             UNION ALL
+             SELECT 1 FROM registration_ids c
+             JOIN vendor_registrations v ON v.id = c.registration_id
+             WHERE v.stage = 'active' AND c.card_barcode = $2 AND c.returned_at IS NULL`,
+            [cardType, compCode]
+          )
+          if (compCollision.rows.length > 0) {
+            return NextResponse.json({ message: `Barcode kartu "${compCode}" untuk ${comp.name} sedang digunakan oleh tamu lain.` }, { status: 409 })
+          }
+        }
+      }
 
       const direct = await withTransaction(async () => {
         const result = await query<VendorRegistrationRow>(
@@ -254,6 +283,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ registration: row }, { status: 201 })
   } catch (error) {
     console.error('[vendor-registrations/POST]', error)
-    return NextResponse.json({ message: 'Gagal menyimpan pendaftaran.' }, { status: 500 })
+    const errText = error instanceof Error ? error.message : 'Gagal menyimpan pendaftaran.'
+    return NextResponse.json({ message: 'Gagal menyimpan pendaftaran.', error: errText }, { status: 500 })
   }
 }

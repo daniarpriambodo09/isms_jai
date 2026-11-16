@@ -317,11 +317,17 @@ export function Navbar() {
     </>
   )
 
-  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs']
-  const isFormCsActive = formCsRoutes.includes(pathname)
+  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs', '/foto-video-internal', '/ijin-foto-video', '/rekap-foto-video']
+  const isFormCsActive = formCsRoutes.some((route) => pathname.startsWith(route))
   const formCsItems = (
     <>
       <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Application Form</Link>
+      <Link href="/foto-video-internal" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-primary font-semibold">
+        Izin Foto &amp; Video Internal (ISMS-F-010-008)
+      </Link>
+      <Link href="/rekap-foto-video" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">
+        Rekap Izin Foto &amp; Video
+      </Link>
       <Link href="/kontrol-cs" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">CS Control</Link>
     </>
   )

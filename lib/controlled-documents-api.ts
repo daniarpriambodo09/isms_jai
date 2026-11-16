@@ -61,7 +61,27 @@ async function withApprovals(rows: DocumentRow[]) {
   const steps = await currentStepsFor(rows.map((row) => row.id))
   const counts = await slotCounts(rows.map((row) => row.id))
   const history = await historyCounts(rows.map((row) => row.id))
-  return rows.map((row) => ({ ...row, approvals: steps.get(row.id) ?? [], slots_count: counts.get(row.id) ?? 0, history_count: history.get(row.id) ?? 0 }))
+  return rows.map((row) => {
+    const docSteps = steps.get(row.id) ?? []
+    let balancedElfDate = row.elf_date
+    if (row.approval_status === 'approved') {
+      const approvedSteps = docSteps.filter((s) => s.status === 'approved' && s.decided_at)
+      if (approvedSteps.length > 0) {
+        approvedSteps.sort((a, b) => new Date(b.decided_at!).getTime() - new Date(a.decided_at!).getTime())
+        const lastDecided = approvedSteps[0].decided_at
+        if (lastDecided) {
+          balancedElfDate = lastDecided.slice(0, 10)
+        }
+      }
+    }
+    return {
+      ...row,
+      elf_date: balancedElfDate,
+      approvals: docSteps,
+      slots_count: counts.get(row.id) ?? 0,
+      history_count: history.get(row.id) ?? 0,
+    }
+  })
 }
 
 const isUniqueViolation = (error: unknown) => (error as { code?: string } | null)?.code === '23505'

@@ -108,6 +108,20 @@ function groupByTitle(docs: ProcedureDocument[]): TitleGroup[] {
 // the last of them). Until then the register says so instead of a date.
 const effDateWaiting = (document: { approval_status: string }) => document.approval_status === 'pending' || document.approval_status === 'rejected'
 
+function getEffectiveDateStr(document: ProcedureDocument): string {
+  if (effDateWaiting(document)) return 'Menunggu pengesahan'
+  if (document.approval_status === 'approved' && Array.isArray(document.approvals)) {
+    const approvedSteps = document.approvals.filter((s) => s.status === 'approved' && s.decided_at)
+    if (approvedSteps.length > 0) {
+      approvedSteps.sort((a, b) => new Date(b.decided_at!).getTime() - new Date(a.decided_at!).getTime())
+      if (approvedSteps[0].decided_at) {
+        return formatDate(approvedSteps[0].decided_at)
+      }
+    }
+  }
+  return formatDate(document.elf_date)
+}
+
 export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }) {
   const kindInfo = DOC_KIND_INFO[kind]
   const listApi = `${API_BASE_PATH}${kindInfo.api}`
@@ -286,7 +300,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
     downloadExcel(
       `${kindInfo.path.slice(1)}-${new Date().toISOString().slice(0, 10)}.xlsx`,
       ['No.', 'No. Kontrol', 'Nama Dokumen', 'Revisi', 'Eff Date', 'Tanggal Upload', 'Catatan Pengesahan', 'Tampil ke Pengunjung', 'Note Dokumen'],
-      filteredDocuments.map((d) => [rowNumbers.get(d.title) ?? '', d.control_no, d.title, d.revision, effDateWaiting(d) ? 'Menunggu pengesahan' : formatDate(d.elf_date), formatDate(d.uploaded_at), approvalSummary(d), isPublished(d) ? 'Ya' : isHidden(d) ? 'Tidak (disembunyikan)' : 'Tidak (belum final)', d.note ?? ''])
+      filteredDocuments.map((d) => [rowNumbers.get(d.title) ?? '', d.control_no, d.title, d.revision, getEffectiveDateStr(d), formatDate(d.uploaded_at), approvalSummary(d), isPublished(d) ? 'Ya' : isHidden(d) ? 'Tidak (disembunyikan)' : 'Tidak (belum final)', d.note ?? ''])
     )
   }
 
@@ -521,7 +535,7 @@ export function ProcedureRegisterPage({ kind = 'procedure' }: { kind?: DocKind }
             </td>
             <td className="px-4 py-4 align-top text-muted-foreground max-[760px]:hidden">
               <div className="flex flex-col gap-1.5">
-                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{effDateWaiting(document) ? <span className="text-xs italic" title="Eff Date terisi otomatis dengan tanggal persetujuan approver terakhir">Menunggu pengesahan</span> : formatDate(document.elf_date)}</div>)}
+                {group.docs.map((document) => <div key={document.id} className="whitespace-nowrap py-0.5">{effDateWaiting(document) ? <span className="text-xs italic" title="Eff Date terisi otomatis dengan tanggal persetujuan approver terakhir">Menunggu pengesahan</span> : getEffectiveDateStr(document)}</div>)}
               </div>
             </td>
             <td className="px-4 py-4 align-top text-muted-foreground max-[760px]:hidden">

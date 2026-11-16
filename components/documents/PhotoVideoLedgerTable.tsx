@@ -541,21 +541,6 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                             </p>
                           )}
                         </div>
-                      ) : r.status === 'approved' ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPendingReturn(r)
-                            setReturnedBy('')
-                            setReturnNotes('')
-                            setReturnCondition('good')
-                            setReturnError(null)
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 text-xs font-bold shadow-xs transition cursor-pointer"
-                        >
-                          <RotateCcw className="size-3" />
-                          <span>Catat Kembali</span>
-                        </button>
                       ) : (
                         <span className="text-muted-foreground/60">—</span>
                       )}

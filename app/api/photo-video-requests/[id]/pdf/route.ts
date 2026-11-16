@@ -80,16 +80,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     )
 
     const rawDecidedBy = (row.decided_by || '').trim()
-    const isAdminGeneric = !rawDecidedBy || rawDecidedBy.toLowerCase() === 'admin' || rawDecidedBy.toLowerCase() === 'admin isms'
+    const isAutoOrGeneric = !rawDecidedBy
+      || rawDecidedBy.toLowerCase() === 'admin'
+      || rawDecidedBy.toLowerCase() === 'admin isms'
+      || rawDecidedBy.toLowerCase().includes('lobby')
+      || rawDecidedBy.toLowerCase().includes('auto-approved')
 
-    const approverFullName = (!isAdminGeneric && rawDecidedBy)
+    const approverFullName = (!isAutoOrGeneric && rawDecidedBy)
       ? rawDecidedBy
       : picResult.rows[0]?.full_name || picResult.rows[0]?.name || defApprover.rows[0]?.full_name || defApprover.rows[0]?.name || 'Teguh Sunjoyo'
 
-    const approverTitle = row.decided_by_title
-      || picResult.rows[0]?.title
-      || defApprover.rows[0]?.title
-      || (row.request_type === 'internal' ? 'Dept. Promoter' : 'Information Assets Administrator')
+    const approverTitle = (!isAutoOrGeneric && row.decided_by_title && !row.decided_by_title.toLowerCase().includes('reception'))
+      ? row.decided_by_title
+      : picResult.rows[0]?.title
+        || defApprover.rows[0]?.title
+        || (row.request_type === 'internal' ? 'Dept. Promoter' : 'Information Assets Administrator')
 
     const pdfBytes = await buildEsignPdf(
       {

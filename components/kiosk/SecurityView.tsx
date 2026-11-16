@@ -1180,7 +1180,7 @@ export function SecurityView() {
                         )}
                         {(r.companions?.length ?? 0) > 0 && r.companions?.some((c) => c.card_barcode) && (
                           <div className="mt-0.5 flex flex-wrap gap-1 font-mono text-[9px] text-muted-foreground">
-                            {r.companions.filter((c) => c.card_barcode).map((c, i) => (
+                            {(r.companions ?? []).filter((c) => c.card_barcode).map((c, i) => (
                               <span key={i} className="rounded bg-secondary/80 px-1 py-0.5" title={c.name}>
                                 {c.card_barcode}
                               </span>

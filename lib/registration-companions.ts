@@ -14,9 +14,23 @@ export async function ensureRegistrationIdsColumns(): Promise<void> {
   if (colsEnsured) return
   try {
     await query(`
+      CREATE TABLE IF NOT EXISTS registration_ids (
+        id serial PRIMARY KEY,
+        registration_id integer NOT NULL REFERENCES vendor_registrations(id) ON DELETE CASCADE,
+        name character varying(255) NOT NULL,
+        id_no character varying(255) NOT NULL,
+        card_barcode VARCHAR(100),
+        returned_at TIMESTAMPTZ
+      );
+      CREATE INDEX IF NOT EXISTS registration_ids_registration_idx ON registration_ids (registration_id);
       ALTER TABLE registration_ids
         ADD COLUMN IF NOT EXISTS card_barcode VARCHAR(100),
         ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ;
+      ALTER TABLE vendor_registrations
+        ADD COLUMN IF NOT EXISTS id_verified_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS id_verified_by VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS id_returned_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS security_card_barcode VARCHAR(50);
     `)
     colsEnsured = true
   } catch (err) {
@@ -26,20 +40,24 @@ export async function ensureRegistrationIdsColumns(): Promise<void> {
 
 // Extra people from a request body ([{ name, idNo, cardBarcode }]). Blank rows are dropped;
 // a half-filled row or a non-array -> undefined (reject with 400). Omitted -> null (leave as is).
-export function parseCompanions(value: unknown): Companion[] | null | undefined {
+export function parseCompanions(value: unknown, options?: { allowOmitId?: boolean }): Companion[] | null | undefined {
   if (value == null) return null
   if (!Array.isArray(value) || value.length > MAX_COMPANIONS) return undefined
+  const allowOmit = options?.allowOmitId === true
   const list: Companion[] = []
   for (const item of value) {
     const name = typeof item?.name === 'string' ? item.name.trim() : ''
-    const idNo = typeof item?.idNo === 'string' ? item.idNo.trim() : (typeof item?.id_no === 'string' ? item.id_no.trim() : '')
+    const rawId = typeof item?.idNo === 'string' ? item.idNo.trim() : (typeof item?.id_no === 'string' ? item.id_no.trim() : '')
     const cardBarcode = typeof item?.cardBarcode === 'string' && item.cardBarcode.trim()
       ? item.cardBarcode.trim()
       : (typeof item?.barcode === 'string' && item.barcode.trim()
           ? item.barcode.trim()
           : (typeof item?.card_barcode === 'string' && item.card_barcode.trim() ? item.card_barcode.trim() : null))
-    if (!name && !idNo && !cardBarcode) continue
-    if (!name || !idNo || name.length > 255 || idNo.length > 255) return undefined
+    if (!name && !rawId && !cardBarcode) continue
+    if (!name || name.length > 255) return undefined
+    if (!allowOmit && !rawId) return undefined
+    const idNo = rawId || '-'
+    if (idNo.length > 255) return undefined
     const itemObj: Companion = { name, id_no: idNo }
     if (cardBarcode) itemObj.card_barcode = cardBarcode
     list.push(itemObj)

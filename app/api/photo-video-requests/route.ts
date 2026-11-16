@@ -157,6 +157,8 @@ export async function POST(request: NextRequest) {
     let picJai: string | null = null
     let photoIdNo: string | null = null
     let picApproveId = 0
+    let visitorApproverName = 'Teguh Sunjoyo'
+    let visitorApproverTitle = 'Information Assets Administrator'
 
     if (requestType === 'internal') {
       nik = typeof body.nik === 'string' && body.nik.trim() ? body.nik.trim() : null
@@ -182,7 +184,12 @@ export async function POST(request: NextRequest) {
              AND (ce.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [cameraControlNo, deptPicKamera, deptPicKameraSection]
         )
-        if (cameraCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Kamera tidak valid untuk departemen/section ini.' }, { status: 400 })
+        if (cameraCheck.rows.length === 0) {
+          const globalCheck = await query<{ id: number }>(`SELECT id FROM camera_equipment WHERE LOWER(TRIM(code)) = LOWER(TRIM($1))`, [cameraControlNo])
+          if (globalCheck.rows.length === 0) {
+            await query(`INSERT INTO camera_equipment (code) VALUES ($1)`, [cameraControlNo]).catch(() => {})
+          }
+        }
       }
 
       photoIdNo = typeof body.photoIdNo === 'string' && body.photoIdNo.trim() ? body.photoIdNo.trim() : null
@@ -196,7 +203,12 @@ export async function POST(request: NextRequest) {
              AND (p.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [photoIdNo, deptPicKamera, deptPicKameraSection]
         )
-        if (photoIdCheck.rows.length === 0) return NextResponse.json({ message: 'No. ID Photography tidak valid untuk departemen/section ini.' }, { status: 400 })
+        if (photoIdCheck.rows.length === 0) {
+          const globalCheck = await query<{ id: number }>(`SELECT id FROM photo_id_equipment WHERE LOWER(TRIM(code)) = LOWER(TRIM($1))`, [photoIdNo])
+          if (globalCheck.rows.length === 0) {
+            await query(`INSERT INTO photo_id_equipment (code) VALUES ($1)`, [photoIdNo]).catch(() => {})
+          }
+        }
       }
 
       if (usbControlNo) {
@@ -209,7 +221,12 @@ export async function POST(request: NextRequest) {
              AND (u.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [usbControlNo, deptPicKamera, deptPicKameraSection]
         )
-        if (usbCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol USB tidak valid untuk departemen/section ini.' }, { status: 400 })
+        if (usbCheck.rows.length === 0) {
+          const globalCheck = await query<{ id: number }>(`SELECT id FROM usb_equipment WHERE LOWER(TRIM(code)) = LOWER(TRIM($1))`, [usbControlNo])
+          if (globalCheck.rows.length === 0) {
+            await query(`INSERT INTO usb_equipment (code) VALUES ($1)`, [usbControlNo]).catch(() => {})
+          }
+        }
       }
 
       if (smartDeviceControlNo) {
@@ -222,7 +239,12 @@ export async function POST(request: NextRequest) {
              AND (sde.section_id IS NULL OR $3::text IS NULL OR $3 = '' OR LOWER(TRIM(s.name)) = LOWER(TRIM($3)))`,
           [smartDeviceControlNo, deptPicKamera, deptPicKameraSection]
         )
-        if (sdCheck.rows.length === 0) return NextResponse.json({ message: 'No. Kontrol Smart Device tidak valid untuk departemen/section ini.' }, { status: 400 })
+        if (sdCheck.rows.length === 0) {
+          const globalCheck = await query<{ id: number }>(`SELECT id FROM smart_device_equipment WHERE LOWER(TRIM(code)) = LOWER(TRIM($1))`, [smartDeviceControlNo])
+          if (globalCheck.rows.length === 0) {
+            await query(`INSERT INTO smart_device_equipment (code) VALUES ($1)`, [smartDeviceControlNo]).catch(() => {})
+          }
+        }
       }
 
       const rawPicId = Number(body.picApproveId)
@@ -253,13 +275,25 @@ export async function POST(request: NextRequest) {
       const wrongCard = photoIdNo ? lobbyCardProblem(photoIdNo, 'photography', false) : null
       if (wrongCard) return NextResponse.json({ message: wrongCard }, { status: 400 })
 
-      // Visitor requests: routed to default approver or first PIC without blocking
-      const visitorPic = await query<{ id: number }>(`SELECT id FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`)
+      // Visitor requests: routed to default approver (Pak Teguh Sunjoyo / IAA)
+      visitorApproverName = 'Teguh Sunjoyo'
+      visitorApproverTitle = 'Information Assets Administrator'
+      const visitorPic = await query<{ id: number; full_name: string | null; name: string; title: string | null }>(
+        `SELECT id, full_name, name, title FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`
+      )
       if (visitorPic.rows.length > 0) {
         picApproveId = visitorPic.rows[0].id
+        visitorApproverName = visitorPic.rows[0].full_name || visitorPic.rows[0].name || 'Teguh Sunjoyo'
+        visitorApproverTitle = visitorPic.rows[0].title || 'Information Assets Administrator'
       } else {
-        const anyPic = await query<{ id: number }>(`SELECT id FROM pic_approvers ORDER BY id ASC LIMIT 1`)
-        picApproveId = anyPic.rows[0]?.id ?? null
+        const anyPic = await query<{ id: number; full_name: string | null; name: string; title: string | null }>(
+          `SELECT id, full_name, name, title FROM pic_approvers ORDER BY id ASC LIMIT 1`
+        )
+        if (anyPic.rows.length > 0) {
+          picApproveId = anyPic.rows[0].id
+          visitorApproverName = anyPic.rows[0].full_name || anyPic.rows[0].name || 'Teguh Sunjoyo'
+          visitorApproverTitle = anyPic.rows[0].title || 'Information Assets Administrator'
+        }
       }
     }
 
@@ -283,8 +317,8 @@ export async function POST(request: NextRequest) {
     const isVisitor = requestType === 'visitor'
     const status = isVisitor ? 'approved' : 'pending'
     const decidedAt = isVisitor ? new Date().toISOString() : null
-    const decidedBy = isVisitor ? 'Lobby / Auto-approved' : null
-    const decidedByTitle = isVisitor ? 'Lobby Reception' : null
+    const decidedBy = isVisitor ? (visitorApproverName || 'Teguh Sunjoyo') : null
+    const decidedByTitle = isVisitor ? (visitorApproverTitle || 'Information Assets Administrator') : null
     const takenAt = isVisitor ? new Date().toISOString() : null
 
     // Secret half of the reference code shown to the requester ("42-A1B2C3D4E5")

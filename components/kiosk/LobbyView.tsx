@@ -116,7 +116,7 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
   const [purpose, setPurpose] = useState('')
   const [companyRemark, setCompanyRemark] = useState('')
   const [visitDate, setVisitDate] = useState('')
-  const [companions, setCompanions] = useState<Array<{ name: string; idNo: string; idType: IdType }>>([])
+  const [companions, setCompanions] = useState<Array<{ name: string; idNo: string; idType: IdType; barcode?: string }>>([])
   const [barcode, setBarcode] = useState(initialBarcode)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -237,24 +237,56 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
       }
     }
 
-    // Validasi Rombongan
+    // Validasi Barcode Tamu Utama
+    if (!barcode.trim()) {
+      setError(`Barcode kartu ${label} Tamu Utama wajib diisi / di-scan.`)
+      return
+    }
+    if (cardProblem) {
+      setError(cardProblem)
+      return
+    }
+
+    // Validasi Barcode Kartu & Identitas Rombongan (1 orang 1 kartu)
+    const seenBarcodes = new Map<string, string>()
+    seenBarcodes.set(barcode.trim().toUpperCase(), 'Tamu Utama')
+
     for (let i = 0; i < companions.length; i++) {
       const c = companions[i]
       if (!c.name.trim()) {
         setError(`Nama lengkap Anggota Rombongan #${i + 2} wajib diisi.`)
         return
       }
-      const compIdErr = validateGuestId(c.idType, c.idNo, `Anggota Rombongan #${i + 2}`)
-      if (compIdErr) {
-        setError(compIdErr)
+      if (!isAffiliate) {
+        const compIdErr = validateGuestId(c.idType, c.idNo, `Anggota Rombongan #${i + 2}`)
+        if (compIdErr) {
+          setError(compIdErr)
+          return
+        }
+      }
+      if (!c.barcode || !c.barcode.trim()) {
+        setError(`Barcode kartu ${label} untuk Anggota Rombongan #${i + 2} (${c.name}) wajib di-scan atau diisi (1 orang 1 kartu).`)
         return
       }
+      const compBarcode = c.barcode.trim().toUpperCase()
+      if (station === 'lobby') {
+        const wrong = lobbyCardProblem(compBarcode, cardType as LobbyCardKind)
+        if (wrong) {
+          setError(`Anggota #${i + 2} (${c.name}): ${wrong}`)
+          return
+        }
+      }
+      if (seenBarcodes.has(compBarcode)) {
+        setError(`Barcode kartu "${compBarcode}" terdeteksi ganda antara ${seenBarcodes.get(compBarcode)} dan Anggota Rombongan #${i + 2}. Setiap orang wajib mendapatkan 1 kartu masing-masing.`)
+        return
+      }
+      seenBarcodes.set(compBarcode, `Anggota #${i + 2}`)
     }
 
-    // Deteksi Identitas Duplikat dalam Rombongan
-    if (!isAffiliate || companions.length > 0) {
+    // Deteksi Identitas Duplikat dalam Rombongan (hanya non-Affiliate)
+    if (!isAffiliate) {
       const allFormatted = [
-        ...(!isAffiliate ? [{ who: 'Tamu Utama', val: formatIdCardValue(mainIdType, mainIdNo) }] : []),
+        { who: 'Tamu Utama', val: formatIdCardValue(mainIdType, mainIdNo) },
         ...companions.map((c, i) => ({ who: `Anggota Rombongan #${i + 2}`, val: formatIdCardValue(c.idType, c.idNo) })),
       ]
       const seenMap = new Map<string, string>()
@@ -282,7 +314,8 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
       const formattedIdCard = isAffiliate ? '-' : formatIdCardValue(mainIdType, mainIdNo)
       const formattedCompanions = companions.map((c) => ({
         name: c.name.trim(),
-        idNo: formatIdCardValue(c.idType, c.idNo),
+        idNo: isAffiliate ? '-' : formatIdCardValue(c.idType, c.idNo),
+        cardBarcode: c.barcode?.trim() || null,
       }))
 
       const payload = {
@@ -294,7 +327,7 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
         visitDate,
         companions: formattedCompanions,
         cardType,
-        barcode,
+        barcode: barcode.trim(),
         station,
       }
 
@@ -355,12 +388,12 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
                     Identitas Tamu {companions.length > 0 ? `(1 Tamu Utama + ${companions.length} Rombongan)` : '(1 Tamu)'}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
-                    Format KTP 16 digit, SIM, atau Paspor dengan validasi ketat
+                    {isAffiliate ? 'Khusus Affiliate (tanpa kartu identitas / KTP)' : 'Format KTP 16 digit, SIM, atau Paspor dengan validasi ketat'}
                   </span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setCompanions([...companions, { name: '', idNo: '', idType: 'ktp' }])}
+                  onClick={() => setCompanions([...companions, { name: '', idNo: '', idType: 'ktp', barcode: '' }])}
                   disabled={companions.length >= MAX_COMPANIONS}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
                 >
@@ -482,7 +515,7 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className={`grid grid-cols-1 ${!isAffiliate ? 'sm:grid-cols-2' : ''} gap-2.5`}>
                         <label className="block">
                           <span className="text-[11px] font-semibold text-muted-foreground block mb-1">Nama Lengkap</span>
                           <input
@@ -500,51 +533,84 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
                           />
                         </label>
 
-                        <label className="block">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[11px] font-semibold text-muted-foreground">Kartu Identitas</span>
-                            <div className="flex gap-1 text-[10px] font-bold">
-                              {(['ktp', 'sim', 'paspor'] as const).map((t) => (
-                                <button
-                                  key={t}
-                                  type="button"
-                                  onClick={() => handleCompanionIdTypeChange(i, t)}
-                                  className={`px-1.5 py-0.5 rounded transition ${
-                                    c.idType === t
-                                      ? 'bg-primary text-primary-foreground font-bold'
-                                      : 'bg-secondary text-muted-foreground hover:text-foreground'
+                        {!isAffiliate && (
+                          <label className="block">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] font-semibold text-muted-foreground">Kartu Identitas</span>
+                              <div className="flex gap-1 text-[10px] font-bold">
+                                {(['ktp', 'sim', 'paspor'] as const).map((t) => (
+                                  <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => handleCompanionIdTypeChange(i, t)}
+                                    className={`px-1.5 py-0.5 rounded transition ${
+                                      c.idType === t
+                                        ? 'bg-primary text-primary-foreground font-bold'
+                                        : 'bg-secondary text-muted-foreground hover:text-foreground'
+                                    }`}
+                                  >
+                                    {t.toUpperCase()}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="relative">
+                              <input
+                                value={c.idNo}
+                                onChange={(e) => handleCompanionIdChange(i, e.target.value)}
+                                placeholder={
+                                  c.idType === 'ktp'
+                                    ? '16 Digit NIK KTP...'
+                                    : c.idType === 'sim'
+                                    ? '12-14 Digit No. SIM...'
+                                    : 'Nomor Paspor (WNA)...'
+                                }
+                                required
+                                className={`${inputClass} ${c.idType === 'ktp' ? 'pr-14' : ''}`}
+                              />
+                              {c.idType === 'ktp' && (
+                                <span
+                                  className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-semibold ${
+                                    c.idNo.length === 16
+                                      ? 'text-emerald-600 dark:text-emerald-400'
+                                      : 'text-muted-foreground'
                                   }`}
                                 >
-                                  {t.toUpperCase()}
-                                </button>
-                              ))}
+                                  {c.idNo.length}/16
+                                </span>
+                              )}
                             </div>
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Scan Barcode Kartu per Anggota Rombongan (1 orang 1 kartu) */}
+                      <div className="mt-2.5 pt-2.5 border-t border-border/50">
+                        <label className="block">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                              <ScanLine className="size-3.5 text-primary" />
+                              <span>Barcode Kartu {label} (Anggota #{i + 2})</span>
+                            </span>
+                            <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-md">
+                              Scan Barcode / Ketik
+                            </span>
                           </div>
                           <div className="relative">
+                            <ScanLine className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                             <input
-                              value={c.idNo}
-                              onChange={(e) => handleCompanionIdChange(i, e.target.value)}
-                              placeholder={
-                                c.idType === 'ktp'
-                                  ? '16 Digit NIK KTP...'
-                                  : c.idType === 'sim'
-                                  ? '12-14 Digit No. SIM...'
-                                  : 'Nomor Paspor (WNA)...'
+                              value={c.barcode || ''}
+                              onChange={(e) =>
+                                setCompanions(
+                                  companions.map((comp, idx) =>
+                                    idx === i ? { ...comp, barcode: e.target.value } : comp
+                                  )
+                                )
                               }
+                              placeholder={`Scan / ketik nomor kartu ${label} anggota #${i + 2}...`}
                               required
-                              className={`${inputClass} ${c.idType === 'ktp' ? 'pr-14' : ''}`}
+                              className={`${inputClass} pl-9 font-mono uppercase`}
                             />
-                            {c.idType === 'ktp' && (
-                              <span
-                                className={`absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-mono font-semibold ${
-                                  c.idNo.length === 16
-                                    ? 'text-emerald-600 dark:text-emerald-400'
-                                    : 'text-muted-foreground'
-                                }`}
-                              >
-                                {c.idNo.length}/16
-                              </span>
-                            )}
                           </div>
                         </label>
                       </div>
@@ -593,7 +659,7 @@ function QuickCardModal({ cardType, station, initialBarcode = '', onClose, onSav
 
             {/* 6. Barcode Kartu */}
             <label className="block">
-              <span className={labelClass}>Barcode Kartu {label}</span>
+              <span className={labelClass}>Barcode Kartu {label} {companions.length > 0 ? '(Tamu Utama)' : ''}</span>
               <div className="relative">
                 <ScanLine className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -840,7 +906,7 @@ function DetailPanel({ registration, onClose, onChanged }: { registration: Regis
           {row('Tujuan :', registration.purpose)}
           {row('Keterangan :', registration.company_remark)}
           {registration.visit_date && row('Tgl Kunjungan :', formatVisitDate(registration.visit_date))}
-          {(registration.companions?.length ?? 0) > 0 && row('Orang Tambahan :', registration.companions!.map((c) => `${c.name} (${c.id_no})`).join(', '))}
+          {(registration.companions?.length ?? 0) > 0 && row('Orang Tambahan :', (registration.companions ?? []).map((c) => `${c.name} (${c.id_no})`).join(', '))}
           {row('Status KTP :', idStatusText(registration))}
           {row('Status :', status.label)}
           {row('Jam Masuk :', formatDateTime(registration.entry_at))}

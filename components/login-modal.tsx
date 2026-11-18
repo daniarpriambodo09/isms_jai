@@ -57,7 +57,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         <AuthSplitLogin
           eyebrow="Admin Portal Otorisasi"
           title={<>Selamat Datang <span className="text-blue-400">Kembali</span></>}
-          subtitle="Masuk untuk mengelola Portal ISMS — atau, dengan akun approver, untuk menyetujui dokumen di Persetujuan Saya."
+          subtitle="Masuk untuk mengelola Portal ISMS sesuai hak akses operasional Anda."
           successSubtitle="Mengalihkan ke Portal ISMS…"
           onSuccess={finish}
           accessSelector

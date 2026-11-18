@@ -310,16 +310,13 @@ export async function POST(request: NextRequest) {
     // Both internal and visitor requests get a token — allows direct auto-login decision via email
     const approvalToken = randomBytes(24).toString('hex')
 
-    // For Visitor: Physical Photography ID card is handed at Lobby with a barcode.
-    // It is directly active/approved so the visitor can take photos right away and
-    // exchange/return the card at the Lobby kiosk without waiting for Admin ISMS approval.
-    // Admin ISMS monitors the form in the dashboard.
-    const isVisitor = requestType === 'visitor'
-    const status = isVisitor ? 'approved' : 'pending'
-    const decidedAt = isVisitor ? new Date().toISOString() : null
-    const decidedBy = isVisitor ? (visitorApproverName || 'Teguh Sunjoyo') : null
-    const decidedByTitle = isVisitor ? (visitorApproverTitle || 'Information Assets Administrator') : null
-    const takenAt = isVisitor ? new Date().toISOString() : null
+    // Both Internal and Visitor requests start in 'pending' status.
+    // The official approval barcode/QR is generated ONLY AFTER the approver approves it.
+    const status = 'pending'
+    const decidedAt = null
+    const decidedBy = null
+    const decidedByTitle = null
+    const takenAt = null
 
     // Secret half of the reference code shown to the requester ("42-A1B2C3D4E5")
     const refToken = randomBytes(5).toString('hex').toUpperCase()
@@ -358,11 +355,12 @@ export async function POST(request: NextRequest) {
       [result.rows[0].id]
     )
 
-    if (requestType === 'visitor' && !isVisitor) {
-      await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken })
+    if (requestType === 'visitor') {
+      await notifyVisitorApprover({ ...created.rows[0], approval_token: approvalToken }, request.nextUrl.origin)
+    } else {
+      // Bell + (Internal) e-mail to the ISM Admins and PIC Dept approver.
+      await notifyNewPhotoRequest(created.rows[0].id)
     }
-    // Bell + (Internal) e-mail to the ISM Admins who decide it / monitor it.
-    await notifyNewPhotoRequest(created.rows[0].id)
 
     return NextResponse.json({ request: created.rows[0], referenceCode: `${created.rows[0].id}-${refToken}` }, { status: 201 })
   } catch (error) {
@@ -377,20 +375,31 @@ export async function POST(request: NextRequest) {
 // Best-effort email to the configured Visitor approver — failures are
 // logged, never surfaced to the requester, since the submission itself
 // already succeeded (the DB row is the source of truth either way).
-async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approval_token: string | null }) {
+async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approval_token: string | null }, fallbackOrigin?: string) {
   try {
-    const picResult = await query<{ email: string | null; full_name: string | null; name: string; salutation: string | null }>(
+    let picResult = await query<{ email: string | null; full_name: string | null; name: string; salutation: string | null }>(
       `SELECT email, full_name, name, salutation FROM pic_approvers WHERE id = $1`,
       [requestRow.pic_approve_id]
     )
+    if (!picResult.rows[0]?.email) {
+      picResult = await query<{ email: string | null; full_name: string | null; name: string; salutation: string | null }>(
+        `SELECT email, full_name, name, salutation FROM pic_approvers WHERE is_visitor_default = true LIMIT 1`
+      )
+    }
     const pic = picResult.rows[0]
-    if (!pic?.email) return
+    if (!pic?.email) {
+      console.warn('[notifyVisitorApprover] Approver email is missing in pic_approvers')
+      return
+    }
 
     const settings = await getSmtpSettings()
-    if (!settings || !settings.host || !settings.port || !settings.senderEmail) return
+    if (!settings || !settings.host || !settings.port || !settings.senderEmail) {
+      console.warn('[notifyVisitorApprover] SMTP settings not configured or missing host/port/senderEmail')
+      return
+    }
     if (!requestRow.approval_token) return
 
-    const base = resolveAppBaseUrl(settings.appUrl)
+    const base = resolveAppBaseUrl(settings.appUrl, fallbackOrigin)
     const approvePath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(requestRow.approval_token)}&action=approve`
     const rejectPath = `${API_BASE_PATH}/konfirmasi-approval?token=${encodeURIComponent(requestRow.approval_token)}&action=reject`
     const approveUrl = `${base}${API_BASE_PATH}/api/auth/approver-token-login?token=${encodeURIComponent(requestRow.approval_token)}&next=${encodeURIComponent(approvePath)}`
@@ -408,7 +417,6 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
       location: requestRow.location,
       objective: requestRow.objective,
       // "PIC JAI" in the e-mail is the PIC Pendamping JAI chosen on the form
-      // (requests from before that field was removed still carry their own).
       picJai: requestRow.escort_name
         ? `${requestRow.escort_name}${requestRow.escort_dept ? ` (${requestRow.escort_dept})` : ''}`
         : requestRow.pic_jai ?? 'Belum ditentukan',
@@ -417,14 +425,14 @@ async function notifyVisitorApprover(requestRow: PhotoVideoRequestRow & { approv
       dashboardUrl,
     })
 
-    // Attached (not linked) — see the comment on LOGO_CID for why an
-    // external <img src> can never load here.
+    // Attached (not linked)
     await sendMail(settings, {
       to: pic.email,
       subject,
       html,
       attachments: [{ filename: 'yazaki-logo.jpg', path: path.join(process.cwd(), 'public', 'images', 'yazaki-logo.jpg'), cid: LOGO_CID }],
     })
+    console.log(`[notifyVisitorApprover] Email sent successfully to ${pic.email} for request #${requestRow.id}`)
   } catch (error) {
     console.error('[photo-video-requests/notifyVisitorApprover]', error)
   }

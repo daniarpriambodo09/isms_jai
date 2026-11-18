@@ -67,5 +67,21 @@ describe('Esign PDF Generator (Visitor & Internal Karyawan)', () => {
     expect(Math.round(width)).toBe(595)
     expect(Math.round(height)).toBe(409)
   })
+
+  it('generates pending status PDF cleanly without approval signature', async () => {
+    const pdfBytes = await buildEsignPdf(
+      {
+        ...baseData,
+        status: 'pending',
+        decidedAt: null,
+      },
+      ''
+    )
+    expect(pdfBytes).toBeDefined()
+    expect(Buffer.from(pdfBytes.slice(0, 5)).toString()).toBe('%PDF-')
+
+    const doc = await PDFDocument.load(pdfBytes)
+    expect(doc.getPageCount()).toBe(1)
+  })
 })
 

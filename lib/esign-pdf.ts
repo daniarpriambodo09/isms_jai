@@ -54,11 +54,11 @@ export type EsignRequestData = {
   toAt: string
   location: string
   objective: string
-  status: 'approved' | 'rejected'
-  decidedAt: string
+  status: 'approved' | 'rejected' | 'pending'
+  decidedAt?: string | null
   approverFullName: string
   approverTitle: string | null
-  verificationCode: string
+  verificationCode?: string | null
   submittedAt: string
   /** PIC Pendamping picked by Lobby / Pos Security ("Nama (Dept)"), if any. */
   escort?: string | null
@@ -223,32 +223,37 @@ export async function buildEsignPdf(data: EsignRequestData, verifyUrl: string): 
   const serialWidth = bold.widthOfTextAtSize(camNumber, 9.5)
   text(camNumber, RIGHT_COL_X + (RIGHT_COL_W - serialWidth) / 2, 647, { f: bold })
 
-  // TANGGAL (persetujuan) — segmented DD / MM /20 YY. Template prints
-  // "/" and "/20" here at size 11.2 (measured); matched below so "26"
-  // reads as part of the same date, not a smaller mismatched digit stuck
-  // on afterward.
+  // TANGGAL (persetujuan) — segmented DD / MM /20 YY. Hanya dicetak jika sudah disetujui
   const APPROVAL_DATE_SIZE = 10.5
-  const decidedDmy = dmy(data.decidedAt)
-  text(decidedDmy.dd, 471, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
-  text(decidedDmy.mm, 502, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
-  text(decidedDmy.yy, 538, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
-
-  // "MENYETUJUI, 撮影・録音許可" already reads correctly for an approval, so
-  // it's left as the template's own untouched content there — only a
-  // REJECTED outcome needs covering and replacing, since printing
-  // "approving" text unchanged on a rejection would misrepresent it.
   const isApproved = data.status === 'approved'
-  if (!isApproved) {
+  const isRejected = data.status === 'rejected'
+  const isPending = data.status === 'pending' || (!isApproved && !isRejected)
+
+  if (isApproved && data.decidedAt) {
+    const decidedDmy = dmy(data.decidedAt)
+    text(decidedDmy.dd, 471, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
+    text(decidedDmy.mm, 502, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
+    text(decidedDmy.yy, 538, 603.0, { f: bold, size: APPROVAL_DATE_SIZE })
+  }
+
+  // Header status & signature cell
+  if (isRejected) {
     coverWhite(RIGHT_COL_X, HEADER_CELL.top, RIGHT_COL_W, HEADER_CELL.top - HEADER_CELL.bottom)
     const statusLabel = 'DITOLAK'
     const statusWidth = bold.widthOfTextAtSize(statusLabel, 11)
     text(statusLabel, RIGHT_COL_X + (RIGHT_COL_W - statusWidth) / 2, (HEADER_CELL.top + HEADER_CELL.bottom) / 2 - 11 * 0.36, { f: bold, size: 11, color: CRIMSON })
+    coverWhite(RIGHT_COL_X, SIGN_CELL.top, RIGHT_COL_W, SIGN_CELL.top - SIGN_CELL.bottom)
+  } else if (isPending) {
+    coverWhite(RIGHT_COL_X, HEADER_CELL.top, RIGHT_COL_W, HEADER_CELL.top - HEADER_CELL.bottom)
+    const statusLabel = 'MENUNGGU PERSETUJUAN'
+    const statusWidth = bold.widthOfTextAtSize(statusLabel, 6.8)
+    text(statusLabel, RIGHT_COL_X + (RIGHT_COL_W - statusWidth) / 2, (HEADER_CELL.top + HEADER_CELL.bottom) / 2 - 6.8 * 0.36, { f: bold, size: 6.8, color: rgb(0.85, 0.45, 0.05) })
+    // Tutup ruang tanda tangan agar kosong dan bersih tanpa barcode
+    coverWhite(RIGHT_COL_X, SIGN_CELL.top, RIGHT_COL_W, SIGN_CELL.top - SIGN_CELL.bottom)
   }
 
-  // QR (the "signature") only makes sense for an approval — a rejection
-  // never had anything to sign, so its e-sign area stays blank rather than
-  // printing a barcode that would visually suggest something was approved.
-  if (isApproved) {
+  // QR (the "signature") hanya dicetak bila SUDAH APPROVED
+  if (isApproved && verifyUrl) {
     const qrDataUrl = await QRCode.toDataURL(verifyUrl, { margin: 1, width: 300 })
     const qrImage = await pdf.embedPng(Buffer.from(qrDataUrl.split(',')[1], 'base64'))
     // Centered in the signature cell, clear of the lines above and below it.

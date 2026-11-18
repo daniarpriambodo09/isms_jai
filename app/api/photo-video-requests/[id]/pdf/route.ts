@@ -115,7 +115,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         toAt: row.to_at,
         location: row.location,
         objective: row.objective,
-        status: row.status as 'approved' | 'rejected',
+        status: (row.status || 'pending') as 'approved' | 'rejected' | 'pending',
         decidedAt: row.decided_at,
         approverFullName,
         approverTitle,

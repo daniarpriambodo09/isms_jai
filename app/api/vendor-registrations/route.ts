@@ -127,7 +127,14 @@ export async function GET(request: NextRequest) {
       : await query<VendorRegistrationRow>(`SELECT ${SELECT_COLUMNS} FROM vendor_registrations ${whereClause} ORDER BY registered_at ${sort}`, values)
     const registrations = session
       ? result.rows
-      : result.rows.map((row) => ({ ...row, id_card: maskIdCard(row.id_card), companions: row.companions.map((c) => ({ ...c, id_no: maskIdCard(c.id_no) })) }))
+      : result.rows.map((row) => ({
+          ...row,
+          id_card: maskIdCard(row.id_card),
+          companions: (Array.isArray(row.companions) ? row.companions : []).map((c) => ({
+            ...c,
+            id_no: maskIdCard(c?.id_no ?? ''),
+          })),
+        }))
     if (!hasPagination) return NextResponse.json({ registrations })
 
     const [totalResult, yearsResult] = await Promise.all([
@@ -264,6 +271,8 @@ export async function POST(request: NextRequest) {
 
     const isDirectActive = Boolean(securityCardBarcode)
     const stage = isDirectActive ? 'active' : 'pending_approval'
+    const entryAt = isDirectActive ? new Date() : null
+    const currentCardType = isDirectActive ? securityCardType : null
     const column = SEC_CARD_COLUMN[securityCardType]
 
     const row = await withTransaction(async () => {
@@ -272,9 +281,9 @@ export async function POST(request: NextRequest) {
            full_name, id_card, pic_jai, purpose, company_remark, created_by, registered_station,
            security_card_type, visit_date, security_card_barcode, ${column}, stage, entry_at, current_card_type
          )
-         VALUES ($1, $2, $3, $4, $5, $6, 'security', $7, $8, $9, $9, $10, CASE WHEN $10 = 'active' THEN now() ELSE NULL END, CASE WHEN $10 = 'active' THEN $7 ELSE NULL END)
+         VALUES ($1, $2, $3, $4, $5, $6, 'security', $7, $8, $9, $9, $10, $11, $12)
          RETURNING ${SELECT_COLUMNS}`,
-        [fullName, idCard, picJai, purpose, companyRemark, session.username, securityCardType, visitDate, securityCardBarcode, stage]
+        [fullName, idCard, picJai, purpose, companyRemark, session.username, securityCardType, visitDate, securityCardBarcode, stage, entryAt, currentCardType]
       )
       await replaceCompanions(result.rows[0].id, companions ?? [])
       return { ...result.rows[0], companions: companions ?? [] }

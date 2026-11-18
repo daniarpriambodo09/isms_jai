@@ -448,7 +448,7 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
                             </p>
                           )}
                         </div>
-                      ) : r.status === 'approved' ? (
+                      ) : (r.status === 'approved' && locale === 'internal' && r.request_type === 'internal') ? (
                         <button
                           type="button"
                           onClick={() => {

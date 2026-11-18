@@ -84,17 +84,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       || rawDecidedBy.toLowerCase() === 'admin'
       || rawDecidedBy.toLowerCase() === 'admin isms'
       || rawDecidedBy.toLowerCase().includes('lobby')
-      || rawDecidedBy.toLowerCase().includes('auto-approved')
+      || rawDecidedBy.toLowerCase().includes('auto')
 
-    const approverFullName = (!isAutoOrGeneric && rawDecidedBy)
-      ? rawDecidedBy
-      : picResult.rows[0]?.full_name || picResult.rows[0]?.name || defApprover.rows[0]?.full_name || defApprover.rows[0]?.name || 'Teguh Sunjoyo'
+    // For visitor requests, the official approver on the form is always Pak Teguh Sunjoyo (IAA)
+    const isVisitor = row.request_type === 'visitor'
 
-    const approverTitle = (!isAutoOrGeneric && row.decided_by_title && !row.decided_by_title.toLowerCase().includes('reception'))
-      ? row.decided_by_title
-      : picResult.rows[0]?.title
-        || defApprover.rows[0]?.title
-        || (row.request_type === 'internal' ? 'Dept. Promoter' : 'Information Assets Administrator')
+    const approverFullName = isVisitor
+      ? (picResult.rows[0]?.full_name || picResult.rows[0]?.name || defApprover.rows[0]?.full_name || defApprover.rows[0]?.name || 'Teguh Sunjoyo')
+      : (!isAutoOrGeneric && rawDecidedBy)
+        ? rawDecidedBy
+        : picResult.rows[0]?.full_name || picResult.rows[0]?.name || defApprover.rows[0]?.full_name || defApprover.rows[0]?.name || 'Teguh Sunjoyo'
+
+    const approverTitle = isVisitor
+      ? (picResult.rows[0]?.title || defApprover.rows[0]?.title || 'Information Assets Administrator')
+      : (!isAutoOrGeneric && row.decided_by_title && !row.decided_by_title.toLowerCase().includes('reception'))
+        ? row.decided_by_title
+        : picResult.rows[0]?.title
+          || defApprover.rows[0]?.title
+          || (row.request_type === 'internal' ? 'Dept. Promoter' : 'Information Assets Administrator')
 
     const pdfBytes = await buildEsignPdf(
       {

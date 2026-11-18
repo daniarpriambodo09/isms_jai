@@ -57,6 +57,13 @@ function parseNote(raw: FormDataEntryValue | null) {
   return typeof raw === 'string' && raw.trim() ? raw.trim().slice(0, 1000) : null
 }
 
+function toIsoDateStr(val: unknown): string | null {
+  if (!val) return null
+  if (val instanceof Date) return val.toISOString().slice(0, 10)
+  const str = String(val).trim()
+  return str.length >= 10 ? str.slice(0, 10) : str
+}
+
 async function withApprovals(rows: DocumentRow[]) {
   const steps = await currentStepsFor(rows.map((row) => row.id))
   const counts = await slotCounts(rows.map((row) => row.id))
@@ -70,7 +77,8 @@ async function withApprovals(rows: DocumentRow[]) {
         approvedSteps.sort((a, b) => new Date(b.decided_at!).getTime() - new Date(a.decided_at!).getTime())
         const lastDecided = approvedSteps[0].decided_at
         if (lastDecided) {
-          balancedElfDate = lastDecided.slice(0, 10)
+          const dateStr = toIsoDateStr(lastDecided)
+          if (dateStr) balancedElfDate = dateStr
         }
       }
     }

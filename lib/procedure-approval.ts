@@ -231,7 +231,7 @@ export function ensureApprovalSchema() {
         FROM (
           SELECT document_id, MAX(decided_at)::date AS last_date
           FROM procedure_approvals
-          WHERE state = 'approved' AND decided_at IS NOT NULL
+          WHERE status = 'approved' AND decided_at IS NOT NULL
           GROUP BY document_id
         ) sub
         WHERE d.id = sub.document_id AND d.approval_status = 'approved' AND d.elf_date <> sub.last_date
@@ -1163,7 +1163,7 @@ export async function decideByToken(
     await query(
       `UPDATE procedure_documents d
        SET elf_date = COALESCE(
-         (SELECT MAX(decided_at)::date FROM procedure_approvals WHERE document_id = d.id AND state = 'approved'),
+         (SELECT MAX(decided_at)::date FROM procedure_approvals WHERE document_id = d.id AND status = 'approved'),
          (now() AT TIME ZONE 'Asia/Jakarta')::date
        )
        WHERE d.id = $1`,

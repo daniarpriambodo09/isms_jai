@@ -409,7 +409,7 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                     <Camera className="size-4.5" />
                   </div>
                   <span className="font-mono text-[10px] font-semibold text-muted-foreground">
-                    ISMS-F-04-00-001
+                    ISMS-F-010-008
                   </span>
                 </div>
 
@@ -418,19 +418,34 @@ export function FormCsRegisterPage({ category, title }: { category: Category; ti
                     Izin Foto, Video &amp; Peminjaman USB
                   </h4>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    Permohonan izin pengambilan dokumentasi visual serta peminjaman kamera / USB di area perusahaan bagi karyawan internal maupun tamu.
+                    Permohonan izin pengambilan dokumentasi visual serta peminjaman kamera / USB di area perusahaan bagi karyawan internal PT. JAI maupun tamu/visitor eksternal.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 border-t border-border pt-3.5">
+              <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3.5">
                 <Link
-                  href="/ijin-foto-video"
-                  className="group/btn flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-secondary/70 px-3.5 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary"
+                  href="/foto-video-internal"
+                  className="group/btn flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-xs transition hover:bg-primary/90"
                 >
-                  <span>Buka Form Foto, Video &amp; USB</span>
+                  <Camera className="size-3.5" />
+                  <span>Buka Form Internal Karyawan</span>
                   <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </Link>
+                <div className="flex items-center justify-between gap-2 pt-0.5 text-[11px]">
+                  <Link
+                    href="/foto-video-visitor"
+                    className="font-medium text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    Form Tamu / Visitor &rarr;
+                  </Link>
+                  <Link
+                    href="/rekap-foto-video"
+                    className="font-semibold text-primary hover:underline"
+                  >
+                    Lihat Rekap Data &rarr;
+                  </Link>
+                </div>
               </div>
             </div>
 

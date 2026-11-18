@@ -457,10 +457,10 @@ export function PhotoVideoRequestForm({ locale, initialRef = null }: { locale: '
         <div className="flex flex-col gap-3 border-b border-border bg-secondary/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md border border-primary/25 bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary">
-              {isInternal ? 'ISMS-F-01-00-002' : 'ISMS-F-005-001'}
+              {isInternal ? 'ISMS-F-010-008' : 'ISMS-F-010-008'}
             </span>
             <span className="text-xs font-semibold text-foreground">
-              {isInternal ? 'Formulir Izin Foto/Video & Peminjaman Kamera/USB' : 'Visitor Photo/Video Recording Registration'}
+              {isInternal ? 'Formulir Izin Foto/Video & Peminjaman Kamera/USB (Karyawan PT. JAI)' : 'Visitor Photo/Video Recording Registration'}
             </span>
             <span className="hidden text-xs text-muted-foreground md:inline">
               &bull; 写真・ビデオ撮影許可申請書

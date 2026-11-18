@@ -317,13 +317,18 @@ export function Navbar() {
     </>
   )
 
-  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs', '/foto-video-internal', '/ijin-foto-video', '/rekap-foto-video']
+  const formCsRoutes = ['/form-aplikasi', '/kontrol-cs', '/foto-video-internal', '/foto-video-visitor', '/ijin-foto-video', '/rekap-foto-video']
   const isFormCsActive = formCsRoutes.some((route) => pathname.startsWith(route))
   const formCsItems = (
     <>
       <Link href="/form-aplikasi" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">Application Form</Link>
-      <Link href="/foto-video-internal" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-primary font-semibold">
-        Izin Foto &amp; Video Internal (ISMS-F-010-008)
+      <Link href="/foto-video-internal" className="nav-drop-item flex items-center justify-between rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-primary font-bold">
+        <span>Izin Foto &amp; Video Internal (ISMS-F-010-008)</span>
+        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] font-bold text-primary">Karyawan</span>
+      </Link>
+      <Link href="/foto-video-visitor" className="nav-drop-item flex items-center justify-between rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">
+        <span>Izin Foto &amp; Video Visitor</span>
+        <span className="rounded bg-secondary px-1.5 py-0.5 text-[9.5px] font-medium text-muted-foreground">Tamu</span>
       </Link>
       <Link href="/rekap-foto-video" className="nav-drop-item block rounded-md px-3 py-2.5 text-[12.5px] uppercase tracking-[0.04em] text-foreground">
         Rekap Izin Foto &amp; Video

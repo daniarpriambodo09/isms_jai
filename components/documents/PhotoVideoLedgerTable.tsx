@@ -7,7 +7,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowDownUp, Camera, Check, Download, Eye, Loader2, Search, Send, Sparkles, Trash2, Users, RotateCcw, ShieldCheck, CheckCircle2, AlertCircle, HardDrive, Smartphone, CreditCard, X } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowDownUp, Camera, Check, Download, Eye, Loader2, Plus, Search, Send, Sparkles, Trash2, Users, RotateCcw, ShieldCheck, CheckCircle2, AlertCircle, HardDrive, Smartphone, CreditCard, X } from 'lucide-react'
 import { API_BASE_PATH } from '@/lib/config'
 import { useAuth } from '@/context/AuthContext'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -358,6 +359,13 @@ export function PhotoVideoLedgerTable({ canViewPdf = true }: { canViewPdf?: bool
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div><p className="portal-eyebrow">Controlled ledger</p><p className="mt-1 text-sm text-muted-foreground">{filteredRequests.length} pengajuan{query ? ` dari ${typedRequests.length}` : ''}</p></div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={locale === 'internal' ? '/foto-video-internal' : '/foto-video-visitor'}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-xs transition hover:bg-primary/90 active:scale-95"
+          >
+            <Plus className="size-3.5" />
+            <span>{locale === 'internal' ? 'Ajukan Form Foto Internal' : 'Ajukan Form Foto Visitor'}</span>
+          </Link>
           <button type="button" onClick={() => setSortDesc((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:bg-secondary">
             <ArrowDownUp className="size-3.5" />{sortDesc ? 'Terbaru dulu' : 'Terlama dulu'}
           </button>

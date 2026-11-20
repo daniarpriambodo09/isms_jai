@@ -27,10 +27,14 @@ export async function ensureRegistrationIdsColumns(): Promise<void> {
         ADD COLUMN IF NOT EXISTS card_barcode VARCHAR(100),
         ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ;
       ALTER TABLE vendor_registrations
+        ADD COLUMN IF NOT EXISTS registered_station VARCHAR(20),
+        ADD COLUMN IF NOT EXISTS security_card_type VARCHAR(20) DEFAULT 'visitor',
+        ADD COLUMN IF NOT EXISTS supplier_card_barcode VARCHAR(100),
+        ADD COLUMN IF NOT EXISTS security_card_barcode VARCHAR(50),
         ADD COLUMN IF NOT EXISTS id_verified_at TIMESTAMPTZ,
         ADD COLUMN IF NOT EXISTS id_verified_by VARCHAR(50),
         ADD COLUMN IF NOT EXISTS id_returned_at TIMESTAMPTZ,
-        ADD COLUMN IF NOT EXISTS security_card_barcode VARCHAR(50);
+        ADD COLUMN IF NOT EXISTS visit_date DATE;
     `)
     colsEnsured = true
   } catch (err) {

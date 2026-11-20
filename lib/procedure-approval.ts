@@ -119,7 +119,14 @@ export function ensureApprovalSchema() {
         ALTER TABLE procedure_documents
           ADD COLUMN IF NOT EXISTS approval_roles text[] NOT NULL DEFAULT '{}',
           ADD COLUMN IF NOT EXISTS note text,
-          ADD COLUMN IF NOT EXISTS approval_status varchar(20) NOT NULL DEFAULT 'none'`)
+          ADD COLUMN IF NOT EXISTS approval_status varchar(20) NOT NULL DEFAULT 'none',
+          ADD COLUMN IF NOT EXISTS sort_order integer,
+          ADD COLUMN IF NOT EXISTS public_visible boolean NOT NULL DEFAULT true,
+          ADD COLUMN IF NOT EXISTS review_form_path text,
+          ADD COLUMN IF NOT EXISTS approver_overrides jsonb NOT NULL DEFAULT '{}'::jsonb,
+          ADD COLUMN IF NOT EXISTS review_roles text[] NOT NULL DEFAULT '{}',
+          ADD COLUMN IF NOT EXISTS notice_ack_at timestamptz;
+      `)
       await query(`
         CREATE TABLE IF NOT EXISTS procedure_approvals (
           id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -229,12 +236,17 @@ export function ensureApprovalSchema() {
         UPDATE procedure_documents d
         SET elf_date = sub.last_date
         FROM (
-          SELECT document_id, MAX(decided_at)::date AS last_date
+          SELECT document_id, MAX((decided_at AT TIME ZONE 'Asia/Jakarta')::date) AS last_date
           FROM procedure_approvals
           WHERE status = 'approved' AND decided_at IS NOT NULL
           GROUP BY document_id
         ) sub
-        WHERE d.id = sub.document_id AND d.approval_status = 'approved' AND d.elf_date <> sub.last_date
+        WHERE d.id = sub.document_id AND d.approval_status = 'approved' AND (d.elf_date IS NULL OR d.elf_date <> sub.last_date);
+
+        UPDATE document_review_forms f
+        SET effective_date = d.elf_date
+        FROM procedure_documents d
+        WHERE d.id = f.document_id AND d.approval_status = 'approved' AND f.effective_date IS DISTINCT FROM d.elf_date;
       `).catch(() => {})
     })().catch((error) => {
       schemaReady = null
@@ -1163,7 +1175,7 @@ export async function decideByToken(
     await query(
       `UPDATE procedure_documents d
        SET elf_date = COALESCE(
-         (SELECT MAX(decided_at)::date FROM procedure_approvals WHERE document_id = d.id AND status = 'approved'),
+         (SELECT MAX((decided_at AT TIME ZONE 'Asia/Jakarta')::date) FROM procedure_approvals WHERE document_id = d.id AND status = 'approved'),
          (now() AT TIME ZONE 'Asia/Jakarta')::date
        )
        WHERE d.id = $1`,

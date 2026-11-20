@@ -130,17 +130,10 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
     if (home && pathname !== home) router.replace(home)
   }, [isLoading, adminUser, pathname, router])
 
-  if (isKioskRoute) return <>{children}</>
-
-  const isHome = pathname === '/'
-  // A mistyped address: app/not-found.tsx shows the message, so the frame
-  // neither echoes the wrong URL as a title nor adds a second heading.
-  const isNotFound = !(pathname in PAGE_TITLES) && !DYNAMIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
-  const hasOwnHero = isNotFound || OWN_HERO_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
-
   const [departments, setDepartments] = useState<DeptItem[]>([])
 
   useEffect(() => {
+    if (isKioskRoute) return
     const load = () => {
       fetch(`${API_BASE_PATH}/api/departments`, { cache: 'no-store' })
         .then((res) => (res.ok ? res.json() : { departments: [] }))
@@ -150,7 +143,15 @@ export function PortalFrame({ children }: { children: React.ReactNode }) {
     load()
     window.addEventListener(DEPARTMENTS_CHANGED, load)
     return () => window.removeEventListener(DEPARTMENTS_CHANGED, load)
-  }, [])
+  }, [isKioskRoute])
+
+  if (isKioskRoute) return <>{children}</>
+
+  const isHome = pathname === '/'
+  // A mistyped address: app/not-found.tsx shows the message, so the frame
+  // neither echoes the wrong URL as a title nor adds a second heading.
+  const isNotFound = !(pathname in PAGE_TITLES) && !DYNAMIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  const hasOwnHero = isNotFound || OWN_HERO_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 
   const segments = pathname.split('/').filter(Boolean)
   const isDeptPage = segments[0] === 'documents' && segments[1] === 'department' && segments.length === 3

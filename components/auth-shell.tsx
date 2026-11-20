@@ -84,6 +84,7 @@ const ACCESS_OPTIONS: { role: AdminRole; label: string; shortLabel: string; desc
   { role: 'it', label: 'Admin IT', shortLabel: 'IT Ops', description: 'Izin Alat IT & E-Sign Services', code: 'IT-OPS', icon: Laptop },
   { role: 'lobby', label: 'Admin Lobby', shortLabel: 'Lobby', description: 'Pendaftaran & Kartu Tamu', code: 'LOBBY', icon: Building2 },
   { role: 'security', label: 'Admin Security', shortLabel: 'Security', description: 'Pos Security & Gatepass', code: 'GATE-SEC', icon: KeyRound },
+  { role: 'approver', label: 'Approver', shortLabel: 'Approver', description: 'Persetujuan Dokumen & Pengesahan ISMS', code: 'APPROVER', icon: FileCheck2 },
 ]
 
 const MESSAGES = [
@@ -343,7 +344,7 @@ export function AuthSplitLogin({
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        {ACCESS_OPTIONS.map((option) => {
+                        {ACCESS_OPTIONS.map((option, idx) => {
                           const isSelected = selectedRole === option.role
                           return (
                             <button
@@ -355,6 +356,8 @@ export function AuthSplitLogin({
                                 setError(null)
                               }}
                               className={`group rounded-xl border p-2.5 text-left transition-all cursor-pointer ${
+                                idx === 4 ? 'col-span-2' : ''
+                              } ${
                                 isSelected
                                   ? 'border-primary bg-primary/10 shadow-2xs ring-1 ring-primary/30'
                                   : 'border-border bg-secondary/40 hover:bg-secondary hover:border-border/80'

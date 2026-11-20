@@ -99,7 +99,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       controlNo: doc.control_no,
       title: doc.title,
       revision: doc.revision,
-      effDate: doc.elf_date,
+      effDate: (doc.approval_status === 'approved' && lastSigned) ? lastSigned.slice(0, 10) : doc.elf_date,
       filePath: reviewPart ? doc.review_form_path! : doc.file_path,
       status: preview ? 'approved' : doc.approval_status,
       steps: steps.map((s) => preview

@@ -4,6 +4,7 @@ import { query } from '@/lib/db'
 import { deleteDocumentFile, saveDocumentFile } from '@/lib/storage'
 import { logActivity } from '@/lib/activity-log'
 import { parseOrderedIds } from '@/lib/ordered-ids'
+import { ensureFormFotoTemplates } from '@/lib/migration-check'
 
 type Category = 'form-aplikasi' | 'kontrol-cs'
 type KeteranganType = 'none' | 'plain-note' | 'web-base-approval' | 'list-all-daftar'
@@ -51,6 +52,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!category) return NextResponse.json({ message: 'Kategori dokumen tidak valid.' }, { status: 400 })
 
   try {
+    await ensureFormFotoTemplates().catch(() => {})
     const result = await query<DocumentRow>(
       `SELECT ${SELECT_COLUMNS}
        FROM form_cs_documents
